@@ -5,14 +5,14 @@
     <LangVersion>14</LangVersion>
     <AssemblyName>MetaMystia</AssemblyName>
     <Product>MetaMystia</Product>
-    <Version>0.23.0</Version>
+    <Version>0.23.1</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;
       https://nuget.bepinex.dev/v3/index.json
     </RestoreAdditionalProjectSources>
     <RootNamespace>MetaMystia</RootNamespace>
-    <GamePath>M:\Release4.4.0d</GamePath>
+    <GamePath>M:\Release4.4.0e</GamePath>
     <OutputPath>$(GamePath)\BepInEx\plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
