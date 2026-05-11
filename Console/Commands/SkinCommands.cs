@@ -30,7 +30,7 @@ public static class SkinCommands
             if (!System.Enum.TryParse<GameData.Core.Collections.CharacterUtility.CharacterSkinSets.SelectedType>(
                     typeStr, true, out var selectedType))
             {
-                ctx.Log($"Invalid type: {typeStr}. Use Default, Explicit, or DLC.");
+                ctx.Log(TextId.SkinMsgInvalidType.Get(typeStr));
                 return;
             }
 
@@ -40,7 +40,7 @@ public static class SkinCommands
             if (MpManager.IsConnected)
                 SkinChangeAction.Send(PlayerManager.Local.Skin);
             PlayerManager.RefreshPortrait();
-            ctx.Log($"Skin set to: CharacterId={characterId}, Type={selectedType}, Index={skinIndex}");
+            ctx.Log(TextId.SkinMsgSetOk.Get(characterId, selectedType, skinIndex));
         });
         skinCmd.AddCommand(setCmd);
 
@@ -54,9 +54,72 @@ public static class SkinCommands
             if (MpManager.IsConnected)
                 SkinChangeAction.Send(PlayerManager.Local.Skin);
             PlayerManager.RefreshPortrait();
-            ctx.Log("Skin reset to game default.");
+            ctx.Log(TextId.SkinMsgResetOk.Get());
         });
         skinCmd.AddCommand(offCmd);
+
+        // /skin net <name> | /skin net off
+        var netCmd = new Command("net", "Use a network skin from the skin station");
+        var netNameArg = new Argument<string>("name", "Net skin name (or 'off' to clear)");
+        netCmd.AddArgument(netNameArg);
+        netCmd.SetHandler(ctx =>
+        {
+            var name = ctx.ParseResult.GetValueForArgument(netNameArg);
+            if (string.Equals(name, "off", System.StringComparison.OrdinalIgnoreCase))
+            {
+                PlayerManager.Local.Skin.SetNetSkin(null);
+                PlayerManager.Local.IsCustomSkinOverride = false;
+                PlayerManager.InitLocalSkin();
+                PlayerManager.Local.UpdateCharacterSprite();
+                if (MpManager.IsConnected)
+                    SkinChangeAction.Send(PlayerManager.Local.Skin);
+                PlayerManager.RefreshPortrait();
+                ctx.Log(TextId.SkinMsgNetClearOk.Get());
+                return;
+            }
+
+            if (string.Equals(name, "refresh", System.StringComparison.OrdinalIgnoreCase))
+            {
+                var current = PlayerManager.Local.Skin.NetSkinName;
+                if (string.IsNullOrEmpty(current))
+                {
+                    ctx.Log(TextId.SkinMsgNetRefreshNoSkin.Get());
+                    return;
+                }
+                NetSkinManager.Invalidate(current);
+                NetSkinManager.RequestSkin(current, ok =>
+                {
+                    if (ok) ctx.Log(TextId.SkinMsgNetLoaded.Get(current));
+                    else ctx.Log(TextId.SkinMsgNetFailed.Get(current));
+                });
+                PlayerManager.Local.UpdateCharacterSprite();
+                PlayerManager.RefreshPortrait();
+                ctx.Log(TextId.SkinMsgNetRefreshing.Get(current));
+                return;
+            }
+
+            if (!NetSkinManager.IsValidName(name))
+            {
+                ctx.Log(TextId.SkinMsgInvalidName.Get(name));
+                return;
+            }
+
+            PlayerManager.Local.Skin.SetNetSkin(name);
+            PlayerManager.Local.IsCustomSkinOverride = true;
+            // 先应用 Fallback 占位，下载完成后 NetSkinManager 会自动重新刷新
+            PlayerManager.Local.UpdateCharacterSprite();
+            if (MpManager.IsConnected)
+                SkinChangeAction.Send(PlayerManager.Local.Skin);
+            PlayerManager.RefreshPortrait();
+
+            NetSkinManager.RequestSkin(name, ok =>
+            {
+                if (ok) ctx.Log(TextId.SkinMsgNetLoaded.Get(name));
+                else ctx.Log(TextId.SkinMsgNetFailed.Get(name));
+            });
+            ctx.Log(TextId.SkinMsgNetRequesting.Get(name));
+        });
+        skinCmd.AddCommand(netCmd);
 
         // /skin list
         var listCmd = new Command("list", "List all available skins");
@@ -71,6 +134,7 @@ public static class SkinCommands
         {
             ctx.Log(ConsoleFormat.Header(TextId.SkinHelpHeader.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/skin set", "<charId> <Default|Explicit|DLC> <skinIdx>", TextId.SkinDescSet.Get()));
+            ctx.Log(ConsoleFormat.SubCmd("/skin net", "<name|off|refresh>", TextId.SkinDescNet.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/skin off", null, TextId.SkinDescOff.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/skin list", null, TextId.SkinDescList.Get()));
             ctx.Log(ConsoleFormat.Line);
@@ -78,9 +142,10 @@ public static class SkinCommands
 
         root.AddCommand(skinCmd);
 
-        CommandRegistry.RegisterCompletions("skin", 0, "set", "off", "list");
+        CommandRegistry.RegisterCompletions("skin", 0, "set", "net", "off", "list");
         CommandRegistry.RegisterCompletions("skin set", 1, "Default", "Explicit", "DLC");
         CommandRegistry.RegisterHint("skin set", 0, "<characterId>");
         CommandRegistry.RegisterHint("skin set", 2, "<skinIndex>");
+        CommandRegistry.RegisterHint("skin net", 0, "<name|off|refresh>");
     }
 }

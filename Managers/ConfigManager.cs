@@ -32,6 +32,8 @@ public static partial class ConfigManager
     public static ConfigEntry<bool> EnableIPv6;
     public static ConfigEntry<string> LocaleOverride;
     public static ConfigEntry<bool> NoteBookSkinPortrait;
+    public static ConfigEntry<string> SkinServerUrl;
+    public static ConfigEntry<string> SkinServerToken;
 
     // Console layout
     public static ConfigEntry<float> ConsoleX;
@@ -96,6 +98,14 @@ public static partial class ConfigManager
         NoteBookSkinPortrait = Config.Bind("Experimental", "NoteBookSkinPortrait", false,
             "(Experimental) Enable portrait replacement for Skin System in NoteBook\n" +
             "(实验性)是否在笔记本中为皮肤系统启用立绘替换功能");
+
+        SkinServerUrl = Config.Bind("Skin", "SkinServerUrl", "https://skin.metamystia.net",
+            "Base URL of the skin distribution server. Skins are fetched from <url>/skins/<name>.png\n" +
+            "皮肤分发服务器地址，皮肤会从 <url>/skins/<name>.png 拉取");
+
+        SkinServerToken = Config.Bind("Skin", "SkinServerToken", "57443d024afa430adba6017d3a0215d4",
+            "Static bearer token sent as `Authorization: Bearer <token>` to the skin server. Leave empty to disable.\n" +
+            "发送给皮肤服务器的静态令牌（`Authorization: Bearer <token>`）。留空则不发送");
 
         // Console layout
         ConsoleX = Config.Bind("Console", "X", 8f,

@@ -29,6 +29,9 @@ public partial class SkinChangeAction : Action
 
             peer.Skin = Skin;
             peer.UpdateCharacterSprite();
+            // 如果对端使用了网络皮肤，本地也应该从服务器拉取（完成后会自动刷新）
+            if (!string.IsNullOrEmpty(Skin?.NetSkinName))
+                NetSkinManager.RequestSkin(Skin.NetSkinName);
         });
     }
 
