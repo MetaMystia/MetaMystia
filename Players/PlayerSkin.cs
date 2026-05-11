@@ -22,10 +22,25 @@ public partial class PlayerSkin
     public int SkinIndex = 0;
 
     /// <summary>
+    /// 在线皮肤名（皮肤站标识）。非空时优先使用，由 NetSkinManager 负责异步拉取与解析；
+    /// 未就绪时返回 Fallback 占位，下载完成后会自动刷新。为空则回落到原有 CharacterId/Type/Index 流程。
+    /// </summary>
+    public string NetSkinName = null;
+
+    /// <summary>
     /// 解析 CharacterSpriteSetCompact
     /// </summary>
     public CharacterSpriteSetCompact ResolveSkin()
     {
+        if (!string.IsNullOrEmpty(NetSkinName))
+        {
+            if (NetSkinManager.TryGet(NetSkinName, out var net))
+                return net;
+            // 未就绪：触发异步加载，先返回 Fallback 占位
+            NetSkinManager.RequestSkin(NetSkinName);
+            return DataBaseCharacter.FallbackFullPixel;
+        }
+
         if (CharacterId == -1)
         {
             return ResolveSkin(DataBaseCharacter.SelfSpriteSet, SelectedType, SkinIndex);
@@ -160,6 +175,15 @@ public partial class PlayerSkin
         CharacterId = characterId;
         SelectedType = selectedType;
         SkinIndex = skinIndex;
+        NetSkinName = null;
+    }
+
+    /// <summary>
+    /// 设定在线皮肤名。非空时由 NetSkinManager 异步拉取与解析。
+    /// </summary>
+    public void SetNetSkin(string name)
+    {
+        NetSkinName = string.IsNullOrEmpty(name) ? null : name;
     }
 
     /// <summary>

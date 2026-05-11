@@ -194,8 +194,21 @@ public enum TextId
     CallDescSceneMove,
     CallDescTryCloseIzakaya,
     SkinDescSet,
+    SkinDescNet,
     SkinDescOff,
     SkinDescList,
+
+    // Skin command runtime messages
+    SkinMsgInvalidType,
+    SkinMsgSetOk,
+    SkinMsgResetOk,
+    SkinMsgNetClearOk,
+    SkinMsgInvalidName,
+    SkinMsgNetRequesting,
+    SkinMsgNetRefreshing,
+    SkinMsgNetRefreshNoSkin,
+    SkinMsgNetLoaded,
+    SkinMsgNetFailed,
 
     // Console startup & link
     ConsoleStarPrompt,
