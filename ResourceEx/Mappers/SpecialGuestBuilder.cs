@@ -51,6 +51,9 @@ internal class SpecialGuestBuilder
     private Il2CppReferenceArray<DialogPackage> _characterKizunaLevel5RequestBeverage;
     private Il2CppReferenceArray<DialogPackage> _characterKizunaLevel5Commision;
     private Il2CppReferenceArray<DialogPackage> _characterKizunaLevel5CommisionFinish;
+    public bool? _hideInAlbum;
+    public bool? _isParticular;
+    public bool? _isCollabCharacter;
 
     private SpecialGuestBuilder(SpecialGuest template)
     {
@@ -294,6 +297,22 @@ internal class SpecialGuestBuilder
             : new Il2CppReferenceArray<DialogPackage>(0);
         return this;
     }
+    public SpecialGuestBuilder WithHideInAlbum(bool? hideInAlbum)
+    {
+        _hideInAlbum = hideInAlbum;
+        return this;
+    }
+
+    public SpecialGuestBuilder WithIsParticular(bool? isParticular)
+    {
+        _isParticular = isParticular;
+        return this;
+    }
+    public SpecialGuestBuilder WithIsCollabCharacter(bool? isCollabCharacter)
+    {
+        _isCollabCharacter = isCollabCharacter;
+        return this;
+    }
 
     // public SpecialGuestBuilder WithDestination(string spawnMarkerName)
     // {
@@ -343,9 +362,9 @@ internal class SpecialGuestBuilder
             _characterKizunaLevel5RequestBeverage ?? _template.characterKizunaLevel5RequestBeverage,
             _characterKizunaLevel5Commision ?? _template.characterKizunaLevel5Commision,
             _characterKizunaLevel5CommisionFinish ?? _template.characterKizunaLevel5CommisionFinish,
-            _template.hideInAlbum,
-            _template.IsParticular,
-            _template.IsCollabCharacter,
+            _hideInAlbum ?? _template.hideInAlbum,
+            _isParticular ?? _template.IsParticular,
+            _isCollabCharacter ?? _template.IsCollabCharacter,
             _template.SpawnType,
             _template.unifiedSpawnExclusion,
             _template.unifiedSpawnWhereAfterEventOrMission,

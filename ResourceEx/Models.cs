@@ -22,6 +22,9 @@ public class CharacterConfig
     public CharacterSpriteSetCompactConfig characterSpriteSetCompact { get; set; }
     public KizunaEventConfig kizuna { get; set; }
     public SpawnMarkerConfig spawnMarker { get; set; }
+    public bool hideInAlbum { get; set; }
+    public bool isParticular { get; set; }
+    public bool isCollabCharacter { get; set; }
 }
 
 public class SpawnMarkerConfig
