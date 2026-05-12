@@ -255,6 +255,9 @@ public static partial class Mappers
             case TriggerType.KizunaCheckPoint:
                 trigger.triggerId = config.triggerId;
                 break;
+            case TriggerType.OnTalkWithCharacter:
+                trigger.triggerId = config.triggerId;
+                break;
             default:
                 Log.Error($"Unsupported event trigger type {config.triggerType} in EventNode {debugLabel}");
                 break;
