@@ -330,6 +330,9 @@ public static partial class Mappers
             .WithCharacterKizunaLevel5RequestBeverage(GetDialogPackagesFromNames(config.kizuna?.lv5RequestBeverage))
             .WithCharacterKizunaLevel5Commision(GetDialogPackagesFromNames(config.kizuna?.lv5Commision))
             .WithCharacterKizunaLevel5CommisionFinish(GetDialogPackagesFromNames(config.kizuna?.lv5CommisionFinish))
+            .WithHideInAlbum(config.hideInAlbum)
+            .WithIsParticular(config.isParticular)
+            .WithIsCollabCharacter(config.isCollabCharacter)
             .Build();
     }
 
