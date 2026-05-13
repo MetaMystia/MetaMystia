@@ -108,10 +108,13 @@ public partial class PluginManager : MonoBehaviour
                 _ = MpManager.ConnectToPeerAsync("127.0.0.1");
                 InGameConsole.ShowPassive("[DEBUG] Connecting to Self");
             }
-
             if (Input.GetKeyDown(KeyCode.F3))
             {
                 StoryReplayManager.Test();
+            }
+            if (Input.GetKeyDown(KeyCode.F5))
+            {
+                ResourceExManager.SpellTest();
             }
             if (Input.GetKeyDown(KeyCode.F11))
             {
