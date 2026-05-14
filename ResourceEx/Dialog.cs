@@ -211,7 +211,7 @@ public static partial class ResourceExManager
 
     public static void DumpExampleDialog()
     {
-        Utils.FindAndProcessResources<DialogPackage>(dialogPackage =>
+        MystiaUtils.FindAndProcessResources<DialogPackage>(dialogPackage =>
         {
             var packageName = dialogPackage.name;
             if (packageName == "OnTransitionToNight")

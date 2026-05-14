@@ -127,7 +127,7 @@ public static partial class PlayerManager
             if (string.IsNullOrEmpty(peer.IzakayaMapLabel) || peer.IzakayaLevel == 0)
                 return $"{peer.Id}: 未选择";
             if (peer.IzakayaMapLabel != mapLabel || peer.IzakayaLevel != level)
-                return $"{peer.Id}: {Utils.GetMapLabelNameCN(peer.IzakayaMapLabel)} {Utils.GetMapLevelNameCN(peer.IzakayaLevel)}";
+                return $"{peer.Id}: {MystiaUtils.GetMapLabelNameCN(peer.IzakayaMapLabel)} {MystiaUtils.GetMapLevelNameCN(peer.IzakayaLevel)}";
         }
         return null;
     }

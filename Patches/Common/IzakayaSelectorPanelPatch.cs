@@ -54,7 +54,7 @@ public partial class IzakayaSelectorPanelPatch
         // 广播自己的选择
         SelectAction.Send(izakayaMapLabel, izakayaLevel);
 
-        var mySelect = $"{Utils.GetMapLabelNameCN(izakayaMapLabel)} {Utils.GetMapLevelNameCN(izakayaLevel)}";
+        var mySelect = $"{MystiaUtils.GetMapLabelNameCN(izakayaMapLabel)} {MystiaUtils.GetMapLevelNameCN(izakayaLevel)}";
 
         if (MpManager.IsClient)
         {
@@ -83,7 +83,7 @@ public partial class IzakayaSelectorPanelPatch
             return;
         }
 
-        var mySelect = $"{Utils.GetMapLabelNameCN(mapLabel)} {Utils.GetMapLevelNameCN(level)}";
+        var mySelect = $"{MystiaUtils.GetMapLabelNameCN(mapLabel)} {MystiaUtils.GetMapLevelNameCN(level)}";
 
         if (!PlayerManager.AllPeersSelectedSameIzakaya(mapLabel, level))
         {
@@ -112,7 +112,7 @@ public partial class IzakayaSelectorPanelPatch
         // 自己还没选，不显示摘要
         if (string.IsNullOrEmpty(myMapLabel) || myLevel == 0) return;
 
-        var mySelect = $"{Utils.GetMapLabelNameCN(myMapLabel)} {Utils.GetMapLevelNameCN(myLevel)}";
+        var mySelect = $"{MystiaUtils.GetMapLabelNameCN(myMapLabel)} {MystiaUtils.GetMapLevelNameCN(myLevel)}";
 
         if (!PlayerManager.AllPeersSelectedSameIzakaya(myMapLabel, myLevel))
         {

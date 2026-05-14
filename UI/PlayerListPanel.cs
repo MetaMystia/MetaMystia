@@ -206,11 +206,11 @@ public static partial class PlayerListPanel
         if (!PlayerManager.AllDayOver)
         {
             // 仍在白天探索
-            return $"{name}  <color={dim}>{Utils.GetMapLabelNameCN(mapLabel)}  ({pos.x:F2}, {pos.y:F2})  {ReadyTag(isDayOver)}</color>";
+            return $"{name}  <color={dim}>{MystiaUtils.GetMapLabelNameCN(mapLabel)}  ({pos.x:F2}, {pos.y:F2})  {ReadyTag(isDayOver)}</color>";
         }
         // 全员进入选店
         string map = !string.IsNullOrEmpty(izakayaMapLabel)
-            ? Utils.GetMapLabelNameCN(izakayaMapLabel) : "…";
+            ? MystiaUtils.GetMapLabelNameCN(izakayaMapLabel) : "…";
         string level = izakayaLevel > 0 ? $" Lv.{izakayaLevel}" : "";
         return $"{name}  <color={dim}>{map}{level}</color>";
     }

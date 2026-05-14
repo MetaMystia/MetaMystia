@@ -24,7 +24,7 @@ public partial class SelectAction : Action
             PlayerManager.Peers.TryGetValue(SenderUid, out var senderPeer);
             var peerName = senderPeer?.Id ?? "???";
             InGameConsole.ShowPassive(TextId.PeerSelectedIzakaya.Get(
-                $"{peerName}", $"{Utils.GetMapLabelNameCN(MapLabel)} {Utils.GetMapLevelNameCN(MapLevel)}"));
+                $"{peerName}", $"{MystiaUtils.GetMapLabelNameCN(MapLabel)} {MystiaUtils.GetMapLevelNameCN(MapLevel)}"));
 
             // 主机收到 SELECT 后自动检查全员是否一致
             if (MpManager.IsHost)

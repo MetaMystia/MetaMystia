@@ -21,7 +21,7 @@ public partial class ConfirmSelectAction : Action
     {
         PluginManager.Instance.RunOnMainThread(() =>
         {
-            var display = $"{Utils.GetMapLabelNameCN(MapLabel)} {Utils.GetMapLevelNameCN(MapLevel)}";
+            var display = $"{MystiaUtils.GetMapLabelNameCN(MapLabel)} {MystiaUtils.GetMapLevelNameCN(MapLevel)}";
             InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(display));
             SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
 

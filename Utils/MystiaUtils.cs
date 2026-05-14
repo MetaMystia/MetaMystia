@@ -7,7 +7,7 @@ using UnityEngine;
 namespace MetaMystia;
 
 [AutoLog]
-public static partial class Utils
+public static partial class MystiaUtils
 {
     public static string GetMapLabelNameCN(string mapLabel)
     {

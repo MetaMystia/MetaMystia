@@ -142,7 +142,7 @@ public static partial class ExportUtils
         if (!Directory.Exists(exportDir))
             Directory.CreateDirectory(exportDir);
 
-        Utils.FindAndProcessResources<CharacterSpriteSetCompact>(spriteSet =>
+        MystiaUtils.FindAndProcessResources<CharacterSpriteSetCompact>(spriteSet =>
         {
             if (spriteSet == null || spriteSet.mainSprite == null)
                 return;
