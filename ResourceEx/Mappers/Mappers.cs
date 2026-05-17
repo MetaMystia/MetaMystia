@@ -133,8 +133,21 @@ public static partial class Mappers
         var missionNode = ScriptableObject.CreateInstance<MissionNode>();
         missionNode.name = config.label;
         missionNode.label = config.label;
-        missionNode.missionFailedAction = MissionFailedAction.None;
+        missionNode.debugLabel = config.debugLabel ?? "";
         missionNode.missionType = config.missionType;
+
+        missionNode.preNodes = config.preNodes?.ToArray() ?? new string[0];
+        missionNode.hideReciever = config.hideReciever;
+
+        missionNode.isTimedMission = config.isTimedMission;
+        missionNode.loopedMission = config.loopedMission;
+        missionNode.missionFailedAction = config.missionFailedAction;
+
+        if (config.missionTimeLimit != null)
+            missionNode.missionTimeLimit = config.missionTimeLimit.ToTrigger(config.debugLabel);
+
+        if (config.missionFailedEvent != null)
+            missionNode.missionFailedEvent = config.missionFailedEvent.ToEventData(config.debugLabel);
 
         missionNode.rewards = config.rewards?.Select(ToReward).ToArray() ?? new Il2CppReferenceArray<Reward>(0);
         missionNode.postRewards = config.postRewards?.Select(ToReward).ToArray() ?? new Il2CppReferenceArray<Reward>(0);
@@ -216,6 +229,9 @@ public static partial class Mappers
                 condition.amount = config?.amount ?? 0; // 所需的羁绊等级
                 // condition.label 已在方法开头统一设置，存的是角色标识
                 break;
+            case FinishCondition.ConditionType.BillRepayment:
+                condition.amount = config?.amount ?? 0; // 需要偿还的金额 ($a)
+                break;
             default:
                 break;
         }
@@ -262,6 +278,15 @@ public static partial class Mappers
 
         var trigger = new SchedulerNode.Trigger();
         trigger.triggerType = config.triggerType;
+        trigger.triggerId = config.triggerId ?? "";
+        trigger.anyTime = config.anyTime;
+        trigger.amount = config.amount;
+        trigger.labels = config.labels ?? new string[0];
+        trigger.executeOrder = config.executeOrder;
+        trigger.scheduleAtFirst = config.scheduleAtFirst;
+
+        if (config.time != null)
+            trigger.time = config.time.ToDay();
 
         switch (config.triggerType)
         {
@@ -272,10 +297,28 @@ public static partial class Mappers
                 trigger.triggerId = config.triggerId;
                 break;
             default:
-                Log.Error($"Unsupported event trigger type {config.triggerType} in EventNode {debugLabel}");
+                if (string.IsNullOrEmpty(config.triggerId))
+                    break;
+                Log.Warning($"Unknown trigger type {config.triggerType} in {debugLabel}, but triggerId is set");
                 break;
         }
         return trigger;
+    }
+
+    public static SchedulerNode.Day ToDay(this DayConfig config)
+    {
+        if (config == null) return new SchedulerNode.Day();
+
+        var day = new SchedulerNode.Day();
+        day.dayType = config.dayType;
+        day.dayCalcType = config.dayCalcType;
+
+        if (config.dayCalcType == SchedulerNode.Day.CalculateType.Random)
+            day.dayRange = new Vector2Int(config.dayRangeMin, config.dayRangeMax);
+        else
+            day.day = config.day;
+
+        return day;
     }
 
     public static SchedulerNode.Event ToEventData(this EventDataConfig config, string debugLabel = "")
