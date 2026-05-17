@@ -228,6 +228,9 @@ public static partial class Mappers
             case FinishCondition.ConditionType.BillRepayment:
                 condition.amount = config?.amount ?? 0; // 需要偿还的金额 ($a)
                 break;
+            case FinishCondition.ConditionType.TalkWithCharacter:
+                // condition.label 已在方法开头统一设置，存的是角色标识
+                break;
             default:
                 break;
         }
