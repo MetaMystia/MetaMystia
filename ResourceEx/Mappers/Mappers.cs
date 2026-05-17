@@ -203,6 +203,11 @@ public static partial class Mappers
                 condition.tags = config?.tags ?? new int[0]; // 所需物品的标签
                 condition.sellableType = config?.sellableType ?? SellableType.Food; // 所需 Sellable 的类型
                 break;
+            case FinishCondition.ConditionType.SubmitByAnyOneTag:
+                condition.amount = config?.amount ?? 0; // 所需物品的数量
+                condition.tags = config?.tags ?? new int[0]; // 所需物品的标签
+                condition.sellableType = config?.sellableType ?? SellableType.Food; // 所需 Sellable 的类型
+                break;
             default:
                 break;
         }
