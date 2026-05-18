@@ -204,6 +204,10 @@
       <HintPath>$(BepInExPath)\interop\UnityEngine.Physics2DModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(GamePath)\BepInEx\interop\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.JSONSerializeModule">
       <HintPath>$(BepInExPath)\interop\UnityEngine.JSONSerializeModule.dll</HintPath>
       <Private>False</Private>
