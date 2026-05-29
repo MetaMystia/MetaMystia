@@ -14,12 +14,27 @@ namespace MetaMystia;
 
 public static partial class ResourceExManager
 {
-    public static void SpellTest()
+    /// <summary>
+    /// 通用符卡注册：CreateInstance → 注册到 DataBase → 注册立绘 → 标记。
+    /// 所有符卡共用此方法，只需提供 ID、类型、语言数据和立绘 URI。
+    ///
+    /// 使用示例：
+    ///   RegisterSpell&lt;Spell_Example&gt;(
+    ///       spellId: 9002,
+    ///       positiveName: "红卡名", positiveDesc: "红卡描述",
+    ///       negativeName: "黑卡名", negativeDesc: "黑卡描述",
+    ///       portraitUri: "rex://.../Portrait/0.png");
+    /// </summary>
+    private static void RegisterSpell<T>(
+        int spellId,
+        string positiveName,
+        string positiveDesc,
+        string negativeName,
+        string negativeDesc,
+        string portraitUri = null) where T : SpellBase
     {
-        const int spellId = 9000;
-        const string portraitUri = "rex://ResourceExample/assets/Character/9000/Portrait/0.png";
 
-        // 1. 注册 Spell_Test 并新建实例，作为 9000 号角色的符卡。
+        // 1. 注册 Spell_Test 并新建实例
         //    - RegisterTypeInIl2Cpp 把这个托管类型登记到 il2cpp 域，让 il2cpp 认识它的 vtable，
         //      之后 ScriptableObject.CreateInstance<T>() 才能在 Unity native 侧真正造出 Spell_Test
         //      子类实例，OnPositiveBuffExecute 等 override 才能被游戏 native 调用命中。
@@ -28,20 +43,20 @@ public static partial class ResourceExManager
         //      （内部 NullReferenceException），原因是 il2cpp 找不到对应的 Class。
         //    - 实例本身不需要托管侧静态字段保活：下面塞进 DataBaseNight.SpecialGuestSpell 的
         //      RuntimeHandle 已经在 il2cpp 侧持有强引用，Unity native 对象不会被回收。
-        ClassInjector.RegisterTypeInIl2Cpp<Spell_Daiyousei>();
-        var spell = ScriptableObject.CreateInstance<Spell_Daiyousei>();
+        ClassInjector.RegisterTypeInIl2Cpp<T>();
+        var spell = ScriptableObject.CreateInstance<T>();
 
         var spellHandle = new Common.SceneDirector.RuntimeHandle<SpellBase>(spell);
         DataBaseNight.SpecialGuestSpell[spellId] = spellHandle.Cast<IAssetHandle<SpellBase>>();
 
         // 2. 注册符卡名称和描述。通常只有两个版本，秦心(额外含有喜怒哀乐等子符卡)等除外
         var langs = new Il2CppReferenceArray<LanguageBase>(2);
-        langs[0] = new LanguageBase("「妖精的呼朋引伴」", "大妖精喊来了笨蛋们！");
-        langs[1] = new LanguageBase("雾符「我也不知道这个符卡该叫什么名字！」", "大妖精在食堂里释放了迷雾！顾客区视野受阻 30 秒");
+        langs[0] = new LanguageBase(positiveName, positiveDesc);
+        langs[1] = new LanguageBase(negativeName, negativeDesc);
         GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[spellId] = langs;
 
-        // 3. 通过 rex 管线加载立绘并注册为符卡立绘。
-        if (TryGetSprite(portraitUri, out var portraitSprite) && portraitSprite != null)
+        // 3. 注册立绘（可选，portraitUri 传 null 则跳过） ----
+        if (portraitUri != null && TryGetSprite(portraitUri, out var portraitSprite) && portraitSprite != null)
         {
             // pivot=(0.5, 0.65) 把锚点抬高到约胸部位置，游戏 SpellDeclareCutinCharacter
             // 会自动将 Image 的 pivot 对齐到 sprite pivot，使得上半身居中、下半身被裁切，
@@ -61,12 +76,37 @@ public static partial class ResourceExManager
                 spriteAssetHandle, spriteAssetHandle);
             DataBaseNight.SpecialGuestSpellPortrayal.ForceAddOrUpdateValueTuple(spellId, tuple);
         }
-        else
+        else if (portraitUri != null)
         {
-            Log.Warning($"SpellTest: 加载立绘 sprite 失败 {portraitUri}");
+            Log.Warning($"RegisterSpell<{typeof(T).Name}>: 加载立绘 sprite 失败 {portraitUri}");
         }
 
         // 4. 标记该角色拥有符卡，让夜场流程能正确识别。
         DataBaseCharacter.CharacterHasSpell[spellId] = true;
+        Log.Info($"RegisterSpell<{typeof(T).Name}>: 已注册 {spellId} 号符卡");
+    }
+
+    // ===== 具体符卡注册 =====
+
+    public static void SpellTest()
+    {
+        RegisterSpell<Spell_Daiyousei>(
+            spellId: 9000,
+            positiveName: "「妖精的呼朋引伴」",
+            positiveDesc: "大妖精喊来了笨蛋们！",
+            negativeName: "雾符「我也不知道这个符卡该叫什么名字！」",
+            negativeDesc: "大妖精在食堂里释放了迷雾！顾客区视野受阻 30 秒",
+            portraitUri: "rex://ResourceExample/assets/Character/9000/Portrait/0.png");
+    }
+
+    public static void SpellKoakuma()
+    {
+        RegisterSpell<Spell_Koakuma>(
+            spellId: 9001,
+            positiveName: "灵符「遗失典籍的回响」",
+            positiveDesc: "小恶魔从图书馆搬来一本百科全书",
+            negativeName: "幻符「馆藏乱序」",
+            negativeDesc: "小恶魔……什么也没干",
+            portraitUri: "rex://ResourceExample/assets/Character/9001/Portrait/0.png");
     }
 }

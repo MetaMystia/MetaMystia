@@ -98,6 +98,7 @@ public partial class PluginManager : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.F3))
             {
                 ResourceExManager.SpellTest();
+                ResourceExManager.SpellKoakuma();
             }
 
             if (Input.GetKeyDown(KeyCode.F4))

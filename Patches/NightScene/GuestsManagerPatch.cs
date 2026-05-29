@@ -510,6 +510,17 @@ public partial class GuestsManagerPatch
     }
 
     /// <summary>
+    /// 小恶魔红卡：稀客点单时触发订单详情提示。
+    /// </summary>
+    [HarmonyPatch(nameof(GuestsManager.GenerateOrderSession))]
+    [HarmonyPostfix]
+    public static void GenerateOrderSession_Koakuma_Postfix(GuestGroupController guestGroup)
+    {
+        if (guestGroup.ControllType == GuestsManager.GuestType.Special)
+            ResourceEx.SpellCollection.Spell_Koakuma.OnSpecialGuestOrder(guestGroup);
+    }
+
+    /// <summary>
     /// 主机顾客开始一轮点单，客机跳过。
     /// </summary>
     /// <param name="toCycle"></param>
