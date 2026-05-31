@@ -133,14 +133,10 @@ public static partial class Mappers
         var missionNode = ScriptableObject.CreateInstance<MissionNode>();
         missionNode.name = config.label;
         missionNode.label = config.label;
-        missionNode.debugLabel = config.debugLabel ?? "";
+        missionNode.debugLabel = config.debugLabel ?? config.label ?? "";
         missionNode.missionType = config.missionType;
 
-        missionNode.preNodes = config.preNodes?.ToArray() ?? new string[0];
-        missionNode.hideReciever = config.hideReciever;
-
         missionNode.isTimedMission = config.isTimedMission;
-        missionNode.loopedMission = config.loopedMission;
         missionNode.missionFailedAction = config.missionFailedAction;
 
         if (config.missionTimeLimit != null)
@@ -278,15 +274,7 @@ public static partial class Mappers
 
         var trigger = new SchedulerNode.Trigger();
         trigger.triggerType = config.triggerType;
-        trigger.triggerId = config.triggerId ?? "";
-        trigger.anyTime = config.anyTime;
-        trigger.amount = config.amount;
-        trigger.labels = config.labels ?? new string[0];
-        trigger.executeOrder = config.executeOrder;
-        trigger.scheduleAtFirst = config.scheduleAtFirst;
-
-        if (config.time != null)
-            trigger.time = config.time.ToDay();
+        trigger.labels = new string[0];
 
         switch (config.triggerType)
         {
@@ -296,10 +284,14 @@ public static partial class Mappers
             case TriggerType.OnTalkWithCharacter:
                 trigger.triggerId = config.triggerId;
                 break;
+            case TriggerType.OnWorkEnd:
+                trigger.triggerId = "";
+                trigger.time = config.time.ToDay();
+                break;
             default:
                 if (string.IsNullOrEmpty(config.triggerId))
                     break;
-                Log.Warning($"Unknown trigger type {config.triggerType} in {debugLabel}, but triggerId is set");
+                Log.Error($"Unsupported event trigger type {config.triggerType} in EventNode {debugLabel}");
                 break;
         }
         return trigger;

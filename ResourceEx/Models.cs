@@ -280,8 +280,6 @@ public class MissionNodeConfig
     public SchedulerNode.SchedulerType missionType { get; set; }
     public string sender { get; set; }
     public string reciever { get; set; } // ignore typo
-    public bool hideReciever { get; set; }
-    public List<string> preNodes { get; set; }
     public List<MissionRewardConfig> rewards { get; set; }
     public List<MissionRewardConfig> postRewards { get; set; }
     public List<MissionFinishConditionConfig> finishConditions { get; set; }
@@ -289,9 +287,8 @@ public class MissionNodeConfig
     public EventDataConfig missionFailedEvent { get; set; }
     public List<string> postMissionsAfterPerformance { get; set; }
     public List<string> postEvents { get; set; }
-    public bool isTimedMission { get; set; }
-    public bool loopedMission { get; set; }
-    public MissionNode.MissionFailedAction missionFailedAction { get; set; }
+    public bool isTimedMission { get; set; } = false;
+    public MissionNode.MissionFailedAction missionFailedAction { get; set; } = MissionNode.MissionFailedAction.None;
     public TriggerConfig missionTimeLimit { get; set; }
 }
 
@@ -329,8 +326,8 @@ public class EventNodeConfig
 
 public class DayConfig
 {
-    public SchedulerNode.Day.DayType dayType { get; set; }
-    public SchedulerNode.Day.CalculateType dayCalcType { get; set; }
+    public Day.DayType dayType { get; set; }
+    public Day.CalculateType dayCalcType { get; set; }
     public int day { get; set; }
     public int dayRangeMin { get; set; }
     public int dayRangeMax { get; set; }
@@ -341,11 +338,6 @@ public class TriggerConfig
     public TriggerType triggerType { get; set; }
     public string triggerId { get; set; }
     public DayConfig time { get; set; }
-    public bool anyTime { get; set; }
-    public int amount { get; set; }
-    public string[] labels { get; set; }
-    public int executeOrder { get; set; }
-    public bool scheduleAtFirst { get; set; }
 }
 
 public class ScheduledEventConfig
