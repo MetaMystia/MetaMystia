@@ -116,6 +116,10 @@ public partial class PluginManager : MonoBehaviour
             {
                 ResourceExManager.SpellTest();
             }
+            if (Input.GetKeyDown(KeyCode.F4))
+            {
+                ResourceEx.AssetBundles.Test.Test1();
+            }
             if (Input.GetKeyDown(KeyCode.F11))
             {
                 Debugger ??= new Debugger.WebDebugger();
