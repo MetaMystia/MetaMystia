@@ -29,7 +29,7 @@ public partial class QTEAction : Action
                 Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
                 return;
             }
-            CookControllerPatch.StartCookCountDown_Original(cookerController, QTEScore, false);
+            CookControllerPatch.StartCookCountDown_ReversePatch(cookerController, QTEScore, false);
         });
     }
 

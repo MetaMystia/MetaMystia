@@ -9,13 +9,34 @@ public static class DebugCommands
 {
     public static void Register(RootCommand root)
     {
-        // /debug
-        var debugCmd = new Command("debug", "Show multiplayer debug info");
+        var debugCmd = new Command("debug", "Multiplayer debug commands");
+
+        // /debug kill <id>
+        var killCmd = new Command("kill", "Kill a guest by runtime ID");
+        var guestIdArg = new Argument<int>("id", "Guest runtime ID");
+        killCmd.AddArgument(guestIdArg);
+        killCmd.SetHandler(ctx =>
+        {
+            int id = ctx.ParseResult.GetValueForArgument(guestIdArg);
+            var fsm = GuestsMap.GetGuestFsm(id);
+            if (fsm == null)
+            {
+                ctx.Log(ConsoleFormat.Err($"Guest #{id} not found"));
+                return;
+            }
+            ctx.Log($"Killing guest #{id} ({fsm.CurrentState})");
+            fsm.Kill();
+        });
+        debugCmd.AddCommand(killCmd);
+
         debugCmd.SetHandler(ctx =>
         {
             ctx.Log(MpManager.DebugText);
         });
         root.AddCommand(debugCmd);
+
+        CommandRegistry.RegisterCompletions("debug", 0, "kill");
+        CommandRegistry.RegisterHint("debug kill", 0, "<guest id>");
 
         // /webdebug start <key>
         var webDebugCmd = new Command("webdebug", "Web debugger management");

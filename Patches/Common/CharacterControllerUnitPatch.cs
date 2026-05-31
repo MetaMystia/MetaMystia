@@ -5,7 +5,7 @@ using Common.CharacterUtility;
 
 namespace MetaMystia.Patch;
 
-[HarmonyPatch(typeof(CharacterControllerUnit))]
+[HarmonyPatch(typeof(Common.CharacterUtility.CharacterControllerUnit))]
 [AutoLog]
 public partial class CharacterControllerUnitPatch
 {

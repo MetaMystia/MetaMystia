@@ -2,141 +2,53 @@ using MemoryPack;
 
 using NightScene.GuestManagementUtility;
 
-using MetaMystia.Patch;
-
 namespace MetaMystia.Network;
 
 /// <summary>
-/// 任何玩家 → 全体玩家：通告某个顾客离开以及离开的方式。
+/// 主机权威：顾客离桌主链 (FSM: * → Leaving → Left)。
+/// 调用栈覆盖：GenerateOrderSession 失败 4 分支 / PatientDepletedLeave / ExBadLeave / SetManualControlledLeave /
+///            RepellInternal / PayAndLeave (ExceedEndurance 协程末端)。
+/// 客机收到后 Grant <see cref="MetaMystia.Patch.GuestsManagerPatch.SkipLeaveFromDeskPatch"/> 放权一次,
+/// 调用本地 LeaveFromDesk 让原游戏代码自然完成 occupiedDesks 清理 / CleanDesk / OnLeaveDeskCallback /
+/// CheckAndSendFromQueue / FinalLeave (MoveToSpawn / FlyToSpawn) 等所有副作用。
+/// triggerLeaveBuff 客机端强制 false 以避免 Special 顾客的负面 buff 在双端各触发一次。
 /// </summary>
 [MemoryPackable]
-[HostRelay]
 [AutoLog]
 public partial class GuestLeaveAction : Action
 {
-    public override ActionType Type => ActionType.GUEST_LEAVE;
+    public override ActionType Type => ActionType.GuestLeaveAction;
 
-    public enum LeaveType
-    {
-        PayAndLeave,            // Host only
-        ExBadLeave,             // Host only
-        RepelAndLeavePay,       // Both ok
-        RepelAndLeaveNoPay,     // Both ok
-        PatientDepletedLeave,   // Host only
-        PlayerRepel,            // Both ok
-        LeaveFromDesk,          // the last function if all above failed, Host only
-        LeaveFromQueue          // Both ok
-        // FIXME: Any other leave method?
-    }
+    public int RuntimeId { get; set; }
+    public byte LeaveType { get; set; }
+    public bool TriggerLeaveBuff { get; set; }
 
-    public string GuestUUID { get; set; }
-    public LeaveType LType { get; set; }
-
-
-    [CheckScene(Common.UI.Scene.WorkScene)]
     [DiscardOnStory]
+    [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        if (WorkSceneManager.CheckStatus(GuestUUID, WorkSceneManager.Status.Left))
+        if (MpManager.IsConnectedHost) return;
+
+        var rid = RuntimeId;
+        var leaveType = (GuestGroupController.LeaveType)LeaveType;
+        var triggerLeaveBuff = TriggerLeaveBuff;
+        PluginManager.Instance.RunOnMainThread(() =>
         {
-            Log.Info($"{GuestUUID.GetGuestFSM()?.Identifier} already left, skip");
-            // 警告，在非主线程盲目使用 Identifier 可能导致 竞态条件，该问题将在本次 commit 中通过缓存 guest name 来解决
-
-            return;
-        }
-        WorkSceneManager.EnqueueGuestCommand(
-            key: GuestUUID,
-            executeWhen: () => WorkSceneManager.CheckStatusGreaterOrThrow(GuestUUID, WorkSceneManager.Status.Generated) && !MpManager.InStory,
-            executeInfo: $"Leave: guid {GuestUUID}, type {LType}",
-            execute: () =>
-            {
-                var fsm = WorkSceneManager.GetGuestFSM(GuestUUID);
-                var guest = fsm.GuestController;
-                if (WorkSceneManager.CheckStatus(GuestUUID, WorkSceneManager.Status.Left))
-                {
-                    return;
-                }
-
-                if (GuestsManager.instance == null)
-                {
-                    Log.Error($"GuestsManager.instance is null! Action : {ToString()}");
-                    return;
-                }
-                if (guest == null)
-                {
-                    Log.Error($"guest is null! Action : {ToString()}");
-                    return;
-                }
-                if (!fsm.IsGuestValid())
-                {
-                    Log.Error($"{fsm.Identifier} is invalid! Action : {ToString()}");
-                    fsm.RemoveInvalidGuest();
-                    return;
-                }
-                var deskcode = guest.DeskCode;
-                var lastState = fsm.CurrentState;
-                fsm.TryLeave();
-
-                switch (LType)
-                {
-                    case LeaveType.PayAndLeave:
-                        if (guest.IsFirst)
-                        {
-                            WorkSceneManager.ShowNoMoneyDialog(guest);
-                        }
-                        GuestsManagerPatch.PayAndLeave_Original(GuestsManager.instance, guest, true);
-                        break;
-                    case LeaveType.ExBadLeave:
-                        GuestsManagerPatch.ExBadLeave_Original(GuestsManager.instance, guest);
-                        break;
-                    case LeaveType.RepelAndLeavePay:
-                        GuestsManagerPatch.RepellAndLeavePay_Original(GuestsManager.instance, guest, GuestGroupController.LeaveType.Move, true);
-                        break;
-                    case LeaveType.RepelAndLeaveNoPay:
-                        GuestsManagerPatch.RepellAndLeaveNoPay_Original(GuestsManager.instance, guest, GuestGroupController.LeaveType.Move, true);
-                        break;
-                    case LeaveType.PatientDepletedLeave:
-                        GuestsManagerPatch.PatientDepletedLeave_Original(GuestsManager.instance, guest);
-                        break;
-                    case LeaveType.LeaveFromDesk:
-                        GuestsManagerPatch.LeaveFromDesk_Original(GuestsManager.instance, guest, GuestGroupController.LeaveType.Move, null, true);
-                        break;
-                    case LeaveType.PlayerRepel:
-                        GuestsManagerPatch.PlayerRepell_Original(GuestsManager.instance, guest.DeskCode);
-                        break;
-                    case LeaveType.LeaveFromQueue:
-                        if (lastState == WorkSceneManager.Status.Generated)
-                        {
-                            GuestGroupControllerPatch.MoveToSpawn_Original(guest);
-                        }
-                        else
-                        {
-                            Log.Warning($"received {LType} but {fsm.Identifier} last state {lastState}, try repel..");
-                            GuestsManagerPatch.RepellAndLeavePay_Original(GuestsManager.instance, guest, GuestGroupController.LeaveType.Move, true);
-                        }
-                        break;
-                }
-                // Just in case the LeaveFromDesk method fail
-                if (WorkSceneManager.GetInDeskGuest(deskcode)?.GetGuestUUID() == GuestUUID)
-                {
-                    Log.Error($"{fsm.Identifier} still in desk, try remove..");
-                    fsm.SafeLeaveFromDesk(triggerOnLeaveCallback: false);
-                    // GuestsManager.instance?.registeredCharacterArrivedEvents?.Remove(deskcode);
-                }
-            },
-            timeoutSeconds: 15
-         );
+            var fsm = GuestsMap.GetGuestFsm(rid);
+            if (fsm == null) return;
+            fsm.Enqueue(nameof(GuestFSM.DoLeaveFromDesk),
+                () => GuestFSM.DoLeaveFromDesk(rid, leaveType, triggerLeaveBuff));
+        });
     }
 
-    [DiscardOnStory]
-    public static void Send(string guest, LeaveType leaveType)
+    public static void Send(int runtimeId, GuestGroupController.LeaveType leaveType, bool triggerLeaveBuff)
     {
         var action = new GuestLeaveAction
         {
-            GuestUUID = guest,
-            LType = leaveType
+            RuntimeId = runtimeId,
+            LeaveType = (byte)leaveType,
+            TriggerLeaveBuff = triggerLeaveBuff
         };
         action.SendToHostOrBroadcast();
     }
 }
-

@@ -1,6 +1,8 @@
 using HarmonyLib;
 using System.Collections.Generic;
 
+using Common.UI;
+
 using MetaMystia.Network;
 using MetaMystia.UI;
 
@@ -13,20 +15,20 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class IzakayaSelectorPanelPatch
 {
-    public static Common.UI.IzakayaSelectorPanel_New instanceRef = null;
-    public static Dictionary<string, Common.UI.GlobalMap.IGuideMapSpot> cachedSpots = new Dictionary<string, Common.UI.GlobalMap.IGuideMapSpot>();
+    public static IzakayaSelectorPanel_New instanceRef = null;
+    public static Dictionary<string, Common.UI.GlobalMap.IGuideMapSpot> cachedSpots = new();
 
-    [HarmonyPatch(nameof(Common.UI.IzakayaSelectorPanel_New.OnGuideMapInitialize))]
+    [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapInitialize))]
     [HarmonyPrefix]
-    public static void OnGuideMapInitialize_Prefix(Common.UI.IzakayaSelectorPanel_New __instance)
+    public static void OnGuideMapInitialize_Prefix(IzakayaSelectorPanel_New __instance)
     {
         instanceRef = __instance;
         Log.LogInfo($"OnGuideMapInitialize called");
     }
 
-    [HarmonyPatch(nameof(Common.UI.IzakayaSelectorPanel_New._OnGuideMapInitialize_b__21_0))]
+    [HarmonyPatch(nameof(IzakayaSelectorPanel_New._OnGuideMapInitialize_b__21_0))]
     [HarmonyPrefix]
-    public static bool _OnGuideMapInitialize_b__21_0_Prefix(ref Common.UI.IzakayaSelectorPanel_New __instance)
+    public static bool _OnGuideMapInitialize_b__21_0_Prefix(ref IzakayaSelectorPanel_New __instance)
     {
         // N 人联机选店流程:
         //   1. 每个玩家自由选择地图，点击「前往营业」
@@ -69,7 +71,8 @@ public partial class IzakayaSelectorPanelPatch
     }
 
     /// <summary>
-    /// 主机侧：检查全员选店是否一致，若一致则广播 CONFIRM_SELECT 并本地执行切换
+    /// 主机侧：检查全员选店是否一致，若一致则广播 CONFIRM_SELECT 本地执行切换。
+    /// 由于来源是本地触发或同步时间触发，因此主机自身也需要覆写选择。
     /// </summary>
     public static void TryConfirmSelection()
     {
@@ -97,8 +100,8 @@ public partial class IzakayaSelectorPanelPatch
         Log.LogMessage($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
         ConfirmSelectAction.Broadcast(mapLabel, level);
         InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(mySelect));
-        SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
-        _OnGuideMapInitialize_b__21_0_Original(instanceRef);
+
+        TryProceedWithConfirmedSelection(mapLabel, (IzakayaLevel)level);
     }
 
     /// <summary>
@@ -121,14 +124,32 @@ public partial class IzakayaSelectorPanelPatch
         }
     }
 
-    [HarmonyPatch(nameof(Common.UI.IzakayaSelectorPanel_New._OnGuideMapInitialize_b__21_0))]
-    [HarmonyReversePatch]
-    public static void _OnGuideMapInitialize_b__21_0_Original(Common.UI.IzakayaSelectorPanel_New __instance)
+    public static void TryProceedWithConfirmedSelection(string mapLabel, IzakayaLevel mapLevel)
     {
-        throw new System.NotImplementedException("It's a stub");
+        SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
+
+        if (instanceRef != null)
+        {
+            instanceRef.m_CurrentSelectedIzakayaLevel = mapLevel;
+            if (cachedSpots.TryGetValue(mapLabel, out var mapSpot))
+            {
+                OnGuideMapSpotSelected_ReversePatch(instanceRef, mapSpot);
+            }
+            _OnGuideMapInitialize_b__21_0_ReversePatch(instanceRef);
+        }
+        else
+        {
+            Log.Error("instanceRef is null, cannot call original method");
+        }
     }
 
-    [HarmonyPatch(nameof(Common.UI.IzakayaSelectorPanel_New.OnGuideMapSpotSelected))]
+
+    [HarmonyPatch(nameof(IzakayaSelectorPanel_New._OnGuideMapInitialize_b__21_0))]
+    [HarmonyReversePatch]
+    public static void _OnGuideMapInitialize_b__21_0_ReversePatch(IzakayaSelectorPanel_New __instance)
+    { }
+
+    [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapSpotSelected))]
     [HarmonyPrefix]
     public static void OnGuideMapSpotSelected_Prefix(ref Common.UI.GlobalMap.IGuideMapSpot guideMapSpot)
     {
@@ -139,4 +160,9 @@ public partial class IzakayaSelectorPanelPatch
 
         Log.Info($"OnGuideMapSpotSelected called, guideMapSpot.PrimaryName: {guideMapSpot.PrimaryName}");
     }
+
+    [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapSpotSelected))]
+    [HarmonyReversePatch]
+    public static void OnGuideMapSpotSelected_ReversePatch(IzakayaSelectorPanel_New __instance, Common.UI.GlobalMap.IGuideMapSpot guideMapSpot)
+    { }
 }

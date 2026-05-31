@@ -203,6 +203,19 @@ public static partial class Mappers
                 condition.tags = config?.tags ?? new int[0]; // 所需物品的标签
                 condition.sellableType = config?.sellableType ?? SellableType.Food; // 所需 Sellable 的类型
                 break;
+            case FinishCondition.ConditionType.SubmitByAnyOneTag:
+                condition.amount = config?.amount ?? 0; // 所需物品的数量
+                condition.tags = config?.tags ?? new int[0]; // 所需物品的标签
+                condition.sellableType = config?.sellableType ?? SellableType.Food; // 所需 Sellable 的类型
+                break;
+            case FinishCondition.ConditionType.SubmitByIngredients:
+                condition.amount = config?.amount ?? 0; // 所需食材的数量
+                condition.tags = config?.tags ?? new int[0]; // 所需食材的 ID 列表
+                break;
+            case FinishCondition.ConditionType.ReachTargetCharacterKisunaLevel:
+                condition.amount = config?.amount ?? 0; // 所需的羁绊等级
+                // condition.label 已在方法开头统一设置，存的是角色标识
+                break;
             default:
                 break;
         }

@@ -31,19 +31,30 @@ public enum ActionType : ushort
     STORE_FOOD, // 这是往保温箱中存储，仅可以存储 food
     STORE_SELLABLE, // 这是往空位存储，可以存储 sellable（food / beverage）
     EXTRACT_FOOD,
-    GUEST_INVITE,
-    GUEST_SPAWN,
-    GUEST_SEATED,
-    GUEST_GEN_NORMAL_ORDER,
-    GUEST_GEN_SPECIAL_ORDER,
-    GUEST_SERVE,
-    GUEST_PAY,
-    GUEST_LEAVE,
     BUFF,
     IZAKAYA_CLOSE,
     GET_COLLECTABLE, // disabled
     PLAYER_ID_CHANGE,
     SKIN_CHANGE,
+
+    GuestSpawnAction,
+    MoveToDeskAction,
+    MoveToQueueAction,
+    PlayerRepellAction,
+    GenerateOrderAction,
+    ServeSellableAction,
+    EvaluateOrderAction,
+    ConfirmServeAction,
+    GuestLeaveAction,
+    SendFromQueueAction,
+    PatientDepletedQueueAction,
+    PatientDepletedDeskAction,
+    GuestKillAction,
+    FundEditAction,
+    TipEditAction,
+    ExpEditAction,
+    PassionEditAction,
+    GuestInviteAction,
 }
 
 [MemoryPackable]
@@ -68,19 +79,29 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.STORE_FOOD, typeof(StoreFoodAction))]
 [MemoryPackUnion((ushort)ActionType.STORE_SELLABLE, typeof(StoreSellableAction))]
 [MemoryPackUnion((ushort)ActionType.EXTRACT_FOOD, typeof(ExtractFoodAction))]
-[MemoryPackUnion((ushort)ActionType.GUEST_INVITE, typeof(GuestInviteAction))]
-[MemoryPackUnion((ushort)ActionType.GUEST_SPAWN, typeof(GuestSpawnAction))]
-[MemoryPackUnion((ushort)ActionType.GUEST_SEATED, typeof(GuestSeatedAction))]
-[MemoryPackUnion((ushort)ActionType.GUEST_GEN_NORMAL_ORDER, typeof(GuestGenNormalOrderAction))]
-[MemoryPackUnion((ushort)ActionType.GUEST_GEN_SPECIAL_ORDER, typeof(GuestGenSPOrderAction))]
-[MemoryPackUnion((ushort)ActionType.GUEST_SERVE, typeof(GuestServeAction))]
-[MemoryPackUnion((ushort)ActionType.GUEST_PAY, typeof(GuestPayAction))]
-[MemoryPackUnion((ushort)ActionType.GUEST_LEAVE, typeof(GuestLeaveAction))]
 [MemoryPackUnion((ushort)ActionType.BUFF, typeof(BuffAction))]
 [MemoryPackUnion((ushort)ActionType.IZAKAYA_CLOSE, typeof(IzakayaCloseAction))]
 [MemoryPackUnion((ushort)ActionType.GET_COLLECTABLE, typeof(GetCollectableAction))]
 [MemoryPackUnion((ushort)ActionType.PLAYER_ID_CHANGE, typeof(PlayerIdChangeAction))]
 [MemoryPackUnion((ushort)ActionType.SKIN_CHANGE, typeof(SkinChangeAction))]
+[MemoryPackUnion((ushort)ActionType.GuestSpawnAction, typeof(GuestSpawnAction))]
+[MemoryPackUnion((ushort)ActionType.MoveToDeskAction, typeof(MoveToDeskAction))]
+[MemoryPackUnion((ushort)ActionType.MoveToQueueAction, typeof(MoveToQueueAction))]
+[MemoryPackUnion((ushort)ActionType.PlayerRepellAction, typeof(PlayerRepellAction))]
+[MemoryPackUnion((ushort)ActionType.GenerateOrderAction, typeof(GenerateOrderAction))]
+[MemoryPackUnion((ushort)ActionType.ServeSellableAction, typeof(ServeSellableAction))]
+[MemoryPackUnion((ushort)ActionType.EvaluateOrderAction, typeof(EvaluateOrderAction))]
+[MemoryPackUnion((ushort)ActionType.ConfirmServeAction, typeof(ConfirmServeAction))]
+[MemoryPackUnion((ushort)ActionType.GuestLeaveAction, typeof(GuestLeaveAction))]
+[MemoryPackUnion((ushort)ActionType.SendFromQueueAction, typeof(SendFromQueueAction))]
+[MemoryPackUnion((ushort)ActionType.PatientDepletedQueueAction, typeof(PatientDepletedQueueAction))]
+[MemoryPackUnion((ushort)ActionType.PatientDepletedDeskAction, typeof(PatientDepletedDeskAction))]
+[MemoryPackUnion((ushort)ActionType.GuestKillAction, typeof(GuestKillAction))]
+[MemoryPackUnion((ushort)ActionType.FundEditAction, typeof(FundEditAction))]
+[MemoryPackUnion((ushort)ActionType.TipEditAction, typeof(TipEditAction))]
+[MemoryPackUnion((ushort)ActionType.ExpEditAction, typeof(ExpEditAction))]
+[MemoryPackUnion((ushort)ActionType.PassionEditAction, typeof(PassionEditAction))]
+[MemoryPackUnion((ushort)ActionType.GuestInviteAction, typeof(GuestInviteAction))]
 [AutoLog]
 
 public abstract partial class Action
@@ -118,7 +139,7 @@ public abstract partial class Action
         var targetScene = GetReceivedScene();
         if (targetScene != null && MpManager.LocalScene != targetScene.Value)
         {
-            Log.Info($"{MpManager.RoleTag} Received in invalid scene: {Type}: {ToString()}");
+            Log.Info($"{MpManager.RoleTag} Received in invalid scene: {Type}: {ToLogString()}");
             return;
         }
         if (ShouldDiscardOnStory())
@@ -155,6 +176,11 @@ public abstract partial class Action
             });
     }
 
+    protected virtual string ToLogString()
+    {
+        return ToString();
+    }
+
     private static void LogAction(LogLevel logLevel, string logStr)
     {
         switch (logLevel)
@@ -182,13 +208,13 @@ public abstract partial class Action
 
     protected void LogActionReceived()
     {
-        string logStr = $"{MpManager.RoleTag} Received {Type}{(OnReceiveLogOnlyAction ? "" : $": {ToString()}")}";
+        string logStr = $"{MpManager.RoleTag} Received {Type}{(OnReceiveLogOnlyAction ? "" : $": {ToLogString()}")}";
         LogAction(OnReceiveLogLevel, logStr);
     }
 
     protected void LogActionSend()
     {
-        string logStr = $"{MpManager.RoleTag} Send {Type}{(OnSendLogOnlyAction ? "" : $": {ToString()}")}";
+        string logStr = $"{MpManager.RoleTag} Send {Type}{(OnSendLogOnlyAction ? "" : $": {ToLogString()}")}";
         LogAction(OnSendLogLevel, logStr);
     }
 
@@ -269,5 +295,3 @@ public abstract partial class Action
     [AttributeUsage(AttributeTargets.Method)]
     protected class DiscardOnStoryAttribute : Attribute { }
 }
-
-

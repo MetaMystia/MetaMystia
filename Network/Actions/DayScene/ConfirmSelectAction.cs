@@ -1,3 +1,4 @@
+using Common.UI;
 using MemoryPack;
 
 using MetaMystia.Patch;
@@ -23,17 +24,8 @@ public partial class ConfirmSelectAction : Action
         {
             var display = $"{Utils.GetMapLabelNameCN(MapLabel)} {Utils.GetMapLevelNameCN(MapLevel)}";
             InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(display));
-            SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
 
-            if (IzakayaSelectorPanelPatch.instanceRef != null)
-            {
-                IzakayaSelectorPanelPatch._OnGuideMapInitialize_b__21_0_Original(
-                    IzakayaSelectorPanelPatch.instanceRef);
-            }
-            else
-            {
-                Log.LogWarning("ConfirmSelectAction: instanceRef is null, cannot call original method");
-            }
+            IzakayaSelectorPanelPatch.TryProceedWithConfirmedSelection(MapLabel, (IzakayaLevel)MapLevel);
         });
     }
 

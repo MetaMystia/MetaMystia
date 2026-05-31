@@ -5,6 +5,7 @@ using GameData.RunTime.NightSceneUtility;
 
 using MetaMystia.Network;
 using MetaMystia.UI;
+
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
@@ -118,7 +119,7 @@ public partial class IzakayaConfigurePatch
     [HarmonyPrefix]
     public static void StoreFood_Prefix(Sellable sellable)
     {
-        Log.LogWarning(sellable.ToString());
+        Log.LogInfo($"StoreFood: {sellable.Text.Name}");
         if (_skipPatchStoreFood) return;
         if (!MpManager.IsConnected) return;
 

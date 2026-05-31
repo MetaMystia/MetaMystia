@@ -50,7 +50,7 @@ public partial class ReadyAction : Action
                 break;
             case ReadyType.PrepOver:
                 if ((MpManager.LocalScene != Common.UI.Scene.IzakayaPrepScene && MpManager.LocalScene != Common.UI.Scene.WorkScene)
-                    || (MpManager.LocalScene == Common.UI.Scene.WorkScene && !WorkSceneManager.InHakugyokurouChallenge))   // 白玉楼
+                    || (MpManager.LocalScene == Common.UI.Scene.WorkScene))
                 {
                     Log.LogWarning("READY action received outside IzakayaPrepScene, ignoring.");
                     return;

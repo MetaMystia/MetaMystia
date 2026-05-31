@@ -1,5 +1,6 @@
-using Common.UI;
 using HarmonyLib;
+
+using Common.UI;
 using StaffScene;
 
 namespace MetaMystia;

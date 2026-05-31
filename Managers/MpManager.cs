@@ -97,10 +97,18 @@ public static partial class MpManager
 
 
     #region 剧情相关
-    public static bool InStory => Common.SceneDirector.Instance.playableDirector.state == UnityEngine.Playables.PlayState.Playing
-        || Common.SceneDirector.Instance.playableDirector.state == UnityEngine.Playables.PlayState.Delayed;
-    // public static bool InStory => LocalScene == Common.UI.Scene.WorkScene
-    //     && NightScene.NightSceneDirector.Instance?.IsInTutorial == true;
+    private static bool _inStory;
+
+    public static bool InStory => _inStory;
+
+    public static void RefreshInStoryCache()
+    {
+        var director = Common.SceneDirector.Instance?.playableDirector;
+        _inStory = director != null &&
+            (director.state == UnityEngine.Playables.PlayState.Playing
+             || director.state == UnityEngine.Playables.PlayState.Delayed);
+    }
+
     public static bool ShouldSkipAction => !IsConnected || InStory;
     #endregion
 
@@ -357,22 +365,20 @@ public static partial class MpManager
     /// </summary>
     public static void OnActionFromClient(Network.Action action, int clientUid, byte[] rawBody)
     {
-        // 注入发送者 UID
-        action.SenderUid = clientUid;
-
-        // 主机先本地处理
-        action.OnReceived();
-
-        // 检查是否需要转发给其他客机
-        if (action.GetType().GetCustomAttributes(typeof(Network.Action.HostRelayAttribute), false).Length > 0)
+        PluginManager.Instance.RunOnMainThread(() =>
         {
-            // Zero-copy relay: 在原始字节上修改 SenderUid，添加长度前缀后直接广播
-            BitConverter.GetBytes(clientUid).CopyTo(rawBody, Network.RelayConstants.SenderUidOffset);
-            byte[] framed = new byte[4 + rawBody.Length];
-            BitConverter.GetBytes(rawBody.Length).CopyTo(framed, 0);
-            Buffer.BlockCopy(rawBody, 0, framed, 4, rawBody.Length);
-            server?.SendRawToExcept(clientUid, framed);
-        }
+            action.SenderUid = clientUid;
+            action.OnReceived();
+
+            if (action.GetType().GetCustomAttributes(typeof(Network.Action.HostRelayAttribute), false).Length > 0)
+            {
+                BitConverter.GetBytes(clientUid).CopyTo(rawBody, Network.RelayConstants.SenderUidOffset);
+                byte[] framed = new byte[4 + rawBody.Length];
+                BitConverter.GetBytes(rawBody.Length).CopyTo(framed, 0);
+                Buffer.BlockCopy(rawBody, 0, framed, 4, rawBody.Length);
+                server?.SendRawToExcept(clientUid, framed);
+            }
+        });
     }
 
     /// <summary>
@@ -380,7 +386,7 @@ public static partial class MpManager
     /// </summary>
     public static void OnAction(Network.Action action)
     {
-        action.OnReceived();
+        PluginManager.Instance.RunOnMainThread(() => action.OnReceived());
     }
 
     #region 发送方法

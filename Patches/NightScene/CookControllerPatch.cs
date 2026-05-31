@@ -33,10 +33,8 @@ public partial class CookControllerPatch
 
     [HarmonyPatch(nameof(CookController.SetCook))]
     [HarmonyReversePatch]
-    public static void SetCook_Original(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
-    {
-        throw new NotImplementedException("It's a stub");
-    }
+    public static void SetCook_ReversePatch(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
+    { }
 
     [HarmonyPatch(nameof(CookController.SetCook))]
     [HarmonyPostfix]
@@ -51,10 +49,8 @@ public partial class CookControllerPatch
 
     [HarmonyPatch(nameof(CookController.Extract))]
     [HarmonyReversePatch]
-    public static void Extract_Original(CookController __instance, Il2CppSystem.Action<Sellable> targetAssignmentCallBack)
-    {
-        throw new NotImplementedException("It's a stub");
-    }
+    public static void Extract_ReversePatch(CookController __instance, Il2CppSystem.Action<Sellable> targetAssignmentCallBack)
+    { }
 
     [HarmonyPatch(nameof(CookController.Extract))]
     [HarmonyPrefix]
@@ -67,10 +63,8 @@ public partial class CookControllerPatch
 
     [HarmonyPatch(nameof(CookController.Store))]
     [HarmonyReversePatch]
-    public static void Store_Original(CookController __instance, Sellable value)
-    {
-        throw new NotImplementedException("It's a stub");
-    }
+    public static void Store_ReversePatch(CookController __instance, Sellable value)
+    { }
 
     [HarmonyPatch(nameof(CookController.Store))]
     [HarmonyPrefix]
@@ -84,10 +78,8 @@ public partial class CookControllerPatch
 
     [HarmonyPatch(nameof(CookController.StartCookCountDown))]
     [HarmonyReversePatch]
-    public static void StartCookCountDown_Original(CookController __instance, float qteScore, bool allowInterrupt = false)
-    {
-        throw new NotImplementedException("It's a stub");
-    }
+    public static void StartCookCountDown_ReversePatch(CookController __instance, float qteScore, bool allowInterrupt = false)
+    { }
 
     [HarmonyPatch(nameof(CookController.StartCookCountDown))]
     [HarmonyPrefix]

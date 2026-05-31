@@ -53,7 +53,7 @@ public partial class StoreSellableAction : Action
                 Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
                 return;
             }
-            CookControllerPatch.Store_Original(cookerController, sellable);
+            CookControllerPatch.Store_ReversePatch(cookerController, sellable);
         });
     }
 

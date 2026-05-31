@@ -27,6 +27,19 @@ public partial class HelloAckAction : Action
 
     protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Message;
 
+    protected override string ToLogString()
+    {
+        var existingPeers = ExistingPeers ?? [];
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            AssignedUid,
+            HostPeerId = HostInfo?.PeerId,
+            ExistingPeersCount = existingPeers.Length,
+            ExistingPeerIds = existingPeers.Take(3).Select(peer => peer.PeerId).ToArray(),
+            ExistingPeersTruncated = existingPeers.Length > 3
+        });
+    }
+
     /// <summary>
     /// 客机处理：设置自身 UID，注册主机和已有 peer
     /// </summary>
@@ -51,7 +64,7 @@ public partial class HelloAckAction : Action
         {
             PlayerManager.AddPeer(peerInfo);
         }
-        
+
         // 如果当前在 DayScene（重连），立即为所有 peer 生成角色
         if (MpManager.LocalScene == Common.UI.Scene.DayScene)
         {

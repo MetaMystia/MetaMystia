@@ -56,6 +56,10 @@ public static partial class NetSkinManager
     private const int BackDirections = 4;
     private const int BackFrames = 3;
 
+    // Keep disk cache write implementation available, but disable its entry by default.
+    // Flip this back to true if local skin cache persistence is needed again.
+    private static bool EnableDiskCacheWrite => false;
+
     private const long MaxDownloadBytes = 1 * 1024 * 1024; // 1 MB
     private static readonly Regex NameRegex = new(@"^[A-Za-z0-9_\-]{1,32}$", RegexOptions.Compiled);
 
@@ -109,7 +113,7 @@ public static partial class NetSkinManager
     /// 请求拉取并构建皮肤（异步）。
     /// 已在内存缓存中：立即回调。
     /// 在磁盘缓存中：调度到主线程解析后回调。
-    /// 否则：后台下载 → 写入磁盘 → 主线程解析后回调。
+    /// 否则：后台下载 → 可选写入磁盘 → 主线程解析后回调。
     /// </summary>
     /// <param name="name">皮肤名（必须通过 IsValidName 校验）</param>
     /// <param name="onComplete">完成回调，参数为是否成功</param>
@@ -163,7 +167,7 @@ public static partial class NetSkinManager
 
     /// <summary>
     /// 后台走 ETag 条件请求检查服务端是否更新。未更新返回 304 时什么都不做；
-    /// 返回 200 时覆写磁盘缓存，重新解析并刷新玩家。并发保护交给 _inFlight。
+    /// 返回 200 时可选覆写磁盘缓存，重新解析并刷新玩家。并发保护交给 _inFlight。
     /// </summary>
     private static async Task RevalidateAsync(string name)
     {
@@ -195,17 +199,8 @@ public static partial class NetSkinManager
                 return;
             }
 
-            try
-            {
-                Directory.CreateDirectory(CacheDir);
-                File.WriteAllBytes(GetCachePath(name), bytes);
-                WriteETag(name, resp.Headers.ETag?.Tag);
-            }
-            catch (Exception e)
-            {
-                Log.Warning($"NetSkin：写入重验证后的缓存 「{name}」 失败：{e.Message}");
+            if (!TryWriteDiskCache(name, bytes, resp.Headers.ETag?.Tag, "写入重验证后的缓存"))
                 return;
-            }
 
             Log.Info($"NetSkin：服务端 「{name}」 已更新，重新加载");
             PluginManager.Instance.RunOnMainThread(() =>
@@ -257,17 +252,8 @@ public static partial class NetSkinManager
             return;
         }
 
-        // 写入磁盘缓存（写文件不需要主线程）
-        try
-        {
-            Directory.CreateDirectory(CacheDir);
-            File.WriteAllBytes(GetCachePath(name), payload);
-            WriteETag(name, etag);
-        }
-        catch (Exception e)
-        {
-            Log.Warning($"NetSkin：写入磁盘缓存 「{name}」 失败：{e.Message}");
-        }
+        // 可选写入磁盘缓存（写文件不需要主线程）
+        TryWriteDiskCache(name, payload, etag, "写入磁盘缓存");
 
         // 主线程解析
         PluginManager.Instance.RunOnMainThread(() =>
@@ -553,6 +539,24 @@ public static partial class NetSkinManager
 
     private static string GetETagPath(string name) =>
         Path.Combine(CacheDir, $"{name}.etag");
+
+    private static bool TryWriteDiskCache(string name, byte[] payload, string etag, string operation)
+    {
+        if (!EnableDiskCacheWrite) return true;
+
+        try
+        {
+            Directory.CreateDirectory(CacheDir);
+            File.WriteAllBytes(GetCachePath(name), payload);
+            WriteETag(name, etag);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log.Warning($"NetSkin：{operation} 「{name}」 失败：{e.Message}");
+            return false;
+        }
+    }
 
     private static string ReadCachedETag(string name)
     {

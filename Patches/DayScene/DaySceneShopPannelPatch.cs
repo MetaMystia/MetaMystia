@@ -1,6 +1,7 @@
+using HarmonyLib;
+
 using Common.UI;
 using DayScene.UI;
-using HarmonyLib;
 
 namespace MetaMystia.Patch;
 

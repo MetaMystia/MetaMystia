@@ -1,12 +1,9 @@
 using HarmonyLib;
 
 using Common.UI;
-using MetaMystia.Network;
-using MetaMystia.Patch;
 using NightScene;
 
-using MetaMystia.UI;
-using NightScene.GuestManagementUtility;
+using MetaMystia.Network;
 using SgrYuki;
 
 namespace MetaMystia;
@@ -21,8 +18,9 @@ public static partial class NightSceneManagerPatch
     [HarmonyPostfix]
     public static void NightScene_Start_Postfix()
     {
-        GuestsManagerPatch.ReimuSpellCard = false;
-        
+        // REFACTORING
+        // GuestsManagerPatch.ReimuSpellCard = false;
+
         MpManager.OnSceneTransit(Scene.WorkScene);
         PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
@@ -34,19 +32,10 @@ public static partial class NightSceneManagerPatch
         SkinChangeAction.Send(PlayerManager.Local.Skin);
 
         PrepSceneManager.ClearPrepTable();
-        WorkSceneManager.Clear();
 
         PlayerManager.ResetState();
         PlayerManager.SpawnPeers();
 
-        CommandScheduler.Enqueue(
-            executeWhen: () => WorkSceneManager.WorkTimeLeft > 0,
-            execute: () =>
-            {
-                InGameConsole.ShowPassive(TextId.TodayBusinessHours.Get(WorkSceneManager.WorkTimeLeft / 60));
-            },
-            timeoutSeconds: 120
-        );
         CommandScheduler.EnqueueKey(
             key: MpManager.PeerGetCharacterUnitNotNullCommand,
             executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,

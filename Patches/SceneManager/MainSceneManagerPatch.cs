@@ -4,7 +4,6 @@ using Common.UI;
 using MainScene;
 
 using MetaMystia.UI;
-using BepInEx;
 
 namespace MetaMystia;
 

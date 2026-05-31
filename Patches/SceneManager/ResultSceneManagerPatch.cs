@@ -1,5 +1,6 @@
-using Common.UI;
 using HarmonyLib;
+
+using Common.UI;
 using NightScene;
 
 namespace MetaMystia;
@@ -15,6 +16,5 @@ public partial class ResultSceneManagerPatch
         MpManager.OnSceneTransit(Scene.ResultScene);
         var callback = NightScene.GuestManagementUtility.GuestsManager.Instance?.getPostprocessCharacterCallback;
         NightScene.GuestManagementUtility.GuestsManager.Instance?.Initialize(callback);
-        WorkSceneManager.Clear();
     }
 }

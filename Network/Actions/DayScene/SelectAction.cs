@@ -26,9 +26,9 @@ public partial class SelectAction : Action
             InGameConsole.ShowPassive(TextId.PeerSelectedIzakaya.Get(
                 $"{peerName}", $"{Utils.GetMapLabelNameCN(MapLabel)} {Utils.GetMapLevelNameCN(MapLevel)}"));
 
-            // 主机收到 SELECT 后自动检查全员是否一致
             if (MpManager.IsHost)
             {
+                // 主机收到 SELECT 后自动检查全员是否一致
                 IzakayaSelectorPanelPatch.TryConfirmSelection();
             }
             else

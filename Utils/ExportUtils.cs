@@ -42,6 +42,30 @@ public static partial class ExportUtils
             }
         }
     }
+    
+    
+    public static void ExportAllIngredientSprite(string exportDir)
+    {
+
+        var allIngredients = GameData.CoreLanguage.Collections.DataBaseLanguage.Ingredients;
+        foreach (var kvp in allIngredients)
+        {
+            Log.Warning($"Food ID: {kvp.Key}, BriefName: {kvp.Value.BriefName}, BriefDescription: {kvp.Value.BriefDescription}");
+            Sprite sprite = kvp.Value.Visual;
+            if (sprite != null)
+            {
+                var filename = $"Ingredent_{kvp.Key}_{kvp.Value.BriefName}.png";
+                var filepath = Path.Combine(exportDir, filename);
+
+                TrySaveSprite(sprite, filepath);
+                Log.LogInfo($"Exported: {filepath}");
+            }
+            else
+            {
+                Log.LogWarning($"Food ID {kvp.Key} has no sprite.");
+            }
+        }
+    }
 
 
     public static void ExportAllSpellSprite(string exportDir)

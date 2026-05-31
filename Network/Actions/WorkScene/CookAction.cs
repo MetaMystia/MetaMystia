@@ -23,7 +23,7 @@ public partial class CookAction : Action
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        Log.LogInfo($"Received COOK: CookerIndex={GridIndex}, FoodId={Food.FoodId}, Modifiers=[{string.Join(",", Food.ModifierIds)}]");
+        Log.LogInfo($"Received COOK: CookerIndex={GridIndex}, FoodId={Food.Id}, Modifiers=[{string.Join(",", Food.ModifierIds)}]");
         PluginManager.Instance.RunOnMainThread(() =>
         {
             if (!PlayerManager.RecipeAvailable(RecipeId))
@@ -47,7 +47,7 @@ public partial class CookAction : Action
                 return;
             }
 
-            CookControllerPatch.SetCook_Original(cookerController, food, recipe, false);
+            CookControllerPatch.SetCook_ReversePatch(cookerController, food, recipe, false);
         });
     }
 

@@ -6,6 +6,7 @@ using DayScene;
 using MetaMystia.Network;
 using MetaMystia.UI;
 using SgrYuki.Utils;
+
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
@@ -64,7 +65,7 @@ public partial class DaySceneManagerPatch
             GuestInviteAction.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
         }
         Panel.CloseActivePanelsBeforeSceneTransit();
-        OnDayOver_Original(SceneManager.Instance);
+        OnDayOver_ReversePatch(SceneManager.Instance);
     }
 
     [HarmonyPatch(nameof(SceneManager.OnDayOver))]
@@ -88,10 +89,8 @@ public partial class DaySceneManagerPatch
 
     [HarmonyPatch(nameof(SceneManager.OnDayOver))]
     [HarmonyReversePatch]
-    private static void OnDayOver_Original(SceneManager __instance)
-    {
-        throw new System.NotImplementedException();
-    }
+    private static void OnDayOver_ReversePatch(SceneManager __instance)
+    { }
 
     [HarmonyPatch(nameof(SceneManager.SwapMap))]
     [HarmonyPrefix]

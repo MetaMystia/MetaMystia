@@ -352,11 +352,6 @@ public static partial class CommandScheduler
             {
                 canExecute = cmd.CanExecute();
             }
-            catch (MetaMystia.WorkSceneManager.GuestInvalidatedException e)
-            {
-                Log.Warning($"ignore action {cmd.ExecuteInfo} for {e.Message}");
-                continue;
-            }
             catch (Exception e)
             {
                 Log.Error($"Error when checking action {cmd.ExecuteInfo}, reason: {e.Message}");
@@ -429,12 +424,6 @@ public static partial class CommandScheduler
             try
             {
                 canExecute = cmd.CanExecute();
-            }
-            catch (MetaMystia.WorkSceneManager.GuestInvalidatedException e)
-            {
-                Log.Warning($"ignore action {cmd.ExecuteInfo} for {e.Message}");
-                DequeueCommand(commandQ);
-                continue;
             }
             catch (Exception e)
             {

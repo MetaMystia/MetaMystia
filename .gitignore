@@ -2,6 +2,7 @@
 .vs
 .agent
 *.user
+*.lscache
 
 /bin
 /obj

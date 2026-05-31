@@ -33,16 +33,14 @@ public partial class QTERewardManagerPatch
 
     [HarmonyPatch(nameof(QTERewardManager.OnQTESucceeded))]
     [HarmonyReversePatch]
-    private static void OnQTESucceeded_Original(QTERewardManager __instance, int index, bool mustSuccess)
-    {
-        throw new System.NotImplementedException();
-    }
+    private static void OnQTESucceeded_ReversePatch(QTERewardManager __instance, int index, bool mustSuccess)
+    { }
 
     [OnMainThread]
     public static void OnQTESucceeded(QTERewardManager __instance, int index, bool mustSuccess)
     {
         OnQTESucceededExecuting = true;
-        OnQTESucceeded_Original(__instance, index, mustSuccess);
+        OnQTESucceeded_ReversePatch(__instance, index, mustSuccess);
         OnQTESucceededExecuting = false;
     }
 }

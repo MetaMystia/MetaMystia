@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using Il2CppInterop.Runtime;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -24,6 +25,12 @@ public static partial class InGameConsole
     {
         public string Text;
         public float Timestamp; // Time.unscaledTime when added
+
+        // Cached layout (invalidated when width/fontSize differ)
+        public float CachedHeight;
+        public float CachedWidth;
+        public int CachedFontSize;
+        public float CachedTextWidth; // for passive bubble bg sizing
 
         public LogEntry(string text)
         {
@@ -55,6 +62,9 @@ public static partial class InGameConsole
     private static string input = "";
     private static Vector2 scrollPosition;
     private static readonly List<LogEntry> _logs = [];
+    // Pending logs queued from any thread; drained only on EventType.Layout to keep
+    // GUILayout control counts consistent between Layout and Repaint passes.
+    private static readonly ConcurrentQueue<string> _pendingLogs = new();
     private static List<string> inputs = [];
     private static int inputsCursor = 0;
     private const int MaxLogs = 1024;
@@ -190,6 +200,7 @@ public static partial class InGameConsole
     public static void ClearLogs()
     {
         _logs.Clear();
+        while (_pendingLogs.TryDequeue(out _)) { }
     }
 
     private static void UpdateGameInputState()
@@ -369,10 +380,39 @@ public static partial class InGameConsole
     {
         InitStyles();
 
+        // Drain pending logs only during Layout pass so that control count is stable
+        // for the matching Repaint pass. This also serializes cross-thread writes
+        // (TCP receive thread enqueues; main thread dequeues).
+        if (Event.current.type == EventType.Layout)
+            DrainPendingLogs();
+
         if (IsOpen)
             DrawOpenMode();
         else
             DrawPassiveMode();
+    }
+
+    private static void DrainPendingLogs()
+    {
+        while (_pendingLogs.TryDequeue(out var msg))
+        {
+            _logs.Add(new LogEntry(msg));
+            if (_logs.Count > MaxLogs) _logs.RemoveAt(0);
+            _scrollToBottom = true;
+        }
+    }
+
+    private static float GetEntryHeight(LogEntry entry, float width)
+    {
+        int fs = _logStyle!.fontSize;
+        if (entry.CachedHeight > 0f && entry.CachedWidth == width && entry.CachedFontSize == fs)
+            return entry.CachedHeight;
+        var content = new GUIContent(entry.Text);
+        entry.CachedHeight = _logStyle.CalcHeight(content, width);
+        entry.CachedWidth = width;
+        entry.CachedFontSize = fs;
+        entry.CachedTextWidth = 0f; // invalidate passive bubble width too
+        return entry.CachedHeight;
     }
 
     // ====================================================================
@@ -381,17 +421,19 @@ public static partial class InGameConsole
     private static void DrawPassiveMode()
     {
         float now = Time.unscaledTime;
+        float cutoff = PassiveLingerTime + PassiveFadeTime;
 
-        var visible = _logs
-            .Where(entry =>
-            {
-                float age = now - entry.Timestamp;
-                return age < PassiveLingerTime + PassiveFadeTime;
-            })
-            .TakeLast(PassiveMaxLines)
-            .ToList();
-
+        // Backward scan to collect last N still-visible entries; avoids LINQ over full _logs.
+        var visible = new List<LogEntry>(PassiveMaxLines);
+        for (int i = _logs.Count - 1; i >= 0 && visible.Count < PassiveMaxLines; i--)
+        {
+            var e = _logs[i];
+            float age = now - e.Timestamp;
+            if (age >= cutoff) continue;
+            visible.Add(e);
+        }
         if (visible.Count == 0) return;
+        visible.Reverse();
 
         // Use same panel position as open mode for alignment
         float panelW = ConfigManager.ConsoleWidth.Value;
@@ -403,37 +445,30 @@ public static partial class InGameConsole
         float inputTopY = panelBottomY - InputHeight;
         float maxWidth = panelW - Padding * 2;
 
-        // Calculate actual height for each entry (supports multi-line word wrap)
-        float[] heights = new float[visible.Count];
         float totalHeight = 0;
         for (int i = 0; i < visible.Count; i++)
-        {
-            var content = new GUIContent(visible[i].Text);
-            float h = _logStyle!.CalcHeight(content, maxWidth);
-            heights[i] = h;
-            totalHeight += h;
-        }
+            totalHeight += GetEntryHeight(visible[i], maxWidth);
 
-        // Stack messages upward from where the input bar top would be
-        float baseY = inputTopY - totalHeight;
-        float currentY = baseY;
+        float currentY = inputTopY - totalHeight;
 
         for (int i = 0; i < visible.Count; i++)
         {
             var entry = visible[i];
             float age = now - entry.Timestamp;
 
-            float alpha;
-            if (age < PassiveLingerTime)
-                alpha = 1f;
-            else
-                alpha = 1f - Mathf.Clamp01((age - PassiveLingerTime) / PassiveFadeTime);
+            float alpha = age < PassiveLingerTime
+                ? 1f
+                : 1f - Mathf.Clamp01((age - PassiveLingerTime) / PassiveFadeTime);
 
-            float itemH = heights[i];
+            float itemH = entry.CachedHeight;
 
-            var strippedContent = new GUIContent(StripRichText(entry.Text));
-            float textWidth = _logStyle!.CalcSize(strippedContent).x + 16f;
-            textWidth = Mathf.Clamp(textWidth, 100f, maxWidth);
+            if (entry.CachedTextWidth <= 0f)
+            {
+                var strippedContent = new GUIContent(StripRichText(entry.Text));
+                float tw = _logStyle!.CalcSize(strippedContent).x + 16f;
+                entry.CachedTextWidth = Mathf.Clamp(tw, 100f, maxWidth);
+            }
+            float textWidth = Mathf.Min(entry.CachedTextWidth, maxWidth);
 
             var prevColor = GUI.color;
             GUI.color = new Color(0f, 0f, 0f, alpha * 0.85f);
@@ -608,19 +643,44 @@ public static partial class InGameConsole
             }
         }
 
-        // Log area (scrollable, bottom-aligned)
-        GUILayout.BeginArea(new Rect(panelX + Padding, logY, panelW - Padding * 2, logAreaH));
-        scrollPosition = GUILayout.BeginScrollView(scrollPosition);
-        GUILayout.FlexibleSpace();
-        foreach (var entry in _logs)
-            GUILayout.Label(entry.Text, _logStyle);
-        GUILayout.EndScrollView();
-        GUILayout.EndArea();
+        // Log area (scrollable, bottom-aligned) — virtualized to avoid laying out
+        // thousands of labels per frame. Uses GUI.BeginScrollView with absolute rects
+        // so control count is constant (1 scroll view + 0 inner GUILayout controls).
+        var logViewRect = new Rect(panelX + Padding, logY, panelW - Padding * 2, logAreaH);
+        float contentWidth = logViewRect.width - 18f; // reserve scrollbar space
+
+        int logCount = _logs.Count;
+        float contentHeight = 0f;
+        // Recompute heights (cached per entry/width/fontSize, so this is O(n) only when
+        // width or font changes — and O(1) per entry otherwise).
+        for (int i = 0; i < logCount; i++)
+            contentHeight += GetEntryHeight(_logs[i], contentWidth);
+
+        // Bottom-align: pad the top so content sits at the bottom of view when shorter.
+        float topPad = Mathf.Max(0f, logAreaH - contentHeight);
+        float totalContentH = contentHeight + topPad;
+
+        var contentRect = new Rect(0, 0, contentWidth, totalContentH);
+        scrollPosition = GUI.BeginScrollView(logViewRect, scrollPosition, contentRect);
+
+        // Virtualize: only render entries whose rect intersects the visible viewport.
+        float viewportTop = scrollPosition.y;
+        float viewportBottom = viewportTop + logAreaH;
+        float y = topPad;
+        for (int i = 0; i < logCount; i++)
+        {
+            float h = _logs[i].CachedHeight;
+            if (y + h >= viewportTop && y <= viewportBottom)
+                GUI.Label(new Rect(0, y, contentWidth, h), _logs[i].Text, _logStyle);
+            y += h;
+            if (y > viewportBottom) break;
+        }
+        GUI.EndScrollView();
 
         // Auto-scroll to bottom
         if (_scrollToBottom && e.type == EventType.Repaint)
         {
-            scrollPosition.y = float.MaxValue;
+            scrollPosition.y = Mathf.Max(0f, totalContentH - logAreaH);
             _scrollToBottom = false;
         }
 
@@ -752,9 +812,11 @@ public static partial class InGameConsole
     {
         string timestamp = DateTime.Now.ToString("HH:mm:ss");
         string stamped = $"<color=#888899>[{timestamp}]</color> {message}";
-        _logs.Add(new LogEntry(stamped));
-        if (_logs.Count > MaxLogs) _logs.RemoveAt(0);
-        _scrollToBottom = true;
+        // Thread-safe: enqueue and let OnGUI drain on the Layout pass. This prevents
+        // "Collection was modified" exceptions when callers (e.g. TCP receive thread)
+        // log from off the main thread, and keeps GUILayout control counts stable
+        // between Layout and Repaint events.
+        _pendingLogs.Enqueue(stamped);
     }
 
     /// <summary>Replaces Notify.Show — log a gold event message (must be called on main thread).</summary>

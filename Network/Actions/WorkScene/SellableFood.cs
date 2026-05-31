@@ -8,12 +8,12 @@ using MemoryPack;
 namespace MetaMystia.Network;
 
 
-// optimize & TODO: 实现整个 GameData.Core.Collections.Sellable 即使之包含 Beverage 而不仅仅是 Food
 [MemoryPackable]
 [AutoLog]
 public partial class SellableFood
 {
-    public int FoodId { get; set; }
+    public Sellable.SellableType Type { get; set; }
+    public int Id { get; set; }
     public int Level { get; set; }
     public int[] ModifierIds { get; set; } = []; // 附加原料
     public int[] AdditiveTags { get; set; } = [];
@@ -21,7 +21,12 @@ public partial class SellableFood
 
     public Sellable ToSellable()
     {
-        var food = FoodId.AsNewFood();
+        if (Type == Sellable.SellableType.Beverage)
+        {
+            return Id.AsNewBeverage();
+        }
+        
+        var food = Id.AsNewFood();
         food.level = Level;
         food.modifier = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<int>(ModifierIds);
         food.additiveTags = new Il2CppSystem.Collections.Generic.List<int>();
@@ -42,9 +47,21 @@ public partial class SellableFood
     }
     public static SellableFood FromSellable(Sellable sellable)
     {
+        if (sellable == null) return null;
+        
+        if (sellable.Type == Sellable.SellableType.Beverage)
+        {
+            return new SellableFood()
+            {
+                Id = sellable.Id,
+                Type = Sellable.SellableType.Beverage
+            };
+        }
+        
         var res = new SellableFood
         {
-            FoodId = sellable.Id,
+            Type = Sellable.SellableType.Food,
+            Id = sellable.Id,
             Level = sellable.level,
             ModifierIds = sellable.modifier,
             AdditiveTags = sellable.additiveTags.ToArray()
@@ -57,11 +74,26 @@ public partial class SellableFood
         return res;
     }
 
+    /// <summary>
+    /// 按内容比较两个 <see cref="SellableFood"/> 是否相等（用于联机冲突仲裁，不放入字典/集合）。
+    /// </summary>
+    public static bool ContentEquals(SellableFood a, SellableFood b)
+    {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.Type == b.Type
+            && a.Id == b.Id
+            && a.Level == b.Level
+            && a.CookId == b.CookId
+            && (a.ModifierIds ?? []).SequenceEqual(b.ModifierIds ?? [])
+            && (a.AdditiveTags ?? []).SequenceEqual(b.AdditiveTags ?? []);
+    }
+
     public Sellable GetFromLocal()
     {
         var storedFoods = GameData.RunTime.NightSceneUtility.IzakayaConfigure.Instance.GetStoredFoods();
         var matchingFood = from food in storedFoods.ToArray()
-                           where food.Id == FoodId &&
+                           where food.Id == Id &&
                                  food.level == Level &&
                                  food.modifier.SequenceEqual(ModifierIds) &&
                                  food.additiveTags.ToArray().SequenceEqual(AdditiveTags.ToArray())

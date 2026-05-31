@@ -1,11 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>14</LangVersion>
     <AssemblyName>MetaMystia</AssemblyName>
     <Product>MetaMystia</Product>
-    <Version>0.23.1</Version>
+    <Version>0.25.1</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;
@@ -33,16 +32,20 @@
     <ItemGroup>
       <ExtraOutputPaths Include="D:\Touhou Mystia Izakaya v4.3.0\BepInEx\plugins" />
     </ItemGroup>
-    <Copy SourceFiles="$(RenamedAssemblyPath)$(TargetExt)" DestinationFolder="@(ExtraOutputPaths)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFolder="@(ExtraOutputPaths)" SkipUnchangedFiles="true" />
-    <Message Text="Copied $(RenamedAssemblyPath)$(TargetExt) to @(ExtraOutputPaths)" Importance="High" />
+    <Copy SourceFiles="$(RenamedAssemblyPath)$(TargetExt)" DestinationFolder="@(ExtraOutputPaths)"
+      SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFolder="@(ExtraOutputPaths)"
+      SkipUnchangedFiles="true" />
+    <Message Text="Copied $(RenamedAssemblyPath)$(TargetExt) to @(ExtraOutputPaths)"
+      Importance="High" />
   </Target>
 
   <Target Name="PatchIl2CppInteropHarmonySupport" AfterTargets="Build">
     <Copy SourceFiles="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll"
-          DestinationFolder="$(GamePath)\BepInEx\core"
-          SkipUnchangedFiles="true" />
-    <Message Text="Patched Il2CppInterop.HarmonySupport.dll → $(GamePath)\BepInEx\core" Importance="High" />
+      DestinationFolder="$(GamePath)\BepInEx\core"
+      SkipUnchangedFiles="true" />
+    <Message Text="Patched Il2CppInterop.HarmonySupport.dll → $(GamePath)\BepInEx\core"
+      Importance="High" />
   </Target>
 
   <ItemGroup>
@@ -52,23 +55,21 @@
     <EmbeddedResource Include="ResourceEx\AssetManagement\public.pem" />
     <EmbeddedResource Include="UI\Locales\en.json" />
     <EmbeddedResource Include="UI\Locales\zh-CN.json" />
+    <EmbeddedResource Remove="LogGenerator\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="LogGenerator\LogGenerator.csproj" OutputItemType="Analyzer"
-      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="MetaMystia.Generators\MetaMystia.Generators.csproj"
+      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="MetaMystia.Generators\**" />
+    <EmbeddedResource Remove="MetaMystia.Generators\**" />
+    <None Remove="MetaMystia.Generators\**" />
     <Compile Remove="LogGenerator\**" />
-    <EmbeddedResource Remove="LogGenerator\**" />
     <None Remove="LogGenerator\**" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="Assembly-CSharp\**" />
-    <EmbeddedResource Remove="Assembly-CSharp\**" />
-    <None Remove="Assembly-CSharp\**" />
-  </ItemGroup>
   <ItemGroup>
     <Compile Remove="MystiaReverse\**" />
     <EmbeddedResource Remove="MystiaReverse\**" />
@@ -170,6 +171,10 @@
     </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(GamePath)\BepInEx\interop\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(GamePath)\BepInEx\interop\UnityEngine.AssetBundleModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.UI">

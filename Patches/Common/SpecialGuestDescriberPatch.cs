@@ -7,7 +7,6 @@ using GameData.Core.Collections.NightSceneUtility;
 
 namespace MetaMystia.Patch;
 
-// Hearts to ShigureYuki!
 [HarmonyPatch(typeof(Common.UI.SpecialGuestDescriber))]
 [AutoLog]
 public partial class SpecialGuestDescriberPatch

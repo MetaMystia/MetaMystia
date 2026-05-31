@@ -4,7 +4,7 @@ VisualStudioVersion = 18.0.11217.181 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia", "MetaMystia.csproj", "{B4CD19DA-EE08-5225-FB19-1D0DFA4113DD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogGenerator", "LogGenerator\LogGenerator.csproj", "{2B487D42-7871-44B4-81FF-8035896B3700}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Generators", "MetaMystia.Generators\MetaMystia.Generators.csproj", "{2B487D42-7871-44B4-81FF-8035896B3700}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

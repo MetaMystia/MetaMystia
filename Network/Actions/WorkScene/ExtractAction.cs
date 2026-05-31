@@ -27,7 +27,7 @@ public partial class ExtractAction : Action
                 Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
                 return;
             }
-            CookControllerPatch.Extract_Original(cookerController, null);
+            CookControllerPatch.Extract_ReversePatch(cookerController, null);
         });
     }
 

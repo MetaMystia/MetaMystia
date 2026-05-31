@@ -4,6 +4,7 @@ using DayScene.Input;
 
 using MetaMystia.Network;
 using MetaMystia.UI;
+
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
