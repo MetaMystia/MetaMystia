@@ -173,6 +173,10 @@
       <HintPath>$(GamePath)\BepInEx\interop\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(GamePath)\BepInEx\interop\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>$(GamePath)\BepInEx\interop\UnityEngine.UI.dll</HintPath>
       <Private>False</Private>
