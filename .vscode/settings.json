@@ -1,5 +1,8 @@
 {
     "editor.formatOnSave": true,
+    // Disable C# extension diagnostics for IL2CPP project (800+ false positives)
+    "dotnet.server.useOmnisharp": false,
+    "csharp.semanticHighlighting.enabled": false,
     "cSpell.words": [
         "addressables",
         "akyuu",

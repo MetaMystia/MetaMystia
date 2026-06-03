@@ -1,4 +1,4 @@
-using BepInEx;
+﻿using BepInEx;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -63,6 +63,16 @@ public static partial class ResourceExManager
     public static HashSet<int> LoadedBeverageIds => [.. BeverageConfigs.Keys];
     public static HashSet<int> LoadedIngredientIds => [.. IngredientConfigs.Keys];
     public static HashSet<int> LoadedSpecialGuestIds => [.. _characterConfigs.Where(kv => kv.Key.type == "Special").Select(kv => kv.Key.id)];
+
+    /// <summary>
+    /// Find a loaded ResourceEx character config by display name (Chinese name).
+    /// </summary>
+    public static CharacterConfig TryFindCharacterConfigByName(string name, string type = "Special")
+    {
+        foreach (var kv in _characterConfigs)
+            if (kv.Value.name == name && kv.Key.type == type) return kv.Value;
+        return null;
+    }
 
     // Cloth portrait cache: clothId -> Sprite (loaded lazily or during preload)
     private static Dictionary<int, Sprite> _clothPortraitCache = new Dictionary<int, Sprite>();
@@ -134,6 +144,9 @@ public static partial class ResourceExManager
     {
         RegisterAllConversations();
         RegisterAllEvaluations();
+
+        // Spell registration moved to NightSceneEventManagerPatch.Initialize_Postfix
+        // because DataBaseNight.SpecialGuestSpell is null at this point.
     }
 
     public static void OnDaySceneLanguageInitialized()

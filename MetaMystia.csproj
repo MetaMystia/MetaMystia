@@ -11,7 +11,7 @@
       https://nuget.bepinex.dev/v3/index.json
     </RestoreAdditionalProjectSources>
     <RootNamespace>MetaMystia</RootNamespace>
-    <GamePath>M:\Release4.4.0e</GamePath>
+    <GamePath>H:\steam\steamapps\common\Touhou Mystia Izakaya\</GamePath>
     <OutputPath>$(GamePath)\BepInEx\plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>

@@ -55,6 +55,9 @@ public enum ActionType : ushort
     ExpEditAction,
     PassionEditAction,
     GuestInviteAction,
+    //这里新增了神绮符卡的网络动作标识 上黑卡 下红卡
+    ShinkiBlackCardAction,
+    ShinkiRedCardAction,
 }
 
 [MemoryPackable]
@@ -102,6 +105,10 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.ExpEditAction, typeof(ExpEditAction))]
 [MemoryPackUnion((ushort)ActionType.PassionEditAction, typeof(PassionEditAction))]
 [MemoryPackUnion((ushort)ActionType.GuestInviteAction, typeof(GuestInviteAction))]
+//这里序列化注册 将枚举值映射到对应的 Action 类
+[MemoryPackUnion((ushort)ActionType.ShinkiBlackCardAction, typeof(ShinkiBlackCardAction))]
+[MemoryPackUnion((ushort)ActionType.ShinkiRedCardAction, typeof(ShinkiRedCardAction))]
+
 [AutoLog]
 
 public abstract partial class Action

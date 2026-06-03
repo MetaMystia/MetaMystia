@@ -37,7 +37,7 @@ public partial class DataBaseCharacterPatch
 
         return RunOriginal;
     }
-    
+
     // /skin 立绘覆盖 > ResourceEX/Clothes 立绘覆盖 > 游戏原逻辑
     [HarmonyPatch(nameof(DataBaseCharacter.SetupPortrayalVisual))]
     [HarmonyPrefix]
@@ -71,6 +71,24 @@ public partial class DataBaseCharacterPatch
             }
         }
 
+        return RunOriginal;
+    }
+
+    /// <summary>
+    /// 拦截游戏内部的符卡拥有检查，让神绮等已注册自定义符卡的角色通过检查。
+    /// 游戏原生的 CheckCharacterHasSpell 不读取我们写入的 CharacterHasSpell 字典，
+    /// 所以需要通过 Prefix 强制返回 true。
+    /// </summary>
+    [HarmonyPatch(nameof(DataBaseCharacter.CheckCharacterHasSpell))]
+    [HarmonyPrefix]
+    public static bool CheckCharacterHasSpell_Prefix(ref bool __result, int specialGuestId)
+    {
+        if (ResourceExManager.IsShinkiSpellRegistered()
+            && (ResourceExManager.IsShinkiCharacterId(specialGuestId) || ResourceExManager.IsShinkiResourceExId(specialGuestId)))
+        {
+            __result = true;
+            return SkipOriginal;
+        }
         return RunOriginal;
     }
 }
