@@ -48,18 +48,11 @@ public partial class Spell_Shinki : SpellBase
     private static GameObject _portalVisual;
 
     // 位置参数 --------------------------------------------------------------------------
-    // 传送门屏幕坐标比例（ScreenSpace-Overlay），原值 0.65f / 0.35f
     private const float PortalScreenXRatio = 0.50f;
     private const float PortalScreenYRatio = 0.25f;
-
-    // 神绮待机位置偏移（相对于 portalPos 的世界坐标偏移）
-    private static readonly Vector3 ShinkiStandOffset = new Vector3(-1.5f, -1.0f, 0);
-
-    // 客人待机位置偏移（相对于 portalPos 的世界坐标偏移；神绮最后在此淡出）
-    private static readonly Vector3 GuestStandOffset = new Vector3(-2.5f, -2.0f, 0);
+    private const float PortalWorldOffsetX = 1.5f; // 世界坐标 X 轴右移
     // -----------------------------------------------------------------------------------
 
-    private const float BlackCardWalkDuration = 4.0f;
     private const float BlackCardPortalDisplayDuration = 1.5f;
 
     // ================================================================================
@@ -83,8 +76,8 @@ public partial class Spell_Shinki : SpellBase
     // 黑卡：绮符【环游魔界80天】
     // ================================================================================
 
-    private const float ShinkiWalkToStandDuration = 1.5f;
-    private const float ShinkiWalkToGuestStandDuration = 1.5f;
+    // 神绮待机位置偏移（相对于 portalPos，偏左）
+    private static readonly Vector3 ShinkiStandOffset = new Vector3(1.5f, 0f, 0f);
 
     [HideFromIl2Cpp]
     private IEnumerator NegativeBuffRoutine(SpellExecutionContext ctx)
@@ -129,9 +122,8 @@ public partial class Spell_Shinki : SpellBase
 
         // 2. 计算位置
         _portalPosition = DeterminePortalPosition();
-        var shinkiStandPos = _portalPosition + ShinkiStandOffset;   // 神绮待机位置（传送门左下方）
-        var guestStandPos  = _portalPosition + GuestStandOffset;    // 客人待机位置（更左下，神绮最后在此淡出）
-        DiagLog($"Black Card: portalPos={_portalPosition}, shinkiStand={shinkiStandPos}, guestStand={guestStandPos}");
+        var shinkiStandPos = _portalPosition + ShinkiStandOffset; // 神绮待机位置：传送门偏左
+        DiagLog($"Black Card: portalPos={_portalPosition}, shinkiStand={shinkiStandPos}");
 
         // 3. Phase 1 清理（所有客人 + 神绮：清理订单/面板/队列，保留桌位）
         foreach (var (rid, fsm, _) in affectedGuests)
@@ -145,20 +137,29 @@ public partial class Spell_Shinki : SpellBase
             PartialCleanupForBlackCard(shinkiGuest.Value.fsm.Controller);
         }
 
-        // 4. 神绮先移动到待机位置
+        // === 4. 神绮移动到待机位置（偏左），用回调检测移动完成 ===
+        var shinkiArrived = false;
         if (shinkiGuest != null && shinkiGuest.Value.fsm.Controller != null)
         {
             DiagLog($"  Shinki walking to stand pos, rid={shinkiGuest.Value.rid}, pos={shinkiStandPos}");
+            System.Action<GuestGroupController> onShinkiStandArrive = _ => { shinkiArrived = true; DiagLog("  Shinki: arrived at standby pos"); };
             shinkiGuest.Value.fsm.Controller.MoveToTargetPosition(
-                -1, new Il2CppSystem.Nullable<Vector3>(shinkiStandPos), Vector3Int.zero, false, null);
+                -1, new Il2CppSystem.Nullable<Vector3>(shinkiStandPos), Vector3Int.zero, false,
+                Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<GuestGroupController>>(onShinkiStandArrive));
         }
-        yield return new WaitForSeconds(ShinkiWalkToStandDuration);
+        else
+        {
+            shinkiArrived = true;
+        }
 
-        // 5. 开启传送门（神绮就位后才创建）
+        // 逐帧等待神绮到达
+        while (!shinkiArrived) yield return null;
+
+        // === 5. 神绮就位后，开启传送门 ===
         DiagLog("Black Card: creating portal");
         CreatePortalVisual(_portalPosition);
 
-        // 6. 广播网络同步
+        // === 6. 广播网络同步 ===
         var affectedIds = affectedGuests.Select(g => g.runtimeId).ToArray();
         int shinkiRid = shinkiGuest?.rid ?? -1;
         if (MpManager.IsConnected)
@@ -166,46 +167,87 @@ public partial class Spell_Shinki : SpellBase
             ShinkiBlackCardAction.Send(affectedIds, shinkiRid, _portalPosition);
         }
 
-        // 7. 其他客人走向传送门
-        foreach (var (rid, fsm, _) in affectedGuests)
+        // === 7. 其他客人零资金结算 + 走向传送门，每人独立回调 ===
+        var guestsArrivedFlags = new bool[affectedGuests.Count];
+        for (int i = 0; i < affectedGuests.Count; i++)
         {
-            if (fsm.Controller != null)
+            var (rid, fsm, _) = affectedGuests[i];
+            if (fsm.Controller == null)
             {
-                DiagLog($"  Moving guest rid={rid} to portal");
-                fsm.Controller.MoveToTargetPosition(
-                    -1, new Il2CppSystem.Nullable<Vector3>(_portalPosition), Vector3Int.zero, false, null);
+                guestsArrivedFlags[i] = true;
+                continue;
+            }
+
+            // 零资金结算
+            fsm.Controller.GetFund = 0;
+            DiagLog($"  Guest rid={rid}: zero fund → MoveToTargetPosition(portal)");
+
+            int idx = i;
+            System.Action<GuestGroupController> onGuestPortalArrive = _ =>
+            {
+                guestsArrivedFlags[idx] = true;
+                DiagLog($"  Guest rid={rid}: arrived at portal");
+            };
+            fsm.Controller.MoveToTargetPosition(
+                -1, new Il2CppSystem.Nullable<Vector3>(_portalPosition), Vector3Int.zero, false,
+                Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<GuestGroupController>>(onGuestPortalArrive));
+        }
+
+        // === 8. 逐帧检测：每位客人到达后依次淡出（每次只处理一个，间隔小延迟） ===
+        var guestsFaded = new bool[affectedGuests.Count];
+        int fadedCount = 0;
+        while (fadedCount < affectedGuests.Count)
+        {
+            yield return null;
+            // 每次只淡出一个到达的客人
+            for (int i = 0; i < affectedGuests.Count; i++)
+            {
+                if (!guestsArrivedFlags[i] || guestsFaded[i]) continue;
+
+                var (rid, fsm, _) = affectedGuests[i];
+                if (fsm.Controller != null)
+                {
+                    DiagLog($"  Guest rid={rid}: arrived at portal, fading out");
+                    GuestsManagerPatch.SkipLeaveFromDeskPatch.Grant();
+                    GuestsManagerPatch.SkipLeaveFromDeskBroadcastPatch.Grant();
+                    GuestsManagerPatch.LeaveFromDesk_ReversePatch(
+                        GuestsManager.Instance, fsm.Controller, GuestGroupController.LeaveType.Fading, null, false);
+                }
+                GuestsMap.Remove(rid);
+                guestsFaded[i] = true;
+                fadedCount++;
+                yield return new WaitForSeconds(0.25f); // 淡出间隔
+                break; // 每帧只处理一个
             }
         }
+        DiagLog("Black Card: all affected guests faded out");
 
-        // 8. 等待其他客人走到传送门
-        yield return new WaitForSeconds(BlackCardWalkDuration);
-
-        // 9. 移除所有其他客人（淡出）
-        foreach (var (rid, fsm, _) in affectedGuests)
-        {
-            if (fsm.Controller == null) continue;
-
-            DiagLog($"  Phase2: LeaveFromDesk(Fading) guest rid={rid}");
-            GuestsManagerPatch.SkipLeaveFromDeskPatch.Grant();
-            GuestsManagerPatch.SkipLeaveFromDeskBroadcastPatch.Grant();
-            GuestsManagerPatch.LeaveFromDesk_ReversePatch(
-                GuestsManager.Instance, fsm.Controller, GuestGroupController.LeaveType.Fading, null, false);
-            GuestsMap.Remove(rid);
-        }
-
-        // 10. 神绮移动到客人待机位置
+        // === 9. 等待 1s 后，神绮走到传送门并淡出 ===
+        yield return new WaitForSeconds(1f);
+        var shinkiArrivedAtPortal = false;
         if (shinkiGuest != null && shinkiGuest.Value.fsm.Controller != null)
         {
-            DiagLog($"  Shinki walking to guest stand pos, rid={shinkiGuest.Value.rid}, pos={guestStandPos}");
+            DiagLog($"  Shinki walking to portal, rid={shinkiGuest.Value.rid}, pos={_portalPosition}");
+            System.Action<GuestGroupController> onShinkiPortalArrive = _ =>
+            {
+                shinkiArrivedAtPortal = true;
+                DiagLog("  Shinki: arrived at portal");
+            };
             shinkiGuest.Value.fsm.Controller.MoveToTargetPosition(
-                -1, new Il2CppSystem.Nullable<Vector3>(guestStandPos), Vector3Int.zero, false, null);
+                -1, new Il2CppSystem.Nullable<Vector3>(_portalPosition), Vector3Int.zero, false,
+                Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<GuestGroupController>>(onShinkiPortalArrive));
         }
-        yield return new WaitForSeconds(ShinkiWalkToGuestStandDuration);
+        else
+        {
+            shinkiArrivedAtPortal = true;
+        }
 
-        // 11. 神绮在客人待机位置淡出
+        while (!shinkiArrivedAtPortal) yield return null;
+
+        // === 10. 神绮淡出 ===
         if (shinkiGuest != null)
         {
-            DiagLog($"  Shinki fading out at guestStandPos, rid={shinkiGuest.Value.rid}");
+            DiagLog($"  Shinki fading out, rid={shinkiGuest.Value.rid}");
             if (shinkiGuest.Value.fsm.Controller != null)
             {
                 GuestsManagerPatch.SkipLeaveFromDeskPatch.Grant();
@@ -217,7 +259,7 @@ public partial class Spell_Shinki : SpellBase
             GuestsMap.Remove(shinkiGuest.Value.rid);
         }
 
-        // 12. 展示传送门后销毁
+        // === 11. 展示传送门后销毁 ===
         yield return new WaitForSeconds(BlackCardPortalDisplayDuration);
         DestroyPortalVisual();
 
@@ -275,7 +317,7 @@ public partial class Spell_Shinki : SpellBase
     }
 
     /// <summary>
-    /// 客机重放黑卡效果（完整动画序列，与主机 NegativeBuffRoutine 新流程一致）
+    /// 客机重放黑卡效果（与主机新流程一致：回调检测移动完成，逐一淡出）
     /// </summary>
     public static void ReplayBlackCard(int[] affectedRuntimeIds, int shinkiRid, Vector3 portalPos)
     {
@@ -283,7 +325,6 @@ public partial class Spell_Shinki : SpellBase
         {
             _portalPosition = portalPos;
             var shinkiStandPos = portalPos + ShinkiStandOffset;
-            var guestStandPos  = portalPos + GuestStandOffset;
 
             // Phase 1 清理
             foreach (var rid in affectedRuntimeIds)
@@ -299,35 +340,53 @@ public partial class Spell_Shinki : SpellBase
                     PartialCleanupForBlackCard(shinkiFsm.Controller);
             }
 
-            // 步骤1: 神绮先走到待机位置
+            // === 步骤1: 神绮走到待机位置（偏左），回调检测到达 ===
+            var shinkiArrived = false;
             if (shinkiRid > 0)
             {
                 var shinkiFsm = GuestsMap.GetGuestFsm(shinkiRid);
                 if (shinkiFsm?.Controller != null)
+                {
+                    System.Action<GuestGroupController> onShinkiStandArrive2 = _ => { shinkiArrived = true; };
                     shinkiFsm.Controller.MoveToTargetPosition(
-                        -1, new Il2CppSystem.Nullable<Vector3>(shinkiStandPos), Vector3Int.zero, false, null);
+                        -1, new Il2CppSystem.Nullable<Vector3>(shinkiStandPos), Vector3Int.zero, false,
+                        Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<GuestGroupController>>(onShinkiStandArrive2));
+                }
+                else shinkiArrived = true;
             }
+            else shinkiArrived = true;
 
-            // 等待神绮到达 → 创建传送门
-            CommandScheduler.Enqueue(() => true, () =>
+            // 等待神绮到达 → 创建传送门 + 零资金 + 客人移动
+            CommandScheduler.Enqueue(() => shinkiArrived, () =>
             {
-                DiagLog("ReplayBlackCard: creating portal");
+                DiagLog("ReplayBlackCard: Shinki arrived, creating portal");
                 CreatePortalVisual(portalPos);
 
-                // 步骤2: 其他客人走向传送门
-                foreach (var rid in affectedRuntimeIds)
+                // === 步骤2: 其他客人零资金 + 走向传送门，每人独立回调 ===
+                var guestsArrivedFlags = new bool[affectedRuntimeIds.Length];
+                for (int i = 0; i < affectedRuntimeIds.Length; i++)
                 {
+                    var rid = affectedRuntimeIds[i];
                     var fsm = GuestsMap.GetGuestFsm(rid);
-                    if (fsm?.Controller != null)
-                        fsm.Controller.MoveToTargetPosition(
-                            -1, new Il2CppSystem.Nullable<Vector3>(portalPos), Vector3Int.zero, false, null);
+                    if (fsm?.Controller == null)
+                    {
+                        guestsArrivedFlags[i] = true;
+                        continue;
+                    }
+
+                    fsm.Controller.GetFund = 0;
+
+                    int idx = i;
+                    System.Action<GuestGroupController> onGuestPortalArrive2 = _ => { guestsArrivedFlags[idx] = true; };
+                    fsm.Controller.MoveToTargetPosition(
+                        -1, new Il2CppSystem.Nullable<Vector3>(portalPos), Vector3Int.zero, false,
+                        Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<GuestGroupController>>(onGuestPortalArrive2));
                 }
 
-                // 等待其他客人走到
-                CommandScheduler.Enqueue(() => true, () =>
+                // === 步骤3: 所有客人到达 → 淡出（客机批量） → 1s 后神绮走向传送门 ===
+                CommandScheduler.Enqueue(() => guestsArrivedFlags.All(f => f), () =>
                 {
-                    DiagLog("ReplayBlackCard: fading out guests");
-                    // 步骤3: 移除其他客人）
+                    DiagLog("ReplayBlackCard: all guests arrived, fading out");
                     foreach (var rid in affectedRuntimeIds)
                     {
                         var fsm = GuestsMap.GetGuestFsm(rid);
@@ -342,46 +401,55 @@ public partial class Spell_Shinki : SpellBase
                         GuestsMap.Remove(rid);
                     }
 
-                    // 步骤4: 神绮走到客人待机位置
-                    if (shinkiRid > 0)
-                    {
-                        var shinkiFsm = GuestsMap.GetGuestFsm(shinkiRid);
-                        if (shinkiFsm?.Controller != null)
-                            shinkiFsm.Controller.MoveToTargetPosition(
-                                -1, new Il2CppSystem.Nullable<Vector3>(guestStandPos), Vector3Int.zero, false, null);
-                    }
-
-                    // 等待神绮走到客人待机位置
+                    // === 1s 延迟后神绮走向传送门 ===
                     CommandScheduler.Enqueue(() => true, () =>
                     {
-                        DiagLog("ReplayBlackCard: Shinki fading out at guestStandPos");
-                        // 步骤5: 神绮在客人待机位置淡出
+                        var shinkiArrivedAtPortal = false;
                         if (shinkiRid > 0)
                         {
                             var shinkiFsm = GuestsMap.GetGuestFsm(shinkiRid);
                             if (shinkiFsm?.Controller != null)
                             {
-                                GuestsManagerPatch.SkipLeaveFromDeskPatch.Grant();
-                                GuestsManagerPatch.SkipLeaveFromDeskBroadcastPatch.Grant();
-                                GuestsManagerPatch.LeaveFromDesk_ReversePatch(
-                                    GuestsManager.Instance, shinkiFsm.Controller,
-                                    GuestGroupController.LeaveType.Fading, null, false);
+                                System.Action<GuestGroupController> onShinkiPortalArrive2 = _ => { shinkiArrivedAtPortal = true; };
+                                shinkiFsm.Controller.MoveToTargetPosition(
+                                    -1, new Il2CppSystem.Nullable<Vector3>(portalPos), Vector3Int.zero, false,
+                                    Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<GuestGroupController>>(onShinkiPortalArrive2));
                             }
-                            GuestsMap.Remove(shinkiRid);
+                            else shinkiArrivedAtPortal = true;
                         }
+                        else shinkiArrivedAtPortal = true;
 
-                        // 步骤6: 展示传送门后销毁
-                        CommandScheduler.Enqueue(() => true, () =>
+                        // === 神绮到达传送门 → 淡出 → 销毁传送门 ===
+                        CommandScheduler.Enqueue(() => shinkiArrivedAtPortal, () =>
                         {
-                            DiagLog("ReplayBlackCard: destroying portal");
-                            DestroyPortalVisual();
-                        }, "Shinki:ReplayDestroyPortal", timeoutSeconds: BlackCardPortalDisplayDuration + 1f);
+                            DiagLog("ReplayBlackCard: Shinki fading out at portal");
+                            if (shinkiRid > 0)
+                            {
+                                var shinkiFsm = GuestsMap.GetGuestFsm(shinkiRid);
+                                if (shinkiFsm?.Controller != null)
+                                {
+                                    GuestsManagerPatch.SkipLeaveFromDeskPatch.Grant();
+                                    GuestsManagerPatch.SkipLeaveFromDeskBroadcastPatch.Grant();
+                                    GuestsManagerPatch.LeaveFromDesk_ReversePatch(
+                                        GuestsManager.Instance, shinkiFsm.Controller,
+                                        GuestGroupController.LeaveType.Fading, null, false);
+                                }
+                                GuestsMap.Remove(shinkiRid);
+                            }
 
-                    }, "Shinki:ReplayShinkiToGuestStand", timeoutSeconds: ShinkiWalkToGuestStandDuration + 1f);
+                            CommandScheduler.Enqueue(() => true, () =>
+                            {
+                                DiagLog("ReplayBlackCard: destroying portal");
+                                DestroyPortalVisual();
+                            }, "Shinki:ReplayDestroyPortal", timeoutSeconds: BlackCardPortalDisplayDuration + 1f);
 
-                }, "Shinki:ReplayOthersFade", timeoutSeconds: BlackCardWalkDuration + 1f);
+                        }, "Shinki:ReplayShinkiArrivePortal", timeoutSeconds: 5f);
 
-            }, "Shinki:ReplayCreatePortal", timeoutSeconds: ShinkiWalkToStandDuration + 1f);
+                    }, "Shinki:ReplayGuestsArrive", timeoutSeconds: 10f);
+
+                }, "Shinki:ReplayGuestsArrive", timeoutSeconds: 10f);
+
+            }, "Shinki:ReplayPortalCreated", timeoutSeconds: 3f);
         });
     }
 
@@ -569,6 +637,9 @@ public partial class Spell_Shinki : SpellBase
     /// </summary>
     public static Func<Vector3, GameObject> CustomPortalVisualFactory { get; set; }
 
+    // ScreenSpaceOverlay sortingOrder — 负数确保在游戏 UI 之下（UI 通常 ≥ 0）
+    private const int PortalSortingOrder = -100;
+
     private static void CreatePortalVisual(Vector3 position)
     {
         DestroyPortalVisual();
@@ -580,28 +651,37 @@ public partial class Spell_Shinki : SpellBase
             return;
         }
 
-        DiagLog("CreatePortalVisual: creating default ScreenSpace-Overlay Canvas portal");
+        var cam = Camera.main;
+        if (cam == null)
+        {
+            DiagLog("CreatePortalVisual: Camera.main is null, aborting");
+            return;
+        }
 
-        var canvasGO = new GameObject("Shinki_MakaiPortal_Canvas");
+        var screenPos = cam.WorldToScreenPoint(position);
+        DiagLog($"CreatePortalVisual: world={position} → screen=({screenPos.x:F0}, {screenPos.y:F0})");
+
+        var canvasGO = new GameObject("Shinki_MakaiPortal");
         var canvas = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 32767;
-        canvasGO.AddComponent<CanvasScaler>();
+        canvas.sortingOrder = PortalSortingOrder;
 
-        var imageGO = new GameObject("Shinki_MakaiPortal_Image");
-        imageGO.transform.SetParent(canvasGO.transform, false);
+        var imgGO = new GameObject("PortalImage");
+        imgGO.transform.SetParent(canvasGO.transform, false);
 
-        var image = imageGO.AddComponent<UnityEngine.UI.Image>();
-        image.color = new Color(1f, 0f, 1f, 0.85f);
+        var img = imgGO.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(1f, 0f, 1f, 0.85f);
 
-        var rt = image.rectTransform;
-        rt.anchorMin = new Vector2(0.615f, 0.245f);
-        rt.anchorMax = new Vector2(0.685f, 0.455f);
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
+        var rt = img.rectTransform;
+        var portalSize = new Vector2(120f, 180f);
+        rt.sizeDelta = portalSize;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.zero;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(screenPos.x, screenPos.y);
 
         _portalVisual = canvasGO;
-        DiagLog($"CreatePortalVisual: DONE — anchorMin={rt.anchorMin}, anchorMax={rt.anchorMax}");
+        DiagLog($"CreatePortalVisual: DONE — screen=({screenPos.x:F0},{screenPos.y:F0}), size={portalSize}, order={PortalSortingOrder}");
     }
 
     private static void DestroyPortalVisual()
@@ -644,33 +724,36 @@ public partial class Spell_Shinki : SpellBase
         if (!ClassInjector.IsTypeRegisteredInIl2Cpp<PortalSpriteAnimator>())
             ClassInjector.RegisterTypeInIl2Cpp<PortalSpriteAnimator>();
 
-        return _ =>
+        return position =>
         {
+            var cam = Camera.main;
+            if (cam == null) return null;
+
+            var screenPos = cam.WorldToScreenPoint(position);
+
             var canvasGO = new GameObject("Shinki_Portal_Animated");
             var canvas = canvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 32767;
-            canvasGO.AddComponent<CanvasScaler>();
+            canvas.sortingOrder = PortalSortingOrder;
 
-            var imageGO = new GameObject("Shinki_Portal_Image");
-            imageGO.transform.SetParent(canvasGO.transform, false);
+            var imgGO = new GameObject("PortalImage");
+            imgGO.transform.SetParent(canvasGO.transform, false);
 
-            var image = imageGO.AddComponent<UnityEngine.UI.Image>();
-            image.sprite = frameArray[0];
+            var img = imgGO.AddComponent<UnityEngine.UI.Image>();
+            img.sprite = frameArray[0];
+            img.preserveAspect = true;
 
-            var rt = image.rectTransform;
-            rt.anchorMin = new Vector2(0.615f, 0.245f);
-            rt.anchorMax = new Vector2(0.685f, 0.455f);
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-
-            // 保持原始精灵宽高比
-            image.preserveAspect = true;
+            var rt = img.rectTransform;
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.zero;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(screenPos.x, screenPos.y);
 
             var animator = canvasGO.AddComponent<PortalSpriteAnimator>();
             animator.Frames = frameArray;
             animator.FramesPerSecond = framesPerSecond;
 
+            DiagLog($"CreateAnimatedPortalFactory: ScreenSpaceOverlay at screen=({screenPos.x:F0},{screenPos.y:F0})");
             return canvasGO;
         };
     }
@@ -694,8 +777,8 @@ public partial class Spell_Shinki : SpellBase
         var screenX = Screen.width * PortalScreenXRatio;
         var screenY = Screen.height * PortalScreenYRatio;
         var worldPos = cam.ScreenToWorldPoint(new Vector3(screenX, screenY, cam.nearClipPlane));
-        var portalPos = new Vector3(worldPos.x, worldPos.y, 0);
-        DiagLog($"DeterminePortalPosition: screen=({screenX:F0},{screenY:F0}), world={portalPos}");
+        var portalPos = new Vector3(worldPos.x + PortalWorldOffsetX, worldPos.y, 0);
+        DiagLog($"DeterminePortalPosition: screen=({screenX:F0},{screenY:F0}), world={portalPos}, offsetX={PortalWorldOffsetX}");
         return portalPos;
     }
 
@@ -752,7 +835,7 @@ public partial class Spell_Shinki : SpellBase
 }
 
 /// <summary>
-/// 传送门序列帧动画驱动。挂在带 Image 的 Canvas GameObject 上。
+/// 传送门序列帧动画驱动。挂在带 Image 的 Canvas GameObject 上（ScreenSpaceOverlay）。
 /// </summary>
 public class PortalSpriteAnimator : MonoBehaviour
 {
