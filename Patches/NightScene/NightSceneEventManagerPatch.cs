@@ -21,6 +21,8 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void Initialize_Postfix(EventManager __instance)
     {
+        ResourceExManager.AutoRegisterShinkiSpell();
+
         if (!MpManager.IsConnected) return;
 
         Func<int> getWholeNightTime = () => MpManager.WorkTimeSecondOverride;
@@ -42,6 +44,11 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static void StartGuestSpawningAndTiming_Prefix(ref int gameTotalSeconds)
     {
+        if (!ResourceExManager.IsShinkiSpellRegistered())
+        {
+            ResourceExManager.AutoRegisterShinkiSpell();
+        }
+
         if (MpManager.IsConnected)
         {
             gameTotalSeconds = MpManager.WorkTimeSecondOverride;

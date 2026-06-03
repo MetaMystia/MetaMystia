@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine;
@@ -103,6 +103,11 @@ public partial class PluginManager : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.F4))
             {
                 ResourceEx.AssetBundles.Test.Test1();
+            }
+
+            if (Input.GetKeyDown(KeyCode.F5))
+            {
+                ResourceExManager.AutoRegisterShinkiSpell();
             }
 
             if (Input.GetKeyDown(KeyCode.F11))

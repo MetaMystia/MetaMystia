@@ -323,10 +323,19 @@ public partial class GuestsManagerPatch
     public static void PostInitializeGuestGroup_Prefix(GuestGroupController initializedController)
     {
         if (IsReimuProtectionGuest(initializedController)) return;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+
+        // 单机模式：直接创建 FSM（必须在 ShouldSkipAction 之前，因为 ShouldSkipAction = !IsConnected）
+        if (!MpManager.IsConnected)
+        {
+            GuestFSM.OnSpawn(initializedController, null);
+            return;
+        }
+
+        // 以下为联机逻辑
+        if (MpManager.ShouldSkipAction) return;
+
         if (MpManager.IsConnectedHost)
         {
-            // 将主机生成的顾客信息广播给客机
             var normalSpawnArgs = initializedController.ControllType == GuestsManager.GuestType.Normal
                 ? ConsumePendingNormalSpawnArgs()
                 : null;

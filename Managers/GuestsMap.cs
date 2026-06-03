@@ -13,6 +13,7 @@ public static partial class GuestsMap
     private const int InvalidRuntimeId = 0;
     private static int _nextRuntimeId = 1;
     private static Dictionary<int, GuestFSM> _allGuests = new();
+    public static int Count => _allGuests.Count;
 
     private static int AllocateRuntimeId() => _nextRuntimeId++;
     private static bool HasGuest(int runtimeId) => _allGuests.ContainsKey(runtimeId);
@@ -94,6 +95,19 @@ public static partial class GuestsMap
             return null;
         }
         return _allGuests.First(kv => kv.Value.Controller != null && kv.Value.Controller.Pointer == controller.Pointer).Value;
+    }
+
+    /// <summary>
+    /// 新增这个方法以便实现符卡设计；返回当前所有活跃客人的快照。
+    /// </summary>
+    public static List<(int runtimeId, GuestFSM fsm)> GetAllGuestsSnapshot()
+    {
+        var result = new List<(int, GuestFSM)>(_allGuests.Count);
+        foreach (var kvp in _allGuests)
+        {
+            result.Add((kvp.Key, kvp.Value));
+        }
+        return result;
     }
 
     /// <summary>
