@@ -6,6 +6,7 @@ using System.Linq;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Attributes;
+using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -524,28 +525,40 @@ public partial class Spell_Shinki : SpellBase
     }
 
     // ================================================================================
-    // 传送门视觉（Canvas ScreenSpace-Overlay，保证可见）
+    // 传送门视觉（可替换接口）
     // ================================================================================
+
+    /// <summary>
+    /// 自定义传送门视觉创建委托。
+    /// 接收传送门场景世界坐标，返回创建的 GameObject（用于后续销毁）。
+    /// 返回 null 表示不创建视觉。
+    /// </summary>
+    public static Func<Vector3, GameObject> CustomPortalVisualFactory { get; set; }
 
     private static void CreatePortalVisual(Vector3 position)
     {
         DestroyPortalVisual();
 
-        DiagLog("CreatePortalVisual: creating ScreenSpace-Overlay Canvas portal");
+        if (CustomPortalVisualFactory != null)
+        {
+            DiagLog("CreatePortalVisual: using custom visual factory");
+            _portalVisual = CustomPortalVisualFactory(position);
+            return;
+        }
 
-        // ScreenSpace-Overlay Canvas — Unity 最顶层 UI，必定渲染在一切之上
+        DiagLog("CreatePortalVisual: creating default ScreenSpace-Overlay Canvas portal");
+
         var canvasGO = new GameObject("Shinki_MakaiPortal_Canvas");
         var canvas = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 32767;
         canvasGO.AddComponent<CanvasScaler>();
 
-        // 亮品红色块 — 占屏幕中央 10%宽 × 30%高
         var imageGO = new GameObject("Shinki_MakaiPortal_Image");
         imageGO.transform.SetParent(canvasGO.transform, false);
 
         var image = imageGO.AddComponent<UnityEngine.UI.Image>();
-        image.color = new Color(1f, 0f, 1f, 0.85f); // 亮品红，近不透明
+        image.color = new Color(1f, 0f, 1f, 0.85f);
 
         var rt = image.rectTransform;
         rt.anchorMin = new Vector2(0.615f, 0.245f);
@@ -554,10 +567,7 @@ public partial class Spell_Shinki : SpellBase
         rt.offsetMax = Vector2.zero;
 
         _portalVisual = canvasGO;
-
-        DiagLog($"CreatePortalVisual: DONE — canvas={canvas != null}, renderMode={canvas.renderMode}, " +
-                 $"sortingOrder={canvas.sortingOrder}, image={image != null}, " +
-                 $"color={image.color}, anchorMin={rt.anchorMin}, anchorMax={rt.anchorMax}");
+        DiagLog($"CreatePortalVisual: DONE — anchorMin={rt.anchorMin}, anchorMax={rt.anchorMax}");
     }
 
     private static void DestroyPortalVisual()
@@ -569,6 +579,70 @@ public partial class Spell_Shinki : SpellBase
             DiagLog("DestroyPortalVisual: portal destroyed");
         }
     }
+
+    /// <summary>
+    /// 创建序列帧动画传送门工厂。传入 rex:// 精灵路径数组和帧率，返回可赋给
+    /// <see cref="CustomPortalVisualFactory"/> 的委托。
+    /// </summary>
+    public static Func<Vector3, GameObject> CreateAnimatedPortalFactory(
+        string[] spriteUris, float framesPerSecond = 12f)
+    {
+        // 预加载所有帧精灵
+        var frames = new List<Sprite>();
+        foreach (var uri in spriteUris)
+        {
+            if (TryGetSprite(uri, out var s) && s != null)
+                frames.Add(s);
+            else
+                DiagLog($"CreateAnimatedPortalFactory: failed to load '{uri}'");
+        }
+
+        if (frames.Count == 0)
+        {
+            DiagLog("CreateAnimatedPortalFactory: no frames loaded, returning null factory");
+            return _ => null;
+        }
+
+        DiagLog($"CreateAnimatedPortalFactory: loaded {frames.Count} frames at {framesPerSecond} fps");
+        var frameArray = frames.ToArray();
+
+        // 注册 MonoBehaviour 到 IL2CPP
+        if (!ClassInjector.IsTypeRegisteredInIl2Cpp<PortalSpriteAnimator>())
+            ClassInjector.RegisterTypeInIl2Cpp<PortalSpriteAnimator>();
+
+        return _ =>
+        {
+            var canvasGO = new GameObject("Shinki_Portal_Animated");
+            var canvas = canvasGO.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 32767;
+            canvasGO.AddComponent<CanvasScaler>();
+
+            var imageGO = new GameObject("Shinki_Portal_Image");
+            imageGO.transform.SetParent(canvasGO.transform, false);
+
+            var image = imageGO.AddComponent<UnityEngine.UI.Image>();
+            image.sprite = frameArray[0];
+
+            var rt = image.rectTransform;
+            rt.anchorMin = new Vector2(0.615f, 0.245f);
+            rt.anchorMax = new Vector2(0.685f, 0.455f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            // 保持原始精灵宽高比
+            image.preserveAspect = true;
+
+            var animator = canvasGO.AddComponent<PortalSpriteAnimator>();
+            animator.Frames = frameArray;
+            animator.FramesPerSecond = framesPerSecond;
+
+            return canvasGO;
+        };
+    }
+
+    private static bool TryGetSprite(string uri, out Sprite sprite)
+        => ResourceExManager.TryGetSprite(uri, out sprite);
 
     // ================================================================================
     // 传送门位置
@@ -642,4 +716,35 @@ public partial class Spell_Shinki : SpellBase
     public static void SetShinkiLabel(string label) => _shinkiLabel = label;
     public static void SetShinkiCharacterId(int id) => _shinkiCharacterId = id;
     public static void SetShinkiResourceExId(int id) => _shinkiResourceExId = id;
+}
+
+/// <summary>
+/// 传送门序列帧动画驱动。挂在带 Image 的 Canvas GameObject 上。
+/// </summary>
+public class PortalSpriteAnimator : MonoBehaviour
+{
+    public Sprite[] Frames;
+    public float FramesPerSecond = 12f;
+
+    private float _timer;
+    private int _index;
+    private UnityEngine.UI.Image _image;
+
+    public PortalSpriteAnimator(IntPtr ptr) : base(ptr) { }
+
+    void Update()
+    {
+        if (Frames == null || Frames.Length == 0) return;
+        _image ??= GetComponent<UnityEngine.UI.Image>();
+        if (_image == null) return;
+
+        _timer += Time.deltaTime;
+        var interval = 1f / FramesPerSecond;
+        if (_timer >= interval)
+        {
+            _timer -= interval;
+            _index = (_index + 1) % Frames.Length;
+            _image.sprite = Frames[_index];
+        }
+    }
 }
