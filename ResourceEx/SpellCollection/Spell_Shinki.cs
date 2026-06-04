@@ -834,6 +834,17 @@ public partial class Spell_Shinki : SpellBase
     //不返回
     private static void RegisterPortalBuff()
     {
+        // 如果设置了自定义图标，刷新 BuffDescription
+        if (CustomBuffIcon != null)
+        {
+            DiagLog("RegisterPortalBuff: applying custom buff icon");
+            NativeBuffHelper.RegisterCustomBuffDescription(
+                NativeBuffHelper.BT.Null,
+                title: "魔神降临",
+                description: "每隔15秒从魔界传送门中随机召唤两位魔界人",
+                visual: CustomBuffIcon);
+        }
+
         DiagLog("RegisterPortalBuff: calling native RegisterTimedBuff");
         var ok = NativeBuffHelper.Register(NativeBuffHelper.BT.Null, float.MaxValue);
         DiagLog($"RegisterPortalBuff: {(ok ? "SUCCESS" : "FAILED")}");
@@ -857,6 +868,12 @@ public partial class Spell_Shinki : SpellBase
     /// 返回 null 表示不创建视觉。
     /// </summary>
     public static Func<Vector3, GameObject> CustomPortalVisualFactory { get; set; }
+
+    /// <summary>
+    /// 自定义 Buff 图标。设置后传送门激活时会覆盖 BuffDescription 的 visual。
+    /// 需在红卡触发前（如 Spell 注册阶段）赋值。
+    /// </summary>
+    public static Sprite CustomBuffIcon { get; set; }
 
     // ScreenSpaceOverlay sortingOrder — 负数确保在游戏 UI 之下（UI 通常 ≥ 0）
     private const int PortalSortingOrder = -100;
