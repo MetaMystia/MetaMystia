@@ -1,5 +1,6 @@
 using System;
 using HarmonyLib;
+using MetaMystia.ResourceEx.SpellCollection;
 
 namespace MetaMystia.Patch;
 
@@ -63,6 +64,10 @@ public static partial class PatchRegistry
         typeof(DataBaseSchedulerPatch),
         typeof(RunTimeDayScenePatch),
         typeof(DaySceneChatSelectionPannel__c__DisplayClass17_0Patch),
+
+        // Shinki (神绮) Spell Patches
+        // typeof(ShinkiGuestIconManagerPatch),  // TODO: IL Compile Error — needs investigation
+        typeof(ShinkiDebugConsolePatch),
     ];
 
     public static bool AllPatched => PatchedException == null;

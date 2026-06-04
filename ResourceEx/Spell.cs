@@ -108,9 +108,13 @@ public static partial class ResourceExManager
         DataBaseNight.SpecialGuestSpell[shinkiCharacterId] = _shinkiSpellHandle.Cast<IAssetHandle<SpellBase>>();
 
         var langs = new Il2CppReferenceArray<LanguageBase>(2);
-        langs[0] = new LanguageBase("\u9B54\u795E\u964D\u4E34", "\u795E\u7EE6\u5F00\u542F\u65E0\u5C3D\u7684\u9B54\u754C\u4F20\u9001\u95E8\uFF0C\u6301\u7EED\u53EC\u5524\u9B54\u754C\u5BA2\u4EBA");
-        langs[1] = new LanguageBase("\u7EE6\u7B26\u300C\u73AF\u6E38\u9B54\u754C80\u5929\u300D", "\u795E\u7EE6\u9080\u8BF7\u6240\u6709\u5BA2\u4EBA\u524D\u5F80\u9B54\u754C\u6E38\u73A9");
+        langs[0] = new LanguageBase("魔神降临", "神绮开启无尽的魔界传送门，持续召唤魔界客人");
+        langs[1] = new LanguageBase("绮符【环游魔界80天】", "神绮邀请所有客人前往魔界游玩");
         GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[shinkiCharacterId] = langs;
+
+        // 诊断：确认 C# 侧注册的符卡名称是否正确
+        UnityEngine.Debug.Log($"[MetaMystia] SpellLang registered for id={shinkiCharacterId}: " +
+            $"红卡='{langs[0].Name}', 黑卡='{langs[1].Name}'");
 
         IAssetHandle<Sprite> LoadPortraitHandle(string uri, string label)
         {
@@ -157,7 +161,7 @@ public static partial class ResourceExManager
         _shinkiRegisteredId = shinkiCharacterId;
 
         // === Also register for ResourceEx Shinki if it exists in SpecialGuest ===
-        var rexConfig = TryFindCharacterConfigByName("\u795e\u7ee6");
+        var rexConfig = TryFindCharacterConfigByName("神绮");
         var rexId = rexConfig?.id ?? -1;
         if (rexId == shinkiCharacterId || rexId == -1)
         {
@@ -170,7 +174,7 @@ public static partial class ResourceExManager
                     var sid = kvp.Value?.stringId;
                     if (!string.IsNullOrEmpty(sid) &&
                         (sid.IndexOf("Shinki", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         sid.Contains("\u795e\u7ee6")))
+                         sid.Contains("神绮")))
                     {
                         rexId = kvp.Key;
                         break;
@@ -220,7 +224,7 @@ public static partial class ResourceExManager
             return true;
         }
 
-        // === \u7B56\u7565 1: stringId \u5339\u914D\uFF08\u539F\u6709\u903B\u8F91\uFF09 ===
+        // === 策略 1: stringId 匹配（原有逻辑） ===
         var specialGuests = DataBaseCharacter.SpecialGuest;
         if (specialGuests != null)
         {
@@ -229,7 +233,7 @@ public static partial class ResourceExManager
                 var sid = kvp.Value.stringId;
                 if (!string.IsNullOrEmpty(sid) &&
                     (sid.IndexOf("Shinki", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     sid.Contains("\u795E\u7EE6")))
+                     sid.Contains("神绮")))
                 {
                     Log.Info($"AutoRegisterShinkiSpell: found via stringId, id={kvp.Key}, stringId={sid}");
                     return TryRegister(kvp.Key, sid);
@@ -237,7 +241,7 @@ public static partial class ResourceExManager
             }
         }
 
-        // === \u7B56\u7565 2: DataBaseLanguage \u663E\u793A\u540D\u79F0\u5339\u914D ===
+        // === 策略 2: DataBaseLanguage 显示名称匹配 ===
         var langDb = GameData.CoreLanguage.Collections.DataBaseLanguage.SpecialGuest;
         if (langDb != null)
         {
@@ -246,7 +250,7 @@ public static partial class ResourceExManager
                 try
                 {
                     var displayName = kvp.Value.Item1;
-                    if (!string.IsNullOrEmpty(displayName) && displayName.Contains("\u795E\u7EE6"))
+                    if (!string.IsNullOrEmpty(displayName) && displayName.Contains("神绮"))
                     {
                         var id = kvp.Key;
                         var refGuest = DataBaseCharacter.RefSGuest(id);
@@ -261,7 +265,7 @@ public static partial class ResourceExManager
             }
         }
 
-        // === \u7B56\u7565 3: DLC5 ID \u8303\u56F4\u515C\u5E95 ===
+        // === 策略 3: DLC5 ID 范围兜底 ===
         if (specialGuests != null && langDb != null)
         {
             foreach (var kvp in specialGuests)
@@ -271,7 +275,7 @@ public static partial class ResourceExManager
                 {
                     var nameEntry = langDb[kvp.Key];
                     var name = nameEntry.Item1;
-                    if (!string.IsNullOrEmpty(name) && name.Contains("\u795E\u7EE6"))
+                    if (!string.IsNullOrEmpty(name) && name.Contains("神绮"))
                     {
                         var label = kvp.Value.stringId ?? $"Guest_{kvp.Key}";
                         Log.Info($"AutoRegisterShinkiSpell: found via DLC5 range, id={kvp.Key}, stringId={label}");
@@ -282,11 +286,11 @@ public static partial class ResourceExManager
             }
         }
 
-        // === \u5168\u90E8\u5931\u8D25\uFF1Adump \u8BCA\u65AD\u4FE1\u606F\u5230 Player.log ===
-        Log.Warning("AutoRegisterShinkiSpell: ALL STRATEGIES FAILED \u2014 could not find Shinki");
+        // === 全部失败：dump 诊断信息到 Player.log ===
+        Log.Warning("AutoRegisterShinkiSpell: ALL STRATEGIES FAILED — could not find Shinki");
 
         // ResourceEx config fallback
-        var config = TryFindCharacterConfigByName("\u795E\u7EE6");
+        var config = TryFindCharacterConfigByName("神绮");
         if (config != null)
         {
             var label = config.label;

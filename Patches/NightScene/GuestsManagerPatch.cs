@@ -614,6 +614,28 @@ public partial class GuestsManagerPatch
 
 
     /// <summary>
+    /// 手动清理 AllGuestsControllersInDesk 后 GetInDeskGuest 返回 null，
+    /// 原 CheckCanPlayerRepelGuest 未做 null-check 会 NRE。此处兜底返回 false。
+    /// </summary>
+    [HarmonyPatch(nameof(GuestsManager.CheckCanPlayerRepelGuest))]
+    [HarmonyPrefix]
+    public static bool CheckCanPlayerRepelGuest_Prefix(int deskCode, ref bool __result)
+    {
+        try
+        {
+            var gm = GuestsManager.Instance;
+            if (gm != null && gm.GetInDeskGuest(deskCode) == null)
+            {
+                __result = false;
+                return SkipOriginal;
+            }
+        }
+        catch { /* 防御性降级 */ }
+        return RunOriginal;
+    }
+
+
+    /// <summary>
     /// TryCloseIzakaya 的反向补丁，用于客机重放。
     /// </summary>
     /// <param name="__instance"></param>
