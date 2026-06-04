@@ -68,6 +68,7 @@ public static partial class PatchRegistry
         // Shinki (神绮) Spell Patches
         // typeof(ShinkiGuestIconManagerPatch),  // TODO: IL Compile Error — needs investigation
         typeof(ShinkiDebugConsolePatch),
+        typeof(NativeBuffHelper),
     ];
 
     public static bool AllPatched => PatchedException == null;

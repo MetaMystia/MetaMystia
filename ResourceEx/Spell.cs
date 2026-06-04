@@ -11,6 +11,7 @@ using GameData.Core.Collections.NightSceneUtility;
 using GameData.CoreLanguage;
 
 using MetaMiku;
+using MetaMystia.Patch;
 using MetaMystia.ResourceEx.SpellCollection;
 
 namespace MetaMystia;
@@ -89,6 +90,7 @@ public static partial class ResourceExManager
             Spell_Shinki.SetShinkiLabel(shinkiLabel);
             Spell_Shinki.SetShinkiCharacterId(shinkiCharacterId);
             Spell_Shinki.ResolveCharacterIds();
+            Spell_Shinki.LoadFlagSprite();
             _shinkiSpellInstanceCreated = true;
         }
 
@@ -155,6 +157,13 @@ public static partial class ResourceExManager
 
 
         DataBaseCharacter.CharacterHasSpell[shinkiCharacterId] = true;
+
+        // === 注册自定义 BuffDescription 文本（供 RegisterTimedBuff 显示） ===
+        NativeBuffHelper.RegisterCustomBuffDescription(
+            NativeBuffHelper.BT.Null,
+            title: "魔神降临",
+            description: "每隔15秒从魔界传送门中随机召唤两位魔界人");
+
         IzakayaCloseAction.RegisterOnIzakayaClose(Spell_Shinki.CleanupPortal);
 
         _shinkiSpellRegistered = true;
