@@ -28,7 +28,15 @@ public partial class Spell_Test : SpellBase
     private IEnumerator PositiveBuffRoutine(SpellExecutionContext spellExecutionContext)
     {
         var star = UnityEngine.Object.Instantiate(ResourceEx.AssetBundles.Test.TestObj);
-        star.transform.position = Vector3.zero;
+        star.transform.position = new Vector3(0f, 0f, 0f);
+
+        // 设置 Sorting Layer 为 UI，跟帕秋莉的书一致
+        var r = star.GetComponent<Renderer>();
+        if (r != null)
+        {
+            r.sortingLayerName = "UI";
+            r.sortingOrder = 0;
+        }
 
         for (var t = 0f; t < 8f; t += Time.deltaTime)
         {
