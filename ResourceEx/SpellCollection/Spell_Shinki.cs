@@ -235,14 +235,12 @@ public partial class Spell_Shinki : SpellBase
     // 旗子立绘切换（神绮黑卡等待时显示举旗形象）
     // ================================================================================
 
-    private const string FlagSpriteUri = "rex://ResourceExample/assets/Character/9004/Sprite/flag.png";
+    private const string FlagSpriteUri = "rex://ResourceExample/assets/Spell/9004_1.png";
+    private const string BuffIconUri = "rex://ResourceExample/assets/Buff/9004_1.png";
 
-    //不需要，无参数
-    //预加载举旗精灵素材，失败不崩溃仅禁用功能
-    //不返回
     public static void LoadFlagSprite()
     {
-        if (_flagSprite != null) return; // 已加载
+        if (_flagSprite != null) return;
         if (TryGetSprite(FlagSpriteUri, out var sprite) && sprite != null)
         {
             _flagSprite = sprite;
@@ -251,6 +249,20 @@ public partial class Spell_Shinki : SpellBase
         else
         {
             DiagLog($"LoadFlagSprite: failed to load '{FlagSpriteUri}', flag feature disabled");
+        }
+    }
+
+    public static void LoadBuffIcon()
+    {
+        if (CustomBuffIcon != null) return;
+        if (TryGetSprite(BuffIconUri, out var sprite) && sprite != null)
+        {
+            CustomBuffIcon = sprite;
+            DiagLog($"LoadBuffIcon: buff icon loaded from '{BuffIconUri}'");
+        }
+        else
+        {
+            DiagLog($"LoadBuffIcon: failed to load '{BuffIconUri}', buff icon disabled");
         }
     }
 

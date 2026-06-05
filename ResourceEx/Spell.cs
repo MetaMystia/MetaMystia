@@ -91,6 +91,7 @@ public static partial class ResourceExManager
             Spell_Shinki.SetShinkiCharacterId(shinkiCharacterId);
             Spell_Shinki.ResolveCharacterIds();
             Spell_Shinki.LoadFlagSprite();
+            Spell_Shinki.LoadBuffIcon();
             _shinkiSpellInstanceCreated = true;
         }
 
