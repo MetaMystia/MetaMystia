@@ -43,7 +43,13 @@ public static partial class ResourceExManager
         // 3. 通过 rex 管线加载立绘并注册为符卡立绘。
         if (TryGetSprite(portraitUri, out var portraitSprite) && portraitSprite != null)
         {
-            var spriteAssetHandle = new Common.SceneDirector.RuntimeHandle<Sprite>(portraitSprite)
+            // pivot=(0.5, 0.65) 把锚点抬高到约胸部位置，游戏 SpellDeclareCutinCharacter
+            // 会自动将 Image 的 pivot 对齐到 sprite pivot，使得上半身居中、下半身被裁切，
+            // 实现"符卡立绘"效果。
+            var pivot = new Vector2(0.5f, 0.65f);
+            var resizedSprite = Sprite.Create(portraitSprite.texture, portraitSprite.rect, pivot, 100f);
+
+            var spriteAssetHandle = new Common.SceneDirector.RuntimeHandle<Sprite>(resizedSprite)
                 .Cast<IAssetHandle<Sprite>>();
 
             // 注意：il2cppinterop 把 Il2CppSystem.ValueTuple 包装为带 16 字节对象头的引用类型，
