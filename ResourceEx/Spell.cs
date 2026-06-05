@@ -28,16 +28,16 @@ public static partial class ResourceExManager
         //      （内部 NullReferenceException），原因是 il2cpp 找不到对应的 Class。
         //    - 实例本身不需要托管侧静态字段保活：下面塞进 DataBaseNight.SpecialGuestSpell 的
         //      RuntimeHandle 已经在 il2cpp 侧持有强引用，Unity native 对象不会被回收。
-        ClassInjector.RegisterTypeInIl2Cpp<Spell_Test>();
-        var spell = ScriptableObject.CreateInstance<Spell_Test>();
+        ClassInjector.RegisterTypeInIl2Cpp<Spell_Daiyousei>();
+        var spell = ScriptableObject.CreateInstance<Spell_Daiyousei>();
 
         var spellHandle = new Common.SceneDirector.RuntimeHandle<SpellBase>(spell);
         DataBaseNight.SpecialGuestSpell[spellId] = spellHandle.Cast<IAssetHandle<SpellBase>>();
 
         // 2. 注册符卡名称和描述。通常只有两个版本，秦心(额外含有喜怒哀乐等子符卡)等除外
         var langs = new Il2CppReferenceArray<LanguageBase>(2);
-        langs[0] = new LanguageBase("大妖精 红卡", "测试符卡 - 红卡");
-        langs[1] = new LanguageBase("大妖精 黑卡", "测试符卡 - 黑卡");
+        langs[0] = new LanguageBase("「妖精的呼朋引伴」", "大妖精喊来了笨蛋们！");
+        langs[1] = new LanguageBase("雾符「我也不知道这个符卡该叫什么名字！」", "大妖精在食堂里释放了迷雾！顾客区视野受阻 30 秒");
         GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[spellId] = langs;
 
         // 3. 通过 rex 管线加载立绘并注册为符卡立绘。
