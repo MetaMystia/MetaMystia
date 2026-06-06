@@ -105,8 +105,8 @@ public static partial class ResourceExManager
             spellId: 9001,
             positiveName: "灵符「遗失典籍的回响」",
             positiveDesc: "小恶魔从图书馆搬来一本百科全书",
-            negativeName: "幻符「馆藏乱序」",
-            negativeDesc: "小恶魔……什么也没干",
+            negativeName: "幻符「献给巴瓦鲁的镇魂曲」",
+            negativeDesc: "30 秒内料理面板里的食材顺序被打乱，酒水柜里的酒水顺序被打乱，过滤功能不可用，交互的厨具变成随机厨具",
             portraitUri: "rex://ResourceExample/assets/Character/9001/Portrait/0.png");
     }
 }
