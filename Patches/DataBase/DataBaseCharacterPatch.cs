@@ -83,8 +83,7 @@ public partial class DataBaseCharacterPatch
     [HarmonyPrefix]
     public static bool CheckCharacterHasSpell_Prefix(ref bool __result, int specialGuestId)
     {
-        if (ResourceExManager.IsShinkiSpellRegistered()
-            && (ResourceExManager.IsShinkiCharacterId(specialGuestId) || ResourceExManager.IsShinkiResourceExId(specialGuestId)))
+        if (ResourceExManager.IsCustomSpellCharacter(specialGuestId))
         {
             __result = true;
             return SkipOriginal;

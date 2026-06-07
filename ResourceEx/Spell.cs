@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using MetaMystia.Network;
 using Il2CppInterop.Runtime.Injection;
@@ -20,7 +21,7 @@ public static partial class ResourceExManager
 {
     public static void SpellTest()
     {
-        const int spellId = 9000;
+        const int spellId = 8999;
         const string portraitUri = "rex://ResourceExample/assets/Character/9000/Portrait/0.png";
 
         // 1. 注册 Spell_Test 并新建实例，作为 9000 号角色的符卡。
@@ -74,6 +75,9 @@ public static partial class ResourceExManager
     private static int _shinkiResourceExId = -1;
     private static Spell_Shinki _shinkiSpellInstance;
     private static Common.SceneDirector.RuntimeHandle<SpellBase> _shinkiSpellHandle;
+
+    // 所有已注册符卡的角色 ID（包含主角色和 ResourceEx 别名）
+    private static readonly HashSet<int> _registeredSpellIds = new();
 
     public static void RegisterShinkiSpell(int shinkiCharacterId, string shinkiLabel, string portraitUri = null)
         => RegisterShinkiSpell(shinkiCharacterId, shinkiLabel, portraitUri, portraitUri);
@@ -158,6 +162,7 @@ public static partial class ResourceExManager
 
 
         DataBaseCharacter.CharacterHasSpell[shinkiCharacterId] = true;
+        _registeredSpellIds.Add(shinkiCharacterId);
 
         // === 注册自定义 BuffDescription 文本（供 RegisterTimedBuff 显示） ===
         NativeBuffHelper.RegisterCustomBuffDescription(
@@ -200,6 +205,7 @@ public static partial class ResourceExManager
             {
                 DataBaseNight.SpecialGuestSpell[rexId] = _shinkiSpellHandle.Cast<IAssetHandle<SpellBase>>();
                 DataBaseCharacter.CharacterHasSpell[rexId] = true;
+                _registeredSpellIds.Add(rexId);
                 GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[rexId] = langs;
                 if (fallback != null)
                 {
@@ -225,6 +231,55 @@ public static partial class ResourceExManager
 
     private const string ShinkiPositivePortraitUri = "rex://ResourceExample/assets/Character/9004/Portrait/0.png";
     private const string ShinkiNegativePortraitUri = "rex://ResourceExample/assets/Character/9004/Portrait/2.png";
+
+    public static void RegisterDaiyouseiSpell()
+    {
+        const int spellId = 9000;
+        const string portraitUri = "rex://ResourceExample/assets/Character/9000/Portrait/0.png";
+
+        ClassInjector.RegisterTypeInIl2Cpp<Spell_Daiyousei>();
+        var spell = ScriptableObject.CreateInstance<Spell_Daiyousei>();
+
+        Spell_Daiyousei.LoadBuffIcon();
+
+        var spellHandle = new Common.SceneDirector.RuntimeHandle<SpellBase>(spell);
+        DataBaseNight.SpecialGuestSpell[spellId] = spellHandle.Cast<IAssetHandle<SpellBase>>();
+
+        var langs = new Il2CppReferenceArray<LanguageBase>(2);
+        langs[0] = new LanguageBase("妖精的呼朋引伴", "大妖精从朋友中召唤一位稀客到场");
+        langs[1] = new LanguageBase("雾符【妖精的薄雾】", "用餐区被神秘的薄雾笼罩，持续30秒");
+        GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[spellId] = langs;
+
+        if (TryGetSprite(portraitUri, out var portraitSprite) && portraitSprite != null)
+        {
+            var spriteAssetHandle = new Common.SceneDirector.RuntimeHandle<Sprite>(portraitSprite)
+                .Cast<IAssetHandle<Sprite>>();
+            var tuple = new Il2CppSystem.ValueTuple<IAssetHandle<Sprite>, IAssetHandle<Sprite>>(
+                spriteAssetHandle, spriteAssetHandle);
+            DataBaseNight.SpecialGuestSpellPortrayal.ForceAddOrUpdateValueTuple(spellId, tuple);
+        }
+        else
+        {
+            Log.Warning($"RegisterDaiyouseiSpell: 加载立绘 sprite 失败 {portraitUri}");
+        }
+
+        DataBaseCharacter.CharacterHasSpell[spellId] = true;
+        _registeredSpellIds.Add(spellId);
+        _daiyouseiSpellRegistered = true;
+        _daiyouseiRegisteredId = spellId;
+        Log.LogInfo($"[MetaMystia] Daiyousei spell registered for id={spellId}");
+    }
+
+    private static bool _daiyouseiSpellRegistered;
+    private static int _daiyouseiRegisteredId;
+
+    public static bool IsDaiyouseiSpellRegistered() => _daiyouseiSpellRegistered;
+    public static bool IsDaiyouseiCharacterId(int id) => _daiyouseiSpellRegistered && _daiyouseiRegisteredId == id;
+
+    /// <summary>
+    /// 统一检查：给定 ID 是否属于任何已注册符卡的角色（含 ResourceEx 别名）。
+    /// </summary>
+    public static bool IsCustomSpellCharacter(int id) => _registeredSpellIds.Contains(id);
 
     public static bool AutoRegisterShinkiSpell()
     {

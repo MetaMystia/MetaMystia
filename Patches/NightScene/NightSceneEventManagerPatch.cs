@@ -22,6 +22,7 @@ public static partial class NightSceneEventManagerPatch
     public static void Initialize_Postfix(EventManager __instance)
     {
         ResourceExManager.AutoRegisterShinkiSpell();
+        ResourceExManager.RegisterDaiyouseiSpell();
 
         if (!MpManager.IsConnected) return;
 

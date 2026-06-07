@@ -35,6 +35,8 @@ public static class NativeBuffHelper
         public const int ThrowDeliver = 10;
         public const int SpawnNorm = 11;
         public const int Fever = 12;
+        // 自定义 buff type，不与游戏原生值冲突
+        public const int DaiyouseiFog = 100;
     }
 
     // ---- 公开 API ----
