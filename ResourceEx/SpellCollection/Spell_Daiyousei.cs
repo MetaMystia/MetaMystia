@@ -12,6 +12,7 @@ using Common.CharacterUtility;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Core.Collections.NightSceneUtility;
 using GameData.CoreLanguage;
+using GameData.CoreLanguage.Collections;
 using GameData.RunTime.Common;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
@@ -31,6 +32,9 @@ public partial class Spell_Daiyousei : SpellBase
     private static readonly int[] FruitIds = { 21, 36, 2001 };
 
     private static readonly System.Random _rng = new System.Random();
+
+    // 大妖精红卡召唤的稀客 ID，供 SpecialGuestDescriberPatch 读取
+    internal static int LastSummonedGuestId = -1;
 
     // 雾气覆盖区域
     internal const float FogMinX = 0.15f;
@@ -62,7 +66,7 @@ public partial class Spell_Daiyousei : SpellBase
         NativeBuffHelper.RegisterCustomBuffDescription(
             NativeBuffHelper.BT.DaiyouseiFog,
             title: "飞雾",
-            description: "雾气弥漫了你的用餐区",
+            description: "雾气弥漫了你的用餐区，30秒后解除",
             visual: _buffIcon);
         NativeBuffHelper.Register(NativeBuffHelper.BT.DaiyouseiFog, FogDuration);
     }
@@ -155,18 +159,24 @@ public partial class Spell_Daiyousei : SpellBase
             yield break;
         }
 
-        // 在用餐区入口附近生成
-        var spawnPos = new Vector3(2f, 0f, 0f);
-
+        // 不传位置，使用游戏默认屏幕外生成点，稀客会从屏幕外走进来
         var ctrl = new SpecialGuestsController(
             specialGuest,
-            new Il2CppSystem.Nullable<Vector3>(spawnPos),
+            new Il2CppSystem.Nullable<Vector3>(),
             null,
             GuestGroupController.LeaveType.Move,
             SpecialGuestsController.GuestSpawnType.Normal);
 
         GuestsManager.Instance.PostInitializeGuestGroup(ctrl, -1, false, true);
         Log.LogInfo($"[Daiyousei] 召唤稀客 id={guestId} 成功");
+
+        // 显示召唤通知
+        var guestName = guestId.GetSpecialGuestLang().BriefName;
+        string message = guestId == KeineId
+            ? "慧音老师来惩罚不听话的翘课的孩子们了"
+            : $"大妖精邀请{guestName}来吃饭了";
+        Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage(message);
+        Log.LogInfo($"[Daiyousei] 通知: {message}");
 
         yield break;
     }
@@ -409,7 +419,7 @@ public partial class Spell_Daiyousei : SpellBase
 
         var img = fogChild.AddComponent<UnityEngine.UI.Image>();
         img.sprite = CreateFogSprite();
-        img.color = new Color(1f, 1f, 1f, 0.8f);
+        img.color = new Color(1f, 1f, 1f, 0f); // 初始透明，由 FogDriftUI 淡入
         img.preserveAspect = false;
 
         var rt = img.rectTransform;
@@ -537,14 +547,16 @@ public class FogDriftUI : MonoBehaviour
     public float DriftRange = 30f;
     public float Lifespan = 4f;
     public float FadeOutDuration = 0.8f;
+    public float TargetAlpha = 0.8f;
+    public float FadeInDuration = 1.0f;
     public static bool FogActive;
 
     private RectTransform _rt;
     private Vector2 _startPos;
     private float _timeOffset;
     private UnityEngine.UI.Image _img;
-    private float _startAlpha;
     private float _elapsed;
+    private bool _fadeInComplete;
     private bool _fadingOut;
     private bool _replaced;
 
@@ -557,8 +569,8 @@ public class FogDriftUI : MonoBehaviour
             _startPos = _rt.anchoredPosition;
         _timeOffset = UnityEngine.Random.Range(0f, 1000f);
         _img = GetComponent<UnityEngine.UI.Image>();
-        _startAlpha = _img != null ? _img.color.a : 1f;
         _elapsed = 0f;
+        _fadeInComplete = false;
     }
 
     void Update()
@@ -567,18 +579,32 @@ public class FogDriftUI : MonoBehaviour
 
         _elapsed += Time.deltaTime;
 
-        // 到达生命周期末尾 → 开始淡出
-        if (_elapsed >= Lifespan && !_fadingOut)
+        // 淡入阶段
+        if (!_fadeInComplete)
+        {
+            var fadeInProgress = Mathf.Clamp01(_elapsed / FadeInDuration);
+            if (_img != null)
+            {
+                var c = _img.color;
+                _img.color = new Color(c.r, c.g, c.b, TargetAlpha * fadeInProgress);
+            }
+            if (fadeInProgress >= 1f)
+                _fadeInComplete = true;
+        }
+
+        // 到达生命周期末尾 → 开始淡出（从淡入完成后计时）
+        if (_fadeInComplete && _elapsed >= FadeInDuration + Lifespan && !_fadingOut)
             _fadingOut = true;
 
         // 淡出阶段
         if (_fadingOut)
         {
-            var fadeProgress = Mathf.Clamp01((_elapsed - Lifespan) / FadeOutDuration);
+            var fadeOutElapsed = _elapsed - FadeInDuration - Lifespan;
+            var fadeProgress = Mathf.Clamp01(fadeOutElapsed / FadeOutDuration);
             if (_img != null)
             {
                 var c = _img.color;
-                _img.color = new Color(c.r, c.g, c.b, _startAlpha * (1f - fadeProgress));
+                _img.color = new Color(c.r, c.g, c.b, TargetAlpha * (1f - fadeProgress));
             }
 
             if (fadeProgress >= 1f && !_replaced)

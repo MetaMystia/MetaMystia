@@ -45,6 +45,7 @@ public static class NativeBuffHelper
     private static MethodInfo _rtbMethod;
     private static Type _buffTypeEnum;
     private static bool _rtbResolved;
+    private static System.Func<int, string, string> _contextOverride;
 
     public static bool IsRegistered => _registered;
 
@@ -56,7 +57,7 @@ public static class NativeBuffHelper
     //需要(int buffTypeInt) 枚举值(如BT.Null=0), (float durationSeconds) 持续秒数, 默认float.MaxValue
     //反射调用游戏原生RegisterTimedBuff显示右下角buff图标，文本需提前通过RegisterCustomBuffDescription注入
     //返回(bool) true=注册成功
-    public static bool Register(int buffTypeInt, float durationSeconds = float.MaxValue)
+    public static bool Register(int buffTypeInt, float durationSeconds = float.MaxValue, System.Func<int, string, string> contextOverride = null)
     {
         try
         {
@@ -73,18 +74,21 @@ public static class NativeBuffHelper
             }
 
             int dur = durationSeconds >= float.MaxValue ? int.MaxValue : (int)Math.Round(durationSeconds);
-            Debug.Log($"[MM] NBH.Register: calling RegisterTimedBuff type={buffTypeInt} dur={dur}s");
+            _contextOverride = contextOverride;
+            Debug.Log($"[MM] NBH.Register: calling RegisterTimedBuff type={buffTypeInt} dur={dur}s hasContextOverride={contextOverride != null}");
 
             var args = BuildRegisterTimedBuffArgs(dur, buffTypeInt);
             var result = _rtbMethod.Invoke(EventManager.Instance, args);
-            var ok = result is bool b && b;
+            var ok = result == null; // RegisterTimedBuff returns void, null = success
             if (ok) _registered = true;
             Debug.Log($"[MM] NBH.Register: RegisterTimedBuff returned {ok}");
+            _contextOverride = null;
             return ok;
         }
         catch (Exception ex)
         {
             Debug.LogError($"[MM] NBH.Register failed: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+            _contextOverride = null;
             return false;
         }
     }
@@ -184,11 +188,30 @@ public static class NativeBuffHelper
             }
             else if (p.IsOptional)
             {
-                // 可选参数用 Type.Missing 或默认值
-                if (p.ParameterType == typeof(int[]))
+                // currentBuffContextOverride (Func<int,string,string>) — 动态描述回调
+                if (p.Name == "currentBuffContextOverride" && _contextOverride != null)
+                {
+                    try
+                    {
+                        var convertMethod = typeof(DelegateSupport).GetMethod("ConvertDelegate");
+                        var genericConvert = convertMethod.MakeGenericMethod(p.ParameterType);
+                        args[i] = genericConvert.Invoke(null, new object[] { _contextOverride });
+                        Debug.Log($"[MM] NBH: injected contextOverride for param [{i}]");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[MM] NBH: failed to convert contextOverride: {ex.Message}");
+                        args[i] = p.DefaultValue ?? Type.Missing;
+                    }
+                }
+                else if (p.ParameterType == typeof(int[]))
+                {
                     args[i] = null;
+                }
                 else
+                {
                     args[i] = p.DefaultValue ?? Type.Missing;
+                }
             }
             else
             {
