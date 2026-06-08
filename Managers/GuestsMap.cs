@@ -97,6 +97,19 @@ public static partial class GuestsMap
     }
 
     /// <summary>
+    /// 返回当前 GuestFSM 注册表的只读快照，避免调用方枚举时撞上生命周期变更。
+    /// </summary>
+    public static List<(int runtimeId, GuestFSM fsm)> GetAllGuestsSnapshot()
+    {
+        var result = new List<(int runtimeId, GuestFSM fsm)>(_allGuests.Count);
+        foreach (var kvp in _allGuests)
+        {
+            result.Add((kvp.Key, kvp.Value));
+        }
+        return result;
+    }
+
+    /// <summary>
     /// 从注册表移除某个 RuntimeId 对应的 FSM。
     /// 用于 FallBack / GuestKill 等终态清理后释放槽位，防止后续 hook 命中僵尸 FSM 导致二次 FallBack。
     /// </summary>

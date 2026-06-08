@@ -99,6 +99,7 @@ public partial class PluginManager : MonoBehaviour
             {
                 ResourceExManager.SpellTest();
                 ResourceExManager.SpellKoakuma();
+                ResourceExManager.SpellShinki();
             }
 
             if (Input.GetKeyDown(KeyCode.F4))

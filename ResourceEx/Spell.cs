@@ -31,7 +31,8 @@ public static partial class ResourceExManager
         string positiveDesc,
         string negativeName,
         string negativeDesc,
-        string portraitUri = null) where T : SpellBase
+        string portraitUri = null,
+        float portraitContentScale = 1f) where T : SpellBase
     {
 
         // 1. 注册 Spell_Test 并新建实例
@@ -62,7 +63,7 @@ public static partial class ResourceExManager
             // 会自动将 Image 的 pivot 对齐到 sprite pivot，使得上半身居中、下半身被裁切，
             // 实现"符卡立绘"效果。
             var pivot = new Vector2(0.5f, 0.65f);
-            var resizedSprite = Sprite.Create(portraitSprite.texture, portraitSprite.rect, pivot, 100f);
+            var resizedSprite = CreateSpellPortraitSprite(portraitSprite, pivot, portraitContentScale);
 
             var spriteAssetHandle = new Common.SceneDirector.RuntimeHandle<Sprite>(resizedSprite)
                 .Cast<IAssetHandle<Sprite>>();
@@ -84,6 +85,85 @@ public static partial class ResourceExManager
         // 4. 标记该角色拥有符卡，让夜场流程能正确识别。
         DataBaseCharacter.CharacterHasSpell[spellId] = true;
         Log.Info($"RegisterSpell<{typeof(T).Name}>: 已注册 {spellId} 号符卡");
+    }
+
+    private static Sprite CreateSpellPortraitSprite(Sprite source, Vector2 pivot, float contentScale)
+    {
+        const float pixelsPerUnit = 100f;
+        if (Mathf.Approximately(contentScale, 1f))
+        {
+            return Sprite.Create(source.texture, source.rect, pivot, pixelsPerUnit);
+        }
+
+        var srcWidth = Mathf.RoundToInt(source.rect.width);
+        var srcHeight = Mathf.RoundToInt(source.rect.height);
+        var dstWidth = Mathf.CeilToInt(srcWidth / contentScale);
+        var dstHeight = Mathf.CeilToInt(srcHeight / contentScale);
+        var srcPixels = ReadSpritePixels(source, srcWidth, srcHeight);
+
+        var dstTexture = new Texture2D(dstWidth, dstHeight, TextureFormat.RGBA32, false);
+        dstTexture.name = $"{source.name}_SpellPortraitScaled";
+        dstTexture.filterMode = source.texture.filterMode;
+        dstTexture.wrapMode = TextureWrapMode.Clamp;
+        dstTexture.hideFlags = HideFlags.HideAndDontSave;
+
+        var dstPixels = new Color[dstWidth * dstHeight];
+        for (var i = 0; i < dstPixels.Length; i++)
+        {
+            dstPixels[i] = Color.clear;
+        }
+
+        var offsetX = (dstWidth - srcWidth) / 2;
+        var offsetY = (dstHeight - srcHeight) / 2;
+        for (var y = 0; y < srcHeight; y++)
+        {
+            for (var x = 0; x < srcWidth; x++)
+            {
+                dstPixels[(offsetY + y) * dstWidth + offsetX + x] = srcPixels[y * srcWidth + x];
+            }
+        }
+
+        dstTexture.SetPixels(dstPixels);
+        dstTexture.Apply(false, false);
+
+        var sprite = Sprite.Create(dstTexture, new Rect(0f, 0f, dstWidth, dstHeight), pivot, pixelsPerUnit);
+        sprite.name = $"{source.name}_SpellPortraitScaled";
+        sprite.hideFlags = HideFlags.HideAndDontSave;
+        Log.Info($"CreateSpellPortraitSprite: {source.name} contentScale={contentScale:0.###}, source={srcWidth}x{srcHeight}, canvas={dstWidth}x{dstHeight}");
+        return sprite;
+    }
+
+    private static Color[] ReadSpritePixels(Sprite sprite, int width, int height)
+    {
+        var texture = sprite.texture;
+        var rect = sprite.rect;
+        var x = Mathf.RoundToInt(rect.x);
+        var y = Mathf.RoundToInt(rect.y);
+
+        if (texture.isReadable)
+        {
+            return texture.GetPixels(x, y, width, height);
+        }
+
+        var rt = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+        var previous = RenderTexture.active;
+        try
+        {
+            Graphics.Blit(texture, rt);
+            RenderTexture.active = rt;
+
+            var readable = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
+            readable.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            readable.Apply();
+            var pixels = readable.GetPixels(x, y, width, height);
+            UnityEngine.Object.DestroyImmediate(readable);
+            return pixels;
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(rt);
+        }
     }
 
     // ===== 具体符卡注册 =====
@@ -108,5 +188,17 @@ public static partial class ResourceExManager
             negativeName: "幻符「献给巴瓦鲁的镇魂曲」",
             negativeDesc: "30 秒内料理面板里的食材顺序被打乱，酒水柜里的酒水顺序被打乱，过滤功能不可用，交互的厨具变成随机厨具",
             portraitUri: "rex://ResourceExample/assets/Character/9001/Portrait/0.png");
+    }
+
+    public static void SpellShinki()
+    {
+        RegisterSpell<Spell_Shinki>(
+            spellId: 9004,
+            positiveName: "「魔神降临」",
+            positiveDesc: "神绮开启魔界传送门，每隔 15 秒召唤两位魔界人",
+            negativeName: "绮符「环游魔界80天」",
+            negativeDesc: "神绮邀请当前客人前往魔界游玩",
+            portraitUri: "rex://ResourceExample/assets/Character/9004/Portrait/0.png",
+            portraitContentScale: 0.70f);
     }
 }
