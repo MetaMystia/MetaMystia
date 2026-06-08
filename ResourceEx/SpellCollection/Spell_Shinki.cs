@@ -851,14 +851,14 @@ public partial class Spell_Shinki : SpellBase
         {
             DiagLog("RegisterPortalBuff: applying custom buff icon");
             NativeBuffHelper.RegisterCustomBuffDescription(
-                NativeBuffHelper.BT.Null,
-                title: "魔神降临",
+                NativeBuffHelper.BT.ShinkiPortal,
+                title: "「魔神降临」",
                 description: "每隔15秒从魔界传送门中随机召唤两位魔界人",
                 visual: CustomBuffIcon);
         }
 
         DiagLog("RegisterPortalBuff: calling native RegisterTimedBuff");
-        var ok = NativeBuffHelper.Register(NativeBuffHelper.BT.Null, float.MaxValue);
+        var ok = NativeBuffHelper.Register(NativeBuffHelper.BT.ShinkiPortal, float.MaxValue);
         DiagLog($"RegisterPortalBuff: {(ok ? "SUCCESS" : "FAILED")}");
     }
 

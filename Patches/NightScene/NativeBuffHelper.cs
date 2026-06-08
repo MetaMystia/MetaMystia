@@ -23,6 +23,7 @@ public static class NativeBuffHelper
     public static class BT
     {
         public const int Null = 0;
+        public const int ShinkiPortal = 99;
         public const int LockDailyRecipe = 1;
         public const int UnlockInfo = 2;
         public const int Stun = 3;

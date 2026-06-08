@@ -115,8 +115,8 @@ public static partial class ResourceExManager
         DataBaseNight.SpecialGuestSpell[shinkiCharacterId] = _shinkiSpellHandle.Cast<IAssetHandle<SpellBase>>();
 
         var langs = new Il2CppReferenceArray<LanguageBase>(2);
-        langs[0] = new LanguageBase("魔神降临", "神绮开启无尽的魔界传送门，持续召唤魔界客人");
-        langs[1] = new LanguageBase("绮符【环游魔界80天】", "神绮邀请所有客人前往魔界游玩");
+        langs[0] = new LanguageBase("「魔神降临」", "神绮开启无尽的魔界传送门，持续召唤魔界客人");
+        langs[1] = new LanguageBase("绮符「环游魔界80天」", "神绮邀请所有客人前往魔界游玩");
         GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[shinkiCharacterId] = langs;
 
         // 诊断：确认 C# 侧注册的符卡名称是否正确
@@ -166,8 +166,8 @@ public static partial class ResourceExManager
 
         // === 注册自定义 BuffDescription 文本（供 RegisterTimedBuff 显示） ===
         NativeBuffHelper.RegisterCustomBuffDescription(
-            NativeBuffHelper.BT.Null,
-            title: "魔神降临",
+            NativeBuffHelper.BT.ShinkiPortal,
+            title: "「魔神降临」",
             description: "每隔15秒从魔界传送门中随机召唤两位魔界人");
 
         IzakayaCloseAction.RegisterOnIzakayaClose(Spell_Shinki.CleanupPortal);
@@ -246,8 +246,8 @@ public static partial class ResourceExManager
         DataBaseNight.SpecialGuestSpell[spellId] = spellHandle.Cast<IAssetHandle<SpellBase>>();
 
         var langs = new Il2CppReferenceArray<LanguageBase>(2);
-        langs[0] = new LanguageBase("妖精的呼朋引伴", "大妖精从朋友中召唤一位稀客到场");
-        langs[1] = new LanguageBase("雾符【妖精的薄雾】", "用餐区被神秘的薄雾笼罩，持续30秒");
+        langs[0] = new LanguageBase("「妖精的呼朋引伴」", "大妖精从朋友中召唤一位稀客到场");
+        langs[1] = new LanguageBase("雾符「妖精的薄雾」", "用餐区被神秘的薄雾笼罩，持续30秒");
         GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[spellId] = langs;
 
         if (TryGetSprite(portraitUri, out var portraitSprite) && portraitSprite != null)
