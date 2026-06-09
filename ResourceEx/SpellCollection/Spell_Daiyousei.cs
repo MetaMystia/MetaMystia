@@ -10,12 +10,20 @@ using GameData.Core.Collections.NightSceneUtility.SkillCollection;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 using MetaMystia.Patch;
+using SgrYuki;
+using SgrYuki.Utils;
 
 namespace MetaMystia.ResourceEx.SpellCollection;
 
 [AutoLog]
 public partial class Spell_Daiyousei : SpellBase
 {
+    private const int FogBuffId = 9003;
+    private const int FogDuration = 30;
+    private static GameObject _fogRoot;
+    private static int _fogGeneration;
+    private static bool _fogRemovingBuff;
+
     // ===================================================================
     //  手动三次贝塞尔曲线，用于模拟琪露诺的特效飞行轨迹。
     //  B(t) = (1-t)³·P0 + 3(1-t)²·t·P1 + 3(1-t)·t²·P2 + t³·P3
@@ -122,7 +130,7 @@ public partial class Spell_Daiyousei : SpellBase
         if (guestId != 4) Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage($"大妖精邀请 {guestName} 来食堂了！");
         else
             Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage($"上白泽慧音来抓翘课的不听话的孩子们了！");
-        Log.Info($"[Spell_Test] 邀请 GuestId={guestId} ({guestName})");
+        Log.Info($"[Spell_Daiyousei] 邀请 GuestId={guestId} ({guestName})");
 
         GuestsManager.Instance.SpawnSpecialGuestGroup(
             guestId,
@@ -146,8 +154,7 @@ public partial class Spell_Daiyousei : SpellBase
     private System.Collections.IEnumerator GiveFruitsRoutine(SpellExecutionContext ctx)
     {
         // ---- 第 0 步：借资源 ----
-        var cirno = SpellAssetBorrower.Borrow<Spell_Cirno>("Spell_Test");
-        var chen = SpellAssetBorrower.Borrow<Spell_Chen>("Spell_Test");
+        var cirno = SpellAssetBorrower.Borrow<Spell_Cirno>("Spell_Daiyousei");
 
         var front = NightScene.UI.UIManager.Instance.UiAnimationFront;
 
@@ -161,7 +168,7 @@ public partial class Spell_Daiyousei : SpellBase
         selections.Add(this.Manager.SelectFromDatabase(EventManager.InventoryIOType.Ingredient, 21, peachCount));
         selections.Add(this.Manager.SelectFromDatabase(EventManager.InventoryIOType.Ingredient, 36, grapeCount));
         selections.Add(this.Manager.SelectFromDatabase(EventManager.InventoryIOType.Ingredient, 2001, lemonCount));
-        Log.Info($"[Spell_Test] 送水果: 桃×{peachCount} 葡萄×{grapeCount} 柠檬×{lemonCount}");
+        Log.Info($"[Spell_Daiyousei] 送水果: 桃×{peachCount} 葡萄×{grapeCount} 柠檬×{lemonCount}");
 
         Vector3 origin = ctx.GuestPosition.HasValue
             ? ctx.GuestPosition.Value + new Vector3(0f, 0.5f, 0f)
@@ -223,7 +230,7 @@ public partial class Spell_Daiyousei : SpellBase
 
         if (cirno?.itemGetSFX != null) this.PlayAudio(cirno.itemGetSFX);
         Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage("全员集合！大妖精送上水果拼盘！");
-        Log.Info("Spell_Test+: 送水果完成");
+        Log.Info("[Spell_Daiyousei]: 送水果完成");
     }
 
     // ===================================================================
@@ -233,18 +240,34 @@ public partial class Spell_Daiyousei : SpellBase
     private System.Collections.IEnumerator NegativeBuffRoutine(SpellExecutionContext ctx)
     {
         // ---- 注册 Buff ----
-        var buffType = (EventManager.BuffType)9003;
-        var existingVisual = GameData.CoreLanguage.Collections.DataBaseLanguage.BuffDescription[EventManager.BuffType.PhilosopherStone]?.Visual;
+        var buffType = (EventManager.BuffType)FogBuffId;
         var desc = new GameData.CoreLanguage.ObjectLanguageBase(
             "雾符「我也不知道这个符卡该叫什么名字！」",
-            "大妖精在食堂里释放了迷雾！顾客区视野受阻 30 秒",
-            existingVisual);
+            "$a 秒内大妖精在食堂里释放了迷雾！顾客区视野受阻",
+            SpellBuffVisuals.GetBuffIconOrFallback(
+                FogBuffId,
+                "rex://ResourceExample/assets/Buff/9000_2.png"));
         GameData.CoreLanguage.Collections.DataBaseLanguage.BuffDescription[buffType] = desc;
-        EventManager.Instance.RegisterCountedBuff(buffType, 1, EventManager.MathOperation.Add, null, null);
+
+        RemoveFogBuff();
+        EventManager.Instance.RegisterTimedBuff(FogDuration, buffType, out var _, ((System.Action)CleanupFog).ToIl2cppAction(), null, null);
 
         Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage("来自雾之湖的白色雾气笼罩食堂！30秒！");
 
-        const int fogDuration = 30;
+        StartFogEffect();
+        yield return null;
+    }
+
+    private static void StartFogEffect()
+    {
+        CleanupFog();
+
+        if (ResourceEx.AssetBundles.Test.TestObj == null)
+        {
+            Log.Warning("[Spell_Daiyousei] Fog prefab is null; timed buff registered without visual fog.");
+            return;
+        }
+
         const int count = 20;
         const float areaWidth = 50f;
         const float areaHeight = 30f;
@@ -253,6 +276,9 @@ public partial class Spell_Daiyousei : SpellBase
         // 铺一个大范围雾区，确保不管在哪个位置都能覆盖屏幕
         var root = new GameObject("FogEffect");
         root.transform.position = Vector3.zero;
+        _fogRoot = root;
+        _fogGeneration++;
+        var generation = _fogGeneration;
 
         var fogCopies = new GameObject[count];
         var velocities = new Vector3[count];
@@ -299,11 +325,28 @@ public partial class Spell_Daiyousei : SpellBase
             fogCopies[i] = fog;
         }
 
-        // 持续 12 秒雾气弥漫
-        for (var t = 0f; t < fogDuration; t += Time.deltaTime)
+        if (PluginManager.Instance != null)
         {
-            for (int i = 0; i < count; i++)
+            PluginManager.Instance.StartCoroutine(FogRoutine(generation, fogCopies, velocities, areaWidth, areaHeight).WrapToIl2Cpp());
+        }
+        else
+        {
+            Log.Warning("[Spell_Daiyousei] PluginManager.Instance is null; ending fog immediately.");
+            CleanupFog();
+            RemoveFogBuff();
+        }
+    }
+
+    [HideFromIl2Cpp]
+    private static System.Collections.IEnumerator FogRoutine(int generation, GameObject[] fogCopies, Vector3[] velocities, float areaWidth, float areaHeight)
+    {
+        // 持续 12 秒雾气弥漫
+        for (var t = 0f; generation == _fogGeneration && _fogRoot != null && t < FogDuration; t += Time.deltaTime)
+        {
+            for (int i = 0; i < fogCopies.Length; i++)
             {
+                if (fogCopies[i] == null) continue;
+
                 var pos = fogCopies[i].transform.localPosition;
 
                 // 漂移
@@ -321,6 +364,30 @@ public partial class Spell_Daiyousei : SpellBase
             yield return null;
         }
 
-        UnityEngine.Object.Destroy(root);
+        if (generation == _fogGeneration)
+        {
+            CleanupFog();
+            RemoveFogBuff();
+        }
+    }
+
+    private static void CleanupFog()
+    {
+        _fogGeneration++;
+        if (_fogRoot != null)
+        {
+            UnityEngine.Object.Destroy(_fogRoot);
+            _fogRoot = null;
+            Log.Info("[Spell_Daiyousei] 雾效结束");
+        }
+    }
+
+    private static void RemoveFogBuff()
+    {
+        if (_fogRemovingBuff || EventManager.Instance == null) return;
+
+        _fogRemovingBuff = true;
+        EventManager.Instance.RemoveAllRegisteredTimedBuff((EventManager.BuffType)FogBuffId);
+        _fogRemovingBuff = false;
     }
 }

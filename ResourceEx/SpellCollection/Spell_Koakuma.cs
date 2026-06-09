@@ -14,6 +14,8 @@ using NightScene.CookingUtility;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 using NightScene.UI.CookingUtility;
+using SgrYuki;
+using SgrYuki.Utils;
 
 using BeverageStackList = Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.KeyValuePair<GameData.Core.Collections.Sellable, int>>;
 using IngredientStackList = Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.KeyValuePair<GameData.Core.Collections.Ingredient, int>>;
@@ -30,7 +32,12 @@ namespace MetaMystia.ResourceEx.SpellCollection;
 [AutoLog]
 public partial class Spell_Koakuma : SpellBase
 {
+    private const int PositiveBuffId = 9001;
+    private const int NegativeBuffId = 9002;
+    private const int NegativeDuration = 30;
     private const int MAX_CHARGES = 3;
+    private static int _blackCardGeneration;
+    private static bool _blackCardRemovingBuff;
 
     public override string OnGettingSpellOwnerIdentifier() => "Koakuma";
 
@@ -48,7 +55,9 @@ public partial class Spell_Koakuma : SpellBase
         var desc = new GameData.CoreLanguage.ObjectLanguageBase(
             "灵符「遗失典籍的回响」",
             "小恶魔从图书馆搬来一本百科全书，接下来 $a 次稀客点单会提示具体内容",
-            EventManager.BuffType.PhilosopherStone.RefBuffLang().Visual);
+            SpellBuffVisuals.GetBuffIconOrFallback(
+                PositiveBuffId,
+                "rex://ResourceExample/assets/Buff/9001_1.png"));
         DataBaseLanguage.BuffDescription[buffType] = desc;
 
         EventManager.Instance.RegisterCountedBuff(buffType, MAX_CHARGES, EventManager.MathOperation.Add, null, null);
@@ -60,32 +69,36 @@ public partial class Spell_Koakuma : SpellBase
     [HideFromIl2Cpp]
     private System.Collections.IEnumerator NegativeBuffRoutine(SpellExecutionContext ctx)
     {
-        const int DURATION = 30;
-        var buffType = (EventManager.BuffType)9002;
+        var buffType = (EventManager.BuffType)NegativeBuffId;
 
         // 注册计时 Buff（会显示倒计时图标）
-        var existingVisual = GameData.CoreLanguage.Collections.DataBaseLanguage.BuffDescription[EventManager.BuffType.PhilosopherStone]?.Visual;
         var desc = new GameData.CoreLanguage.ObjectLanguageBase(
             "幻符「献给巴瓦鲁的镇魂曲」",
             "$a 秒内料理面板里的食材顺序被打乱，酒水柜里的酒水顺序被打乱，过滤功能不可用，交互的厨具变成随机厨具",
-            existingVisual);
+            SpellBuffVisuals.GetBuffIconOrFallback(
+                NegativeBuffId,
+                "rex://ResourceExample/assets/Buff/9001_2.png"));
         GameData.CoreLanguage.Collections.DataBaseLanguage.BuffDescription[buffType] = desc;
-        EventManager.Instance.RegisterTimedBuff(DURATION, buffType, out var _, null, null, null);
+
+        RemoveBlackCardBuff();
+        EventManager.Instance.RegisterTimedBuff(NegativeDuration, buffType, out var _, ((System.Action)CleanupBlackCard).ToIl2cppAction(), null, null);
 
         Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage("你所看到的一切全都是「真实」,不过…你却永远无法到达烹饪料理的「真实」！");
         Log.Info("[Spell_Koakuma] 黑卡发动");
         BeginBlackCard();
 
-        var endTime = Time.time + DURATION;
-        while (Time.time < endTime)
+        var generation = _blackCardGeneration;
+        if (PluginManager.Instance != null)
         {
-            yield return new WaitForSeconds(0.5f);
+            PluginManager.Instance.StartCoroutine(BlackCardDurationRoutine(generation).WrapToIl2Cpp());
         }
-
-        EndBlackCard();
-        EventManager.Instance.RemoveAllRegisteredTimedBuff(buffType);
-        Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage("符卡结束喵！不写符卡了喵！累死了喵！");
-        Log.Info("[Spell_Koakuma] 黑卡效果结束");
+        else
+        {
+            Log.Warning("[Spell_Koakuma] PluginManager.Instance is null; ending black card immediately.");
+            CleanupBlackCard();
+            RemoveBlackCardBuff();
+        }
+        yield return null;
     }
 
     private static readonly System.Random _rng = new();
@@ -99,6 +112,7 @@ public partial class Spell_Koakuma : SpellBase
     [HideFromIl2Cpp]
     private static void BeginBlackCard()
     {
+        _blackCardGeneration++;
         IsBlackCardActive = true;
         BuildCookerRedirects();
     }
@@ -109,6 +123,41 @@ public partial class Spell_Koakuma : SpellBase
         _cookerPositionRedirects.Clear();
         RestoreFilterButtons();
         IsBlackCardActive = false;
+    }
+
+    [HideFromIl2Cpp]
+    private static System.Collections.IEnumerator BlackCardDurationRoutine(int generation)
+    {
+        var endTime = Time.time + NegativeDuration;
+        while (IsBlackCardActive && generation == _blackCardGeneration && Time.time < endTime)
+        {
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        if (IsBlackCardActive && generation == _blackCardGeneration)
+        {
+            CleanupBlackCard();
+            RemoveBlackCardBuff();
+        }
+    }
+
+    private static void CleanupBlackCard()
+    {
+        if (!IsBlackCardActive) return;
+
+        _blackCardGeneration++;
+        EndBlackCard();
+        Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage("符卡结束喵！不写符卡了喵！累死了喵！");
+        Log.Info("[Spell_Koakuma] 黑卡效果结束");
+    }
+
+    private static void RemoveBlackCardBuff()
+    {
+        if (_blackCardRemovingBuff || EventManager.Instance == null) return;
+
+        _blackCardRemovingBuff = true;
+        EventManager.Instance.RemoveAllRegisteredTimedBuff((EventManager.BuffType)NegativeBuffId);
+        _blackCardRemovingBuff = false;
     }
 
     [HideFromIl2Cpp]
@@ -335,10 +384,10 @@ public partial class Spell_Koakuma : SpellBase
     // ===================================================================
 
     public static bool HasBuff()
-        => EventManager.Instance.CheckCountedBuffExists((EventManager.BuffType)9001);
+        => EventManager.Instance.CheckCountedBuffExists((EventManager.BuffType)PositiveBuffId);
 
     private static void Deduct()
-        => EventManager.Instance.TryDeductCountedBuffValue((EventManager.BuffType)9001);
+        => EventManager.Instance.TryDeductCountedBuffValue((EventManager.BuffType)PositiveBuffId);
 
     /// <summary>
     /// 由 GuestsManager.GenerateOrderSession 的 Postfix 触发。
@@ -455,5 +504,3 @@ public static class Spell_Koakuma_CookerRedirectPatch
         Spell_Koakuma.TryRedirectCookerPosition(ref cookerPosition);
     }
 }
-
-

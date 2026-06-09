@@ -12,6 +12,7 @@ using GameData.RunTime.NightSceneUtility;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 using SgrYuki.Utils;
+using SgrYuki;
 using MetaMystia.Patch;
 
 namespace MetaMystia.ResourceEx.SpellCollection;
@@ -48,6 +49,7 @@ public partial class Spell_Shinki : SpellBase
     private static bool _portalActive;
     private static int _portalGeneration;
     private static float _portalEndTime;
+    private static bool _portalRemovingBuff;
 
     public override string OnGettingSpellOwnerIdentifier() => "_ResourceExample_Shinki";
 
@@ -61,20 +63,35 @@ public partial class Spell_Shinki : SpellBase
     private System.Collections.IEnumerator PositiveBuffRoutine(SpellExecutionContext ctx)
     {
         RegisterPortalBuffDescription();
-        EventManager.Instance.RemoveAllRegisteredTimedBuff(PortalBuffType);
-        EventManager.Instance.RegisterTimedBuff(PortalDurationSeconds, PortalBuffType, out var _, null, null, null);
+        RemovePortalBuff();
 
         _portalEndTime = Time.time + PortalDurationSeconds;
         var portalAlreadyOpen = _portalActive;
         _portalActive = true;
         _portalGeneration++;
         var generation = _portalGeneration;
+
+        EventManager.Instance.RegisterTimedBuff(PortalDurationSeconds, PortalBuffType, out var _, ((System.Action)CleanupPortal).ToIl2cppAction(), null, null);
+
         Notify(portalAlreadyOpen
             ? "神绮维持魔界传送门，新的客人正穿过边界。"
             : "神绮开启了魔界传送门，魔界的客人陆续抵达。");
 
         SummonMakaiGuests(SummonCountPerWave);
+        if (PluginManager.Instance != null)
+        {
+            PluginManager.Instance.StartCoroutine(PortalSummonRoutine(generation).WrapToIl2Cpp());
+        }
+        else
+        {
+            Log.Warning("[Spell_Shinki] PluginManager.Instance is null; portal summon loop was not started.");
+        }
+        yield return null;
+    }
 
+    [HideFromIl2Cpp]
+    private static System.Collections.IEnumerator PortalSummonRoutine(int generation)
+    {
         while (_portalActive && generation == _portalGeneration && Time.time < _portalEndTime)
         {
             var nextWaveTime = Mathf.Min(Time.time + SummonIntervalSeconds, _portalEndTime);
@@ -92,6 +109,7 @@ public partial class Spell_Shinki : SpellBase
         if (generation == _portalGeneration)
         {
             CleanupPortal();
+            RemovePortalBuff();
         }
     }
 
@@ -99,6 +117,7 @@ public partial class Spell_Shinki : SpellBase
     private System.Collections.IEnumerator NegativeBuffRoutine(SpellExecutionContext ctx)
     {
         CleanupPortal();
+        RemovePortalBuff();
 
         var guests = CollectActiveGuests();
         if (guests.Count == 0)
@@ -146,7 +165,9 @@ public partial class Spell_Shinki : SpellBase
 
     private static void RegisterPortalBuffDescription()
     {
-        var visual = DataBaseLanguage.BuffDescription[EventManager.BuffType.PhilosopherStone]?.Visual;
+        var visual = SpellBuffVisuals.GetBuffIconOrFallback(
+            PortalBuffId,
+            "rex://ResourceExample/assets/Buff/9004_1.png");
         DataBaseLanguage.BuffDescription[PortalBuffType] = new GameData.CoreLanguage.ObjectLanguageBase(
             "「魔神降临」",
             "$a 秒内神绮开启魔界传送门，每 15 秒召唤两位魔界人",
@@ -568,8 +589,17 @@ public partial class Spell_Shinki : SpellBase
 
         _portalActive = false;
         _portalGeneration++;
-        EventManager.Instance?.RemoveAllRegisteredTimedBuff(PortalBuffType);
         Log.Info("[Spell_Shinki] 魔界传送门关闭");
+    }
+
+    private static void RemovePortalBuff()
+    {
+        if (!_portalRemovingBuff && EventManager.Instance != null)
+        {
+            _portalRemovingBuff = true;
+            EventManager.Instance.RemoveAllRegisteredTimedBuff(PortalBuffType);
+            _portalRemovingBuff = false;
+        }
     }
 
     private static void Notify(string message)
