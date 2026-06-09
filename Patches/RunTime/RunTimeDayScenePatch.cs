@@ -20,11 +20,20 @@ public partial class RunTimeDayScenePatch
     [HarmonyPostfix]
     public static void GetMerchantData_Postfix(ref GameData.RunTime.DaySceneUtility.Collection.TrackedMerchant __result, string characterKey)
     {
-        Log.Info($"DataBaseDay.GetMerchantData Postfix called with key: {characterKey}");
         if (!ResourceExManager.TryGetExMerchantData(characterKey, out Merchant merchant))
         {
             return;
         }
+
+        if (__result == null)
+        {
+            __result = ResourceExManager.CreateTrackedMerchant(characterKey);
+            if (__result == null)
+                return;
+        }
+
+        if (__result.products == null)
+            return;
 
         // 游戏原有的 「香霖堂」「爱莲」以及「萌橙果」「蹦蹦跳跳的三妖精」商人有自己的脚本，会特殊处理商品，这里需要简单处理一下商品
         // 对 Ex 商人的已有「食谱」进行过滤

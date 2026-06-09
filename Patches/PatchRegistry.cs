@@ -23,6 +23,8 @@ public static partial class PatchRegistry
         typeof(CharacterControllerInputGeneratorComponentPatch),
         typeof(DayScenePlayerInputPatch),
         typeof(DaySceneMapPatch),
+        typeof(NitoriTelephoneComponentPatch),
+        typeof(DaySceneUIManagerPatch),
         typeof(NoteBookProfilePannelPatch),
         typeof(DaySceneShopPannelPatch),
 

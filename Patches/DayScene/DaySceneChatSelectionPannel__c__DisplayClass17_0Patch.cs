@@ -32,7 +32,7 @@ public partial class DaySceneChatSelectionPannel__c__DisplayClass17_0Patch
     public static void AddMerchantSelection_Postfix(DaySceneChatSelectionPannel.SpecialNPCInteractData specialNPCInteractData, ref bool availability)
     {     
         var stringId = specialNPCInteractData.characterLabel;
-        if (availability && stringId.IsResourceExSpecialMerchant() && (RunTimeDayScene.GetMerchantData(stringId)?.products?.Length ?? 0) == 0)
+        if (availability && stringId.IsResourceExSpecialMerchant() && !ResourceExManager.HasSellableProducts(RunTimeDayScene.GetMerchantData(stringId)?.products))
         {
             // 根据 Ex Merchant 剩余商品数判定是否应当移除 Merchant Selection
             availability = false;

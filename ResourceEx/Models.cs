@@ -340,6 +340,7 @@ public class EventDataConfig
 public class MerchantConfig
 {
     public string key { get; set; }
+    public string mapLabel { get; set; }
     public List<string> welcomeDialogPackageNames { get; set; }
     public List<string> nullDialogPackageNames { get; set; }
     public float priceMultiplierMin { get; set; }

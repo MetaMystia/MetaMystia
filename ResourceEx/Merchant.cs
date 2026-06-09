@@ -2,9 +2,11 @@ using System.Collections.Generic;
 using System.Linq;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 
+using DayScene.Interactables.Collections.BehaviourComponents;
 using GameData.Core.Collections.DaySceneUtility;
 using GameData.Core.Collections.DaySceneUtility.Collections;
 using GameData.Profile;
+using GameData.RunTime.DaySceneUtility.Collection;
 using GameData.RunTime.DaySceneUtility;
 
 using static GameData.Core.Collections.DaySceneUtility.Collections.Merchant;
@@ -21,6 +23,79 @@ public static partial class ResourceExManager
 {
     public static bool IsResourceExSpecialMerchant(this string stringId, string type = "Special") =>
         stringId.IsResourceExSpecialGuest() && _builtMerchants.ContainsKey(stringId);
+
+    public static IEnumerable<(string key, string mapLabel)> GetAllTelephoneMerchantEntries()
+    {
+        foreach (var config in MerchantConfigs.Values)
+        {
+            if (!_builtMerchants.ContainsKey(config.key))
+                continue;
+
+            yield return (config.key, ResolveMerchantMapLabel(config));
+        }
+    }
+
+    public static bool HasTelephoneMerchantOnMap(string mapLabel) =>
+        GetAllTelephoneMerchantEntries()
+            .Any(entry => string.Equals(entry.mapLabel, mapLabel));
+
+    public static bool IsTelephoneMerchant(string key) =>
+        GetAllTelephoneMerchantEntries()
+            .Any(entry => string.Equals(entry.key, key));
+
+    public static bool IsTelephoneMerchantOnMap(string key, string mapLabel) =>
+        GetAllTelephoneMerchantEntries()
+            .Any(entry => string.Equals(entry.key, key) && string.Equals(entry.mapLabel, mapLabel));
+
+    public static ExtraMerchantData ToTelephoneExtraMerchantData(string key, string mapLabel)
+    {
+        return new ExtraMerchantData
+        {
+            merchantKey = key,
+            merchantMapLabel = mapLabel,
+            merchantType = ExtraMerchantData.MerchantType.AlwaysOpen,
+            collabKey = string.Empty
+        };
+    }
+
+    public static bool HasSellableProducts(IEnumerable<Product> products) =>
+        products != null && products.Any(product => product.productAmount > 0);
+
+    public static bool TryGetMerchantNullDialog(string key, out DialogPackage dialog)
+    {
+        dialog = null;
+
+        var merchant = DataBaseDay.RefMerchant(key);
+        var nullDialogs = merchant?.nullDialogPackage;
+        if (nullDialogs == null || nullDialogs.Length == 0)
+            return false;
+
+        dialog = nullDialogs[UnityEngine.Random.Range(0, nullDialogs.Length)];
+        return dialog != null;
+    }
+
+    private static string ResolveMerchantMapLabel(MerchantConfig config)
+    {
+        if (!string.IsNullOrWhiteSpace(config.mapLabel))
+            return config.mapLabel;
+
+        var spawnMarker = config.key.GetSpawnMarkerConfig();
+        if (!string.IsNullOrWhiteSpace(spawnMarker?.mapLabel))
+            return spawnMarker.mapLabel;
+
+        return "BeastForest";
+    }
+
+    public static TrackedMerchant CreateTrackedMerchant(string key)
+    {
+        if (!MerchantConfigs.TryGetValue(key, out var config))
+            return null;
+
+        var trackedMerchant = config.GenTrackedMerchant();
+        RunTimeDayScene.trackedMerchants[key] = trackedMerchant;
+        Log.Info($"Created tracked merchant {key} on demand.");
+        return trackedMerchant;
+    }
 
     /// <summary>
     /// Removes orphaned tracked merchant entries from RunTimeDayScene.trackedMerchants
