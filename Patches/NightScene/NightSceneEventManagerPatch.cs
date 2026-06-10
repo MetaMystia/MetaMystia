@@ -23,6 +23,7 @@ public static partial class NightSceneEventManagerPatch
     {
         ResourceExManager.AutoRegisterShinkiSpell();
         ResourceExManager.RegisterDaiyouseiSpell();
+        ResourceExManager.RegisterKoakumaSpell();
 
         if (!MpManager.IsConnected) return;
 
