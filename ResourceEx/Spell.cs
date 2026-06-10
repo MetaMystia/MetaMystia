@@ -12,7 +12,7 @@ using GameData.Core.Collections.NightSceneUtility;
 using GameData.CoreLanguage;
 
 using MetaMiku;
-using MetaMystia.Patch;
+using NightScene.EventUtility;
 using MetaMystia.ResourceEx.SpellCollection;
 
 namespace MetaMystia;
@@ -165,8 +165,8 @@ public static partial class ResourceExManager
         _registeredSpellIds.Add(shinkiCharacterId);
 
         // === 注册自定义 BuffDescription 文本（供 RegisterTimedBuff 显示） ===
-        NativeBuffHelper.RegisterCustomBuffDescription(
-            NativeBuffHelper.BT.ShinkiPortal,
+        RegisterBuffDescription(
+            (NightScene.EventUtility.EventManager.BuffType)99,
             title: "「魔神降临」",
             description: "每隔15秒从魔界传送门中随机召唤两位魔界人");
 
@@ -276,6 +276,48 @@ public static partial class ResourceExManager
     public static bool IsDaiyouseiSpellRegistered() => _daiyouseiSpellRegistered;
     public static bool IsDaiyouseiCharacterId(int id) => _daiyouseiSpellRegistered && _daiyouseiRegisteredId == id;
 
+    private static bool _koakumaSpellRegistered;
+    private static int _koakumaRegisteredId;
+
+    public static void RegisterKoakumaSpell()
+    {
+        const int spellId = 9001;
+        const string portraitUri = "rex://ResourceExample/assets/Character/9001/Portrait/0.png";
+
+        ClassInjector.RegisterTypeInIl2Cpp<Spell_Koakuma>();
+        var spell = ScriptableObject.CreateInstance<Spell_Koakuma>();
+
+        Spell_Koakuma.LoadBuffIcon();
+
+        var spellHandle = new Common.SceneDirector.RuntimeHandle<SpellBase>(spell);
+        DataBaseNight.SpecialGuestSpell[spellId] = spellHandle.Cast<IAssetHandle<SpellBase>>();
+
+        var langs = new Il2CppReferenceArray<LanguageBase>(2);
+        langs[0] = new LanguageBase("灵符「遗失典籍的回响」", "小恶魔从图书馆搬来一本百科全书，接下来3次稀客点单会告诉你具体tag");
+        langs[1] = new LanguageBase("幻符「献给巴瓦鲁的镇魂曲」", "30秒内料理面板的食材顺序被打乱，交互的厨具变为随机厨具");
+        GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[spellId] = langs;
+
+        if (TryGetSprite(portraitUri, out var portraitSprite) && portraitSprite != null)
+        {
+            var spriteAssetHandle = new Common.SceneDirector.RuntimeHandle<Sprite>(portraitSprite)
+                .Cast<IAssetHandle<Sprite>>();
+            var tuple = new Il2CppSystem.ValueTuple<IAssetHandle<Sprite>, IAssetHandle<Sprite>>(
+                spriteAssetHandle, spriteAssetHandle);
+            DataBaseNight.SpecialGuestSpellPortrayal.ForceAddOrUpdateValueTuple(spellId, tuple);
+        }
+        else
+        {
+            Log.Warning($"RegisterKoakumaSpell: 加载立绘 sprite 失败 {portraitUri}");
+        }
+
+        DataBaseCharacter.CharacterHasSpell[spellId] = true;
+        _registeredSpellIds.Add(spellId);
+        _koakumaSpellRegistered = true;
+        _koakumaRegisteredId = spellId;
+        IzakayaCloseAction.RegisterOnIzakayaClose(Spell_Koakuma.CleanupAll);
+        Log.LogInfo($"[MetaMystia] Koakuma spell registered for id={spellId}");
+    }
+
     /// <summary>
     /// 统一检查：给定 ID 是否属于任何已注册符卡的角色（含 ResourceEx 别名）。
     /// </summary>
@@ -365,5 +407,26 @@ public static partial class ResourceExManager
         }
 
         return false;
+    }
+
+    private static void RegisterBuffDescription(NightScene.EventUtility.EventManager.BuffType buffType, string title, string description, Sprite visual = null)
+    {
+        try
+        {
+            var dict = GameData.CoreLanguage.Collections.DataBaseLanguage.BuffDescription;
+            if (dict == null) return;
+            var lang = new ObjectLanguageBase(name: title, Description: description, visual: visual);
+            var indexer = dict.GetType().GetProperty("Item");
+            if (indexer != null)
+            {
+                var keyParamType = indexer.GetIndexParameters()[0].ParameterType;
+                object key = Enum.ToObject(keyParamType, buffType);
+                indexer.SetValue(dict, lang, new object[] { key });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"RegisterBuffDescription failed: {ex.Message}");
+        }
     }
 }
