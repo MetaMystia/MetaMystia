@@ -20,6 +20,7 @@ using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 using NightScene.Tiles;
 using SgrYuki;
+using SgrYuki.Utils;
 
 using MetaMystia;
 using MetaMystia.Network;
@@ -75,7 +76,11 @@ public partial class Spell_Shinki : SpellBase
 
     public override bool HasPositiveSpell => true;
 
-    public override bool ShouldCallSpellDeclarationAuto(bool isPositiveSpell) => true;
+    public override bool ShouldCallSpellDeclarationAuto(bool isPositiveSpell)
+    {
+        SpellHelper.SetCutinShift(_shinkiLabel);
+        return true;
+    }
 
     public override Il2CppSystem.Collections.IEnumerator OnPositiveBuffExecute(
         SpellExecutionContext spellExecutionContext)
@@ -100,14 +105,16 @@ public partial class Spell_Shinki : SpellBase
     {
         DiagLog("Shinki Black Card: 绮符【环游魔界80天】 activated!");
 
-        // 0. 暂停传送门定时召唤，防止黑卡驱逐期间
+        // 0. 暂停传送门定时召唤并移除红卡 buff，防止黑卡驱逐期间
         //    OnPortalTick 继续生成新客人与当前驱逐流程冲突。
         var portalWasActive = _portalActive;
         if (_portalActive)
         {
-            DiagLog("Black Card: pausing portal timer to prevent conflict");
+            DiagLog("Black Card: removing red card buff and pausing portal timer");
             CommandScheduler.CancelInterval(_portalTimerId);
             _portalActive = false;
+            RemovePortalBuff(); // 移除红卡 buff 图标
+            _spawnedGuestControllers.Clear();
         }
 
         // 1. 收集所有活跃客人，分离神绮和其他客人
@@ -279,10 +286,14 @@ public partial class Spell_Shinki : SpellBase
             if (sr == null) { DiagLog("SwitchShinkiToFlagSprite: SpriteRenderer not found"); return; }
 
             if (_originalSprite == null)
-                _originalSprite = sr.sprite; // 首次备份原始精灵
+                _originalSprite = sr.sprite;
 
             sr.sprite = _flagSprite;
             DiagLog("SwitchShinkiToFlagSprite: sprite replaced with flag");
+
+            // 启动协程每帧重新应用旗帜 sprite，防止动画系统覆盖
+            PluginManager.Instance.StartCoroutine(
+                MaintainFlagSpriteRoutine(ctrl, GuestWalkDuration + 2f).WrapToIl2Cpp());
         }
         catch (Exception ex)
         {
@@ -295,6 +306,8 @@ public partial class Spell_Shinki : SpellBase
     //不返回
     private static void SwitchShinkiToOriginalSprite(GuestGroupController ctrl)
     {
+        _flagSpriteActive = false;
+
         if (ctrl == null || _originalSprite == null) return;
 
         try
@@ -311,8 +324,31 @@ public partial class Spell_Shinki : SpellBase
         }
     }
 
+    [HideFromIl2Cpp]
+    private static IEnumerator MaintainFlagSpriteRoutine(GuestGroupController ctrl, float duration)
+    {
+        if (ctrl == null || _flagSprite == null) yield break;
+
+        var sr = GetMainSpriteRenderer(ctrl);
+        if (sr == null) yield break;
+
+        _flagSpriteActive = true;
+        var elapsed = 0f;
+
+        while (_flagSpriteActive && elapsed < duration)
+        {
+            if (sr == null || sr.Pointer == IntPtr.Zero) break;
+            if (sr.sprite != _flagSprite)
+                sr.sprite = _flagSprite;
+            yield return null;
+            elapsed += Time.deltaTime;
+        }
+
+        _flagSpriteActive = false;
+    }
+
     //需要(GuestGroupController ctrl) 客人控制器
-    //通过guestInstances[0]→gameObject→GetComponentsInChildren查找主SpriteRenderer
+    //通过 guestInstances[0].Character.mainRenderer 直接获取主精灵渲染器
     //返回(SpriteRenderer) 主精灵渲染器，失败返回null
     private static SpriteRenderer GetMainSpriteRenderer(GuestGroupController ctrl)
     {
@@ -321,43 +357,18 @@ public partial class Spell_Shinki : SpellBase
         try
         {
             var instances = ctrl.guestInstances;
-            if (instances == null || instances.Length == 0)
-            {
-                DiagLog("GetMainSpriteRenderer: guestInstances is null or empty");
-                return null;
-            }
+            if (instances == null || instances.Length == 0) return null;
 
-            var unit = instances[0];
-            if (unit == null)
-            {
-                DiagLog("GetMainSpriteRenderer: guestInstances[0] is null");
-                return null;
-            }
+            // 优先使用原生 Character.mainRenderer 字段
+            var character = instances[0]?.Character;
+            if (character != null && character.mainRenderer != null)
+                return character.mainRenderer;
 
-            // 精灵在子 GameObject 上，通过 gameObject.GetComponentsInChildren 查找
-            var go = unit.gameObject;
-            if (go == null)
-            {
-                DiagLog("GetMainSpriteRenderer: unit.gameObject is null");
-                return null;
-            }
-
+            // 降级：遍历子物体查找（与游戏 Spell_Alice 一致）
+            var go = instances[0]?.gameObject;
+            if (go == null) return null;
             var allRenderers = go.GetComponentsInChildren<SpriteRenderer>();
-            if (allRenderers == null || allRenderers.Length == 0)
-            {
-                DiagLog($"GetMainSpriteRenderer: no SpriteRenderers found under '{go.name}'");
-                return null;
-            }
-
-            DiagLog($"GetMainSpriteRenderer: found {allRenderers.Length} SpriteRenderer(s) under '{go.name}'");
-            for (int i = 0; i < allRenderers.Length; i++)
-            {
-                var r = allRenderers[i];
-                DiagLog($"  [{i}] {r.name} sprite={(r.sprite != null ? r.sprite.name : "null")}");
-            }
-
-            // 返回第一个，通常是 Main sprite
-            return allRenderers[0];
+            return (allRenderers != null && allRenderers.Length > 0) ? allRenderers[0] : null;
         }
         catch (Exception ex)
         {
@@ -368,6 +379,7 @@ public partial class Spell_Shinki : SpellBase
 
     private static Sprite _flagSprite;
     private static Sprite _originalSprite;
+    private static bool _flagSpriteActive;
 
     //需要(GuestGroupController ctrl) 客人控制器
     //黑卡阶段一：清零资金+清理订单/面板/倒计时，保留Controller存活供后续离场
@@ -592,20 +604,6 @@ public partial class Spell_Shinki : SpellBase
     {
         DiagLog($"Red Card: 【魔神降临】 activated! _portalActive={_portalActive}");
 
-        // 诊断：ctx 的公开方法
-        try
-        {
-            DiagLog("=== SpellExecutionContext Methods ===");
-            var ctxMethods = ctx.GetType().GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly);
-            foreach (var m in ctxMethods)
-            {
-                if (m.IsSpecialName) continue; // 跳过 get_/set_
-                var parms = string.Join(",", m.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
-                DiagLog($"  ctx.{m.Name}({parms}) → {m.ReturnType.Name} [virtual={m.IsVirtual}]");
-            }
-        }
-        catch (Exception ex) { DiagLog($"ctx methods error: {ex.Message}"); }
-
         // 如果传送门已开启，直接召唤
         if (_portalActive)
         {
@@ -711,24 +709,21 @@ public partial class Spell_Shinki : SpellBase
                     i--; // 重新尝试
                     continue;
                 }
-                var specialGuest = DataBaseCharacter.RefSGuest(id);
-                if (specialGuest == null)
-                {
-                    DiagLog($"  id={id}: RefSGuest returned null, removing from pool, skipping");
-                    availableSpecial.Remove(id);
-                    i--;
-                    continue;
-                }
 
-                var ctrl = new SpecialGuestsController(
-                    specialGuest,
+                var ctrl = GuestsManager.Instance.SpawnSpecialGuestGroup(
+                    id,
+                    SpecialGuestsController.GuestSpawnType.Normal,
                     new Il2CppSystem.Nullable<Vector3>(_portalPosition),
                     null,
                     GuestGroupController.LeaveType.Move,
-                    SpecialGuestsController.GuestSpawnType.Normal);
+                    true, -1, false, null, true);
 
-                GuestsManager.Instance.PostInitializeGuestGroup(ctrl, -1, false, true);
-                _spawnedGuestControllers.Add(ctrl);
+                if (ctrl != null)
+                {
+                    _spawnedGuestControllers.Add(ctrl);
+                    // 标记此稀客"今晚已生成"，防止自然生成重复出现
+                    EventManager.Instance.SetTargetGuestHasSpawnedHandle?.Invoke(id);
+                }
 
                 // 从可用池移除，防止同批次重复召唤
                 availableSpecial.Remove(id);
@@ -763,17 +758,12 @@ public partial class Spell_Shinki : SpellBase
                 var il2cppGuests = new Il2CppSystem.Collections.Generic.List<NormalGuest>();
                 il2cppGuests.Add(normalGuest);
 
-                var postprocessCallback = GuestsManager.Instance.getPostprocessCharacterCallback.Invoke();
-                var guestsEnumerable = new Il2CppSystem.Collections.Generic.IEnumerable<NormalGuest>(il2cppGuests.Pointer);
+                var ctrl = GuestsManager.Instance.SpawnNormalGuestGroup(
+                    il2cppGuests.ToIEnumerable(),
+                    new Il2CppSystem.Nullable<Vector3>(_portalPosition));
 
-                var ctrl = new NormalGuestsController(
-                    guestsEnumerable,
-                    new Il2CppSystem.Nullable<Vector3>(_portalPosition),
-                    postprocessCallback,
-                    GuestGroupController.LeaveType.Move);
-
-                GuestsManager.Instance.PostInitializeGuestGroup(ctrl, -1, false, true);
-                _spawnedGuestControllers.Add(ctrl);
+                if (ctrl != null)
+                    _spawnedGuestControllers.Add(ctrl);
                 DiagLog($"  Spawned normal guest #{id} successfully, total spawned={_spawnedGuestControllers.Count}");
             }
         }
@@ -784,22 +774,8 @@ public partial class Spell_Shinki : SpellBase
     //返回(HashSet<int>) 场上已有的魔界稀客ID集合
     private static HashSet<int> GetExistingMakaiSpecialGuestIds()
     {
-        var existing = new HashSet<int>();
-        var allGuests = GuestsMap.GetAllGuestsSnapshot();
-        foreach (var (rid, fsm) in allGuests)
-        {
-            if (fsm?.Ids == null || fsm.Controller == null) continue;
-            // 跳过已离开/死亡/无状态的客人
-            var state = fsm.CurrentState;
-            if (state == GuestFSM.State.Left || state == GuestFSM.State.Dead || state == GuestFSM.State.None)
-                continue;
-
-            foreach (var id in fsm.Ids)
-            {
-                if (_makaiSpecialGuestIds.Contains(id))
-                    existing.Add(id);
-            }
-        }
+        var existing = SpellHelper.GetOnFieldSpecialGuestIds();
+        existing.IntersectWith(_makaiSpecialGuestIds);
         DiagLog($"GetExistingMakaiSpecialGuestIds: found {existing.Count} existing specials: [{string.Join(",", existing)}]");
         return existing;
     }
@@ -841,8 +817,11 @@ public partial class Spell_Shinki : SpellBase
     // Buff 注册 / 移除（红卡传送门）—— 游戏原生 RegisterTimedBuff
     // ================================================================================
 
+    private const int BuffType_ShinkiPortal = 99;
+    private static Il2CppSystem.Action _portalInterruptCallback;
+
     //不需要，无参数
-    //调用NativeBuffHelper.Register向游戏注册原生buff图标
+    //直接调用原生 EventManager.RegisterTimedBuff 注册 buff 图标
     //不返回
     private static void RegisterPortalBuff()
     {
@@ -850,25 +829,34 @@ public partial class Spell_Shinki : SpellBase
         if (CustomBuffIcon != null)
         {
             DiagLog("RegisterPortalBuff: applying custom buff icon");
-            NativeBuffHelper.RegisterCustomBuffDescription(
-                NativeBuffHelper.BT.ShinkiPortal,
+            SpellHelper.RegisterBuffDescription(
+                (EventManager.BuffType)BuffType_ShinkiPortal,
                 title: "「魔神降临」",
                 description: "每隔15秒从魔界传送门中随机召唤两位魔界人",
                 visual: CustomBuffIcon);
         }
 
         DiagLog("RegisterPortalBuff: calling native RegisterTimedBuff");
-        var ok = NativeBuffHelper.Register(NativeBuffHelper.BT.ShinkiPortal, float.MaxValue);
-        DiagLog($"RegisterPortalBuff: {(ok ? "SUCCESS" : "FAILED")}");
+        EventManager.Instance.RegisterTimedBuff(
+            int.MaxValue,
+            (EventManager.BuffType)BuffType_ShinkiPortal,
+            out _portalInterruptCallback,
+            null);
+        DiagLog("RegisterPortalBuff: done");
     }
 
     //不需要，无参数
-    //重置NativeBuffHelper内部注册状态标记
+    //移除传送门 buff 图标
     //不返回
     private static void RemovePortalBuff()
     {
-        NativeBuffHelper.Reset();
+        if (_portalInterruptCallback != null)
+        {
+            try { _portalInterruptCallback.Invoke(); } catch { }
+            _portalInterruptCallback = null;
+        }
     }
+
 
     // ================================================================================
     // 传送门视觉（可替换接口）
@@ -1081,43 +1069,20 @@ public partial class Spell_Shinki : SpellBase
     public static void SetShinkiCharacterId(int id) => _shinkiCharacterId = id;
     public static void SetShinkiResourceExId(int id) => _shinkiResourceExId = id;
 
-    // ================================================================================
-    // 黑卡 FlyToSpawn Hook：让客人走到传送门再淡出
-    // ================================================================================
-
-    //不需要，无参数
-    //开启黑卡FlyToSpawn拦截标志，客人FlyToSpawn时检查此标志决定行为
-    //不返回
-    private static void EnableBlackCardFlyToSpawnOverride()
+    /// <summary>供 SpellHelper.TryGetCutinShift 查询神绮动态 label。</summary>
+    internal static bool TryGetCutinOffset(string ownerIdentifier, out float offsetY)
     {
-        _isBlackCardActive = true;
-        DiagLog("BlackCard: FlyToSpawn override ENABLED");
+        offsetY = 0f;
+        if (!string.IsNullOrEmpty(_shinkiLabel) && ownerIdentifier == _shinkiLabel)
+        {
+            offsetY = -300f;
+            return true;
+        }
+        return false;
     }
 
-    //不需要，无参数
-    //关闭黑卡FlyToSpawn拦截标志
-    //不返回
-    private static void DisableBlackCardFlyToSpawnOverride()
-    {
-        _isBlackCardActive = false;
-        DiagLog("BlackCard: FlyToSpawn override DISABLED");
-    }
 }
 
-
-
-[HarmonyPatch(typeof(GuestIconManager), "SwitchState")]
-public static class ShinkiGuestIconManagerPatch
-{
-    //需要(GuestGroupController controller) 客人控制器, (GuestState state) 目标状态
-    //Prefix检查：controller为null则跳过原方法，防止已清理客人触发NRE
-    //返回(bool) true=执行原方法 false=跳过
-    [HarmonyPrefix]
-    public static bool SwitchState_Prefix(GuestGroupController controller, GuestState state)
-    {
-        return controller != null;
-    }
-}
 
 
 [HarmonyPatch(typeof(PrototypingManagers.NightSceneDebugConsole), "Guests")]
