@@ -5,6 +5,7 @@ using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Attributes;
 using Il2CppInterop.Runtime.Injection;
+using static Il2CppInterop.Runtime.DelegateSupport;
 using Il2CppSystem.Linq;
 using UnityEngine;
 
@@ -16,7 +17,6 @@ using GameData.CoreLanguage.Collections;
 using GameData.RunTime.Common;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
-using MetaMystia.Patch;
 using SgrYuki.Utils;
 
 namespace MetaMystia.ResourceEx.SpellCollection;
@@ -24,7 +24,7 @@ namespace MetaMystia.ResourceEx.SpellCollection;
 [AutoLog]
 public partial class Spell_Daiyousei : SpellBase
 {
-    // 红卡召唤池：露米娅(1)、莉格露(0)、琪露诺(28)
+    // 红卡召唤池：妖精三人组 — 露米娅(1)、莉格露(0)、琪露诺(28)
     private static readonly int[] FriendIds = { 1, 0, 28 };
     // 降级：上白泽慧音(4)
     private const int KeineId = 4;
@@ -61,15 +61,31 @@ public partial class Spell_Daiyousei : SpellBase
         }
     }
 
+    private const int BuffType_DaiyouseiFog = 100;
+
     private static void RegisterFogBuff()
     {
-        NativeBuffHelper.RegisterCustomBuffDescription(
-            NativeBuffHelper.BT.DaiyouseiFog,
+        // 注入 BuffDescription（静态描述，不随时间变化）
+        SpellHelper.RegisterBuffDescription(
+            (EventManager.BuffType)BuffType_DaiyouseiFog,
             title: "飞雾",
             description: "雾气弥漫了你的用餐区，30秒后解除",
             visual: _buffIcon);
-        NativeBuffHelper.Register(NativeBuffHelper.BT.DaiyouseiFog, FogDuration);
+
+        // 记录总时长（供倒计时显示）
+        SpellHelper.TimedBuffDurations[BuffType_DaiyouseiFog] = (int)FogDuration;
+
+        // 原生定时 buff —— 使用4个参数（与神绮、小恶魔一致）
+        // 注：contextOverride 会导致调用失败，倒计时由 BuffElementDescriptionPatch 处理
+        Log.LogInfo("[Daiyousei] RegisterFogBuff: calling RegisterTimedBuff...");
+        EventManager.Instance.RegisterTimedBuff(
+            (int)FogDuration,
+            (EventManager.BuffType)BuffType_DaiyouseiFog,
+            out _,
+            null);  // onBuffEnd
+        Log.LogInfo("[Daiyousei] RegisterFogBuff: RegisterTimedBuff done");
     }
+
 
     public override string OnGettingSpellOwnerIdentifier()
         => "_ResourceExample_Daiyousei";
@@ -79,12 +95,15 @@ public partial class Spell_Daiyousei : SpellBase
     // 关键：告诉游戏这个符卡有黑卡效果
     public override bool HasNegativeSpell => true;
 
-    // 关键：告诉游戏自动调用符卡声明
-    public override bool ShouldCallSpellDeclarationAuto(bool isPositiveSpell) => true;
+    // 关键：告诉游戏自动调用符卡声明，同时设置立绘偏移 flag
+    public override bool ShouldCallSpellDeclarationAuto(bool isPositiveSpell)
+    {
+        SpellHelper.SetCutinShift(OnGettingSpellOwnerIdentifier());
+        return true;
+    }
 
     public override Il2CppSystem.Collections.IEnumerator OnPositiveBuffExecute(SpellExecutionContext ctx)
     {
-        Log.LogInfo("[Daiyousei] *** OnPositiveBuffExecute CALLED ***");
         try { return PositiveBuffRoutine(ctx).WrapToIl2Cpp(); }
         catch (Exception ex)
         {
@@ -95,7 +114,6 @@ public partial class Spell_Daiyousei : SpellBase
 
     public override Il2CppSystem.Collections.IEnumerator OnNegativeBuffExecute(SpellExecutionContext ctx)
     {
-        Log.LogInfo("[Daiyousei] *** OnNegativeBuffExecute CALLED ***");
         try { return NegativeBuffRoutine(ctx).WrapToIl2Cpp(); }
         catch (Exception ex)
         {
@@ -111,7 +129,7 @@ public partial class Spell_Daiyousei : SpellBase
     [HideFromIl2Cpp]
     private IEnumerator PositiveBuffRoutine(SpellExecutionContext ctx)
     {
-        var onField = GetOnFieldSpecialGuestIds();
+        var onField = SpellHelper.GetOnFieldSpecialGuestIds();
 
         // 从召唤池中筛选不在场上的朋友
         var available = new List<int>();
@@ -140,6 +158,22 @@ public partial class Spell_Daiyousei : SpellBase
     [HideFromIl2Cpp]
     private IEnumerator SummonGuestCoroutine(int guestId)
     {
+        try
+        {
+            var sg = DataBaseCharacter.RefSGuest(guestId);
+            if (sg == null)
+            {
+                Log.LogWarning($"[Daiyousei] RefSGuest({guestId}) returned null, summon skipped");
+                yield break;
+            }
+            Log.LogInfo($"[Daiyousei] RefSGuest({guestId}) -> name={sg.Text?.Name}, stringId={sg.StringId}");
+        }
+        catch (Exception ex)
+        {
+            Log.LogError($"[Daiyousei] RefSGuest({guestId}) threw: {ex.Message}");
+            yield break;
+        }
+
         if (GuestsManager.Instance == null)
         {
             Log.LogWarning("[Daiyousei] GuestsManager.Instance is null, cannot summon");
@@ -152,31 +186,38 @@ public partial class Spell_Daiyousei : SpellBase
             yield break;
         }
 
-        var specialGuest = DataBaseCharacter.RefSGuest(guestId);
-        if (specialGuest == null)
+        try
         {
-            Log.LogWarning($"[Daiyousei] RefSGuest({guestId}) returned null");
-            yield break;
+            var ctrl = GuestsManager.Instance.SpawnSpecialGuestGroup(
+                guestId,
+                SpecialGuestsController.GuestSpawnType.Normal,
+                new Il2CppSystem.Nullable<Vector3>(),  // 空值Nullable，游戏使用默认入口出生
+                null,
+                GuestGroupController.LeaveType.Move,
+                true, -1, false, null, true);
+
+            if (ctrl == null)
+            {
+                Log.LogWarning($"[Daiyousei] SpawnSpecialGuestGroup returned null for id={guestId}");
+                yield break;
+            }
+
+            Log.LogInfo($"[Daiyousei] 召唤稀客 id={guestId} 成功");
+            LastSummonedGuestId = guestId;
+
+            // 标记此稀客"今晚已生成"，防止自然生成重复出现
+            EventManager.Instance.SetTargetGuestHasSpawnedHandle?.Invoke(guestId);
+
+            var guestName = guestId.GetSpecialGuestLang().BriefName;
+            string message = guestId == KeineId
+                ? "慧音老师来惩罚不听话的翘课的孩子们了"
+                : $"大妖精邀请{guestName}来吃饭了";
+            Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage(message);
         }
-
-        // 不传位置，使用游戏默认屏幕外生成点，稀客会从屏幕外走进来
-        var ctrl = new SpecialGuestsController(
-            specialGuest,
-            new Il2CppSystem.Nullable<Vector3>(),
-            null,
-            GuestGroupController.LeaveType.Move,
-            SpecialGuestsController.GuestSpawnType.Normal);
-
-        GuestsManager.Instance.PostInitializeGuestGroup(ctrl, -1, false, true);
-        Log.LogInfo($"[Daiyousei] 召唤稀客 id={guestId} 成功");
-
-        // 显示召唤通知
-        var guestName = guestId.GetSpecialGuestLang().BriefName;
-        string message = guestId == KeineId
-            ? "慧音老师来惩罚不听话的翘课的孩子们了"
-            : $"大妖精邀请{guestName}来吃饭了";
-        Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage(message);
-        Log.LogInfo($"[Daiyousei] 通知: {message}");
+        catch (Exception ex)
+        {
+            Log.LogError($"[Daiyousei] SpawnSpecialGuestGroup threw: {ex.Message}");
+        }
 
         yield break;
     }
@@ -322,68 +363,13 @@ public partial class Spell_Daiyousei : SpellBase
     // 工具方法
     // ================================================================================
 
-    private static HashSet<int> GetOnFieldSpecialGuestIds()
-    {
-        var result = new HashSet<int>();
-        var allGuests = GuestsMap.GetAllGuestsSnapshot();
-        foreach (var (_, fsm) in allGuests)
-        {
-            if (fsm?.Ids == null || fsm.Controller == null) continue;
-
-            // 只统计特殊客人，排除普通客人 ID 干扰
-            if (fsm.GuestType != GuestsManager.GuestType.Special) continue;
-
-            var state = fsm.CurrentState;
-            if (state == GuestFSM.State.Left || state == GuestFSM.State.Dead || state == GuestFSM.State.None)
-                continue;
-
-            if (!fsm.Controller.HaveNotLeft())
-                continue;
-
-            foreach (var id in fsm.Ids)
-                result.Add(id);
-        }
-        return result;
-    }
-
     // ================================================================================
-    // 桌子位置查询（供雾气等效果使用）
-    // ================================================================================
-
-    /// <summary>
-    /// 获取用餐区所有桌子的世界坐标列表。
-    /// 通过反射查找场景中所有 DeskUnit MonoBehaviour，提取 transform.position。
-    /// </summary>
-    /// <returns>桌子世界坐标数组，找不到时返回空数组</returns>
-    public static Vector3[] GetTablePositions()
-    {
-        var positions = new List<Vector3>();
-        try
-        {
-            var allBehaviours = UnityEngine.Object.FindObjectsOfType<MonoBehaviour>();
-            foreach (var mb in allBehaviours)
-            {
-                if (mb == null) continue;
-                if (mb.GetIl2CppType().Name != "DeskUnit") continue;
-                var go = mb.gameObject;
-                if (go == null) continue;
-                positions.Add(go.transform.position);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.LogError($"[Daiyousei] GetTablePositions failed: {ex.Message}");
-        }
-        return positions.ToArray();
-    }
-
-    // ================================================================================
-    // 屏幕空间雾气效果（ScreenSpaceOverlay，参考神绮传送门）
+    // 屏幕空间雾气效果
     // ================================================================================
 
     /// <summary>
     /// 在屏幕空间中创建白色半透明雾气效果。
-    /// 使用 ScreenSpaceOverlay Canvas + 多个半透明 Image 模拟雾气，确保始终可见。
+
     /// </summary>
     private static GameObject CreateScreenFog()
     {
