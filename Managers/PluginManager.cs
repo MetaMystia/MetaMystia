@@ -110,30 +110,6 @@ public partial class PluginManager : MonoBehaviour
                 ResourceExManager.AutoRegisterShinkiSpell();
             }
 
-            if (Input.GetKeyDown(KeyCode.F6))
-            {
-                SpellDiagnostic.DumpAllActiveSprites();
-                InGameConsole.ShowPassive("[Diag] Sprite dump -> Player.log");
-            }
-
-            if (Input.GetKeyDown(KeyCode.F7))
-            {
-                SpellDiagnostic.DumpGuestDatabase();
-                InGameConsole.ShowPassive("[Diag] Guest database dump -> Player.log");
-            }
-
-            if (Input.GetKeyDown(KeyCode.F8))
-            {
-                SpellDiagnostic.DumpFoodTagsAndIngredients();
-                InGameConsole.ShowPassive("[Diag] Food tags dump -> Player.log");
-            }
-
-            if (Input.GetKeyDown(KeyCode.F9))
-            {
-                SpellDiagnostic.DumpDeskAndInteractablePositions();
-                InGameConsole.ShowPassive("[Diag] Desk & interactable positions -> Player.log");
-            }
-
             if (Input.GetKeyDown(KeyCode.F11))
             {
                 Debugger ??= new Debugger.WebDebugger();
