@@ -65,10 +65,15 @@ public static partial class PatchRegistry
         typeof(RunTimeDayScenePatch),
         typeof(DaySceneChatSelectionPannel__c__DisplayClass17_0Patch),
 
-        // Shinki (神绮) Spell Patches
-        // typeof(ShinkiGuestIconManagerPatch),  // TODO: IL Compile Error — needs investigation
+        // Shinki (神绮) / Koakuma (小恶魔) Spell Patches
+        typeof(ShinkiGuestIconManagerPatch),
         typeof(ShinkiDebugConsolePatch),
-        typeof(NativeBuffHelper),
+        typeof(KoakumaOrderRevealPatch),
+        typeof(KoakumaCookingPatch_OpenCookingSelectionPannel),  // 厨具重定向（ref cookController）
+        typeof(KoakumaCookingPatch_UpdateAllVisual),    // 食材栏位重排
+        typeof(BuffElementDescriptionPatch),
+        typeof(BuffInitialDescriptionPatch),
+        typeof(SpellDeclareCutinCharacterPatch),
     ];
 
     public static bool AllPatched => PatchedException == null;
