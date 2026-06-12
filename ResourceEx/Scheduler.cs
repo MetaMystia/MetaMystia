@@ -1,6 +1,4 @@
-using System.Linq;
-using Newtonsoft.Json.Utilities;
-using SgrYuki.Utils;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using GameData.RunTime.Common;
 
 
@@ -31,6 +29,11 @@ public static partial class ResourceExManager
             foreach (var scheduledEvent in dlcData.scheduledEvents)
             {
                 Log.Warning($"  - {scheduledEvent}");
+            }
+            Log.Warning($"scheduledNews count: {dlcData.scheduledNews.Count}");
+            foreach (var scheduledNews in dlcData.scheduledNews)
+            {
+                Log.Warning($"  - {scheduledNews}");
             }
             Log.Warning($"allTrackingMissions count: {dlcData.allTrackingMissions.Count}");
             foreach (var allTrackingMission in dlcData.allTrackingMissions)
@@ -117,6 +120,51 @@ public static partial class ResourceExManager
             }
         }
 
+        // reload scheduledNews
+        foreach (var scheduledNews in resourceExData.scheduledNews)
+        {
+            if (!RunTimeScheduler.scheduledNews.ContainsKey(scheduledNews.Key))
+            {
+                RunTimeScheduler.scheduledNews.Add(scheduledNews.Key, new Il2CppSystem.Collections.Generic.List<string>());
+                Log.Info($"Added new scheduledNews key: {scheduledNews.Key}");
+            }
+
+            var targetList = RunTimeScheduler.scheduledNews[scheduledNews.Key];
+            foreach (var newsLabel in scheduledNews.Value)
+            {
+                if (!targetList.Contains(newsLabel) && GetAllNewsNodeLabels().Contains(newsLabel))
+                {
+                    targetList.Add(newsLabel);
+                    Log.Info($"Reloaded scheduledNews: {newsLabel} under key: {scheduledNews.Key}");
+                }
+            }
+        }
+
+        // reload scheduledNewsReplaceContents
+        foreach (var scheduledNewsReplaceContent in resourceExData.scheduledNewsReplaceContents)
+        {
+            if (!RunTimeScheduler.scheduledNewsReplaceContents.ContainsKey(scheduledNewsReplaceContent.Key))
+            {
+                RunTimeScheduler.scheduledNewsReplaceContents.Add(scheduledNewsReplaceContent.Key, new Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.KeyValuePair<string, Il2CppReferenceArray<RunTimeScheduler.HistoryNewsData.ReplaceContent>>>());
+                Log.Info($"Added new scheduledNewsReplaceContents key: {scheduledNewsReplaceContent.Key}");
+            }
+
+            var targetList = RunTimeScheduler.scheduledNewsReplaceContents[scheduledNewsReplaceContent.Key];
+            foreach (var replaceContent in scheduledNewsReplaceContent.Value)
+            {
+                if (!GetAllNewsNodeLabels().Contains(replaceContent.Key))
+                {
+                    continue;
+                }
+
+                if (!ContainsNewsReplaceContent(targetList, replaceContent.Key))
+                {
+                    targetList.Add(replaceContent);
+                    Log.Info($"Reloaded scheduledNewsReplaceContents: {replaceContent.Key} under key: {scheduledNewsReplaceContent.Key}");
+                }
+            }
+        }
+
         // reload allTrackingMissions
         foreach (var trackingMission in resourceExData.allTrackingMissions)
         {
@@ -138,5 +186,17 @@ public static partial class ResourceExManager
         }
         notLoadedDLCSchedulerSaveData.Remove("ResourceEx");
         Log.Info("ResourceEx Scheduler data has been successfully reloaded.");
+    }
+
+    private static bool ContainsNewsReplaceContent(Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.KeyValuePair<string, Il2CppReferenceArray<RunTimeScheduler.HistoryNewsData.ReplaceContent>>> list, string newsLabel)
+    {
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (list[i].Key == newsLabel)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

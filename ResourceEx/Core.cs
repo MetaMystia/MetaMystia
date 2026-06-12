@@ -54,6 +54,7 @@ public static partial class ResourceExManager
     private static Dictionary<int, RecipeConfig> RecipeConfigs = new Dictionary<int, RecipeConfig>();
     private static List<MissionNodeConfig> MissionNodeConfigs = new List<MissionNodeConfig>();
     private static List<EventNodeConfig> EventNodeConfigs = new List<EventNodeConfig>();
+    private static List<NewsNodeConfig> NewsNodeConfigs = new List<NewsNodeConfig>();
     private static Dictionary<string, MerchantConfig> MerchantConfigs = new Dictionary<string, MerchantConfig>();
     private static Dictionary<int, ClothConfig> ClothConfigs = new Dictionary<int, ClothConfig>();
 
@@ -104,6 +105,7 @@ public static partial class ResourceExManager
         RegisterAllBeverageLanguages();
         RegisterAllFoodLanguages();
         RegisterAllMissionNodeLanguages();
+        RegisterAllNewsNodeLanguages();
         RegisterAllClothLanguages();
     }
 
@@ -115,6 +117,7 @@ public static partial class ResourceExManager
 
         RegisterAllMissionNodes(); // 依赖 Dialog
         RegisterAllEventNodes(); // 依赖 Dialog
+        RegisterAllNewsNodes();
 
         RegisterAllClothPixelSprites(); // 依赖 DataBaseCharacter
     }
@@ -129,6 +132,7 @@ public static partial class ResourceExManager
         // RegisterAllEventNodes(); // 依赖 Dialog
         RegisterAllMissionNodesMapping();
         RegisterAllEventNodesMapping();
+        RegisterAllNewsNodesMapping();
     }
     public static void OnNightSceneLanguageInitialized()
     {
@@ -280,6 +284,15 @@ public static partial class ResourceExManager
             {
                 EventNodeConfigs.Add(eventNodeConfig);
                 Log.LogInfo($"[{packageName}] Loaded config for event node {eventNodeConfig.debugLabel}");
+            }
+        }
+
+        if (config?.newsNodes != null)
+        {
+            foreach (var newsNodeConfig in config.newsNodes)
+            {
+                NewsNodeConfigs.Add(newsNodeConfig);
+                Log.LogInfo($"[{packageName}] Loaded config for news node {newsNodeConfig.title}({newsNodeConfig.label})");
             }
         }
 
