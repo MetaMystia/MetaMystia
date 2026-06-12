@@ -34,6 +34,7 @@ public class ResourceConfig
     public List<ClothConfig> clothes { get; set; }
     public List<MissionNodeConfig> missionNodes { get; set; }
     public List<EventNodeConfig> eventNodes { get; set; }
+    public List<NewsNodeConfig> newsNodes { get; set; }
     public List<MerchantConfig> merchants { get; set; }
     public List<SpellConfig> spells { get; set; }
     public List<BuffConfig> buffs { get; set; }
