@@ -187,6 +187,8 @@ public class DialogConfig
 
 public class DialogPackageConfig
 {
+    private const int BranchOptionTextIdBase = -1000000;
+
     public string name { get; set; }
     public List<DialogConfig> dialogList { get; set; }
 
@@ -194,14 +196,44 @@ public class DialogPackageConfig
 
     public DialogConfig this[int index] => dialogList[index];
 
+    public static int GetBranchOptionTextId(int dialogIndex, int actionIndex, int optionIndex)
+    {
+        return BranchOptionTextIdBase - dialogIndex * 10000 - actionIndex * 100 - optionIndex;
+    }
+
     public System.Action<Il2CppSystem.Collections.Generic.Dictionary<int, string>> GetOverrideReplaceTextCallback()
     {
         return replaceDict =>
         {
             for (int i = 0; i < Count; i++)
+            {
                 replaceDict[i] = this[i].text;
+                var actions = this[i].actions;
+                if (actions == null) continue;
+
+                for (int actionIndex = 0; actionIndex < actions.Length; actionIndex++)
+                {
+                    var options = actions[actionIndex]?.options;
+                    if (options == null) continue;
+
+                    for (int optionIndex = 0; optionIndex < options.Count; optionIndex++)
+                    {
+                        replaceDict[GetBranchOptionTextId(i, actionIndex, optionIndex)] = options[optionIndex]?.text ?? "";
+                    }
+                }
+            }
         };
     }
+}
+
+public class DialogBranchOptionConfig
+{
+    public string text { get; set; }
+    /// <summary>
+    /// One-based dialog number; Count + 1 means finish this dialog package.
+    /// </summary>
+    public int jump { get; set; }
+    public int? price { get; set; }
 }
 
 public class DialogActionConfig
@@ -218,6 +250,22 @@ public class DialogActionConfig
     /// For Sound actions: relative path or rex URI to a WAV asset.
     /// </summary>
     public string sound { get; set; }
+
+    /// <summary>
+    /// For Branch actions: option text, target dialog index, and optional price.
+    /// Jump values are one-based dialog numbers; dialogList.Count + 1 means finish this dialog package.
+    /// </summary>
+    public List<DialogBranchOptionConfig> options { get; set; }
+
+    /// <summary>
+    /// For Goto actions: one-based dialog number; dialogList.Count + 1 means finish this dialog package.
+    /// </summary>
+    public int? index { get; set; }
+
+    /// <summary>
+    /// For End actions: optional native dialog exit code. Normal dialog menus can leave this as 0.
+    /// </summary>
+    public int? exitCode { get; set; }
 
     public bool shouldSet { get; set; } = true;
 }

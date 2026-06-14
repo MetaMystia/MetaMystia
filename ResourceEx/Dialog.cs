@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 
 using Common.DialogUtility;
@@ -37,7 +40,7 @@ public static partial class ResourceExManager
         return null;
     }
 
-    private static DialogAction BuildDialogAction(DialogActionConfig actionConfig)
+    private static DialogAction BuildDialogAction(DialogPackageConfig dialogPackageConfig, int dialogIndex, int actionIndex, DialogActionConfig actionConfig)
     {
         var action = new DialogAction();
         action.actionType = actionConfig.actionType;
@@ -59,7 +62,78 @@ public static partial class ResourceExManager
         if (actionConfig.actionType == ActionType.Sound)
             action.m_AudioAsset = ResolveDialogAudioReference(actionConfig);
 
+        if (actionConfig.actionType == ActionType.Branch)
+            ConfigureBranchAction(action, dialogPackageConfig, dialogIndex, actionIndex, actionConfig);
+
+        if (actionConfig.actionType == ActionType.Goto)
+            action.index = ResolveDialogJumpIndex(dialogPackageConfig, dialogIndex, actionConfig.index, "Goto");
+
+        if (actionConfig.actionType == ActionType.End)
+            action.index = actionConfig.exitCode ?? actionConfig.index ?? 0;
+
         return action;
+    }
+
+    private static void ConfigureBranchAction(DialogAction action, DialogPackageConfig dialogPackageConfig, int dialogIndex, int actionIndex, DialogActionConfig actionConfig)
+    {
+        var selections = new List<int>();
+        var jumps = new List<int>();
+        var prices = new List<int>();
+
+        var options = actionConfig.options;
+        if (options == null || options.Count == 0)
+        {
+            Log.Warning($"Dialog branch has no options: {dialogPackageConfig.name}[{dialogIndex + 1}] action #{actionIndex + 1}");
+            action.selections = Array.Empty<int>();
+            action.jumps = Array.Empty<int>();
+            action.prices = Array.Empty<int>();
+            return;
+        }
+
+        for (int optionIndex = 0; optionIndex < options.Count; optionIndex++)
+        {
+            var option = options[optionIndex];
+            if (option == null)
+            {
+                Log.Warning($"Dialog branch option is null: {dialogPackageConfig.name}[{dialogIndex + 1}] action #{actionIndex + 1}, option #{optionIndex + 1}");
+                continue;
+            }
+
+            var selectionTextId = DialogPackageConfig.GetBranchOptionTextId(dialogIndex, actionIndex, optionIndex);
+            var jump = ResolveDialogJumpIndex(dialogPackageConfig, dialogIndex, option.jump, $"Branch option #{optionIndex + 1}");
+            var price = option.price ?? 0;
+            if (price < 0)
+            {
+                Log.Warning($"Dialog branch option price is negative and will be treated as 0: {dialogPackageConfig.name}[{dialogIndex + 1}] action #{actionIndex + 1}, option #{optionIndex + 1}");
+                price = 0;
+            }
+
+            selections.Add(selectionTextId);
+            jumps.Add(jump);
+            prices.Add(price);
+        }
+
+        action.selections = selections.ToArray();
+        action.jumps = jumps.ToArray();
+        action.prices = prices.ToArray();
+    }
+
+    private static int ResolveDialogJumpIndex(DialogPackageConfig dialogPackageConfig, int dialogIndex, int? targetIndex, string context)
+    {
+        var fallback = Math.Min(dialogIndex + 1, dialogPackageConfig.Count);
+        if (!targetIndex.HasValue)
+        {
+            Log.Warning($"{context} target is missing in dialog package {dialogPackageConfig.name}[{dialogIndex + 1}], falling back to dialog #{fallback + 1}.");
+            return fallback;
+        }
+
+        if (targetIndex.Value < 1 || targetIndex.Value > dialogPackageConfig.Count + 1)
+        {
+            Log.Warning($"{context} target dialog #{targetIndex.Value} is out of range in dialog package {dialogPackageConfig.name}[{dialogIndex + 1}], falling back to dialog #{fallback + 1}.");
+            return fallback;
+        }
+
+        return targetIndex.Value - 1;
     }
 
     private static DialogPackage BuildDialogPackage(DialogPackageConfig dialogPackageConfig)
@@ -92,7 +166,7 @@ public static partial class ResourceExManager
             {
                 meta.dialogAction = new Il2CppReferenceArray<DialogAction>(dialog.actions.Length);
                 for (int j = 0; j < dialog.actions.Length; j++)
-                    meta.dialogAction[j] = BuildDialogAction(dialog.actions[j]);
+                    meta.dialogAction[j] = BuildDialogAction(dialogPackageConfig, i, j, dialog.actions[j]);
             }
             else
             {
