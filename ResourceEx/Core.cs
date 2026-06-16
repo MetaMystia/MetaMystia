@@ -26,7 +26,7 @@ public static partial class ResourceExManager
     private static Dictionary<(int id, string type), CharacterConfig> _characterConfigs = new Dictionary<(int id, string type), CharacterConfig>();
     private static Dictionary<string, CharacterSpriteSetCompact> _characterSpriteSets = new Dictionary<string, CharacterSpriteSetCompact>();
     private static Dictionary<string, DialogPackageConfig> _dialogPackageConfigs = new Dictionary<string, DialogPackageConfig>();
-    private static Dictionary<string, DialogPackage> _builtDialogPackages = new Dictionary<string, DialogPackage>();
+    private static Dictionary<string, BuiltDialogPackage> _builtDialogPackages = new Dictionary<string, BuiltDialogPackage>();
     private static Dictionary<string, Merchant> _builtMerchants = new Dictionary<string, Merchant>();
 
     // Loaded package metadata for console queries
