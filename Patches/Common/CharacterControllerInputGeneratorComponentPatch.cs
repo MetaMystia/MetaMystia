@@ -5,6 +5,7 @@ using Common.CharacterUtility;
 using Common.UI;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
 
 
 namespace MetaMystia.Patch;
@@ -38,7 +39,7 @@ public partial class CharacterControllerInputGeneratorComponentPatch
             if (__instance.name == characterCollection["Self"].name)
             {
                 PlayerManager.LocalInputDirection = inputDirection;
-                MoveSyncAction.SendSync();
+                DaySceneServices.SendMoveSync();
             }
         }
         catch (System.Exception e)

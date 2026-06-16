@@ -4,6 +4,7 @@ using GameData.Core.Collections;
 using GameData.RunTime.NightSceneUtility;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -31,8 +32,8 @@ public partial class IzakayaConfigurePatch
             return SkipOriginal;
         }
 
-        PrepSceneManager.localPrepTable.RecipeAdditions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        PrepSceneManager.LocalPrepTable.RecipeAdditions[id] = MpManager.GetSynchronizedTimestampNow;
+        PrepSceneServices.SendUpdatePrep();
         return RunOriginal;
     }
 
@@ -48,8 +49,8 @@ public partial class IzakayaConfigurePatch
             return SkipOriginal;
         }
 
-        PrepSceneManager.localPrepTable.BeverageAdditions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        PrepSceneManager.LocalPrepTable.BeverageAdditions[id] = MpManager.GetSynchronizedTimestampNow;
+        PrepSceneServices.SendUpdatePrep();
         return RunOriginal;
     }
 
@@ -77,7 +78,7 @@ public partial class IzakayaConfigurePatch
 
         Log.LogInfo($"RegisterToCookers: id={id}, index={index}, ts={timestamp}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
 
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        PrepSceneServices.SendUpdatePrep();
         return RunOriginal;
     }
 
@@ -86,8 +87,8 @@ public partial class IzakayaConfigurePatch
     public static void LogoffFromDailyRecipes_Prefix(int id)
     {
         Log.LogInfo($"LogoffFromDailyRecipes: {id}");
-        PrepSceneManager.localPrepTable.RecipeDeletions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        PrepSceneManager.LocalPrepTable.RecipeDeletions[id] = MpManager.GetSynchronizedTimestampNow;
+        PrepSceneServices.SendUpdatePrep();
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyBeverages))]
@@ -95,8 +96,8 @@ public partial class IzakayaConfigurePatch
     public static void LogoffFromDailyBeverages_Prefix(int id)
     {
         Log.LogInfo($"LogoffFromDailyBeverages: {id}");
-        PrepSceneManager.localPrepTable.BeverageDeletions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        PrepSceneManager.LocalPrepTable.BeverageDeletions[id] = MpManager.GetSynchronizedTimestampNow;
+        PrepSceneServices.SendUpdatePrep();
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogOffFromCookers))]
@@ -123,8 +124,8 @@ public partial class IzakayaConfigurePatch
         if (_skipPatchStoreFood) return;
         if (!MpManager.IsConnected) return;
 
-        var food = SellableFood.FromSellable(sellable);
-        StoreFoodAction.Send(food);
+        var food = sellable.ToSellableFoodData();
+        WorkSceneServices.SendStoreFood(food);
     }
 
 }

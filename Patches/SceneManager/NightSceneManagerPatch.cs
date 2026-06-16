@@ -4,6 +4,7 @@ using Common.UI;
 using NightScene;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using SgrYuki;
 
 namespace MetaMystia;
@@ -29,7 +30,7 @@ public static partial class NightSceneManagerPatch
         {
             return;
         }
-        PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+        CommonServices.SendPlayerChangeSkin(PlayerManager.Local.Skin);
 
         if (!MpManager.IsConnected)
         {

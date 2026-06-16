@@ -4,7 +4,9 @@ using System.Text;
 using System.Threading.Tasks;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using MetaMystia.Patch;
+using MetaMystia.Protocol.Transport;
 using MetaMystia.UI;
 using SgrYuki;
 
@@ -220,7 +222,7 @@ public static partial class MpManager
     public static void OnSceneTransit(Common.UI.Scene newScene)
     {
         Log.Message($"LocalScene transit from {LocalScene} -> {newScene}");
-        SceneTransitAction.Send(newScene);
+        CommonServices.SendSceneTransit(newScene);
         LocalScene = newScene;
         if (newScene != Common.UI.Scene.MainScene) return;
 
@@ -235,7 +237,7 @@ public static partial class MpManager
         {
             PlayerManager.ClearPeers();
             CommandScheduler.RemoveKeyFromKeyQueue(PeerGetCharacterUnitNotNullCommand);
-            CommandScheduler.CancelInterval(MpWire.SyncActionCommandId);
+            CommandScheduler.CancelInterval(MpWire.SyncMessageCommandId);
         }
     }
 
@@ -268,7 +270,7 @@ public static partial class MpManager
         if (!IsConnectedServer) return;
         if (PlayerManager.AllDayOver)
         {
-            DayAllReadyAction.Broadcast();
+            CommonServices.SendDayAllReady();
             CommandScheduler.EnqueueWithNoCondition(() =>
             {
                 InGameConsole.ShowPassive(TextId.AllReadyTransition.Get());
@@ -282,7 +284,7 @@ public static partial class MpManager
         if (!IsConnectedServer) return;
         if (PlayerManager.AllPrepOver)
         {
-            PrepAllReadyAction.Broadcast();
+            PrepSceneServices.SendPrepAllReady();
             CommandScheduler.EnqueueWithNoCondition(IzakayaConfigPannelPatch.PrepOver);
         }
     }
@@ -291,7 +293,7 @@ public static partial class MpManager
     {
         if (!IsRoomHost || LocalScene != Common.UI.Scene.DayScene || !LocalIsDayOver) return false;
         foreach (var peer in PlayerManager.Peers.Values) peer.IsDayOver = true;
-        DayAllReadyAction.Broadcast();
+        CommonServices.SendDayAllReady();
         CommandScheduler.EnqueueWithNoCondition(() =>
         {
             InGameConsole.ShowPassive(TextId.AllReadyTransition.Get());
@@ -305,7 +307,7 @@ public static partial class MpManager
         if (!IsRoomHost || (LocalScene != Common.UI.Scene.IzakayaPrepScene && LocalScene != Common.UI.Scene.WorkScene) || !LocalIsPrepOver)
             return false;
         foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;
-        PrepAllReadyAction.Broadcast();
+        PrepSceneServices.SendPrepAllReady();
         CommandScheduler.EnqueueWithNoCondition(IzakayaConfigPannelPatch.PrepOver);
         return true;
     }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using MetaMystia.UI;
 
 namespace MetaMystia.ConsoleSystem.Commands;
@@ -123,7 +124,7 @@ public static class MpCommands
                 return;
             }
             MpManager.PlayerId = id;
-            PlayerChangeIdAction.Send(id);
+            SessionServices.SendPlayerChangeId(id);
             ctx.Log(TextId.MpPlayerIdSet.Get(id));
         });
         mpCmd.AddCommand(idCmd);

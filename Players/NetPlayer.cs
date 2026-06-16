@@ -3,6 +3,7 @@ using System;
 using UnityEngine;
 
 using Common.CharacterUtility;
+using MetaMystia.Protocol.Data;
 
 namespace MetaMystia;
 
@@ -99,7 +100,7 @@ public abstract partial class NetPlayer
     /// <summary>
     /// 皮肤
     /// </summary>
-    public PlayerSkin Skin { get; set; } = new();
+    public PlayerSkinData Skin { get; set; } = new();
 
     public void UpdateCharacterSprite() => Skin?.ApplyToUnit(unit);
 

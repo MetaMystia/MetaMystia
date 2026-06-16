@@ -5,6 +5,7 @@ using GameData.Core.Collections;
 
 using MetaMystia.Network;
 using MetaMystia.Patch;
+using MetaMystia.Protocol.Data;
 
 
 namespace MetaMystia;
@@ -12,11 +13,11 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class PrepSceneManager
 {
-    public static UpdatePrepAction.Table localPrepTable = new();
+    public static TableData LocalPrepTable { get; set; } = new();
 
-    public static readonly int MaxRecipes = 8;
-    public static readonly int MaxBeverages = 8;
-    public static readonly int MaxCookers = 8; // 可信联机下双方都不会越界
+    public const int MaxRecipes = 8;
+    public const int MaxBeverages = 8;
+    public const int MaxCookers = 8; // 可信联机下双方都不会越界
 
     public static void Initialize()
     {
@@ -27,33 +28,34 @@ public static partial class PrepSceneManager
         GameData.RunTime.Common.StatusTracker.Instance.partners.Clear();
     }
 
-    public static void ClearPrepTable() => localPrepTable = new UpdatePrepAction.Table();
+    public static void ClearPrepTable() => LocalPrepTable = new TableData();
 
-    public static UpdatePrepAction.Table GetLocalPrepTableSnapshot() => localPrepTable.Clone();
+    public static TableData GetLocalPrepTableSnapshot() => LocalPrepTable.Clone();
 
     /// <summary>客机：放弃本地备菜修改，强制应用主机权威表。</summary>
-    public static void ApplyHostTable(UpdatePrepAction.Table hostTable)
+    public static void ApplyHostTable(TableData hostTable)
     {
-        localPrepTable = hostTable?.Clone() ?? new UpdatePrepAction.Table();
+        LocalPrepTable = hostTable?.Clone() ?? new TableData();
         Log.LogInfo("Applied authoritative prep table from host.");
         UpdateAll();
     }
 
-    public static void MergeFromPeer(UpdatePrepAction.Table remotePrepTable)
+    public static void MergeFromPeer(TableData remotePrepTable)
     {
+        if (remotePrepTable == null) return;
         bool changed = false;
 
-        changed |= MergeDictionary(localPrepTable.RecipeAdditions, remotePrepTable.RecipeAdditions);
-        changed |= MergeDictionary(localPrepTable.RecipeDeletions, remotePrepTable.RecipeDeletions);
+        changed |= MergeDictionary(LocalPrepTable.RecipeAdditions, remotePrepTable.RecipeAdditions);
+        changed |= MergeDictionary(LocalPrepTable.RecipeDeletions, remotePrepTable.RecipeDeletions);
 
-        changed |= MergeDictionary(localPrepTable.BeverageAdditions, remotePrepTable.BeverageAdditions);
-        changed |= MergeDictionary(localPrepTable.BeverageDeletions, remotePrepTable.BeverageDeletions);
+        changed |= MergeDictionary(LocalPrepTable.BeverageAdditions, remotePrepTable.BeverageAdditions);
+        changed |= MergeDictionary(LocalPrepTable.BeverageDeletions, remotePrepTable.BeverageDeletions);
 
         changed |= MergeCookers(remotePrepTable);
 
         // Check limits and trim if necessary
-        changed |= CheckAndTrimLimit(localPrepTable.RecipeAdditions, localPrepTable.RecipeDeletions, MaxRecipes);
-        changed |= CheckAndTrimLimit(localPrepTable.BeverageAdditions, localPrepTable.BeverageDeletions, MaxBeverages);
+        changed |= CheckAndTrimLimit(LocalPrepTable.RecipeAdditions, LocalPrepTable.RecipeDeletions, MaxRecipes);
+        changed |= CheckAndTrimLimit(LocalPrepTable.BeverageAdditions, LocalPrepTable.BeverageDeletions, MaxBeverages);
 
         if (changed)
         {
@@ -71,7 +73,7 @@ public static partial class PrepSceneManager
         {
             int id = kvp.Key;
             long addTs = kvp.Value;
-            long delTs = deletions.ContainsKey(id) ? deletions[id] : 0;
+            long delTs = deletions.GetValueOrDefault(id, 0);
 
             if (addTs > delTs)
             {
@@ -79,20 +81,18 @@ public static partial class PrepSceneManager
             }
         }
 
-        if (validItems.Count > limit)
-        {
-            // Sort by timestamp descending (latest first)
-            validItems.Sort((a, b) => b.Value.CompareTo(a.Value));
+        if (validItems.Count <= limit) return false;
+        // Sort by timestamp descending (latest first)
+        validItems.Sort((a, b) => b.Value.CompareTo(a.Value));
 
-            // Remove the latest items until count <= limit
-            int removeCount = validItems.Count - limit;
-            for (int i = 0; i < removeCount; i++)
-            {
-                var itemToRemove = validItems[i];
-                deletions[itemToRemove.Key] = MpManager.GetSynchronizedTimestampNow;
-                changed = true;
-                Log.LogInfo($"Trimmed item {itemToRemove.Key} due to limit.");
-            }
+        // Remove the latest items until count <= limit
+        int removeCount = validItems.Count - limit;
+        for (int i = 0; i < removeCount; i++)
+        {
+            var itemToRemove = validItems[i];
+            deletions[itemToRemove.Key] = MpManager.GetSynchronizedTimestampNow;
+            changed = true;
+            Log.LogInfo($"Trimmed item {itemToRemove.Key} due to limit.");
         }
         return changed;
     }
@@ -113,7 +113,7 @@ public static partial class PrepSceneManager
         return changed;
     }
 
-    private static bool MergeCookers(UpdatePrepAction.Table remotePrepTable)
+    private static bool MergeCookers(TableData remotePrepTable)
     {
         if (remotePrepTable == null)
         {
@@ -141,50 +141,34 @@ public static partial class PrepSceneManager
         return changed;
     }
 
-    internal static CookerSlot[] GetLocalCookerSlots()
+    internal static CookerSlotData[] GetLocalCookerSlots()
     {
         return EnsureLocalCookerSlots();
     }
 
-    private static CookerSlot[] EnsureLocalCookerSlots()
+    private static CookerSlotData[] EnsureLocalCookerSlots()
     {
-        if (localPrepTable.Cookers == null)
+        var slots = LocalPrepTable.Cookers;
+        if (slots.Length != CookerSlotData.SlotsLength)
         {
-            localPrepTable.Cookers = CookerSlot.CreateDefaultArray();
-        }
-
-        var slots = localPrepTable.Cookers;
-        if (slots.Length != CookerSlot.SlotsLength)
-        {
-            var normalized = CookerSlot.CreateDefaultArray();
+            var normalized = CookerSlotData.CreateDefaultArray();
             int limit = Math.Min(slots.Length, normalized.Length);
             for (int i = 0; i < limit; i++)
             {
-                if (slots[i] != null)
-                {
-                    normalized[i].Id = slots[i].Id;
-                    normalized[i].Timestamp = slots[i].Timestamp;
-                }
+                normalized[i].Id = slots[i].Id;
+                normalized[i].Timestamp = slots[i].Timestamp;
             }
 
-            localPrepTable.Cookers = normalized;
+            LocalPrepTable.Cookers = normalized;
             slots = normalized;
-        }
-
-        for (int i = 0; i < slots.Length; i++)
-        {
-            if (slots[i] == null)
-            {
-                slots[i] = new CookerSlot();
-            }
         }
 
         return slots;
     }
 
-    private static CookerSlot[] NormalizeCookerSlots(CookerSlot[] source)
+    private static CookerSlotData[] NormalizeCookerSlots(CookerSlotData[] source)
     {
-        var normalized = CookerSlot.CreateDefaultArray();
+        var normalized = CookerSlotData.CreateDefaultArray();
         if (source == null)
         {
             return normalized;
@@ -226,7 +210,7 @@ public static partial class PrepSceneManager
         {
             int id = kvp.Key;
             long addTs = kvp.Value;
-            long delTs = deletions.ContainsKey(id) ? deletions[id] : 0;
+            long delTs = deletions.GetValueOrDefault(id, 0);
 
             if (addTs > delTs)
             {
@@ -257,11 +241,11 @@ public static partial class PrepSceneManager
 
     public static void UpdateRecipes()
     {
-        UpdateItems<Recipe>(
+        UpdateItems(
             GameData.RunTime.NightSceneUtility.IzakayaConfigure.Instance.DailyRecipes,
             "DailyRecipes",
-            localPrepTable.RecipeAdditions,
-            localPrepTable.RecipeDeletions,
+            LocalPrepTable.RecipeAdditions,
+            LocalPrepTable.RecipeDeletions,
             DataBaseCore.Recipes,
             "Recipe"
         );
@@ -269,11 +253,11 @@ public static partial class PrepSceneManager
 
     public static void UpdateBeverages()
     {
-        UpdateItems<Sellable>(
+        UpdateItems(
             GameData.RunTime.NightSceneUtility.IzakayaConfigure.Instance.DailyBeverages,
             "DailyBeverages",
-            localPrepTable.BeverageAdditions,
-            localPrepTable.BeverageDeletions,
+            LocalPrepTable.BeverageAdditions,
+            LocalPrepTable.BeverageDeletions,
             DataBaseCore.Beverages,
             "Beverage"
         );
@@ -312,14 +296,14 @@ public static partial class PrepSceneManager
 
         Log.LogInfo($"Updated cookersList with {activeCount} active slots (limit {usableLength}).");
     }
-    
+
     public static void UpdateGroups()
     {
         UpdateRecipes();
         UpdateBeverages();
         UpdateCookers();
     }
-    
+
     public static void UpdateUI()
     {
         IzakayaConfigPannelPatch.instanceRef?.SolveDailyCompletion();

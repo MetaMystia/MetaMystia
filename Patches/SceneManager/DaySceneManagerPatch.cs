@@ -3,7 +3,7 @@ using HarmonyLib;
 using Common.UI;
 using DayScene;
 
-using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using MetaMystia.UI;
 using SgrYuki.Utils;
 
@@ -29,7 +29,7 @@ public partial class DaySceneManagerPatch
 
         if (MpManager.CanSeeOnlinePlayers)
         {
-            PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+            CommonServices.SendPlayerChangeSkin(PlayerManager.Local.Skin);
         }
 
         if (PatchRegistry.PatchedException != null)
@@ -62,7 +62,7 @@ public partial class DaySceneManagerPatch
     {
         if (MpManager.IsRoomClient)
         {
-            GuestInviteAction.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
+            WorkSceneServices.SendGuestInvite(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
         }
         Panel.CloseActivePanelsBeforeSceneTransit();
         OnDayOver_ReversePatch(SceneManager.Instance);
@@ -82,7 +82,7 @@ public partial class DaySceneManagerPatch
         }
 
         InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
-        DayReadyAction.SendReady();
+        CommonServices.SendDayReady();
         MpManager.DayOver();
         return SkipOriginal;
     }

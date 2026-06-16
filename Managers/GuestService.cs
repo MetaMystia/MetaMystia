@@ -12,7 +12,9 @@ using NightScene.EventUtility;
 using Night.UI.HUD.Ordering;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Utilities;
 using MetaMystia.Patch;
+using MetaMystia.Protocol.Data;
 using SgrYuki.Utils;
 
 namespace MetaMystia;
@@ -24,7 +26,7 @@ public static partial class GuestService
     /// 实现客机对 SpawnNormalGuestGroupExtern 前半部分的重放，并注入 Ids GetFund MaxFundCarry 数据，但跳过了 落座/入队/判定离开 的逻辑以等待后续同步事件
     /// </summary>
     /// <param name="fsm"></param>
-    public static void ReplaySpawnNormalGuestGroupExtern(ref GuestFSM fsm, GuestSpawnInfo spawnInfo)
+    public static void ReplaySpawnNormalGuestGroupExtern(ref GuestFSM fsm, GuestSpawnInfoData spawnInfo)
     {
         var ids = fsm.Ids;
 
@@ -44,7 +46,7 @@ public static partial class GuestService
             ? new Il2CppSystem.Nullable<Vector3>(new Vector3(spawnInfo.OverrideSpawnX, spawnInfo.OverrideSpawnY, spawnInfo.OverrideSpawnZ))
             : new Il2CppSystem.Nullable<Vector3>();
         var leaveType = spawnInfo.HasNormalSpawnArgs
-            ? spawnInfo.LeaveType
+            ? EnumConverter.ToGame(spawnInfo.LeaveType)
             : GuestGroupController.LeaveType.Move;
         var targetDeskCode = spawnInfo.HasNormalSpawnArgs ? spawnInfo.TargetDeskCode : -1;
         var shouldFade = !spawnInfo.HasNormalSpawnArgs || spawnInfo.ShouldFade;

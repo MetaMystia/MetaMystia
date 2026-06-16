@@ -3,6 +3,7 @@ using HarmonyLib;
 using PrepNightScene.UI;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using MetaMystia.UI;
 using SgrYuki.Utils;
 
@@ -58,7 +59,7 @@ public partial class IzakayaConfigPannelPatch
         }
         PlayerManager.LocalIsPrepOver = true;
         InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
-        PrepReadyAction.SendReady();
+        PrepSceneServices.SendPrepReady();
         if (MpManager.IsRoomHost)
         {
             MpManager.PrepOver();

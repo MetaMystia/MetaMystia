@@ -3,6 +3,8 @@ using HarmonyLib;
 using GameData.Profile;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
+using MetaMystia.Protocol.Enums;
 
 namespace MetaMystia.Patch;
 
@@ -18,7 +20,7 @@ public partial class MystiaQTEBuffRewardPatch
         Log.Debug($"Player_ThrowDeliver Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
-            BuffAction.Send(QTEBuff.ThrowDeliver);
+            WorkSceneServices.SendBuff(QTEBuff.ThrowDeliver);
         }
     }
 
@@ -29,7 +31,7 @@ public partial class MystiaQTEBuffRewardPatch
         Log.Debug($"Player_InstantEvaluation Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
-            BuffAction.Send(QTEBuff.InstantEvaluation);
+            WorkSceneServices.SendBuff(QTEBuff.InstantEvaluation);
         }
     }
 
@@ -40,7 +42,7 @@ public partial class MystiaQTEBuffRewardPatch
         Log.Debug($"Player_PatientFreeze Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
-            BuffAction.Send(QTEBuff.PatientFreeze);
+            WorkSceneServices.SendBuff(QTEBuff.PatientFreeze);
         }
     }
 
@@ -51,7 +53,7 @@ public partial class MystiaQTEBuffRewardPatch
         Log.Debug($"Player_Fever Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
-            BuffAction.Send(QTEBuff.Fever);
+            WorkSceneServices.SendBuff(QTEBuff.Fever);
         }
     }
 
@@ -62,7 +64,7 @@ public partial class MystiaQTEBuffRewardPatch
         Log.Debug($"Player_Fever_Infinite Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
-            BuffAction.Send(QTEBuff.Fever_Infinite);
+            WorkSceneServices.SendBuff(QTEBuff.FeverInfinite);
         }
     }
 

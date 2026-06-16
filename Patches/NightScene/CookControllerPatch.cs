@@ -4,7 +4,7 @@ using HarmonyLib;
 using GameData.Core.Collections;
 using NightScene.CookingUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -43,8 +43,8 @@ public partial class CookControllerPatch
         if (MpManager.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         var recipeId = recipe.Id;
-        SellableFood food = SellableFood.FromSellable(thisResult);
-        NightCookAction.Send(gridIndex, food, recipeId);
+        var food = thisResult.ToSellableFoodData();
+        WorkSceneServices.SendNightCook(gridIndex, food, recipeId);
     }
 
     [HarmonyPatch(nameof(CookController.Extract))]
@@ -58,7 +58,7 @@ public partial class CookControllerPatch
     {
         if (MpManager.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
-        ExtractFromCookerAction.Send(gridIndex);
+        WorkSceneServices.SendExtractFromCooker(gridIndex);
     }
 
     [HarmonyPatch(nameof(CookController.Store))]
@@ -72,7 +72,7 @@ public partial class CookControllerPatch
     {
         if (MpManager.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
-        StoreSellableAction.Send(gridIndex, value);
+        WorkSceneServices.SendStoreSellable(gridIndex, value);
     }
 
 
@@ -86,7 +86,7 @@ public partial class CookControllerPatch
     public static void StartCookCountDown_Prefix(CookController __instance, float qteScore)
     {
         var gridIndex = __instance.GridIndex;
-        QTEAction.Send(gridIndex, qteScore);
+        WorkSceneServices.SendQTE(gridIndex, qteScore);
     }
 
 }

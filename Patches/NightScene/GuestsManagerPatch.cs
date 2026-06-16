@@ -10,6 +10,8 @@ using GameData.RunTime.NightSceneUtility;
 using NightScene.GuestManagementUtility;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
+using MetaMystia.Protocol.Enums;
 using SgrYuki.Utils;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -425,7 +427,7 @@ public partial class GuestsManagerPatch
         if (MpManager.IsRoomClient)
         {
             var fsm = GuestsMap.GetGuestFsm(toEvaluate);
-            if (fsm?.CurrentState == GuestFSM.State.Evaluating &&
+            if (fsm?.CurrentState == GuestFsmState.Evaluating &&
                 fsm.OverrideEvalResult != GuestGroupController.EvaluationResult.Null)
             {
                 // 客机客人正处于 Evaluating 且存在 OverrideEvalResult 时才推进 Evaluating -> EatingDelay
@@ -591,7 +593,7 @@ public partial class GuestsManagerPatch
         if (NightSceneEventManagerPatch.IsHostCloseReplay) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
-            IzakayaCloseAction.Broadcast();
+            WorkSceneServices.SendIzakayaCloseBroadcast();
             return RunOriginal;
         }
 

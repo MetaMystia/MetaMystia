@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEngine;
 
 using Common.CharacterUtility;
-using MetaMystia.Network;
+using MetaMystia.Protocol.Data;
 
 namespace MetaMystia;
 
@@ -235,9 +235,8 @@ public static partial class PlayerManager
     /// <summary>
     /// 握手成功后，根据对端 UID 创建并注册 PeerPlayer
     /// </summary>
-    public static PeerPlayer AddPeer(PlayerInfo info)
+    public static PeerPlayer AddPeer(PlayerInfoData info)
     {
-        // TODO: refactor
         var uid = info.Uid;
         var peerId = info.PeerId;
         var skin = info.Skin;
@@ -248,7 +247,7 @@ public static partial class PlayerManager
         {
             Log.LogWarning($"Peer with uid={uid} already exists (id='{existing.Id}'), replacing");
         }
-        var peer = new PeerPlayer(uid, info.IncrementalDataBase) { Id = peerId };
+        var peer = new PeerPlayer(uid, ResourceDataBase.FromDatabaseData(info.IncrementalDataBase)) { Id = peerId };
         if (skin != null) peer.Skin = skin;
         peer.ResetState();
         peer.IsDayOver = info.IsDayOver;
@@ -259,17 +258,17 @@ public static partial class PlayerManager
         return peer;
     }
 
-    public static PeerPlayer AddPublicPeer(PlayerInfo info)
+    public static PeerPlayer AddPublicPeer(PlayerInfoData info)
     {
         var uid = info.Uid;
         var peerId = info.PeerId;
-        if (Peers.ContainsKey(uid))
+        if (Peers.TryGetValue(uid, out var publicPeer))
         {
             Log.LogInfo($"Public peer '{peerId}' (uid={uid}) is already in room peers, skipping public registration");
-            return Peers[uid];
+            return publicPeer;
         }
 
-        var peer = new PeerPlayer(uid, info.IncrementalDataBase) { Id = peerId };
+        var peer = new PeerPlayer(uid, ResourceDataBase.FromDatabaseData(info.IncrementalDataBase)) { Id = peerId };
         if (info.Skin != null) peer.Skin = info.Skin;
         peer.ResetState();
         peer.ResetMotion();

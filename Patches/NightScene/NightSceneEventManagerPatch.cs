@@ -4,8 +4,8 @@ using HarmonyLib;
 
 using NightScene.EventUtility;
 
-using MetaMystia.Network;
-
+using MetaMystia.Network.Services;
+using MetaMystia.Protocol.Enums;
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
@@ -34,7 +34,7 @@ public static partial class NightSceneEventManagerPatch
         Log.Info($"Fever Prefix, durationSec {durationSec}");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
-            BuffAction.Send(QTEBuff.Fever);
+            WorkSceneServices.SendBuff(QTEBuff.Fever);
         }
     }
 
@@ -91,7 +91,7 @@ public static partial class NightSceneEventManagerPatch
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
-            FundEditAction.Send(value, mathOperation);
+            WorkSceneServices.SendFundEdit(value, mathOperation);
         }
     }
 
@@ -123,7 +123,7 @@ public static partial class NightSceneEventManagerPatch
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
-            TipEditAction.Send(value, serveType, comboBuff, moodBuff, extraBuff);
+            WorkSceneServices.SendTipEdit(value, serveType, comboBuff, moodBuff, extraBuff);
         }
     }
 
@@ -153,7 +153,7 @@ public static partial class NightSceneEventManagerPatch
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
-            ExpEditAction.Send(value, mathOperation);
+            WorkSceneServices.SendExpEdit(value, mathOperation);
         }
     }
 
@@ -183,7 +183,7 @@ public static partial class NightSceneEventManagerPatch
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
-            PassionEditAction.Send(value, mathOperation);
+            WorkSceneServices.SendPassionEdit(value, mathOperation);
         }
     }
 }

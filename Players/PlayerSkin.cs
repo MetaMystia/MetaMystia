@@ -1,4 +1,3 @@
-using MemoryPack;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,59 +7,47 @@ using Common.CharacterUtility;
 using GameData.Core.Collections;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Profile;
-
+using MetaMystia.Network.Utilities;
+using MetaMystia.Protocol.Data;
+using MetaMystia.Protocol.Enums;
 using SgrYuki.Utils;
 
 namespace MetaMystia;
 
-[MemoryPackable]
 [AutoLog]
-public partial class PlayerSkin
+public static partial class PlayerSkin
 {
-    public int CharacterId = -1; // -1 means Mystia
-    public CharacterSkinSets.SelectedType SelectedType = CharacterSkinSets.SelectedType.Default;
-    public int SkinIndex = 0;
-
-    /// <summary>
-    /// 在线皮肤名（皮肤站标识）。非空时优先使用，由 NetSkinManager 负责异步拉取与解析；
-    /// 未就绪时返回 Fallback 占位，下载完成后会自动刷新。为空则回落到原有 CharacterId/Type/Index 流程。
-    /// </summary>
-    public string NetSkinName = null;
-
-    /// <summary>
-    /// 解析 CharacterSpriteSetCompact
-    /// </summary>
-    public CharacterSpriteSetCompact ResolveSkin()
+    public static CharacterSpriteSetCompact ResolveSkin(this PlayerSkinData data)
     {
-        if (!string.IsNullOrEmpty(NetSkinName))
+        if (!string.IsNullOrEmpty(data.NetSkinName))
         {
-            if (NetSkinManager.TryGet(NetSkinName, out var net))
+            if (NetSkinManager.TryGet(data.NetSkinName, out var net))
                 return net;
-            // 未就绪：触发异步加载，先返回 Fallback 占位
-            NetSkinManager.RequestSkin(NetSkinName);
+            NetSkinManager.RequestSkin(data.NetSkinName);
             return DataBaseCharacter.FallbackFullPixel;
         }
 
-        if (CharacterId == -1)
+        if (data.CharacterId == -1)
         {
-            return ResolveSkin(DataBaseCharacter.SelfSpriteSet, SelectedType, SkinIndex);
+            return ResolveSkin(DataBaseCharacter.SelfSpriteSet, data.SelectedType, data.SkinIndex);
         }
 
-        if (DataBaseCharacter.SpecialGuestVisual.ContainsKey(CharacterId))
+        if (DataBaseCharacter.SpecialGuestVisual.ContainsKey(data.CharacterId))
         {
-            return ResolveSkin(DataBaseCharacter.SpecialGuestVisual[CharacterId]?.CharacterPixel, SelectedType, SkinIndex);
+            return ResolveSkin(DataBaseCharacter.SpecialGuestVisual[data.CharacterId]?.CharacterPixel, data.SelectedType, data.SkinIndex);
         }
 
-        Log.Warning($"CharacterId {CharacterId} not found in SpecialGuestVisual, returning Fallback skin");
+        Log.Warning($"CharacterId {data.CharacterId} not found in SpecialGuestVisual, returning Fallback skin");
         return DataBaseCharacter.FallbackFullPixel;
     }
 
     private static CharacterSpriteSetCompact ResolveSkin(
-        CharacterSkinSets skinSets, CharacterSkinSets.SelectedType type, int index)
+        CharacterSkinSets skinSets, SkinSelectedType type, int index)
     {
         if (skinSets is null) return null;
 
-        return type switch
+        var gameType = EnumConverter.ToGame(type);
+        return gameType switch
         {
             CharacterSkinSets.SelectedType.Default => skinSets.defaultSkin,
             CharacterSkinSets.SelectedType.Explicit => (index >= 0 && index < skinSets.explicits.Length)
@@ -71,24 +58,20 @@ public partial class PlayerSkin
         };
     }
 
-    /// <summary>
-    /// 解析当前皮肤对应的 CharacterPortrayal（立绘配置），专门用于 SpecialGuest
-    /// </summary>
-    public CharacterPortrayal ResolveSpecialPortrait()
+    public static CharacterPortrayal ResolveSpecialPortrait(this PlayerSkinData data)
     {
-        CharacterProtrayalSet set;
-
-        if (DataBaseCharacter.SpecialGuestVisual.ContainsKey(CharacterId))
+        if (DataBaseCharacter.SpecialGuestVisual.ContainsKey(data.CharacterId))
         {
-            return DataBaseCharacter.SpecialGuestVisual[CharacterId]?.CharacterPortrayal?.defaultPortrayal;
+            return DataBaseCharacter.SpecialGuestVisual[data.CharacterId]?.CharacterPortrayal?.defaultPortrayal;
         }
 
         return DataBaseCharacter.FallbackPortrayal;
     }
 
-    private static Sprite ResolvePortraitFromSelf(CharacterSkinSets.SelectedType type, int index)
+    private static Sprite ResolvePortraitFromSelf(SkinSelectedType type, int index)
     {
-        if (type == CharacterSkinSets.SelectedType.Default)
+        var gameType = EnumConverter.ToGame(type);
+        if (gameType == CharacterSkinSets.SelectedType.Default)
         {
             return DataBaseCharacter.SelfPortrayalSet?.defaultPortrayal.m_VisualAssetAtlasReference[0]?.Asset
                 ?.TryCast<Sprite>();
@@ -96,9 +79,9 @@ public partial class PlayerSkin
 
         return DataBaseCore.Clothes
             .ToList()
-            .Where(c => c.Value.skinIndex.index == index && c.Value.skinIndex.selectedType == type)
+            .Where(c => c.Value.skinIndex.index == index && c.Value.skinIndex.selectedType == gameType)
             .Select(c => ResolveSelfPortrayalFromClothes(c.Value))
-            .FirstOrDefault() ?? ResolvePortraitFromSelf(CharacterSkinSets.SelectedType.Default, 0);
+            .FirstOrDefault() ?? ResolvePortraitFromSelf(SkinSelectedType.Default, 0);
     }
 
     private static Sprite ResolveSelfPortrayalFromClothes(ClothesProfile.Clothes clothes)
@@ -118,86 +101,65 @@ public partial class PlayerSkin
         return sprite;
     }
 
-    /// <summary>
-    /// 获取当前皮肤的立绘 Sprite（使用默认表情，索引 0）
-    /// 优先级: ResourceEx 自定义立绘 > 已加载的 Addressable 资源 > 同步加载 Addressable
-    /// </summary>
-    public Sprite ResolvePortraitSprite()
+    extension(PlayerSkinData data)
     {
-        if (CharacterId == -1)
+        public Sprite ResolvePortraitSprite()
         {
-            return ResolvePortraitFromSelf(SelectedType, SkinIndex);
+            if (data.CharacterId == -1)
+            {
+                return ResolvePortraitFromSelf(data.SelectedType, data.SkinIndex);
+            }
+
+            var portrayal = ResolveSpecialPortrait(data);
+            if (portrayal == null) return null;
+
+            if (ResourceExManager.TryGetSpecialGuestCustomPortrayal(portrayal, out var customSprites, out var faceInNoteBook))
+            {
+                var index = (faceInNoteBook >= 0 && faceInNoteBook < customSprites.Length) ? faceInNoteBook : 0;
+                return customSprites[index];
+            }
+
+            var refs = portrayal.m_VisualAssetAtlasReference;
+            if (refs == null || refs.Length == 0) return null;
+
+            var assetRef = (portrayal.faceInNoteBook >= 0 && portrayal.faceInNoteBook < refs.Length)
+                ? refs[portrayal.faceInNoteBook]
+                : refs[0];
+            if (assetRef == null) return null;
+
+            var sprite = assetRef.Asset?.TryCast<Sprite>();
+            if (sprite != null) return sprite;
+
+            try
+            {
+                var handle = assetRef.LoadAssetAsync<Sprite>();
+                sprite = handle.WaitForCompletion();
+                return sprite;
+            }
+            catch (System.Exception e)
+            {
+                Log.Warning($"Failed to load portrait sprite: {e.Message}");
+                return null;
+            }
         }
 
-        var portrayal = ResolveSpecialPortrait();
-        if (portrayal == null) return null;
-
-        // 优先：ResourceEx 自定义立绘
-        if (ResourceExManager.TryGetSpecialGuestCustomPortrayal(portrayal, out var customSprites, out var faceInNoteBook))
+        public void SetSkin(int characterId, CharacterSkinSets.SelectedType selectedType, int skinIndex)
         {
-            var index = (faceInNoteBook >= 0 && faceInNoteBook < customSprites.Length) ? faceInNoteBook : 0;
-            return customSprites[index];
+            data.CharacterId = characterId;
+            data.SelectedType = EnumConverter.ToProtocol(selectedType);
+            data.SkinIndex = skinIndex;
+            data.NetSkinName = null;
         }
 
-        var refs = portrayal.m_VisualAssetAtlasReference;
-        if (refs == null || refs.Length == 0) return null;
-
-
-        var assetRef = (portrayal.faceInNoteBook >= 0 && portrayal.faceInNoteBook < refs.Length)
-            ? refs[portrayal.faceInNoteBook]
-            : refs[0];
-        if (assetRef == null) return null;
-
-        var sprite = assetRef.Asset?.TryCast<Sprite>();
-        if (sprite != null) return sprite;
-
-        try
+        public void SetNetSkin(string name)
         {
-            var handle = assetRef.LoadAssetAsync<Sprite>();
-            sprite = handle.WaitForCompletion();
-            return sprite;
+            data.NetSkinName = string.IsNullOrEmpty(name) ? null : name;
         }
-        catch (System.Exception e)
-        {
-            Log.Warning($"Failed to load portrait sprite: {e.Message}");
-            return null;
-        }
+
+        public void ApplyToUnit(CharacterControllerUnit unit)
+            => unit?.UpdateCharacterSprite(ResolveSkin(data));
     }
 
-    /// <summary>
-    /// 设定皮肤
-    /// </summary>
-    /// <param name="characterId"></param>
-    /// <param name="selectedType"></param>
-    /// <param name="skinIndex"></param>
-    public void SetSkin(int characterId, CharacterSkinSets.SelectedType selectedType, int skinIndex)
-    {
-        CharacterId = characterId;
-        SelectedType = selectedType;
-        SkinIndex = skinIndex;
-        NetSkinName = null;
-    }
-
-    /// <summary>
-    /// 设定在线皮肤名。非空时由 NetSkinManager 异步拉取与解析。
-    /// </summary>
-    public void SetNetSkin(string name)
-    {
-        NetSkinName = string.IsNullOrEmpty(name) ? null : name;
-    }
-
-    /// <summary>
-    /// 将当前皮肤应用到指定 unit 上
-    /// </summary>
-    /// <param name="unit"></param>
-    public void ApplyToUnit(CharacterControllerUnit unit)
-        => unit?.UpdateCharacterSprite(ResolveSkin());
-
-
-    /// <summary>
-    /// 获取全部可用皮肤的表格字符串，格式为 "name: CharacterId SelectedType SkinIndex"
-    /// </summary>
-    /// <returns></returns>
     public static string GetAllSkinsTable()
     {
         var table = new StringBuilder();
@@ -208,40 +170,36 @@ public partial class PlayerSkin
         return table.ToString();
     }
 
-    /// <summary>
-    /// 列举全部可用皮肤
-    /// </summary>
-    /// <returns></returns>
-    private static List<(PlayerSkin skin, string name)> ListAllSkins()
+    private static List<(PlayerSkinData skin, string name)> ListAllSkins()
     {
-        List<(PlayerSkin, string)> skins = [];
+        List<(PlayerSkinData, string)> skins = [];
         skins.AddRange(ListSkinsFromSets(DataBaseCharacter.SelfSpriteSet, -1));
-        foreach (int characterId in DataBaseCharacter.SpecialGuestVisual.Keys)
+        foreach (var (characterId, value) in DataBaseCharacter.SpecialGuestVisual)
         {
-            skins.AddRange(ListSkinsFromSets(DataBaseCharacter.SpecialGuestVisual[characterId]?.CharacterPixel, characterId));
+            skins.AddRange(ListSkinsFromSets(value?.CharacterPixel, characterId));
         }
 
         return skins;
     }
 
-    private static List<(PlayerSkin skin, string name)> ListSkinsFromSets(CharacterSkinSets skinSets, int characterId)
+    private static List<(PlayerSkinData skin, string name)> ListSkinsFromSets(CharacterSkinSets skinSets, int characterId)
     {
         if (skinSets is null) return [];
-        List<(PlayerSkin, string)> skins = [];
+        List<(PlayerSkinData, string)> skins = [];
 
-        skins.Add((new PlayerSkin
+        skins.Add((new PlayerSkinData
         {
             CharacterId = characterId,
-            SelectedType = CharacterSkinSets.SelectedType.Default,
+            SelectedType = SkinSelectedType.Default,
         }, skinSets.defaultSkin?.name ?? "Default"));
 
         for (var i = 0; i < skinSets.explicits?.Length; i++)
         {
             var skin = skinSets.explicits[i];
-            skins.Add((new PlayerSkin
+            skins.Add((new PlayerSkinData
             {
                 CharacterId = characterId,
-                SelectedType = CharacterSkinSets.SelectedType.Explicit,
+                SelectedType = SkinSelectedType.Explicit,
                 SkinIndex = i
             }, skin?.name ?? $"Explicit_{i}"));
         }
@@ -249,10 +207,10 @@ public partial class PlayerSkin
         for (var i = 0; i < skinSets.dlcs?.Length; i++)
         {
             var skin = skinSets.dlcs[i];
-            skins.Add((new PlayerSkin
+            skins.Add((new PlayerSkinData
             {
                 CharacterId = characterId,
-                SelectedType = CharacterSkinSets.SelectedType.DLC,
+                SelectedType = SkinSelectedType.DLC,
                 SkinIndex = i
             }, skin?.name ?? $"DLC_{i}"));
         }

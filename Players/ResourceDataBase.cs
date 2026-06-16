@@ -7,6 +7,9 @@ using GameData.Core.Collections.CharacterUtility;
 using MemoryPack;
 using SgrYuki.Utils;
 
+using MetaMystia.Protocol.Data;
+using MetaMystia.Protocol.Enums;
+
 namespace MetaMystia;
 
 // 依赖: DataBaseCore, DataBaseCharacter, ResourceEx
@@ -198,6 +201,44 @@ public partial class ResourceDataBase
         result.AddRange(extras);
         return result;
     }
+
+    #region Protocol 转换
+
+    public ResourceDatabaseData ToDatabaseData()
+    {
+        return new ResourceDatabaseData
+        {
+            DLCFlags = (DLCPack)(int)DlcFlags,
+            Foods = Foods,
+            Recipes = Recipes,
+            Beverages = Beverages,
+            Ingredients = Ingredients,
+            Cookers = Cookers,
+            Items = Items,
+            Izakayas = Izakayas,
+            SpecialGuests = SpecialGuests,
+            NormalGuests = NormalGuests
+        };
+    }
+
+    public static ResourceDataBase FromDatabaseData(ResourceDatabaseData data)
+    {
+        return new ResourceDataBase
+        {
+            DlcFlags = (DlcPack)(int)data.DLCFlags,
+            Foods = data.Foods,
+            Recipes = data.Recipes,
+            Beverages = data.Beverages,
+            Ingredients = data.Ingredients,
+            Cookers = data.Cookers,
+            Items = data.Items,
+            Izakayas = data.Izakayas,
+            SpecialGuests = data.SpecialGuests,
+            NormalGuests = data.NormalGuests
+        };
+    }
+
+    #endregion
 
     #endregion
 }

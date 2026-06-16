@@ -41,6 +41,7 @@ public enum TextId
     MpUnknownSubcommand,
 
     // Network Error Messages
+    UnknownError,
     ModVersionMismatch,
     GameVersionMismatch,
     GameResourcesNotLoaded,

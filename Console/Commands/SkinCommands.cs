@@ -1,7 +1,6 @@
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
-using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using MetaMystia.UI;
 
 namespace MetaMystia.ConsoleSystem.Commands;
@@ -38,7 +37,7 @@ public static class SkinCommands
             PlayerManager.Local.IsCustomSkinOverride = true;
             PlayerManager.Local.UpdateCharacterSprite();
             if (MpManager.CanSeeOnlinePlayers)
-                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+                CommonServices.SendPlayerChangeSkin(PlayerManager.Local.Skin);
             PlayerManager.RefreshPortrait();
             ctx.Log(TextId.SkinMsgSetOk.Get(characterId, selectedType, skinIndex));
         });
@@ -52,7 +51,7 @@ public static class SkinCommands
             PlayerManager.InitLocalSkin();
             PlayerManager.Local.UpdateCharacterSprite();
             if (MpManager.CanSeeOnlinePlayers)
-                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+                CommonServices.SendPlayerChangeSkin(PlayerManager.Local.Skin);
             PlayerManager.RefreshPortrait();
             ctx.Log(TextId.SkinMsgResetOk.Get());
         });
@@ -72,7 +71,7 @@ public static class SkinCommands
                 PlayerManager.InitLocalSkin();
                 PlayerManager.Local.UpdateCharacterSprite();
                 if (MpManager.CanSeeOnlinePlayers)
-                    PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+                    CommonServices.SendPlayerChangeSkin(PlayerManager.Local.Skin);
                 PlayerManager.RefreshPortrait();
                 ctx.Log(TextId.SkinMsgNetClearOk.Get());
                 return;
@@ -89,8 +88,7 @@ public static class SkinCommands
                 NetSkinManager.Invalidate(current);
                 NetSkinManager.RequestSkin(current, ok =>
                 {
-                    if (ok) ctx.Log(TextId.SkinMsgNetLoaded.Get(current));
-                    else ctx.Log(TextId.SkinMsgNetFailed.Get(current));
+                    ctx.Log(ok ? TextId.SkinMsgNetLoaded.Get(current) : TextId.SkinMsgNetFailed.Get(current));
                 });
                 PlayerManager.Local.UpdateCharacterSprite();
                 PlayerManager.RefreshPortrait();
@@ -109,13 +107,12 @@ public static class SkinCommands
             // 先应用 Fallback 占位，下载完成后 NetSkinManager 会自动重新刷新
             PlayerManager.Local.UpdateCharacterSprite();
             if (MpManager.CanSeeOnlinePlayers)
-                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+                CommonServices.SendPlayerChangeSkin(PlayerManager.Local.Skin);
             PlayerManager.RefreshPortrait();
 
             NetSkinManager.RequestSkin(name, ok =>
             {
-                if (ok) ctx.Log(TextId.SkinMsgNetLoaded.Get(name));
-                else ctx.Log(TextId.SkinMsgNetFailed.Get(name));
+                ctx.Log(ok ? TextId.SkinMsgNetLoaded.Get(name) : TextId.SkinMsgNetFailed.Get(name));
             });
             ctx.Log(TextId.SkinMsgNetRequesting.Get(name));
         });

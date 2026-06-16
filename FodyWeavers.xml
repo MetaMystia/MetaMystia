@@ -7,6 +7,7 @@
       NLua
       KeraLua
       System.CommandLine
+      MetaMystia.Protocol
     </IncludeAssemblies>
     <Unmanaged64Assemblies>
       lua54

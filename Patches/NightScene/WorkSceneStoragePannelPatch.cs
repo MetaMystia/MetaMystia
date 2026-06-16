@@ -4,6 +4,7 @@ using GameData.Core.Collections;
 using NightScene.UI.CookingUtility;
 
 using MetaMystia.Network;
+using MetaMystia.Network.Services;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -54,8 +55,8 @@ public partial class WorkSceneStoragePannelPatch
                 InGameConsole.ShowPassive(TextId.DLCPeerFoodNotAvailable.Get(toExtract.id));
                 return SkipOriginal;
             }
-            SellableFood food = SellableFood.FromSellable(toExtract);
-            ExtractFoodAction.Send(food);
+            var food = toExtract.ToSellableFoodData();
+            WorkSceneServices.SendExtractFood(food);
         }
         return RunOriginal;
     }

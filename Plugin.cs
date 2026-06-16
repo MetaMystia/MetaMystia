@@ -66,7 +66,8 @@ public class Plugin : BasePlugin
 
         PatchRegistry.ApplyAll(harmony);
 
-        Network.Action.RegisterAllFormatter();
+        // 初始化消息分发器和转发注册表
+        Network.MessageDispatcher.RegisterAll();
 
         try
         {

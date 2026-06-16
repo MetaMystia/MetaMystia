@@ -3,6 +3,10 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using MetaMystia.Network.Services;
+using MetaMystia.Protocol.Messages;
+using MetaMystia.Protocol.Messages.Session;
+using MetaMystia.Protocol.Transport;
 using MetaMystia.UI;
 using SgrYuki;
 
@@ -12,7 +16,7 @@ namespace MetaMystia.Network;
 [AutoLog]
 public static partial class MpWire
 {
-    public const string SyncActionCommandId = "SyncAction";
+    public const string SyncMessageCommandId = "SyncMessage";
 
     public static MpSession Session { get; } = new();
 
@@ -34,7 +38,7 @@ public static partial class MpWire
     private const int ConnectTimeoutMs = 10_000;
 
     private readonly record struct Outbound(byte[] Framed, int? TargetUid, int? ExceptUid, bool LowPriority);
-    private readonly record struct Inbound(int FromUid, Action Action);
+    private readonly record struct Inbound(int FromUid, NetworkMessage Message);
 
     public static int CurrentPort => _currentPort;
     public static bool IsRunning => _running;
@@ -133,7 +137,7 @@ public static partial class MpWire
             }
             Session.EnterDirectClientRoom();
             await Task.Run(() => _tcp.ConnectClient(host, port, ConnectTimeoutMs));
-            HelloAction.SendHello();
+            SessionServices.SendHello();
             Log.LogMessage($"[C] Connected to {host}:{port}");
             return true;
         }
@@ -180,14 +184,20 @@ public static partial class MpWire
 
     // --- app send ---
 
-    public static void EnqueueSend(Action action, bool lowPriority = false)
+    public static void Send(NetworkMessage message, bool lowPriority = false)
     {
         if (!CanSend) return;
+        message.SenderUid = PlayerManager.Local.Uid;  // FIXME: 临时的解决方案，以后可能会调整
+        Utilities.LogUtils.LogMessageSent(message);
+        EnqueueSend(message, lowPriority);
+    }
 
-        var packet = NetPacket.FromSingleAction(action);
+    private static void EnqueueSend(NetworkMessage message, bool lowPriority = false)
+    {
+        var packet = NetPacket.FromSingleMessage(message);
         var framed = packet.ToBytesWithLength();
-        int? target = action.WireTargetUid;
-        int? except = action.WireExceptUid;
+        int? target = message.WireTargetUid;
+        int? except = message.WireExceptUid;
 
         if (Session.TransportKind == TransportKind.RelayClient)
         {
@@ -207,21 +217,21 @@ public static partial class MpWire
         LatencyMs = (NowMs - t) / 2;
     }
 
-    // --- session callbacks (from Actions / handshake) ---
+    // --- session callbacks (from NetworkMessages / handshake) ---
 
     public static void OnHandshakeComplete(string hostId)
     {
-        SceneTransitAction.Send(MpManager.LocalScene);
-        CommandScheduler.EnqueueInterval(SyncActionCommandId, 0.5f, MoveSyncAction.SendSync);
+        CommonServices.SendSceneTransit(MpManager.LocalScene);
+        CommandScheduler.EnqueueInterval(SyncMessageCommandId, 0.5f, DaySceneServices.SendMoveSync);
         InGameConsole.ShowPassiveFromAnyThread(TextId.MultiplayerConnected.Get());
     }
 
     public static void OnPeerHandshakeComplete(int uid) =>
-        CommandScheduler.EnqueueInterval(SyncActionCommandId, 2f, MoveSyncAction.SendSync);
+        CommandScheduler.EnqueueInterval(SyncMessageCommandId, 2f, DaySceneServices.SendMoveSync);
 
     // --- IO thread ---
 
-    private static void StartIoThread(System.Action setup)
+    private static void StartIoThread(Action setup)
     {
         StopIoThread();
         _tcp = new DirectTcp(OnWirePacket, OnWirePeerLeft);
@@ -234,7 +244,12 @@ public static partial class MpWire
     private static void StopIoThread()
     {
         _ioRunning = false;
-        try { _ioThread?.Join(2000); } catch { }
+        try { _ioThread?.Join(2000); }
+        catch
+        {
+            // ignored
+        }
+
         _ioThread = null;
         _tcp?.Stop();
         _tcp = null;
@@ -281,8 +296,8 @@ public static partial class MpWire
     {
         int id = Interlocked.Increment(ref _pingId);
         _pingSent[id] = NowMs;
-        var action = new PingAction { Id = id };
-        var framed = NetPacket.FromSingleAction(action).ToBytesWithLength();
+        var message = new PingMessage { Id = id };
+        var framed = NetPacket.FromSingleMessage(message).ToBytesWithLength();
         if (Session.IsRoomHost)
             _tcp?.Enqueue(null, null, framed, false);
         else
@@ -292,18 +307,18 @@ public static partial class MpWire
     // 反序列化已在 PacketBuffer（IO 线程）。主机转发与出站共用 ToBytesWithLength，避免维护第二套组帧逻辑。
     private static void OnWirePacket(int fromUid, NetPacket packet)
     {
-        var actions = packet.Actions;
-        if (actions.Length == 0) return;
+        var messages = packet.NetworkMessages;
+        if (messages.Length == 0) return;
 
-        if (Session.IsRoomHost && fromUid != MpConstants.HostUid && ShouldRelay(actions[0]))
+        if (Session.IsRoomHost && fromUid != MpConstants.HostUid && ShouldRelay(messages[0]))
         {
-            actions[0].SenderUid = fromUid;
+            messages[0].SenderUid = fromUid;
             _outbox.Enqueue(new Outbound(
-                NetPacket.FromSingleAction(actions[0]).ToBytesWithLength(), null, fromUid, false));
+                NetPacket.FromSingleMessage(messages[0]).ToBytesWithLength(), null, fromUid, false));
         }
 
-        foreach (var action in actions)
-            _inbox.Enqueue(new Inbound(fromUid, action));
+        foreach (var message in messages)
+            _inbox.Enqueue(new Inbound(fromUid, message));
     }
 
     private static void OnWirePeerLeft(int uid)
@@ -314,7 +329,7 @@ public static partial class MpWire
             PluginManager.Instance?.RunOnMainThread(OnClientDisconnected);
     }
 
-    // 仅执行已反序列化 Action 的 OnReceived（Unity / PlayerManager）；转发已在 OnWirePacket（IO 线程）完成。
+    // 仅将已反序列化 Message 传递至 Dispatcher（Unity / PlayerManager）；转发已在 OnWirePacket（IO 线程）完成。
     private static void ProcessInboxOnMainThread()
     {
         while (_inbox.TryDequeue(out var item))
@@ -322,17 +337,17 @@ public static partial class MpWire
             // 主机：每条 TCP 连接对应真实 uid，可覆盖包体以防伪造。
             // 客机：线层 fromUid 恒为 HostUid，真实发送者已在主机转发时写入包体 SenderUid。
             if (Session.IsRoomHost)
-                item.Action.SenderUid = item.FromUid;
-            item.Action.OnReceived();
+                item.Message.SenderUid = item.FromUid;
+            MessageDispatcher.Dispatch(item.Message);
         }
     }
 
     // 仅 DirectHost 且来自客机时由 OnWirePacket 调用；不必再判 RoomRole。
-    private static bool ShouldRelay(Action action)
+    private static bool ShouldRelay(NetworkMessage message)
     {
-        var t = action.GetType();
-        return t.GetCustomAttribute<Action.RoomRelayAttribute>() != null
-               || t.GetCustomAttribute<Action.PublicRelayAttribute>() != null;
+        var t = message.GetType();
+        return t.GetCustomAttribute<RoomRelayAttribute>() != null
+               || t.GetCustomAttribute<PublicRelayAttribute>() != null;
     }
 
     private static void OnHostClientLeft(int uid)
@@ -341,7 +356,7 @@ public static partial class MpWire
         {
             var displayName = LiveModeManager.GetDisplayName(uid, peer.Id);
             InGameConsole.ShowPassiveFromAnyThread(TextId.PeerLeft.Get(displayName));
-            PeerLeaveAction.BroadcastPeerLeave(uid);
+            SessionServices.BroadcastPeerLeave(uid);
             PlayerManager.RemovePeer(uid);
             MpManager.CheckContinueAfterDisconnect(uid, displayName);
         }
@@ -364,6 +379,6 @@ public static partial class MpWire
     private static void CancelSync()
     {
         CommandScheduler.RemoveKeyFromKeyQueue(MpManager.PeerGetCharacterUnitNotNullCommand);
-        CommandScheduler.CancelInterval(SyncActionCommandId);
+        CommandScheduler.CancelInterval(SyncMessageCommandId);
     }
 }

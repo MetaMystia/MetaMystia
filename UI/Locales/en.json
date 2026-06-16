@@ -27,6 +27,7 @@
     "MystiaReadyForWork": "You are ready to open for business.",
     "AllReadyTransition": "All players are ready, transitioning...",
     "ModPatchFailure": "Patch failure! The Mod will not function normally! Maybe your game version is not supported, please consider removing the mod!",
+    "UnknownError": "Unknown error occurred, connection disconnected! Refer to logs for detailed information.",
     "ModVersionMismatch": "Mod version mismatch, connection disconnected!",
     "GameVersionMismatch": "Game version mismatch, connection disconnected!",
     "GameResourcesNotLoaded": "Game resources are not fully loaded; cannot join multiplayer room",

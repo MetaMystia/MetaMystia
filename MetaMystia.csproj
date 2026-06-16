@@ -32,20 +32,14 @@
     <ItemGroup>
       <ExtraOutputPaths Include="D:\Touhou Mystia Izakaya v4.3.0\BepInEx\plugins" />
     </ItemGroup>
-    <Copy SourceFiles="$(RenamedAssemblyPath)$(TargetExt)" DestinationFolder="@(ExtraOutputPaths)"
-      SkipUnchangedFiles="true" />
-    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFolder="@(ExtraOutputPaths)"
-      SkipUnchangedFiles="true" />
-    <Message Text="Copied $(RenamedAssemblyPath)$(TargetExt) to @(ExtraOutputPaths)"
-      Importance="High" />
+    <Copy SourceFiles="$(RenamedAssemblyPath)$(TargetExt)" DestinationFolder="@(ExtraOutputPaths)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFolder="@(ExtraOutputPaths)" SkipUnchangedFiles="true" />
+    <Message Text="Copied $(RenamedAssemblyPath)$(TargetExt) to @(ExtraOutputPaths)" Importance="High" />
   </Target>
 
   <Target Name="PatchIl2CppInteropHarmonySupport" AfterTargets="Build">
-    <Copy SourceFiles="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll"
-      DestinationFolder="$(GamePath)\BepInEx\core"
-      SkipUnchangedFiles="true" />
-    <Message Text="Patched Il2CppInterop.HarmonySupport.dll → $(GamePath)\BepInEx\core"
-      Importance="High" />
+    <Copy SourceFiles="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll" DestinationFolder="$(GamePath)\BepInEx\core" SkipUnchangedFiles="true" />
+    <Message Text="Patched Il2CppInterop.HarmonySupport.dll → $(GamePath)\BepInEx\core" Importance="High" />
   </Target>
 
   <ItemGroup>
@@ -59,8 +53,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="MetaMystia.Generators\MetaMystia.Generators.csproj"
-      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="MetaMystia.Generators\MetaMystia.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="MetaMystia.Generators\**" />
@@ -106,6 +99,7 @@
     <PackageReference Include="MemoryPack" Version="1.21.4">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="MetaMystia.Protocol" Version="1.0.5" />
     <PackageReference Include="NLua" Version="1.7.8">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
@@ -273,5 +267,9 @@
       <HintPath>$(GamePath)\BepInEx\interop\Newtonsoft.Json.dll</HintPath>
       <Private>False</Private>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Samboy063.Cpp2IL.Core" Version="2022.1.0-pre-release.13" />
   </ItemGroup>
 </Project>

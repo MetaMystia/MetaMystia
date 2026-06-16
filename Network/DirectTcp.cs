@@ -3,106 +3,26 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using MemoryPack;
+using MetaMystia.Protocol.Transport;
 
 namespace MetaMystia.Network;
 
-[MemoryPackable]
-public partial class NetPacket
-{
-    public Action[] Actions { get; set; } = [];
-
-    public byte[] ToBytesWithLength()
-    {
-        byte[] body = MemoryPackSerializer.Serialize(this);
-        byte[] result = new byte[4 + body.Length];
-        BitConverter.GetBytes(body.Length).CopyTo(result, 0);
-        Buffer.BlockCopy(body, 0, result, 4, body.Length);
-        return result;
-    }
-
-    public static NetPacket FromBytes(byte[] data) =>
-        MemoryPackSerializer.Deserialize<NetPacket>(data)!;
-
-    public Action GetFirstAction() =>
-        Actions.Length > 0 ? Actions[0] : throw new InvalidOperationException("Empty packet");
-
-    public NetPacket(Action[] actions) => Actions = actions;
-
-    public static NetPacket FromSingleAction(Action action) => new([action]);
-}
-
-public sealed class PacketBuffer
-{
-    private MemoryStream buffer = new();
-
-    public void Write(byte[] data, int offset, int count)
-    {
-        buffer.Position = buffer.Length;
-        buffer.Write(data, offset, count);
-        buffer.Position = 0;
-    }
-
-    public List<NetPacket> ExtractPackets()
-    {
-        var packets = new List<NetPacket>();
-        while (true)
-        {
-            if (buffer.Length - buffer.Position < 4) break;
-            byte[] lenBytes = new byte[4];
-            buffer.Read(lenBytes, 0, 4);
-            int bodyLength = BitConverter.ToInt32(lenBytes, 0);
-            if (buffer.Length - buffer.Position < bodyLength)
-            {
-                buffer.Position -= 4;
-                break;
-            }
-            byte[] body = new byte[bodyLength];
-            buffer.Read(body, 0, bodyLength);
-            packets.Add(NetPacket.FromBytes(body));
-        }
-
-        if (buffer.Position < buffer.Length)
-        {
-            byte[] leftover = buffer.ToArray()[(int)buffer.Position..];
-            buffer = new MemoryStream();
-            buffer.Write(leftover, 0, leftover.Length);
-            buffer.Position = 0;
-        }
-        else
-        {
-            buffer = new MemoryStream();
-        }
-
-        return packets;
-    }
-}
-
 /// <summary>直连 TCP；仅在 MpWire IO 线程调用 <see cref="Pump"/>。</summary>
-internal sealed class DirectTcp
+internal sealed class DirectTcp(Action<int, NetPacket> onPacket, Action<int> onClientLeft)
 {
     private sealed class Link
     {
         public TcpClient Tcp;
         public NetworkStream Stream;
-        public PacketBuffer Buffer = new();
+        public readonly PacketBuffer Buffer = new();
         public readonly Queue<byte[]> Pending = new();
     }
-
-    private readonly Action<int, NetPacket> _onPacket;
-    private readonly Action<int> _onClientLeft;
 
     private TcpListener _listener;
     private readonly Dictionary<int, Link> _clients = new();
     private Link _uplink;
     private int _nextUid;
     private bool _isHost;
-
-    public DirectTcp(Action<int, NetPacket> onPacket, Action<int> onClientLeft)
-    {
-        _onPacket = onPacket;
-        _onClientLeft = onClientLeft;
-    }
 
     public bool IsHost => _isHost;
     public bool HasClients => _clients.Count > 0;
@@ -114,8 +34,13 @@ internal sealed class DirectTcp
         _isHost = true;
         if (ipv6)
         {
-            _listener = new TcpListener(IPAddress.IPv6Any, port);
-            _listener.Server.DualMode = true;
+            _listener = new TcpListener(IPAddress.IPv6Any, port)
+            {
+                Server =
+                {
+                    DualMode = true
+                }
+            };
         }
         else
         {
@@ -128,18 +53,18 @@ internal sealed class DirectTcp
     {
         Stop();
         _isHost = false;
-        TcpClient tcp = IPAddress.TryParse(host, out var addr) && addr.AddressFamily == AddressFamily.InterNetworkV6
+        var tcp = IPAddress.TryParse(host, out var addr) && addr.AddressFamily == AddressFamily.InterNetworkV6
             ? new TcpClient(AddressFamily.InterNetworkV6)
             : new TcpClient();
         tcp.ReceiveTimeout = timeoutMs;
         tcp.SendTimeout = 10_000;
-        var ar = tcp.BeginConnect(host, port, null, null);
-        if (!ar.AsyncWaitHandle.WaitOne(timeoutMs))
+
+        var connectTask = tcp.ConnectAsync(host ?? string.Empty, port);
+        if (!connectTask.Wait(timeoutMs))
         {
             tcp.Dispose();
             throw new TimeoutException($"Connect to {host}:{port} timed out");
         }
-        tcp.EndConnect(ar);
         _uplink = new Link { Tcp = tcp, Stream = tcp.GetStream() };
     }
 
@@ -147,14 +72,14 @@ internal sealed class DirectTcp
     {
         if (_isHost)
         {
-            if (targetUid is int uid && _clients.TryGetValue(uid, out var one))
+            if (targetUid is { } uid && _clients.TryGetValue(uid, out var one))
             {
                 TryEnqueue(one, framed, dropIfCongested);
                 return;
             }
             foreach (var kvp in _clients)
             {
-                if (exceptUid is int ex && kvp.Key == ex) continue;
+                if (exceptUid is { } ex && kvp.Key == ex) continue;
                 TryEnqueue(kvp.Value, framed, dropIfCongested);
             }
         }
@@ -184,7 +109,12 @@ internal sealed class DirectTcp
             _uplink = null;
         }
         DisconnectAll();
-        try { _listener?.Stop(); } catch { }
+        try { _listener?.Stop(); }
+        catch
+        {
+            // ignored
+        }
+
         _listener = null;
         _isHost = false;
     }
@@ -236,7 +166,7 @@ internal sealed class DirectTcp
                 if (read == 0) throw new IOException("Remote closed");
                 link.Buffer.Write(recv, 0, read);
                 foreach (var packet in link.Buffer.ExtractPackets())
-                    _onPacket(uid, packet);
+                    onPacket(uid, packet);
             }
         }
         catch (Exception)
@@ -251,13 +181,13 @@ internal sealed class DirectTcp
         {
             if (!_clients.Remove(uid)) return;
             CloseLink(link);
-            _onClientLeft(uid);
+            onClientLeft(uid);
         }
         else if (_uplink == link)
         {
             CloseLink(link);
             _uplink = null;
-            _onClientLeft(MpConstants.HostUid);
+            onClientLeft(MpConstants.HostUid);
         }
     }
 
@@ -294,8 +224,17 @@ internal sealed class DirectTcp
 
     private static void CloseLink(Link link)
     {
-        try { link.Stream?.Dispose(); } catch { }
-        try { link.Tcp?.Close(); } catch { }
+        try { link.Stream?.Dispose(); }
+        catch {
+            // ignored
+        }
+
+        try { link.Tcp?.Close(); }
+        catch
+        {
+            // ignored
+        }
+
         link.Stream = null;
         link.Pending.Clear();
     }
