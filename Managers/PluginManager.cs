@@ -22,8 +22,6 @@ public partial class PluginManager : MonoBehaviour
     public static bool IsStatusVisible { get; private set; } = true;
     private readonly ConcurrentQueue<Action> _mainThreadQueue = new ConcurrentQueue<Action>();
     private readonly List<(Action action, Func<bool> condition)> _conditionalActions = new List<(Action, Func<bool>)>();
-    private Coroutine _interopRestartReminderCoroutine;
-    private string _interopRestartReminderText;
     public static bool DEBUG => ConfigManager.Debug.Value;
 
     public PluginManager(IntPtr ptr) : base(ptr)
@@ -54,25 +52,7 @@ public partial class PluginManager : MonoBehaviour
     }
 
     [HideFromIl2Cpp]
-    public void StartInteropRestartReminder(string message)
-    {
-        _interopRestartReminderText = message;
-        if (_interopRestartReminderCoroutine != null)
-            return;
-
-        _interopRestartReminderCoroutine = MonoBehaviourExtensions.StartCoroutine(this, InteropRestartReminderLoop());
-    }
-
-    [HideFromIl2Cpp]
-    private IEnumerator InteropRestartReminderLoop()
-    {
-        var wait = new WaitForSeconds(3f);
-        while (true)
-        {
-            InGameConsole.LogAlert(_interopRestartReminderText);
-            yield return wait;
-        }
-    }
+    public Coroutine StartManagedCoroutine(IEnumerator routine) => MonoBehaviourExtensions.StartCoroutine(this, routine);
 
     private void OnGUI()
     {
@@ -172,10 +152,6 @@ public partial class PluginManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_interopRestartReminderCoroutine != null)
-        {
-            StopCoroutine(_interopRestartReminderCoroutine);
-            _interopRestartReminderCoroutine = null;
-        }
+        StopAllCoroutines();
     }
 }
