@@ -38,6 +38,7 @@ public static partial class MpManager
     public static bool IsRelayClient => Session.IsRelay;
     public static bool HasRoomConnection => MpWire.IsRoomConnected;
     public static bool IsConnected => Session.IsInRoom && MpWire.IsRoomConnected;
+    public static bool IsPublicConnected => Session.IsInPublicScope && MpWire.IsServerEndpointConnected;
     public static bool IsConnectedClient => IsRoomClient && IsConnected;
     public static bool IsConnectedServer => IsRoomHost && IsConnected;
     public static bool IsServer => IsRoomHost;
@@ -57,6 +58,7 @@ public static partial class MpManager
 
     public static int ConnectedPlayersCount => PlayerManager.Peers.Count;
     public static int AllPlayersCount => ConnectedPlayersCount + 1;
+    public static int OnlinePlayersCount => PlayerManager.PlayerTable.Count + 1;
 
     public static string RoleTag => IsRoomHost ? "[H]" : IsRoomClient ? "[C]" : "[N]";
     public static string RoleName => IsRoomHost ? "Host" : IsRoomClient ? "Client" : "Offline";
@@ -136,6 +138,57 @@ public static partial class MpManager
 
     public static void DisconnectClient(int uid) => MpWire.DisconnectClient(uid);
 
+    public static bool LeaveRoom()
+    {
+        if (!Session.IsInRoom) return false;
+        if (Session.IsRelay)
+        {
+            LeaveRoomBehavior.Send();
+            Session.LeaveRelayRoomToPublic();
+            PlayerManager.ClearRoomPeers();
+            MpWire.CancelRoomSync();
+            MpWire.OnRelayPublicEntered();
+            return true;
+        }
+
+        // direct 下无公域概念，禁止退房：本地提示，不发 LeaveRoomAction。
+        InGameConsole.ShowPassiveFromAnyThread(TextId.RoomRequestUnsupported.Get());
+        return false;
+    }
+
+    public static bool JoinRelayRoom(ushort roomId)
+    {
+        if (!Session.IsRelay || !Session.IsInPublicScope) return false;
+        if (roomId == MpConstants.PublicRoomId || roomId == MpConstants.DirectRoomId) return false;
+        JoinRoomRequestBehavior.Send(roomId);
+        return true;
+    }
+
+    /// <summary>
+    /// 请求服务端随机分配一个新房间并成为房主。
+    /// roomId 由服务端分配，客户端不指定。仅在 relay 公域可用。
+    /// </summary>
+    public static bool CreateRelayRoom()
+    {
+        if (!Session.IsRelay || !Session.IsInPublicScope) return false;
+        CreateRoomRequestBehavior.Send();
+        return true;
+    }
+
+    public static bool TryParseRoomId(string text, out ushort roomId)
+    {
+        roomId = MpConstants.PublicRoomId;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        text = text.Trim();
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            text = text[2..];
+        return ushort.TryParse(
+            text,
+            System.Globalization.NumberStyles.HexNumber,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out roomId);
+    }
+
     public static bool EnterRelayPublic()
     {
         if (!EnsureMultiplayerAvailable()) return false;
@@ -144,7 +197,7 @@ public static partial class MpManager
         return true;
     }
 
-    public static bool EnterRelayRoomAsHost(string roomId, int hostUid = HOST_UID)
+    public static bool EnterRelayRoomAsHost(ushort roomId, int hostUid = HOST_UID)
     {
         if (!EnsureMultiplayerAvailable()) return false;
         MpWire.StartHost();
@@ -153,7 +206,7 @@ public static partial class MpManager
         return true;
     }
 
-    public static bool EnterRelayRoomAsClient(string roomId, int localUid, int hostUid = HOST_UID)
+    public static bool EnterRelayRoomAsClient(ushort roomId, int localUid, int hostUid = HOST_UID)
     {
         if (!EnsureMultiplayerAvailable()) return false;
         MpWire.StartClientMode();
@@ -188,12 +241,17 @@ public static partial class MpManager
     {
         var status = new StringBuilder();
         status.AppendLine($"Self: {RoleTag} {PlayerId} (uid={PlayerManager.Local.Uid})");
-        status.AppendLine($"Port: {CurrentPort} | Running: {(IsRunning ? "Yes" : "No")} | Connected: {(IsConnected ? "Yes" : "No")}");
+        status.AppendLine($"Port: {CurrentPort} | Running: {(IsRunning ? "Yes" : "No")} | Connected: {(IsConnected || IsPublicConnected ? "Yes" : "No")}");
+        status.AppendLine($"Transport: {Session.TransportKind} | Scope: {Session.SyncScope} | RoomRole: {Session.RoomRole} | Room: {Session.RoomIdHex}");
         if (IsConnected)
         {
             status.AppendLine($"Ping: {LatencyDisplay} | Players: {AllPlayersCount}");
             foreach (var kvp in PlayerManager.Peers)
-                status.AppendLine($"  Peer: {(kvp.Key == HOST_UID ? "[S]" : "[C]")} {kvp.Value.Id} (uid={kvp.Key})");
+                status.AppendLine($"  Peer: {(kvp.Key == Session.HostUid ? "[S]" : "[C]")} {kvp.Value.Id} (uid={kvp.Key})");
+        }
+        else if (IsPublicConnected)
+        {
+            status.AppendLine("Connected to public lobby");
         }
         return status.ToString();
     }
@@ -214,6 +272,8 @@ public static partial class MpManager
                     PlayerManager.Peers.Values.Select(p => LiveModeManager.GetDisplayName(p.Uid)));
                 return $"MP: {RoleTag} uid={PlayerManager.Local.Uid} | {AllPlayersCount}Players | ping {LatencyDisplay} | {peerNames}";
             }
+            if (IsPublicConnected)
+                return $"MP: Public | uid={PlayerManager.Local.Uid} | online {OnlinePlayersCount}";
             return $"MP: {RoleName} (not connected)";
         }
     }
@@ -226,8 +286,17 @@ public static partial class MpManager
     public static void OnSceneTransit(Common.UI.Scene newScene)
     {
         Log.Message($"LocalScene transit from {LocalScene} -> {newScene}");
-        SceneTransitAction.Send(newScene);
+        SceneTransitBehavior.Send(newScene);
+        var oldScene = LocalScene;
         LocalScene = newScene;
+
+        // 离开 DayScene/WorkScene：销毁所有对端角色。
+        if (oldScene is Common.UI.Scene.DayScene or Common.UI.Scene.WorkScene
+            && newScene is not Common.UI.Scene.DayScene and not Common.UI.Scene.WorkScene)
+        {
+            PlayerManager.DespawnAllPeers();
+        }
+
         if (newScene != Common.UI.Scene.MainScene) return;
 
         IsMultiplayerAvailable = true;
@@ -274,7 +343,7 @@ public static partial class MpManager
         if (!IsConnectedServer) return;
         if (PlayerManager.AllDayOver)
         {
-            DayAllReadyAction.Send();
+            DayAllReadyBehavior.Send();
             CommandScheduler.EnqueueWithNoCondition(() =>
             {
                 InGameConsole.ShowPassive(TextId.AllReadyTransition.Get());
@@ -288,7 +357,7 @@ public static partial class MpManager
         if (!IsConnectedServer) return;
         if (PlayerManager.AllPrepOver)
         {
-            PrepAllReadyAction.Send();
+            PrepAllReadyBehavior.Send();
             CommandScheduler.EnqueueWithNoCondition(IzakayaConfigPannelPatch.PrepOver);
         }
     }
@@ -297,7 +366,7 @@ public static partial class MpManager
     {
         if (!IsRoomHost || LocalScene != Common.UI.Scene.DayScene || !LocalIsDayOver) return false;
         foreach (var peer in PlayerManager.Peers.Values) peer.IsDayOver = true;
-        DayAllReadyAction.Send();
+        DayAllReadyBehavior.Send();
         CommandScheduler.EnqueueWithNoCondition(() =>
         {
             InGameConsole.ShowPassive(TextId.AllReadyTransition.Get());
@@ -311,7 +380,7 @@ public static partial class MpManager
         if (!IsRoomHost || (LocalScene != Common.UI.Scene.IzakayaPrepScene && LocalScene != Common.UI.Scene.WorkScene) || !LocalIsPrepOver)
             return false;
         foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;
-        PrepAllReadyAction.Send();
+        PrepAllReadyBehavior.Send();
         CommandScheduler.EnqueueWithNoCondition(IzakayaConfigPannelPatch.PrepOver);
         return true;
     }

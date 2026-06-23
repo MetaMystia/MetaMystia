@@ -3,6 +3,7 @@
   xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
   <Costura>
     <IncludeAssemblies>
+      MetaMystia.Protocol
       MemoryPack.Core
       NLua
       KeraLua

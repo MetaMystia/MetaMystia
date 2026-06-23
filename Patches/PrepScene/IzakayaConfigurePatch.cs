@@ -32,7 +32,7 @@ public partial class IzakayaConfigurePatch
         }
 
         PrepSceneManager.localPrepTable.RecipeAdditions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepBehavior.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
@@ -49,7 +49,7 @@ public partial class IzakayaConfigurePatch
         }
 
         PrepSceneManager.localPrepTable.BeverageAdditions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepBehavior.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
@@ -77,7 +77,7 @@ public partial class IzakayaConfigurePatch
 
         Log.LogInfo($"RegisterToCookers: id={id}, index={index}, ts={timestamp}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
 
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepBehavior.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
@@ -87,7 +87,7 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"LogoffFromDailyRecipes: {id}");
         PrepSceneManager.localPrepTable.RecipeDeletions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepBehavior.Send(PrepSceneManager.localPrepTable);
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyBeverages))]
@@ -96,7 +96,7 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"LogoffFromDailyBeverages: {id}");
         PrepSceneManager.localPrepTable.BeverageDeletions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepBehavior.Send(PrepSceneManager.localPrepTable);
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogOffFromCookers))]
@@ -124,7 +124,7 @@ public partial class IzakayaConfigurePatch
         if (!MpManager.IsConnected) return;
 
         var food = SellableFood.FromSellable(sellable);
-        StoreFoodAction.Send(food);
+        StoreFoodBehavior.Send(food);
     }
 
 }

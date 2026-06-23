@@ -54,8 +54,8 @@ public partial class WorkSceneStoragePannelPatch
                 InGameConsole.ShowPassive(TextId.DLCPeerFoodNotAvailable.Get(toExtract.id));
                 return SkipOriginal;
             }
-            SellableFood food = SellableFood.FromSellable(toExtract);
-            ExtractFoodAction.Send(food);
+            SellableFoodData food = SellableFood.FromSellable(toExtract);
+            ExtractFoodBehavior.Send(food);
         }
         return RunOriginal;
     }

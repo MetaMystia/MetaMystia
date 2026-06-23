@@ -3,78 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using MemoryPack;
 
 namespace MetaMystia.Network;
-
-/// <summary>线层信封：每帧恰好承载一个 <see cref="Action"/>。</summary>
-[MemoryPackable]
-public partial class NetPacket
-{
-    public Action Action { get; set; }
-
-    public byte[] ToBytesWithLength()
-    {
-        byte[] body = MemoryPackSerializer.Serialize(this);
-        byte[] result = new byte[4 + body.Length];
-        BitConverter.GetBytes(body.Length).CopyTo(result, 0);
-        Buffer.BlockCopy(body, 0, result, 4, body.Length);
-        return result;
-    }
-
-    public static NetPacket FromBytes(byte[] data) =>
-        MemoryPackSerializer.Deserialize<NetPacket>(data)!;
-
-    public static NetPacket FromAction(Action action) => new(action);
-
-    public NetPacket(Action action) => Action = action;
-}
-
-public sealed class PacketBuffer
-{
-    private MemoryStream buffer = new();
-
-    public void Write(byte[] data, int offset, int count)
-    {
-        buffer.Position = buffer.Length;
-        buffer.Write(data, offset, count);
-        buffer.Position = 0;
-    }
-
-    public List<NetPacket> ExtractPackets()
-    {
-        var packets = new List<NetPacket>();
-        while (true)
-        {
-            if (buffer.Length - buffer.Position < 4) break;
-            byte[] lenBytes = new byte[4];
-            buffer.Read(lenBytes, 0, 4);
-            int bodyLength = BitConverter.ToInt32(lenBytes, 0);
-            if (buffer.Length - buffer.Position < bodyLength)
-            {
-                buffer.Position -= 4;
-                break;
-            }
-            byte[] body = new byte[bodyLength];
-            buffer.Read(body, 0, bodyLength);
-            packets.Add(NetPacket.FromBytes(body));
-        }
-
-        if (buffer.Position < buffer.Length)
-        {
-            byte[] leftover = buffer.ToArray()[(int)buffer.Position..];
-            buffer = new MemoryStream();
-            buffer.Write(leftover, 0, leftover.Length);
-            buffer.Position = 0;
-        }
-        else
-        {
-            buffer = new MemoryStream();
-        }
-
-        return packets;
-    }
-}
 
 /// <summary>直连 TCP；仅在 MpWire IO 线程调用 <see cref="Pump"/>。</summary>
 internal sealed class DirectTcp

@@ -1,6 +1,6 @@
-using MemoryPack;
 using UnityEngine;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Linq;
 using System.Text;
 
@@ -9,68 +9,58 @@ using GameData.Core.Collections;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Profile;
 
+using MetaMystia.Network;
 using SgrYuki.Utils;
 
 namespace MetaMystia;
 
-[MemoryPackable]
-[AutoLog]
-public partial class PlayerSkin
+// 行为半边（mod）：皮肤解析、立绘、应用到 unit 等游戏逻辑（Addressables/Sprite/CharacterControllerUnit）。
+// 数据半边（序列化字段 + SetNetSkin/SetRotate）见 Network/Protocol/Dtos/PlayerSkinData.cs。
+// 边界：游戏枚举 CharacterSkinSets.SelectedType 与协议层 WireSkinType 在此互转（WireEnumMaps）。
+
+public static class PlayerSkin
 {
-    public int CharacterId = -1; // -1 means Mystia
-    public CharacterSkinSets.SelectedType SelectedType = CharacterSkinSets.SelectedType.Default;
-    public int SkinIndex = 0;
-
-    /// <summary>
-    /// 在线皮肤名（皮肤站标识）。非空时优先使用，由 NetSkinManager 负责异步拉取与解析；
-    /// 未就绪时返回 Fallback 占位，下载完成后会自动刷新。为空则回落到原有 CharacterId/Type/Index 流程。
-    /// </summary>
-    public string NetSkinName = null;
-
-    /// <summary>
-    /// 旋转覆盖。null = 使用皮肤默认值；true = 强制开启旋转；false = 强制关闭旋转。
-    /// </summary>
-    public bool? RotateOverride = null;
-
-    [MemoryPackIgnore]
-    private CharacterSpriteSetCompact _rotatedSkinCache;
-    [MemoryPackIgnore]
-    private CharacterSpriteSetCompact _rotatedSkinSource;
-    [MemoryPackIgnore]
-    private bool? _rotatedSkinRotate;
-
-    private void InvalidateRotatedSkinCache()
+    private sealed class RotatedSkinCache
     {
-        _rotatedSkinCache = null;
-        _rotatedSkinSource = null;
-        _rotatedSkinRotate = null;
+        public CharacterSpriteSetCompact Skin;
+        public CharacterSpriteSetCompact Source;
+        public bool? Rotate;
+    }
+
+    private static readonly ConditionalWeakTable<PlayerSkinData, RotatedSkinCache> RotatedSkinCaches = new();
+
+    public static void InvalidateRotatedSkinCache(this PlayerSkinData playerSkin)
+    {
+        if (playerSkin != null)
+            RotatedSkinCaches.Remove(playerSkin);
     }
 
     /// <summary>
     /// 解析 CharacterSpriteSetCompact
     /// </summary>
-    public CharacterSpriteSetCompact ResolveSkin()
+    public static CharacterSpriteSetCompact ResolveSkin(this PlayerSkinData playerSkin)
     {
-        if (!string.IsNullOrEmpty(NetSkinName))
+        if (!string.IsNullOrEmpty(playerSkin.NetSkinName))
         {
-            if (NetSkinManager.TryGet(NetSkinName, out var net))
+            if (NetSkinManager.TryGet(playerSkin.NetSkinName, out var net))
                 return net;
             // 未就绪：触发异步加载，先返回 Fallback 占位
-            NetSkinManager.RequestSkin(NetSkinName);
+            NetSkinManager.RequestSkin(playerSkin.NetSkinName);
             return DataBaseCharacter.FallbackFullPixel;
         }
 
-        if (CharacterId == -1)
+        if (playerSkin.CharacterId == -1)
         {
-            return ResolveSkin(DataBaseCharacter.SelfSpriteSet, SelectedType, SkinIndex);
+            return ResolveSkin(DataBaseCharacter.SelfSpriteSet, playerSkin.SelectedType.ToGameSkinType(), playerSkin.SkinIndex);
         }
 
-        if (DataBaseCharacter.SpecialGuestVisual.ContainsKey(CharacterId))
+        if (DataBaseCharacter.SpecialGuestVisual.ContainsKey(playerSkin.CharacterId))
         {
-            return ResolveSkin(DataBaseCharacter.SpecialGuestVisual[CharacterId]?.CharacterPixel, SelectedType, SkinIndex);
+            return ResolveSkin(DataBaseCharacter.SpecialGuestVisual[playerSkin.CharacterId]?.CharacterPixel, playerSkin.SelectedType.ToGameSkinType(), playerSkin.SkinIndex);
         }
 
-        Log.Warning($"CharacterId {CharacterId} not found in SpecialGuestVisual, returning Fallback skin");
+        Plugin.Instance?.Log.LogWarning(
+            $"CharacterId {playerSkin.CharacterId} not found in SpecialGuestVisual, returning Fallback skin");
         return DataBaseCharacter.FallbackFullPixel;
     }
 
@@ -93,11 +83,11 @@ public partial class PlayerSkin
     /// <summary>
     /// 解析当前皮肤对应的 CharacterPortrayal（立绘配置），专门用于 SpecialGuest
     /// </summary>
-    public CharacterPortrayal ResolveSpecialPortrait()
+    public static CharacterPortrayal ResolveSpecialPortrait(this PlayerSkinData playerSkin)
     {
-        if (DataBaseCharacter.SpecialGuestVisual.ContainsKey(CharacterId))
+        if (DataBaseCharacter.SpecialGuestVisual.ContainsKey(playerSkin.CharacterId))
         {
-            return DataBaseCharacter.SpecialGuestVisual[CharacterId]?.CharacterPortrayal?.defaultPortrayal;
+            return DataBaseCharacter.SpecialGuestVisual[playerSkin.CharacterId]?.CharacterPortrayal?.defaultPortrayal;
         }
 
         return DataBaseCharacter.FallbackPortrayal;
@@ -139,14 +129,14 @@ public partial class PlayerSkin
     /// 获取当前皮肤的立绘 Sprite（使用默认表情，索引 0）
     /// 优先级: ResourceEx 自定义立绘 > 已加载的 Addressable 资源 > 同步加载 Addressable
     /// </summary>
-    public Sprite ResolvePortraitSprite()
+    public static Sprite ResolvePortraitSprite(this PlayerSkinData playerSkin)
     {
-        if (CharacterId == -1)
+        if (playerSkin.CharacterId == -1)
         {
-            return ResolvePortraitFromSelf(SelectedType, SkinIndex);
+            return ResolvePortraitFromSelf(playerSkin.SelectedType.ToGameSkinType(), playerSkin.SkinIndex);
         }
 
-        var portrayal = ResolveSpecialPortrait();
+        var portrayal = playerSkin.ResolveSpecialPortrait();
         if (portrayal == null) return null;
 
         // 优先：ResourceEx 自定义立绘
@@ -176,7 +166,7 @@ public partial class PlayerSkin
         }
         catch (System.Exception e)
         {
-            Log.Warning($"Failed to load portrait sprite: {e.Message}");
+            Plugin.Instance?.Log.LogWarning($"Failed to load portrait sprite: {e.Message}");
             return null;
         }
     }
@@ -184,51 +174,31 @@ public partial class PlayerSkin
     /// <summary>
     /// 设定皮肤
     /// </summary>
-    /// <param name="characterId"></param>
-    /// <param name="selectedType"></param>
-    /// <param name="skinIndex"></param>
-    public void SetSkin(int characterId, CharacterSkinSets.SelectedType selectedType, int skinIndex)
+    public static void SetSkin(this PlayerSkinData playerSkin, int characterId, CharacterSkinSets.SelectedType selectedType, int skinIndex)
     {
-        CharacterId = characterId;
-        SelectedType = selectedType;
-        SkinIndex = skinIndex;
-        NetSkinName = null;
-        InvalidateRotatedSkinCache();
+        playerSkin.CharacterId = characterId;
+        playerSkin.SelectedType = selectedType.ToWire();
+        playerSkin.SkinIndex = skinIndex;
+        playerSkin.NetSkinName = null;
+        playerSkin.InvalidateRotatedSkinCache();
     }
 
-    /// <summary>
-    /// 设定在线皮肤名。非空时由 NetSkinManager 异步拉取与解析。
-    /// </summary>
-    public void SetNetSkin(string name)
+    private static CharacterSpriteSetCompact ResolveSkinForUnit(this PlayerSkinData playerSkin)
     {
-        NetSkinName = string.IsNullOrEmpty(name) ? null : name;
-        InvalidateRotatedSkinCache();
-    }
-
-    /// <summary>
-    /// 设置旋转覆盖
-    /// </summary>
-    public void SetRotate(bool? value)
-    {
-        RotateOverride = value;
-        InvalidateRotatedSkinCache();
-    }
-
-    private CharacterSpriteSetCompact ResolveSkinForUnit()
-    {
-        var baseSkin = ResolveSkin();
-        if (baseSkin == null || !RotateOverride.HasValue)
+        var baseSkin = playerSkin.ResolveSkin();
+        if (baseSkin == null || !playerSkin.RotateOverride.HasValue)
             return baseSkin;
 
-        if (_rotatedSkinCache != null
-            && _rotatedSkinSource == baseSkin
-            && _rotatedSkinRotate == RotateOverride)
-            return _rotatedSkinCache;
+        var cache = RotatedSkinCaches.GetOrCreateValue(playerSkin);
+        if (cache.Skin != null
+            && cache.Source == baseSkin
+            && cache.Rotate == playerSkin.RotateOverride)
+            return cache.Skin;
 
-        _rotatedSkinSource = baseSkin;
-        _rotatedSkinRotate = RotateOverride;
-        _rotatedSkinCache = CloneWithRotationOverride(baseSkin, RotateOverride.Value, 0.15f);
-        return _rotatedSkinCache;
+        cache.Source = baseSkin;
+        cache.Rotate = playerSkin.RotateOverride;
+        cache.Skin = CloneWithRotationOverride(baseSkin, playerSkin.RotateOverride.Value, 0.15f);
+        return cache.Skin;
     }
 
     private static CharacterSpriteSetCompact CloneWithRotationOverride(
@@ -294,14 +264,13 @@ public partial class PlayerSkin
     /// <summary>
     /// 将当前皮肤应用到指定 unit 上
     /// </summary>
-    /// <param name="unit"></param>
-    public void ApplyToUnit(CharacterControllerUnit unit)
+    public static void ApplyToUnit(this PlayerSkinData playerSkin, CharacterControllerUnit unit)
     {
         if (unit == null) return;
-        var skin = ResolveSkinForUnit();
-        if (skin != null && RotateOverride.HasValue)
+        var skin = playerSkin.ResolveSkinForUnit();
+        if (skin != null && playerSkin.RotateOverride.HasValue)
         {
-            if (!RotateOverride.Value)
+            if (!playerSkin.RotateOverride.Value)
                 unit.animator?.StopAllCoroutines();
             unit.m_CurrentVisual = null;
         }
@@ -312,7 +281,6 @@ public partial class PlayerSkin
     /// <summary>
     /// 获取全部可用皮肤的表格字符串，格式为 "name: CharacterId SelectedType SkinIndex"
     /// </summary>
-    /// <returns></returns>
     public static string GetAllSkinsTable()
     {
         var table = new StringBuilder();
@@ -326,10 +294,9 @@ public partial class PlayerSkin
     /// <summary>
     /// 列举全部可用皮肤
     /// </summary>
-    /// <returns></returns>
-    private static List<(PlayerSkin skin, string name)> ListAllSkins()
+    private static List<(PlayerSkinData skin, string name)> ListAllSkins()
     {
-        List<(PlayerSkin, string)> skins = [];
+        List<(PlayerSkinData, string)> skins = [];
         skins.AddRange(ListSkinsFromSets(DataBaseCharacter.SelfSpriteSet, -1));
         foreach (int characterId in DataBaseCharacter.SpecialGuestVisual.Keys)
         {
@@ -339,24 +306,24 @@ public partial class PlayerSkin
         return skins;
     }
 
-    private static List<(PlayerSkin skin, string name)> ListSkinsFromSets(CharacterSkinSets skinSets, int characterId)
+    private static List<(PlayerSkinData skin, string name)> ListSkinsFromSets(CharacterSkinSets skinSets, int characterId)
     {
         if (skinSets is null) return [];
-        List<(PlayerSkin, string)> skins = [];
+        List<(PlayerSkinData, string)> skins = [];
 
-        skins.Add((new PlayerSkin
+        skins.Add((new PlayerSkinData
         {
             CharacterId = characterId,
-            SelectedType = CharacterSkinSets.SelectedType.Default,
+            SelectedType = WireSkinType.Default,
         }, skinSets.defaultSkin?.name ?? "Default"));
 
         for (var i = 0; i < skinSets.explicits?.Length; i++)
         {
             var skin = skinSets.explicits[i];
-            skins.Add((new PlayerSkin
+            skins.Add((new PlayerSkinData
             {
                 CharacterId = characterId,
-                SelectedType = CharacterSkinSets.SelectedType.Explicit,
+                SelectedType = WireSkinType.Explicit,
                 SkinIndex = i
             }, skin?.name ?? $"Explicit_{i}"));
         }
@@ -364,10 +331,10 @@ public partial class PlayerSkin
         for (var i = 0; i < skinSets.dlcs?.Length; i++)
         {
             var skin = skinSets.dlcs[i];
-            skins.Add((new PlayerSkin
+            skins.Add((new PlayerSkinData
             {
                 CharacterId = characterId,
-                SelectedType = CharacterSkinSets.SelectedType.DLC,
+                SelectedType = WireSkinType.DLC,
                 SkinIndex = i
             }, skin?.name ?? $"DLC_{i}"));
         }

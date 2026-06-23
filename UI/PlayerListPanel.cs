@@ -162,7 +162,7 @@ public static partial class PlayerListPanel
                 needsGameplayData ? peer.Position : Vector2.zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
-                isSelf: false, isHost: kvp.Key == MpManager.HOST_UID);
+                isSelf: false, isHost: kvp.Key == MpManager.Session.HostUid);
             lines.Add((line, kvp.Key));
         }
 
@@ -172,11 +172,11 @@ public static partial class PlayerListPanel
             if (PlayerManager.Peers.ContainsKey(kvp.Key)) continue;
             var peer = kvp.Value;
             string line = FormatPlayer(
-                peer.Uid, peer.Id, scene,
-                needsGameplayData ? peer.MapLabel : MapLabel.Unknown,
-                needsGameplayData ? peer.Position : Vector2.zero,
-                peer.IsDayOver, peer.IsPrepOver,
-                peer.IzakayaMapLabel, peer.IzakayaLevel,
+                peer.Uid, peer.Id, Scene.EmptyScene,
+                MapLabel.Unknown,
+                Vector2.zero,
+                false, false,
+                MapLabel.Unknown, 0,
                 isSelf: false, isHost: false,
                 scopeTag: "Online");
             lines.Add((line, kvp.Key));

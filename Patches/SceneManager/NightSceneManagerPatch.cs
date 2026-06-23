@@ -29,18 +29,12 @@ public static partial class NightSceneManagerPatch
         {
             return;
         }
-        PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
-
-        if (!MpManager.IsConnected)
-        {
-            PlayerManager.SpawnPeers();
-            return;
-        }
+        PlayerChangeSkinBehavior.Send(PlayerManager.Local.Skin);
 
         PrepSceneManager.ClearPrepTable();
 
         PlayerManager.ResetState();
-        PlayerManager.SpawnPeers();
+        PlayerManager.SpawnRoomPeers();
 
         CommandScheduler.EnqueueKey(
             key: MpManager.PeerGetCharacterUnitNotNullCommand,

@@ -34,11 +34,11 @@ public static partial class MpWire
     private const int ConnectTimeoutMs = 10_000;
 
     private readonly record struct Outbound(byte[] Framed, int? TargetUid, int? ExceptUid, bool LowPriority);
-    private readonly record struct Inbound(int FromUid, Action Action);
+    private readonly record struct Inbound(int FromUid, NetAction Action);
 
     public static int CurrentPort => _currentPort;
     public static bool IsRunning => _running;
-    public static bool IsConnecting => _connecting;
+    public static bool IsConnecting => _connecting || Session.IsConnecting;
     public static long LatencyMs { get; private set; }
     public static long NowMs => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     public static long TimeOffsetMs { get; set; }
@@ -48,14 +48,22 @@ public static partial class MpWire
     {
         TransportKind.DirectHost => _tcp?.HasClients == true,
         TransportKind.DirectClient => _tcp?.IsClientConnected == true,
+        TransportKind.RelayClient => _tcp?.IsClientConnected == true && Session.IsInRoom,
+        _ => false
+    };
+
+    public static bool IsServerEndpointConnected => Session.TransportKind switch
+    {
+        TransportKind.DirectClient or TransportKind.RelayClient => _tcp?.IsClientConnected == true,
+        TransportKind.DirectHost => _running,
         _ => false
     };
 
     public static bool CanSend => Session.TransportKind switch
     {
-        TransportKind.DirectHost => Session.IsInRoom && IsRoomConnected,
-        TransportKind.DirectClient => Session.IsInRoom && IsRoomConnected,
-        TransportKind.RelayClient => Session.IsInPublicScope || Session.IsInRoom,
+        TransportKind.DirectHost => Session.IsInRoom && _running,
+        TransportKind.DirectClient => IsServerEndpointConnected && (Session.IsConnecting || Session.IsInRoom),
+        TransportKind.RelayClient => IsServerEndpointConnected && (Session.IsConnecting || Session.IsInPublicScope || Session.IsInRoom),
         _ => false
     };
 
@@ -94,7 +102,7 @@ public static partial class MpWire
         _running = true;
         PlayerManager.Local.Id = ConfigManager.GetPlayerId();
         PlayerManager.Local.Uid = MpConstants.UnassignedUid;
-        Session.EnterDirectClientRoom();
+        Session.BeginConnecting(TransportKind.DirectClient);
         StartIoThread(null);
         Log.LogInfo("[MpWire] Client mode (not connected)");
         return true;
@@ -103,6 +111,11 @@ public static partial class MpWire
     public static void Stop()
     {
         if (!_running) return;
+        if (Session.TransportKind == TransportKind.DirectHost)
+        {
+            RejectBehavior.BroadcastServerClosing();
+            FlushOutboundNow();
+        }
         _running = false;
         StopIoThread();
         Session.Reset();
@@ -116,7 +129,7 @@ public static partial class MpWire
     {
         if (port < 0) port = ConfigManager.DefaultPort?.Value ?? MpConstants.DefaultPort;
         if (!_running && !StartClientMode()) return false;
-        if (IsRoomConnected)
+        if (IsServerEndpointConnected)
         {
             Log.LogWarning("[C] Already connected");
             return false;
@@ -129,19 +142,24 @@ public static partial class MpWire
             if (switchFromHost && Session.IsRoomHost)
             {
                 StopIoThread();
-                Session.EnterDirectClientRoom();
+                Session.BeginConnecting(TransportKind.DirectClient);
                 PlayerManager.Local.Uid = MpConstants.UnassignedUid;
                 StartIoThread(null);
             }
-            Session.EnterDirectClientRoom();
+            else
+            {
+                Session.BeginConnecting(TransportKind.DirectClient);
+            }
             await Task.Run(() => _tcp.ConnectClient(host, port, ConnectTimeoutMs));
-            HelloAction.Send();
+            _tcp.SetUplinkUid(MpConstants.HostUid);
+            ServerInfoRequestBehavior.Send();
             Log.LogMessage($"[C] Connected to {host}:{port}");
             return true;
         }
         catch (Exception e)
         {
             Log.LogError($"[C] Connect failed: {e.Message}");
+            ResetClientAfterConnectFailure();
             return false;
         }
         finally
@@ -152,7 +170,7 @@ public static partial class MpWire
 
     public static void DisconnectPeer()
     {
-        if (!Session.IsOnline) return;
+        if (!_running && Session.TransportKind == TransportKind.None) return;
         if (Session.TransportKind == TransportKind.DirectHost)
         {
             _tcp?.DisconnectAll();
@@ -165,6 +183,7 @@ public static partial class MpWire
         }
         else
         {
+            StopIoThread();
             PlayerManager.ClearPeers();
             Session.Reset();
             _running = false;
@@ -172,9 +191,12 @@ public static partial class MpWire
         Log.LogMessage("[MpWire] Disconnected");
     }
 
-    public static void DisconnectClient(int uid)
+    public static void DisconnectClient(int uid, bool notify = true)
     {
         if (!Session.IsRoomHost) return;
+        if (notify)
+            RejectBehavior.SendOnly(uid, RejectReason.KickedFromServer);
+        FlushOutboundNow();
         _tcp?.DisconnectClient(uid);
         if (PlayerManager.Peers.ContainsKey(uid))
             OnHostClientLeft(uid);
@@ -182,7 +204,7 @@ public static partial class MpWire
 
     // --- app send ---
 
-    public static void EnqueueSend(Action action, bool lowPriority = false)
+    public static void EnqueueSend(NetAction action, bool lowPriority = false)
     {
         if (!CanSend) return;
 
@@ -190,9 +212,9 @@ public static partial class MpWire
         int? target = action.WireTargetUid;
         int? except = action.WireExceptUid;
 
-        if (Session.IsRoomHost)
+        if (Session.TransportKind == TransportKind.DirectHost && Session.IsRoomHost)
             _outbox.Enqueue(new Outbound(framed, target, except, lowPriority));
-        else if (Session.IsRoomClient)
+        else if (Session.TransportKind is TransportKind.DirectClient or TransportKind.RelayClient)
             _outbox.Enqueue(new Outbound(framed, null, null, lowPriority));
     }
 
@@ -219,15 +241,27 @@ public static partial class MpWire
 
     public static void OnHandshakeComplete(string hostId)
     {
-        // 客机端：握手完成后，让 DirectTcp 把上行链路的 fromUid 同步为真实 HostUid
-        _tcp?.SetUplinkUid(Session.HostUid);
-        SceneTransitAction.Send(MpManager.LocalScene);
-        CommandScheduler.EnqueueInterval(SyncActionCommandId, 0.5f, MoveSyncAction.Send);
+        // 客机上行 socket 对端是服务端端点（uid=0）；房间玩法权威另由 Session.HostUid 表达。
+        _tcp?.SetUplinkUid(MpConstants.HostUid);
+        SceneTransitBehavior.Send(MpManager.LocalScene);
+        StartMoveSyncInterval(0.5f);
         InGameConsole.ShowPassiveFromAnyThread(TextId.MultiplayerConnected.Get());
     }
 
+    /// <summary>relay 客机进入公域：启动 MoveSync interval + 上报场景，但不显示房间连接提示。</summary>
+    public static void OnRelayPublicEntered()
+    {
+        StartMoveSyncInterval(0.5f);
+        SceneTransitBehavior.Send(MpManager.LocalScene);
+    }
+
+    private static void StartMoveSyncInterval(float intervalSeconds) =>
+        CommandScheduler.EnqueueInterval(SyncActionCommandId, intervalSeconds, MoveSyncBehavior.Send);
+
     public static void OnPeerHandshakeComplete(int uid) =>
-        CommandScheduler.EnqueueInterval(SyncActionCommandId, 2f, MoveSyncAction.Send);
+        CommandScheduler.EnqueueInterval(SyncActionCommandId, 2f, MoveSyncBehavior.Send);
+
+    public static void CancelRoomSync() => CancelSync();
 
     // --- IO thread ---
 
@@ -252,6 +286,13 @@ public static partial class MpWire
         while (_inbox.TryDequeue(out _)) { }
     }
 
+    private static void FlushOutboundNow()
+    {
+        while (_outbox.TryDequeue(out var msg))
+            _tcp?.Enqueue(msg.TargetUid, msg.ExceptUid, msg.Framed, msg.LowPriority);
+        _tcp?.Pump();
+    }
+
     private static void StopInternal()
     {
         _running = false;
@@ -270,7 +311,7 @@ public static partial class MpWire
                 _tcp?.Pump();
 
                 // 仅客机主动 Ping：主机是时间权威，无需估算时钟偏移或延迟。
-                if (_running && CanSend && Session.IsRoomClient)
+                if (_running && CanSend && Session.TransportKind is TransportKind.DirectClient or TransportKind.RelayClient && Session.IsInRoom)
                 {
                     long now = NowMs;
                     if (now - _lastPingMs >= PingIntervalMs)
@@ -302,7 +343,7 @@ public static partial class MpWire
         var action = packet.Action;
         if (action == null) return;
 
-        if (Session.IsRoomHost && fromUid != Session.HostUid && ShouldRelay(action))
+        if (Session.TransportKind == TransportKind.DirectHost && fromUid != Session.HostUid && ShouldRelay(action))
         {
             action.SenderUid = fromUid;
             _outbox.Enqueue(new Outbound(
@@ -314,13 +355,13 @@ public static partial class MpWire
 
     private static void OnWirePeerLeft(int uid)
     {
-        if (Session.IsRoomHost && uid != Session.HostUid)
+        if (Session.TransportKind == TransportKind.DirectHost && Session.IsRoomHost && uid != Session.HostUid)
             PluginManager.Instance?.RunOnMainThread(() => OnHostClientLeft(uid));
-        else if (Session.IsRoomClient)
+        else if (Session.TransportKind is TransportKind.DirectClient or TransportKind.RelayClient || Session.IsConnecting)
             PluginManager.Instance?.RunOnMainThread(OnClientDisconnected);
     }
 
-    // 仅执行已反序列化 Action 的 OnReceived（Unity / PlayerManager）；转发已在 OnWirePacket（IO 线程）完成。
+    // 仅执行已反序列化 Action 的分发（Unity / PlayerManager）；转发已在 OnWirePacket（IO 线程）完成。
     private static void ProcessInboxOnMainThread()
     {
         while (_inbox.TryDequeue(out var item))
@@ -329,24 +370,37 @@ public static partial class MpWire
             {
                 // 主机：每条 TCP 连接对应真实 uid，可覆盖包体以防伪造。
                 // 客机：线层 fromUid 为 Session.HostUid（握手后由 DirectTcp 上行链路 uid 提供），真实发送者已在主机转发时写入包体 SenderUid。
-                if (Session.IsRoomHost)
+                if (Session.TransportKind == TransportKind.DirectHost)
                     item.Action.SenderUid = item.FromUid;
-                item.Action.OnReceived();
+                ModNetActionBehaviors.Dispatch(item.Action);
             }
             catch (Exception e)
             {
-                Log.LogError($"[MpWire] OnReceived failed for {item.Action.GetType().Name}: {e.Message}\n{e.StackTrace}");
+                Log.LogError($"[MpWire] Dispatch failed for {item.Action.GetType().Name}: {e.Message}\n{e.StackTrace}");
             }
         }
     }
 
     // 仅 DirectHost 且来自客机时由 OnWirePacket 调用；不必再判 RoomRole。
-    private static bool ShouldRelay(Action action)
+    private static bool ShouldRelay(NetAction action)
     {
+        if (IsEndpointOnly(action))
+            return false;
+
         var t = action.GetType();
-        return t.GetCustomAttribute<Action.RoomRelayAttribute>() != null
-               || t.GetCustomAttribute<Action.PublicRelayAttribute>() != null;
+        return t.GetCustomAttribute<NetAction.RoomRelayAttribute>() != null
+               || t.GetCustomAttribute<NetAction.PublicRelayAttribute>() != null;
     }
+
+    private static bool IsEndpointOnly(NetAction action) =>
+        action is ServerInfoReplyAction
+            or HelloAckAction
+            or RoomAssignAction
+            or RoomKickAction
+            or RejectAction
+            or PongAction
+            or PeerLeaveAction
+            or PlayerPresenceAction;
 
     private static void OnHostClientLeft(int uid)
     {
@@ -354,7 +408,7 @@ public static partial class MpWire
         {
             var displayName = LiveModeManager.GetDisplayName(uid, peer.Id);
             InGameConsole.ShowPassiveFromAnyThread(TextId.PeerLeft.Get(displayName));
-            PeerLeaveAction.Send(uid);
+            PeerLeaveBehavior.Send(uid);
             PlayerManager.RemovePeer(uid);
             MpManager.CheckContinueAfterDisconnect(uid, displayName);
         }
@@ -367,11 +421,25 @@ public static partial class MpWire
 
     private static void OnClientDisconnected()
     {
+        StopIoThread();
         while (_outbox.TryDequeue(out _)) { }
         PlayerManager.ClearPeers();
         PlayerManager.Local.Uid = MpConstants.UnassignedUid;
+        Session.Reset();
+        _running = false;
+        _connecting = false;
         CancelSync();
         InGameConsole.ShowPassiveFromAnyThread(TextId.MultiplayerDisconnected.Get());
+    }
+
+    private static void ResetClientAfterConnectFailure()
+    {
+        StopIoThread();
+        PlayerManager.ClearPeers();
+        PlayerManager.Local.Uid = MpConstants.UnassignedUid;
+        Session.Reset();
+        _running = false;
+        CancelSync();
     }
 
     private static void CancelSync()

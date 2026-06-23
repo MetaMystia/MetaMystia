@@ -46,7 +46,7 @@ public static partial class NightSceneEventManagerPatch
         Log.Info($"Fever Prefix, durationSec {durationSec}");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
-            BuffAction.Send(QTEBuff.Fever);
+            BuffBehavior.Send(QTEBuff.Fever);
         }
     }
 
@@ -103,7 +103,7 @@ public static partial class NightSceneEventManagerPatch
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
-            FundEditAction.Send(value, mathOperation);
+            FundEditBehavior.Send(value, mathOperation);
         }
     }
 
@@ -135,7 +135,7 @@ public static partial class NightSceneEventManagerPatch
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
-            TipEditAction.Send(value, serveType, comboBuff, moodBuff, extraBuff);
+            TipEditBehavior.Send(value, serveType, comboBuff, moodBuff, extraBuff);
         }
     }
 
@@ -165,7 +165,7 @@ public static partial class NightSceneEventManagerPatch
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
-            ExpEditAction.Send(value, mathOperation);
+            ExpEditBehavior.Send(value, mathOperation);
         }
     }
 
@@ -195,7 +195,7 @@ public static partial class NightSceneEventManagerPatch
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
-            PassionEditAction.Send(value, mathOperation);
+            PassionEditBehavior.Send(value, mathOperation);
         }
     }
 }

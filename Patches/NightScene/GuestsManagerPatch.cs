@@ -591,7 +591,7 @@ public partial class GuestsManagerPatch
         if (NightSceneEventManagerPatch.IsHostCloseReplay) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
-            IzakayaCloseAction.Send();
+            IzakayaCloseBehavior.Send();
             return RunOriginal;
         }
 

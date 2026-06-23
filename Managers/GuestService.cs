@@ -44,7 +44,7 @@ public static partial class GuestService
             ? new Il2CppSystem.Nullable<Vector3>(new Vector3(spawnInfo.OverrideSpawnX, spawnInfo.OverrideSpawnY, spawnInfo.OverrideSpawnZ))
             : new Il2CppSystem.Nullable<Vector3>();
         var leaveType = spawnInfo.HasNormalSpawnArgs
-            ? spawnInfo.LeaveType
+            ? spawnInfo.LeaveType.ToGameLeaveType()
             : GuestGroupController.LeaveType.Move;
         var targetDeskCode = spawnInfo.HasNormalSpawnArgs ? spawnInfo.TargetDeskCode : -1;
         var shouldFade = !spawnInfo.HasNormalSpawnArgs || spawnInfo.ShouldFade;

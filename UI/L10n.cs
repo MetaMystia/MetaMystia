@@ -49,6 +49,7 @@ public enum TextId
 
     // Connection Status Notifications
     MultiplayerConnected,
+    MultiplayerPublicConnected,
     MultiplayerDisconnected,
     MpConnected,
     PeerJoined,
@@ -219,6 +220,9 @@ public enum TextId
     MpDescId,
     MpDescConnect,
     MpDescDisconnect,
+    MpDescJoin,
+    MpDescCreate,
+    MpDescLeave,
     MpDescKick,
     MpDescKickId,
     MpDescKickUid,
@@ -288,6 +292,7 @@ public enum TextId
     // Max Players / Reject
     RoomFull,
     RoomFullHostNotify,
+    RoomIdExhausted,
     DuplicatePeerId,
     DuplicatePeerIdHostNotify,
     MpMaxPlayersCurrent,
@@ -299,6 +304,17 @@ public enum TextId
     MpStartedOnPort,
     MpPortRange,
     MpConnectInProgress,
+    MpJoinRequiresRelayPublic,
+    MpRoomIdInvalid,
+    MpLeftRoom,
+    MpCreateRequested,
+    MpEnteredRoom,
+    UnsupportedServerMode,
+    RoomRequestUnsupported,
+    RoomNotFound,
+    KickedFromRoom,
+    KickedFromServer,
+    ServerClosed,
 
     // IPv6
     MpIpv6Enabled,

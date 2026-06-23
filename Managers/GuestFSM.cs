@@ -166,7 +166,7 @@ public partial class GuestFSM
         GuestsMap.StoreGuest(fsm);
         var spawnInfo = new GuestSpawnInfo
         {
-            GuestType = fsm.GuestType,
+            GuestType = fsm.GuestType.ToWire(),
             Ids = fsm.Ids,
             Fund = controller.GetFund,
             MaxFundCarry = fsm.MaxFundCarry,
@@ -180,12 +180,12 @@ public partial class GuestFSM
             spawnInfo.OverrideSpawnX = args.OverrideSpawnPosition.x;
             spawnInfo.OverrideSpawnY = args.OverrideSpawnPosition.y;
             spawnInfo.OverrideSpawnZ = args.OverrideSpawnPosition.z;
-            spawnInfo.LeaveType = args.LeaveType;
+            spawnInfo.LeaveType = args.LeaveType.ToWire();
             spawnInfo.TargetDeskCode = args.TargetDeskCode;
             spawnInfo.ShouldFade = args.ShouldFade;
         }
 
-        GuestSpawnAction.Send(fsm.RuntimeId, spawnInfo);
+        GuestSpawnBehavior.Send(fsm.RuntimeId, spawnInfo);
     }
 
     /// <summary>
@@ -198,7 +198,7 @@ public partial class GuestFSM
         var fsm = new GuestFSM();
         fsm.CurrentState = State.Constructed;
         fsm.Controller = null;
-        fsm.GuestType = guestSpawnInfo.GuestType;
+        fsm.GuestType = guestSpawnInfo.GuestType.ToGameGuestType();
         fsm.Ids = guestSpawnInfo.Ids;
         fsm.Fund = guestSpawnInfo.Fund;
         fsm.MaxFundCarry = guestSpawnInfo.MaxFundCarry;
@@ -237,7 +237,7 @@ public partial class GuestFSM
         // FSM: Queued -> SeatMoving
         if (fsm.CurrentState == State.Constructed || fsm.CurrentState == State.Queued)
         {
-            MoveToDeskAction.Send(fsm.RuntimeId, deskCode);
+            MoveToDeskBehavior.Send(fsm.RuntimeId, deskCode);
             fsm.To(State.SeatMoving);
             FlowLog($"Guest #{fsm.RuntimeId} moved to desk {deskCode}");
             return;
@@ -290,7 +290,7 @@ public partial class GuestFSM
         {
             fsm.To(State.Queued);
             FlowLog($"Guest #{GuestsMap.GetRuntimeId(controller)} moved to queue, FSM: Constructed -> Queued");
-            MoveToQueueAction.Send(fsm.RuntimeId);
+            MoveToQueueBehavior.Send(fsm.RuntimeId);
             return;
         }
 
@@ -342,7 +342,7 @@ public partial class GuestFSM
         var fsm = GuestsMap.GetGuestFsm(controller);
         if (fsm == null) return;
 
-        PlayerRepellAction.Send(fsm.RuntimeId);
+        PlayerRepellBehavior.Send(fsm.RuntimeId);
         fsm.To(State.Left);
     }
 
@@ -414,7 +414,7 @@ public partial class GuestFSM
         if (fsm.CurrentState == State.SeatMoving)
         {
             fsm.To(State.SeatMoving);
-            SendFromQueueAction.Send(fsm.RuntimeId);
+            SendFromQueueBehavior.Send(fsm.RuntimeId);
             return;
         }
 
@@ -459,7 +459,7 @@ public partial class GuestFSM
                 // 游戏中仅对 Special Guest 执行无副作用的 CheckRemainingFund 以做等价预测
                 overrideResult = CheckRemainingFund(orderGenerationResult, controller);
             }
-            GenerateOrderAction.Send(fsm.RuntimeId, orderGenerationResult, overrideResult, orderData);
+            GenerateOrderBehavior.Send(fsm.RuntimeId, orderGenerationResult, overrideResult, orderData);
 
             var finalResult = overrideResult ?? orderGenerationResult;
             if (finalResult == OrderGenerationResult.Succeed)
@@ -579,7 +579,7 @@ public partial class GuestFSM
     /// <param name="b"></param>
     /// <returns></returns>
     public static bool SellableEquals(Sellable a, Sellable b)
-        => SellableFood.ContentEquals(SellableFood.FromSellable(a), SellableFood.FromSellable(b));
+        => SellableFoodData.ContentEquals(SellableFood.FromSellable(a), SellableFood.FromSellable(b));
 
     private static void RestoreFood(Sellable food)
     {
@@ -622,7 +622,7 @@ public partial class GuestFSM
                 basedOn = fsm.WillServeBeverage;
                 fsm.WillServeBeverage = sellable;
             }
-            ServeSellableAction.Send(fsm.RuntimeId, controller.AllOrdersCount, sellable, basedOn, type);
+            ServeSellableBehavior.Send(fsm.RuntimeId, controller.AllOrdersCount, sellable, basedOn, type);
             fsm.To(State.WaitingServe);
         }
         else
@@ -707,7 +707,7 @@ public partial class GuestFSM
         UpdateServeDesk(fsm.DeskCode, requested, type);
 
         // 传原 senderUid，让原发起客机自己 echo-filter 掉，避免在客机上重复跑一次。
-        ServeSellableAction.Send(fsm.RuntimeId, orderSeq, requested, baseOn, type, senderUid);
+        ServeSellableBehavior.Send(fsm.RuntimeId, orderSeq, requested, baseOn, type, senderUid);
 
         return true;
     }
@@ -866,7 +866,7 @@ public partial class GuestFSM
             {
                 fsm.WillServeFood = null;
                 fsm.WillServeBeverage = null;
-                EvaluateOrderAction.Send(fsm.RuntimeId, controller.AllOrdersCount, order.ServFood, order.ServBeverage, evalResult);
+                EvaluateOrderBehavior.Send(fsm.RuntimeId, controller.AllOrdersCount, order.ServFood, order.ServBeverage, evalResult);
                 fsm.To(State.Evaluating);
                 return true;
             }
@@ -923,7 +923,7 @@ public partial class GuestFSM
         if (fsm == null) return;
         if (fsm.CurrentState == State.WaitingServe)
         {
-            ConfirmServeAction.Send(fsm.RuntimeId, controller.AllOrdersCount, food, beverage);
+            ConfirmServeBehavior.Send(fsm.RuntimeId, controller.AllOrdersCount, food, beverage);
             fsm.WillServeFood = null;
             fsm.WillServeBeverage = null;
         }
@@ -968,7 +968,7 @@ public partial class GuestFSM
             }
 
             // 无冲突 => 接受客机的上菜确认，更新状态并广播，然后更新本地状态
-            ConfirmServeAction.Send(fsm.RuntimeId, orderSeq, food, beverage, senderUid);
+            ConfirmServeBehavior.Send(fsm.RuntimeId, orderSeq, food, beverage, senderUid);
         }
 
 
@@ -1069,7 +1069,7 @@ public partial class GuestFSM
         if (fsm.CurrentState == State.Queued)
         {
             FlowLog($"Guest #{fsm.RuntimeId} patient depleted in queue, FSM: Queued -> Leaving");
-            PatientDepletedQueueAction.Send(fsm.RuntimeId);
+            PatientDepletedQueueBehavior.Send(fsm.RuntimeId);
             fsm.To(State.Leaving);
             return;
         }
@@ -1101,7 +1101,7 @@ public partial class GuestFSM
         if (fsm.CurrentState == State.WaitingServe)
         {
             FlowLog($"Guest #{fsm.RuntimeId} patient depleted at desk, FSM: WaitingServe -> Leaving");
-            PatientDepletedDeskAction.Send(fsm.RuntimeId);
+            PatientDepletedDeskBehavior.Send(fsm.RuntimeId);
             fsm.To(State.Leaving);
             return;
         }
@@ -1142,7 +1142,7 @@ public partial class GuestFSM
         FlowLog($"Guest #{fsm.RuntimeId} OnLeaveFromDesk from {fsm.CurrentState}, leaveType={leaveType}, triggerLeaveBuff={triggerLeaveBuff}, broadcast={broadcast}");
         if (broadcast)
         {
-            GuestLeaveAction.Send(fsm.RuntimeId, leaveType, triggerLeaveBuff);
+            GuestLeaveBehavior.Send(fsm.RuntimeId, leaveType, triggerLeaveBuff);
         }
         fsm.To(State.Left);
     }
@@ -1199,7 +1199,7 @@ public partial class GuestFSM
 
         if (MpManager.IsRoomHost)
         {
-            GuestKillAction.Send(rid, stateBefore, Controller?.DeskCode ?? -1);
+            GuestKillBehavior.Send(rid, stateBefore, Controller?.DeskCode ?? -1);
         }
 
         To(State.Dead);

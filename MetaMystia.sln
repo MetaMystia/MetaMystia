@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia", "MetaMystia.cs
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Generators", "MetaMystia.Generators\MetaMystia.Generators.csproj", "{2B487D42-7871-44B4-81FF-8035896B3700}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Protocol", "MetaMystia.Protocol\MetaMystia.Protocol.csproj", "{7E50E5B8-9D28-4F4F-A50C-F5CB1C7E4B8B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{2B487D42-7871-44B4-81FF-8035896B3700}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B487D42-7871-44B4-81FF-8035896B3700}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B487D42-7871-44B4-81FF-8035896B3700}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E50E5B8-9D28-4F4F-A50C-F5CB1C7E4B8B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E50E5B8-9D28-4F4F-A50C-F5CB1C7E4B8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E50E5B8-9D28-4F4F-A50C-F5CB1C7E4B8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E50E5B8-9D28-4F4F-A50C-F5CB1C7E4B8B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

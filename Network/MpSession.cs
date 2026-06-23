@@ -28,25 +28,43 @@ public enum RoomRole
 
 public sealed class MpSession
 {
+    public const ushort DirectRoomId = MpConstants.DirectRoomId;
+    public const ushort PublicRoomId = MpConstants.PublicRoomId;
+
     public TransportKind TransportKind { get; private set; } = TransportKind.None;
     public SyncScope SyncScope { get; private set; } = SyncScope.None;
     public RoomRole RoomRole { get; private set; } = RoomRole.None;
-    public string RoomId { get; private set; } = "";
+    public bool IsConnecting { get; private set; }
+    public ushort RoomId { get; private set; } = PublicRoomId;
     public int HostUid { get; private set; } = MpConstants.UnassignedUid;
 
-    public bool IsOnline => TransportKind != TransportKind.None;
+    public bool IsOnline => TransportKind != TransportKind.None && !IsConnecting;
     public bool IsInPublicScope => SyncScope == SyncScope.Public;
     public bool IsInRoom => SyncScope == SyncScope.Room;
     public bool IsRoomHost => IsInRoom && RoomRole == RoomRole.Host;
     public bool IsRoomClient => IsInRoom && RoomRole == RoomRole.Client;
     public bool IsRelay => TransportKind == TransportKind.RelayClient;
+    public string RoomIdHex => FormatRoomId(RoomId);
+
+    public static string FormatRoomId(ushort roomId) => $"{roomId:X4}";
 
     public void Reset()
     {
         TransportKind = TransportKind.None;
         SyncScope = SyncScope.None;
         RoomRole = RoomRole.None;
-        RoomId = "";
+        IsConnecting = false;
+        RoomId = PublicRoomId;
+        HostUid = MpConstants.UnassignedUid;
+    }
+
+    public void BeginConnecting(TransportKind transportKind)
+    {
+        TransportKind = transportKind;
+        SyncScope = SyncScope.None;
+        RoomRole = RoomRole.None;
+        IsConnecting = true;
+        RoomId = PublicRoomId;
         HostUid = MpConstants.UnassignedUid;
     }
 
@@ -55,7 +73,8 @@ public sealed class MpSession
         TransportKind = TransportKind.DirectHost;
         SyncScope = SyncScope.Room;
         RoomRole = RoomRole.Host;
-        RoomId = "direct";
+        IsConnecting = false;
+        RoomId = DirectRoomId;
         HostUid = MpConstants.HostUid;
     }
 
@@ -64,7 +83,8 @@ public sealed class MpSession
         TransportKind = TransportKind.DirectClient;
         SyncScope = SyncScope.Room;
         RoomRole = RoomRole.Client;
-        RoomId = "direct";
+        IsConnecting = false;
+        RoomId = DirectRoomId;
         // HostUid 由 HelloAck 下发；握手前保持 UnassignedUid。
         HostUid = MpConstants.UnassignedUid;
     }
@@ -78,16 +98,18 @@ public sealed class MpSession
         TransportKind = TransportKind.RelayClient;
         SyncScope = SyncScope.Public;
         RoomRole = RoomRole.None;
-        RoomId = "";
+        IsConnecting = false;
+        RoomId = PublicRoomId;
         HostUid = MpConstants.UnassignedUid;
     }
 
-    public void EnterRelayRoom(RoomRole roomRole, string roomId, int hostUid)
+    public void EnterRelayRoom(RoomRole roomRole, ushort roomId, int hostUid)
     {
         TransportKind = TransportKind.RelayClient;
         SyncScope = SyncScope.Room;
         RoomRole = roomRole;
-        RoomId = roomId ?? "";
+        IsConnecting = false;
+        RoomId = roomId;
         HostUid = hostUid;
     }
 

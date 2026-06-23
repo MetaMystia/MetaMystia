@@ -17,6 +17,6 @@ public partial class RunTimeAlbumPatch
         Log.Info($"Player skin changed to {skinSelectionInfo}");
         PlayerManager.Local.IsCustomSkinOverride = false;
         PlayerManager.InitLocalSkin();
-        PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+        PlayerChangeSkinBehavior.Send(PlayerManager.Local.Skin);
     }
 }

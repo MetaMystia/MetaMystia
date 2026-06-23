@@ -70,18 +70,18 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     /// <param name="uid">玩家 UID，由主机分配</param>
     /// <param name="incrementalDataBase">增量格式资源数据库，为 null 时使用本地资源</param>
-    public PeerPlayer(int uid, ResourceDataBase incrementalDataBase = null)
+    public PeerPlayer(int uid, ResourceDataBaseData incrementalDataBase = null)
     {
         Uid = uid;
         CharacterId = $"MetaMystia_{uid}";
         if (incrementalDataBase != null)
         {
             IncrementalDataBase = incrementalDataBase;
-            DataBase = ResourceDataBase.Expand(incrementalDataBase);
+            DataBase = ResourceDataBaseData.Expand(incrementalDataBase);
         }
         else
         {
-            DataBase = new ResourceDataBase().LoadResourceIds();
+            DataBase = new ResourceDataBaseData().LoadResourceIds();
         }
     }
 
@@ -118,6 +118,9 @@ public partial class PeerPlayer : NetPlayer
             Log.LogDebug($"SpawnForScene called in {scene}, skipping for '{CharacterId}'");
             return;
         }
+
+        if (IsUnitReady(unit))
+            return;
 
         CommandScheduler.RemoveKeyFromKeyQueue(SpawnCommandKey);
         bool visible = scene == Common.UI.Scene.WorkScene;
@@ -248,7 +251,8 @@ public partial class PeerPlayer : NetPlayer
 
     public void OnFixedUpdate()
     {
-        if (MpManager.ShouldSkipAction) return;
+        // 公域 DayScene 也要做位置插值（MoveSync 是 PublicRelay）；仅在剧情中跳过。
+        if (MpManager.InStory) return;
 
         var unit = GetCharacterUnit();
         if (unit == null) return;
@@ -283,15 +287,22 @@ public partial class PeerPlayer : NetPlayer
     #region 网络同步
 
     /// <summary>
-    /// DayScene 同步：接收对端的地图、奔跑、方向、位置
+    /// DayScene 同步：接收对端的地图、奔跑、方向、位置。
+    /// 角色创建由场景切换驱动（OnSceneTransit → PlayerManager.Spawn*），SyncFromPeer 不再触发 spawn；
+    /// 若 unit 尚未就绪则缓存状态，等角色 spawn 完成后由下一次 sync 应用。
     /// </summary>
     public void SyncFromPeer(MapLabel mapLabel, bool isSprinting, float speed, Vector2 inputDirection, Vector2 position)
     {
         if (unit == null)
         {
-            Log.LogWarning($"SyncFromPeer: character '{CharacterId}' not found, spawning");
-            SpawnForScene();
-            return; // 等待下一次 sync，SpawnForScene 是异步的
+            if (firstSync)
+            {
+                MapLabel = mapLabel;
+                Speed = speed;
+                IsSprinting = isSprinting;
+                InputDirection = inputDirection;
+            }
+            return;
         }
 
         if (firstSync)

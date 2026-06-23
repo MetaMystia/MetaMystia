@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -30,13 +31,32 @@ public static partial class PlayerManager
     public static ConcurrentDictionary<int, PeerPlayer> PublicPeers { get; } = new();
 
     /// <summary>
+    /// 单一远程玩家表。Peers / PublicPeers 仅是按当前本地房间投影出的兼容索引。
+    /// </summary>
+    public static ConcurrentDictionary<int, PlayerRecord> PlayerTable { get; } = new();
+
+    /// <summary>
     /// 当前对端玩家（1v1 便捷访问，返回第一个 Peer）
     /// 多人场景下，调用方应遍历 Peers 集合
     /// </summary>
     public static PeerPlayer Peer => Peers.Values.FirstOrDefault();
 
-    public static bool TryGetVisiblePeer(int uid, out PeerPlayer peer) =>
-        Peers.TryGetValue(uid, out peer) || PublicPeers.TryGetValue(uid, out peer);
+    public static bool TryGetVisiblePeer(int uid, out PeerPlayer peer)
+    {
+        peer = null;
+        if (!PlayerTable.TryGetValue(uid, out var record)) return false;
+        peer = record.Player;
+        return peer != null;
+    }
+
+    public static bool TryGetRoomPeer(int uid, out PeerPlayer peer) =>
+        Peers.TryGetValue(uid, out peer);
+
+    public static bool TryGetRecord(int uid, out PlayerRecord record) =>
+        PlayerTable.TryGetValue(uid, out record);
+
+    public static bool IsSameRoom(ushort roomId) =>
+        MpManager.Session.IsInRoom && roomId == MpManager.Session.RoomId;
 
     /// <summary>
     /// 根据 UID 获取对端玩家显示名（直播模式下为 UID-{uid}）
@@ -189,30 +209,53 @@ public static partial class PlayerManager
     }
 
     /// <summary>
-    /// 为所有 Peer 生成角色（SpawnForScene）并重置运动插值状态。
-    /// 在 DayScene / WorkScene 开始时调用。
-    /// 同时为本地玩家创建头顶标签。
+    /// DayScene：为所有在线玩家（PlayerTable，含公域与房间）spawn 角色。
     /// </summary>
-    public static void SpawnPeers()
+    public static void SpawnAllOnlinePeers()
+    {
+        foreach (var record in PlayerTable.Values)
+        {
+            if (record.Player == null) continue;
+            record.Player.ResetMotion();
+            record.Player.SpawnForScene();
+        }
+        EnqueueLocalLabel();
+        Log.LogInfo($"PlayerManager online peers spawned (count: {PlayerTable.Count})");
+    }
+
+    /// <summary>
+    /// WorkScene：仅为本房间内 Peer（已携带资源）spawn 角色。
+    /// </summary>
+    public static void SpawnRoomPeers()
     {
         foreach (var peer in Peers.Values)
         {
             peer.ResetMotion();
             peer.SpawnForScene();
         }
-        foreach (var peer in PublicPeers.Values)
-        {
-            peer.ResetMotion();
-            peer.SpawnForScene();
-        }
-        // 为本地玩家也添加头顶标签（等 Local unit 初始化后）
+        EnqueueLocalLabel();
+        Log.LogInfo($"PlayerManager room peers spawned (peers: {Peers.Count})");
+    }
+
+    /// <summary>
+    /// 非 DayScene/WorkScene：销毁所有对端角色（保留 PlayerTable 记录）。
+    /// </summary>
+    public static void DespawnAllPeers()
+    {
+        foreach (var record in PlayerTable.Values)
+            record.Player?.DespawnCharacter();
+        UI.FloatingTextHelper.ClearAllLabels();
+        Log.LogInfo("PlayerManager all peer characters despawned");
+    }
+
+    private static void EnqueueLocalLabel()
+    {
         SgrYuki.CommandScheduler.Enqueue(
             executeWhen: () => Local.unit != null,
             execute: () => UI.FloatingTextHelper.SetPlayerLabel(
                 Local.Uid, LiveModeManager.GetDisplayName(Local.Uid), Local.unit.transform),
             timeoutSeconds: 30
         );
-        Log.LogInfo($"PlayerManager peers spawned (peers: {Peers.Count})");
     }
 
     /// <summary>
@@ -220,14 +263,9 @@ public static partial class PlayerManager
     /// </summary>
     public static bool IsPeerIdOnline(string peerId)
     {
-        foreach (var kvp in Peers)
+        foreach (var kvp in PlayerTable)
         {
-            if (string.Equals(kvp.Value.Id, peerId, System.StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-        foreach (var kvp in PublicPeers)
-        {
-            if (string.Equals(kvp.Value.Id, peerId, System.StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(kvp.Value.PeerId, peerId, System.StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;
@@ -236,47 +274,193 @@ public static partial class PlayerManager
     /// <summary>
     /// 握手成功后，根据对端 UID 创建并注册 PeerPlayer
     /// </summary>
-    public static PeerPlayer AddPeer(PlayerInfo info)
+    public static PeerPlayer AddPeer(PlayerInfoData info)
     {
-        // TODO: refactor
-        var uid = info.Uid;
-        var peerId = info.PeerId;
-        var skin = info.Skin;
-
-        PublicPeers.TryRemove(uid, out _);
-
-        if (Peers.TryGetValue(uid, out var existing))
+        return UpsertRoomMember(new RoomMember
         {
-            Log.LogWarning($"Peer with uid={uid} already exists (id='{existing.Id}'), replacing");
+            Uid = info.Uid,
+            PeerId = info.PeerId,
+            Role = info.Uid == MpManager.Session.HostUid ? WireRoomRole.Host : WireRoomRole.Client,
+            Scene = MpManager.LocalScene.ToWire(),
+            Skin = info.Skin,
+            Resources = info.IncrementalDataBase,
+        }, MpManager.Session.RoomId);
+    }
+
+    public static PeerPlayer AddPublicPeer(PlayerInfoData info)
+    {
+        return UpsertPresence(new PlayerPresenceAction
+        {
+            Uid = info.Uid,
+            PeerId = info.PeerId,
+            RoomId = MpConstants.PublicRoomId,
+            Scene = MpManager.LocalScene.ToWire(),
+            Skin = info.Skin,
+        });
+    }
+
+    public static void LoadSummaries(PlayerSummary[] summaries)
+    {
+        ClearPeers();
+        if (summaries == null) return;
+        foreach (var summary in summaries)
+            UpsertSummary(summary);
+
+        // 进入公域时收到 PlayerSummary 列表：若已在 DayScene/WorkScene，为所有可可视玩家 spawn 角色。
+        if (MpManager.LocalScene is Common.UI.Scene.DayScene or Common.UI.Scene.WorkScene)
+        {
+            foreach (var record in PlayerTable.Values)
+            {
+                if (record.Player == null) continue;
+                bool sameScopeVisible = IsSameRoom(record.RoomId)
+                    || (MpManager.Session.IsInPublicScope && record.RoomId == MpConstants.PublicRoomId);
+                if (!sameScopeVisible) continue;
+                record.Player.ResetMotion();
+                record.Player.SpawnForScene();
+            }
+            EnqueueLocalLabel();
         }
-        var peer = new PeerPlayer(uid, info.IncrementalDataBase) { Id = peerId };
-        if (skin != null) peer.Skin = skin;
-        peer.ResetState();
-        peer.IsDayOver = info.IsDayOver;
-        peer.IsPrepOver = info.IsPrepOver;
-        peer.ResetMotion();
-        Peers[uid] = peer;
-        Log.LogMessage($"Added peer '{peerId}' (uid={uid}, characterId='{peer.CharacterId}')");
+    }
+
+    public static PeerPlayer UpsertSummary(PlayerSummary summary)
+    {
+        if (summary == null || summary.Uid == Local.Uid) return null;
+        var record = GetOrCreateRecord(summary.Uid);
+        record.PeerId = summary.PeerId ?? "";
+        record.RoomId = summary.RoomId;
+        record.Scene = summary.Scene;
+        record.Skin = summary.Skin ?? new PlayerSkinData();
+        record.Role = summary.Role;
+        record.Player = CreateOrUpdatePeer(record, null);
+        RefreshIndexesFor(record);
+        return record.Player;
+    }
+
+    public static PeerPlayer UpsertPresence(PlayerPresenceAction presence)
+    {
+        if (presence == null || presence.Uid == Local.Uid) return null;
+        var record = GetOrCreateRecord(presence.Uid);
+        bool wasInRoom = Peers.ContainsKey(presence.Uid);
+        bool roomChanged = record.RoomId != presence.RoomId;
+        record.PeerId = presence.PeerId ?? "";
+        record.RoomId = presence.RoomId;
+        record.Scene = presence.Scene;
+        record.Skin = presence.Skin ?? new PlayerSkinData();
+        if (roomChanged)
+            record.Resources = null;
+        if (presence.RoomId == MpConstants.PublicRoomId)
+            record.Role = WireRoomRole.None;
+        record.Player = CreateOrUpdatePeer(record, null);
+        RefreshIndexesFor(record);
+        if (wasInRoom && !IsSameRoom(record.RoomId))
+            HidePeer(presence.Uid);
+        return record.Player;
+    }
+
+    public static PeerPlayer UpsertRoomMember(RoomMember member, ushort roomId)
+    {
+        if (member == null || member.Uid == Local.Uid) return null;
+        var record = GetOrCreateRecord(member.Uid);
+        record.PeerId = member.PeerId ?? "";
+        record.RoomId = roomId;
+        record.Scene = member.Scene;
+        record.Skin = member.Skin ?? new PlayerSkinData();
+        record.Resources = member.Resources;
+        record.Role = member.Role;
+        record.Player = CreateOrUpdatePeer(record, member.Resources);
+        RefreshIndexesFor(record);
+        Log.LogMessage($"Upserted room peer '{record.PeerId}' (uid={record.Uid}, room={MpSession.FormatRoomId(record.RoomId)}, characterId='{record.Player.CharacterId}')");
+        return record.Player;
+    }
+
+    public static PlayerSummary LocalSummary(WireRoomRole role)
+    {
+        return new PlayerSummary
+        {
+            Uid = Local.Uid,
+            PeerId = Local.Id,
+            RoomId = MpManager.Session.RoomId,
+            Scene = MpManager.LocalScene.ToWire(),
+            Skin = Local.Skin,
+            Role = role,
+        };
+    }
+
+    public static PlayerSummary SummaryFromPeer(NetPlayer player, ushort roomId, WireRoomRole role, WireScene scene)
+    {
+        return new PlayerSummary
+        {
+            Uid = player.Uid,
+            PeerId = player.Id,
+            RoomId = roomId,
+            Scene = scene,
+            Skin = player.Skin,
+            Role = role,
+        };
+    }
+
+    public static RoomMember RoomMemberFromPeer(NetPlayer player, WireRoomRole role, WireScene scene)
+    {
+        return new RoomMember
+        {
+            Uid = player.Uid,
+            PeerId = player.Id,
+            Role = role,
+            Scene = scene,
+            Skin = player.Skin,
+            Resources = player.IncrementalDataBase,
+        };
+    }
+
+    public static RoomMember LocalRoomMember(WireRoomRole role)
+    {
+        return new RoomMember
+        {
+            Uid = Local.Uid,
+            PeerId = Local.Id,
+            Role = role,
+            Scene = MpManager.LocalScene.ToWire(),
+            Skin = Local.Skin,
+            Resources = Local.IncrementalDataBase,
+        };
+    }
+
+    private static PlayerRecord GetOrCreateRecord(int uid) =>
+        PlayerTable.GetOrAdd(uid, static key => new PlayerRecord { Uid = key });
+
+    private static PeerPlayer CreateOrUpdatePeer(PlayerRecord record, ResourceDataBaseData resources)
+    {
+        var peer = record.Player;
+        if (peer == null)
+        {
+            peer = new PeerPlayer(record.Uid, resources) { Id = record.PeerId };
+            peer.ResetState();
+            peer.ResetMotion();
+        }
+        else
+        {
+            peer.Id = record.PeerId;
+            if (resources != null)
+            {
+                peer.IncrementalDataBase = resources;
+                peer.DataBase = ResourceDataBaseData.Expand(resources);
+            }
+        }
+        if (record.Skin != null) peer.Skin = record.Skin;
         return peer;
     }
 
-    public static PeerPlayer AddPublicPeer(PlayerInfo info)
+    private static void RefreshIndexesFor(PlayerRecord record)
     {
-        var uid = info.Uid;
-        var peerId = info.PeerId;
-        if (Peers.ContainsKey(uid))
-        {
-            Log.LogInfo($"Public peer '{peerId}' (uid={uid}) is already in room peers, skipping public registration");
-            return Peers[uid];
-        }
+        if (record.Player == null) return;
 
-        var peer = new PeerPlayer(uid, info.IncrementalDataBase) { Id = peerId };
-        if (info.Skin != null) peer.Skin = info.Skin;
-        peer.ResetState();
-        peer.ResetMotion();
-        PublicPeers[uid] = peer;
-        Log.LogMessage($"Added public peer '{peerId}' (uid={uid}, characterId='{peer.CharacterId}')");
-        return peer;
+        PublicPeers.TryRemove(record.Uid, out _);
+        Peers.TryRemove(record.Uid, out _);
+
+        if (IsSameRoom(record.RoomId) && record.HasResources)
+            Peers[record.Uid] = record.Player;
+        else
+            PublicPeers[record.Uid] = record.Player;
     }
 
     /// <summary>
@@ -315,7 +499,11 @@ public static partial class PlayerManager
     /// </summary>
     public static void HidePeer(int uid)
     {
-        if (Peers.TryGetValue(uid, out var peer) || PublicPeers.TryGetValue(uid, out peer))
+        if (PlayerTable.TryGetValue(uid, out var record))
+        {
+            record.Player?.DespawnCharacter();
+        }
+        else if (Peers.TryGetValue(uid, out var peer) || PublicPeers.TryGetValue(uid, out peer))
             peer.DespawnCharacter();
         UI.FloatingTextHelper.RemovePlayerLabel(uid);
     }
@@ -326,17 +514,14 @@ public static partial class PlayerManager
     public static bool RemovePeer(int uid)
     {
         HidePeer(uid);
-        if (Peers.TryRemove(uid, out var peer))
+        Peers.TryRemove(uid, out var roomPeer);
+        PublicPeers.TryRemove(uid, out var publicPeer);
+        if (PlayerTable.TryRemove(uid, out var record))
         {
-            Log.LogMessage($"Removed peer '{peer.Id}' (uid={uid})");
+            Log.LogMessage($"Removed peer '{record.PeerId}' (uid={uid})");
             return true;
         }
-        if (PublicPeers.TryRemove(uid, out peer))
-        {
-            Log.LogMessage($"Removed public peer '{peer.Id}' (uid={uid})");
-            return true;
-        }
-        return false;
+        return roomPeer != null || publicPeer != null;
     }
 
     /// <summary>
@@ -349,6 +534,7 @@ public static partial class PlayerManager
         foreach (var peer in PublicPeers.Values)
             peer.DespawnCharacter();
         UI.FloatingTextHelper.ClearAllLabels();
+        PlayerTable.Clear();
         Peers.Clear();
         PublicPeers.Clear();
         Log.LogMessage($"All peers cleared");
@@ -363,9 +549,37 @@ public static partial class PlayerManager
         {
             kvp.Value.DespawnCharacter();
             UI.FloatingTextHelper.RemovePlayerLabel(kvp.Key);
+            if (PlayerTable.TryGetValue(kvp.Key, out var record))
+                record.Resources = null;
         }
         Peers.Clear();
+        RebuildIndexes();
         Log.LogMessage("Room peers cleared");
+    }
+
+    public static void SyncRoomPeersBeforeAssign(ushort roomId, IEnumerable<int> memberUids)
+    {
+        var incoming = new HashSet<int>(memberUids ?? []);
+        foreach (var kvp in Peers)
+        {
+            if (incoming.Contains(kvp.Key))
+                continue;
+
+            kvp.Value.DespawnCharacter();
+            UI.FloatingTextHelper.RemovePlayerLabel(kvp.Key);
+            if (PlayerTable.TryGetValue(kvp.Key, out var record) && record.RoomId == roomId)
+                record.Resources = null;
+        }
+        RebuildIndexes();
+        Log.LogMessage($"Room peer roster synced (room={MpSession.FormatRoomId(roomId)}, members={incoming.Count})");
+    }
+
+    public static void RebuildIndexes()
+    {
+        Peers.Clear();
+        PublicPeers.Clear();
+        foreach (var record in PlayerTable.Values)
+            RefreshIndexesFor(record);
     }
 
     #endregion
@@ -373,18 +587,15 @@ public static partial class PlayerManager
     #region FixedUpdate
 
     /// <summary>
-    /// 在 FixedUpdate 中为所有 Peer 执行位置修正
+    /// 在 FixedUpdate 中为所有 Peer 执行位置修正。
+    /// 房间内 Peers 与公域 PublicPeers 都参与；同一 uid 不会同时存在于两个集合。
     /// </summary>
     public static void OnFixedUpdate()
     {
         foreach (var peer in Peers.Values)
-        {
             peer.OnFixedUpdate();
-        }
         foreach (var peer in PublicPeers.Values)
-        {
             peer.OnFixedUpdate();
-        }
     }
 
     #endregion
@@ -405,8 +616,7 @@ public static partial class PlayerManager
         EnablePeerCollision(Peer?.GetCharacterUnit(), enable);
 
     public static bool IsPeerCharacter(string label) =>
-        Peers.Values.Any(p => p.CharacterId == label) ||
-        PublicPeers.Values.Any(p => p.CharacterId == label);
+        Peers.Values.Any(p => p.CharacterId == label);
 
     #endregion
 }

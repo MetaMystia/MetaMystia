@@ -66,7 +66,10 @@ public class Plugin : BasePlugin
 
         PatchRegistry.ApplyAll(harmony);
 
-        Network.Action.RegisterAllFormatter();
+        Network.NetAction.LocalUidProvider = static () => PlayerManager.Local.Uid;
+        Network.NetAction.TimeProvider = static () => Network.MpWire.NowMs;
+        Network.NetAction.RegisterAllFormatter();
+        Network.WireEnumMaps.AssertAligned();
 
         try
         {

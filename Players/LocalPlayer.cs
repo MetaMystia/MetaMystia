@@ -16,16 +16,15 @@ public partial class LocalPlayer : NetPlayer
 
     public override CharacterControllerUnit GetCharacterUnit()
     {
-        if (Common.SceneDirector.instance == null)
+        var director = Common.SceneDirector.Instance;
+        if (director == null)
         {
-            Log.LogWarning($"SceneDirector instance is null");
+            Log.LogWarning("SceneDirector.Instance is null");
             return null;
         }
-        if (Common.SceneDirector.Instance.characterCollection.TryGetValue("Self", out var characterUnit))
-        {
+        if (director.characterCollection.TryGetValue("Self", out var characterUnit))
             return characterUnit;
-        }
-        Log.LogWarning($"Cannot find character unit for 'Self'");
+        Log.LogWarning("Cannot find character unit for 'Self'");
         return null;
     }
 
