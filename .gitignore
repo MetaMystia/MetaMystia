@@ -10,6 +10,8 @@
 /LogGenerator/obj/
 /MetaMystia.Generators/bin/
 /MetaMystia.Generators/obj/
+/MetaMystia.Protocol/bin/
+/MetaMystia.Protocol/obj/
 
 /Assembly-CSharp/.vs/
 /Assembly-CSharp/obj/
@@ -25,3 +27,5 @@ copilot-instructions.md
 .github/memories/
 
 __pycache__
+
+.claude
