@@ -3,11 +3,11 @@ using MemoryPack;
 namespace MetaMystia.Network;
 
 /// <summary>
-/// 任何玩家 → 全体玩家：通告角色移动同步，主要是白天。
+/// 任何玩家 → 全体玩家：白天角色移动同步（公域可见）。
 /// </summary>
 [MemoryPackable]
 [NetAction.PublicRelay]
-public partial class MoveSyncAction : NetAction
+public partial class DayMoveSyncAction : NetAction
 {
     public float Vx { get; set; }
     public float Vy { get; set; }

@@ -3,27 +3,18 @@ using UnityEngine;
 namespace MetaMystia.Network;
 
 [NetActionBehavior]
-internal static class MoveSyncBehavior
+internal static class DayMoveSyncBehavior
 {
     public static void Send()
     {
-        if (!MpManager.IsConnected)
-            return;
-        if (MpManager.LocalScene != Common.UI.Scene.DayScene && MpManager.LocalScene != Common.UI.Scene.WorkScene)
+        if (!MpManager.IsConnected || MpManager.LocalScene != Common.UI.Scene.DayScene)
             return;
         if (!PlayerManager.CharacterSpawnedAndInitialized)
             return;
 
         var inputDirection = PlayerManager.LocalInputDirection;
         var position = PlayerManager.LocalPosition;
-
-        if (MpManager.LocalScene == Common.UI.Scene.WorkScene)
-        {
-            NightMoveSyncBehavior.Send();
-            return;
-        }
-
-        var action = new MoveSyncAction
+        new DayMoveSyncAction
         {
             IsSprinting = PlayerManager.LocalIsSprinting,
             Speed = PlayerManager.Local.Speed,
@@ -32,17 +23,16 @@ internal static class MoveSyncBehavior
             MapLabel = PlayerManager.LocalMapLabel,
             Px = position.x,
             Py = position.y
-        };
-        action.Enqueue(lowPriority: true);
+        }.Enqueue(lowPriority: true);
     }
 
     public static void Register(NetActionDispatcher dispatcher)
     {
-        dispatcher.Register<MoveSyncAction>(Handle,
+        dispatcher.Register<DayMoveSyncAction>(Handle,
             scene: Common.UI.Scene.DayScene);
     }
 
-    private static void Handle(MoveSyncAction action)
+    private static void Handle(DayMoveSyncAction action)
     {
         if (PlayerManager.PlayerTable.TryGetValue(action.SenderUid, out var peer))
         {

@@ -22,7 +22,7 @@ namespace MetaMystia.Network;
 [MemoryPackUnion((ushort)ActionType.PlayerChangeSkin, typeof(PlayerChangeSkinAction))]
 [MemoryPackUnion((ushort)ActionType.Message, typeof(MessageAction))]
 [MemoryPackUnion((ushort)ActionType.SceneTransit, typeof(SceneTransitAction))]
-[MemoryPackUnion((ushort)ActionType.MoveSync, typeof(MoveSyncAction))]
+[MemoryPackUnion((ushort)ActionType.DayMoveSync, typeof(DayMoveSyncAction))]
 [MemoryPackUnion((ushort)ActionType.NightMoveSync, typeof(NightMoveSyncAction))]
 [MemoryPackUnion((ushort)ActionType.DayReady, typeof(DayReadyAction))]
 [MemoryPackUnion((ushort)ActionType.DayAllReady, typeof(DayAllReadyAction))]

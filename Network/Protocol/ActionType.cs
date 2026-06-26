@@ -23,7 +23,7 @@ public enum ActionType : ushort
     PlayerChangeId,
     PlayerChangeSkin,
 
-    MoveSync,
+    DayMoveSync,
     NightMoveSync,
     SceneTransit,
 
