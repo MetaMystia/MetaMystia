@@ -19,7 +19,7 @@ internal static class PeerLeaveBehavior
 
     private static void Handle(PeerLeaveAction action)
     {
-        if (!PlayerManager.TryGetRecord(action.PeerUid, out _))
+        if (!PlayerManager.PlayerTable.ContainsKey(action.PeerUid))
             return;
 
         InGameConsole.ShowPassiveFromAnyThread(TextId.PeerLeft.Get(LiveModeManager.GetDisplayName(action.PeerUid)));

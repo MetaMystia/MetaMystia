@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using Common.UI;
 
@@ -152,25 +153,20 @@ public static partial class PlayerListPanel
         lines.Add((localLine, local.Uid));
 
         // Peers sorted by UID
-        var sorted = new System.Collections.Generic.SortedDictionary<int, PeerPlayer>(PlayerManager.Peers);
-        foreach (var kvp in sorted)
+        foreach (var peer in PlayerManager.Peers.OrderBy(p => p.Uid))
         {
-            var peer = kvp.Value;
             string line = FormatPlayer(
                 peer.Uid, peer.Id, scene,
                 needsGameplayData ? peer.MapLabel : MapLabel.Unknown,
                 needsGameplayData ? peer.Position : Vector2.zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
-                isSelf: false, isHost: kvp.Key == MpManager.Session.HostUid);
-            lines.Add((line, kvp.Key));
+                isSelf: false, isHost: peer.Uid == MpManager.Session.HostUid);
+            lines.Add((line, peer.Uid));
         }
 
-        var publicSorted = new System.Collections.Generic.SortedDictionary<int, PeerPlayer>(PlayerManager.PublicPeers);
-        foreach (var kvp in publicSorted)
+        foreach (var peer in PlayerManager.PublicPeers.OrderBy(p => p.Uid))
         {
-            if (PlayerManager.Peers.ContainsKey(kvp.Key)) continue;
-            var peer = kvp.Value;
             string line = FormatPlayer(
                 peer.Uid, peer.Id, Scene.EmptyScene,
                 MapLabel.Unknown,
@@ -179,7 +175,7 @@ public static partial class PlayerListPanel
                 MapLabel.Unknown, 0,
                 isSelf: false, isHost: false,
                 scopeTag: "Online");
-            lines.Add((line, kvp.Key));
+            lines.Add((line, peer.Uid));
         }
 
         return lines;

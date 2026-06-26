@@ -25,9 +25,9 @@ internal static class PlayerChangeIdBehavior
             Plugin.Instance?.Log.LogWarning($"Invalid PlayerChangeId from uid={action.SenderUid}, ignoring");
             return;
         }
-        if (PlayerManager.PlayerTable.Values.Any(record =>
-                record.Uid != action.SenderUid &&
-                string.Equals(record.PeerId, action.NewPlayerId, System.StringComparison.OrdinalIgnoreCase)))
+        if (PlayerManager.PlayerTable.Values.Any(p =>
+                p.Uid != action.SenderUid &&
+                string.Equals(p.Id, action.NewPlayerId, System.StringComparison.OrdinalIgnoreCase)))
         {
             Plugin.Instance?.Log.LogWarning($"Duplicate PlayerChangeId '{action.NewPlayerId}' from uid={action.SenderUid}, ignoring");
             return;
@@ -38,8 +38,6 @@ internal static class PlayerChangeIdBehavior
 
         var oldId = peer.Id;
         peer.Id = action.NewPlayerId;
-        if (PlayerManager.TryGetRecord(action.SenderUid, out var record))
-            record.PeerId = action.NewPlayerId;
         var oldDisplay = LiveModeManager.IsActive ? LiveModeManager.FormatUid(action.SenderUid) : oldId;
         var newDisplay = LiveModeManager.IsActive ? LiveModeManager.FormatUid(action.SenderUid) : action.NewPlayerId;
         InGameConsole.ShowPassiveFromAnyThread(TextId.PeerPlayerIdChanged.Get(oldDisplay, newDisplay));

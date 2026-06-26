@@ -26,6 +26,35 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     public int CharacterModelId { get; set; } = 14;
 
+    #region 房间/同步域状态（取代旧 PlayerRecord，由 PlayerManager.Upsert* 维护）
+
+    /// <summary>对端所在房间号（绝对值，本地据此推导同房关系）。</summary>
+    public ushort RoomId { get; set; } = MpConstants.PublicRoomId;
+
+    /// <summary>对端当前场景（游戏原生枚举；WireScene 仅在收发边界转换）。</summary>
+    public Common.UI.Scene Scene { get; set; }
+
+    /// <summary>对端房间角色。</summary>
+    public WireRoomRole Role { get; set; } = WireRoomRole.None;
+
+    /// <summary>是否已加载房间层资源表（公域简表玩家为 false）。</summary>
+    public bool HasResources { get; set; }
+
+    /// <summary>应用房间层增量资源表（来自 RoomMember）。null 表示降级为无资源（退房/公域）。</summary>
+    public void ApplyResources(ResourceDataBaseData incremental)
+    {
+        if (incremental == null)
+        {
+            HasResources = false;
+            return;
+        }
+        IncrementalDataBase = incremental;
+        DataBase = ResourceDataBaseData.Expand(incremental);
+        HasResources = true;
+    }
+
+    #endregion
+
     public bool IsSameMapAsLocal => MapLabel == LocalPlayer.CurrentMapLabel;
 
     private static bool IsUnitReady(CharacterControllerUnit u) =>
@@ -63,23 +92,15 @@ public partial class PeerPlayer : NetPlayer
     private readonly float FAR_POS = 40815f;
 
     /// <summary>
-    /// 构造函数，接受玩家 UID 和可选的增量资源数据库（自动展开并缓存）
+    /// 构造对端玩家。资源表默认回落本地资源 ID（HasResources=false）；
+    /// 房间层资源由 <see cref="ApplyResources"/> 在收到 RoomMember 时补齐。
     /// </summary>
-    /// <param name="uid">玩家 UID，由主机分配</param>
-    /// <param name="incrementalDataBase">增量格式资源数据库，为 null 时使用本地资源</param>
-    public PeerPlayer(int uid, ResourceDataBaseData incrementalDataBase = null)
+    /// <param name="uid">玩家 UID，由端点分配</param>
+    public PeerPlayer(int uid)
     {
         Uid = uid;
         CharacterId = $"MetaMystia_{uid}";
-        if (incrementalDataBase != null)
-        {
-            IncrementalDataBase = incrementalDataBase;
-            DataBase = ResourceDataBaseData.Expand(incrementalDataBase);
-        }
-        else
-        {
-            DataBase = new ResourceDataBaseData().LoadResourceIds();
-        }
+        DataBase = new ResourceDataBaseData().LoadResourceIds();
     }
 
     public override void ResetState()
@@ -193,7 +214,7 @@ public partial class PeerPlayer : NetPlayer
         if (collection != null && collection.TryGetValue("Self", out var selfUnit) && IsUnitReady(selfUnit))
             Physics2D.IgnoreCollision(unit.cl2d, selfUnit.cl2d, ignore);
 
-        foreach (var peer in PlayerManager.Peers.Values)
+        foreach (var peer in PlayerManager.Peers)
         {
             if (peer == this || !IsUnitReady(peer.unit)) continue;
             Physics2D.IgnoreCollision(unit.cl2d, peer.unit.cl2d, ignore);

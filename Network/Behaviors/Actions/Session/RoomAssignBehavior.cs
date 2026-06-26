@@ -37,13 +37,8 @@ internal static class RoomAssignBehavior
         {
             PlayerManager.RoomMemberFromPeer(PlayerManager.Local, WireRoomRole.Host, MpManager.LocalScene.ToWire())
         };
-        foreach (var peer in PlayerManager.Peers.Values)
-        {
-            var scene = PlayerManager.TryGetRecord(peer.Uid, out var record)
-                ? record.Scene
-                : MpManager.LocalScene.ToWire();
-            members.Add(PlayerManager.RoomMemberFromPeer(peer, WireRoomRole.Client, scene));
-        }
+        foreach (var peer in PlayerManager.Peers)
+            members.Add(PlayerManager.RoomMemberFromPeer(peer, WireRoomRole.Client, peer.Scene.ToWire()));
         return members.ToArray();
     }
 

@@ -17,8 +17,6 @@ internal static class PlayerChangeSkinBehavior
             return;
 
         peer.Skin = action.Skin;
-        if (PlayerManager.TryGetRecord(action.SenderUid, out var record))
-            record.Skin = action.Skin;
         peer.UpdateCharacterSprite();
 
         if (!string.IsNullOrEmpty(action.Skin?.NetSkinName))

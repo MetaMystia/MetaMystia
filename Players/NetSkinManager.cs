@@ -296,7 +296,7 @@ public static partial class NetSkinManager
     {
         if (PlayerManager.Local?.Skin?.NetSkinName == name)
             PlayerManager.Local.UpdateCharacterSprite();
-        foreach (var peer in PlayerManager.Peers.Values)
+        foreach (var peer in PlayerManager.Peers)
         {
             if (peer?.Skin?.NetSkinName == name)
                 peer.UpdateCharacterSprite();

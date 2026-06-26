@@ -30,13 +30,13 @@ internal static class PlayerPresenceBehavior
         if (action.Uid == PlayerManager.Local.Uid)
             return;
 
-        bool wasRoomPeer = PlayerManager.Peers.ContainsKey(action.Uid);
+        bool wasRoomPeer = PlayerManager.IsRoomPeer(action.Uid);
         PlayerManager.UpsertPresence(action);
 
         // 非 DayScene 仅更新 PlayerTable；DayScene 尝试创建 NPC。
         PlayerManager.TryEnsureDayScenePeer(action.Uid);
 
-        if (wasRoomPeer && !PlayerManager.Peers.ContainsKey(action.Uid))
+        if (wasRoomPeer && !PlayerManager.IsRoomPeer(action.Uid))
             InGameConsole.ShowPassiveFromAnyThread(
                 TextId.PeerLeft.Get(LiveModeManager.GetDisplayName(action.Uid, action.PeerId)));
     }

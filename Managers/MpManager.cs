@@ -56,7 +56,7 @@ public static partial class MpManager
     public static long TimeOffset { get => MpWire.TimeOffsetMs; set => MpWire.TimeOffsetMs = value; }
     public static long GetSynchronizedTimestampNow => MpWire.SyncedNowMs;
 
-    public static int ConnectedPlayersCount => PlayerManager.Peers.Count;
+    public static int ConnectedPlayersCount => PlayerManager.Peers.Count();
     public static int AllPlayersCount => ConnectedPlayersCount + 1;
     public static int OnlinePlayersCount => PlayerManager.PlayerTable.Count + 1;
 
@@ -218,7 +218,7 @@ public static partial class MpManager
     {
         if (!IsRoomHost) return;
         disconnectedName ??= $"uid={disconnectedUid}";
-        bool hasPeers = !PlayerManager.Peers.IsEmpty;
+        bool hasPeers = PlayerManager.Peers.Any();
         switch (LocalScene)
         {
             case Common.UI.Scene.DayScene when LocalIsDayOver:
@@ -245,8 +245,8 @@ public static partial class MpManager
         if (IsConnected)
         {
             status.AppendLine($"Ping: {LatencyDisplay} | Players: {AllPlayersCount}");
-            foreach (var kvp in PlayerManager.Peers)
-                status.AppendLine($"  Peer: {(kvp.Key == Session.HostUid ? "[S]" : "[C]")} {kvp.Value.Id} (uid={kvp.Key})");
+            foreach (var peer in PlayerManager.Peers)
+                status.AppendLine($"  Peer: {(peer.Uid == Session.HostUid ? "[S]" : "[C]")} {peer.Id} (uid={peer.Uid})");
         }
         else if (IsPublicConnected)
         {
@@ -268,7 +268,7 @@ public static partial class MpManager
                     return $"MP: {RoleTag} | {AllPlayersCount}Players | ping {LatencyDisplay}";
 
                 var peerNames = string.Join(", ",
-                    PlayerManager.Peers.Values.Select(p => LiveModeManager.GetDisplayName(p.Uid)));
+                    PlayerManager.Peers.Select(p => LiveModeManager.GetDisplayName(p.Uid)));
                 return $"MP: {RoleTag} uid={PlayerManager.Local.Uid} | {AllPlayersCount}Players | ping {LatencyDisplay} | {peerNames}";
             }
             if (IsPublicConnected)
@@ -304,11 +304,6 @@ public static partial class MpManager
         {
             Log.Message($"Transit to {newScene}, disconnecting peers");
             DisconnectPeer();
-        }
-        else if (!PlayerManager.Peers.IsEmpty)
-        {
-            PlayerManager.ClearPeers();
-            MoveSyncBehavior.Send();
         }
     }
 
@@ -363,7 +358,7 @@ public static partial class MpManager
     public static bool ContinueDay()
     {
         if (!IsRoomHost || LocalScene != Common.UI.Scene.DayScene || !LocalIsDayOver) return false;
-        foreach (var peer in PlayerManager.Peers.Values) peer.IsDayOver = true;
+        foreach (var peer in PlayerManager.Peers) peer.IsDayOver = true;
         DayAllReadyBehavior.Send();
         CommandScheduler.EnqueueWithNoCondition(() =>
         {
@@ -377,7 +372,7 @@ public static partial class MpManager
     {
         if (!IsRoomHost || (LocalScene != Common.UI.Scene.IzakayaPrepScene && LocalScene != Common.UI.Scene.WorkScene) || !LocalIsPrepOver)
             return false;
-        foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;
+        foreach (var peer in PlayerManager.Peers) peer.IsPrepOver = true;
         PrepAllReadyBehavior.Send();
         CommandScheduler.EnqueueWithNoCondition(IzakayaConfigPannelPatch.PrepOver);
         return true;

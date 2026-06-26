@@ -61,13 +61,7 @@ public static class LiveModeManager
     {
         FloatingTextHelper.UpdatePlayerLabel(PlayerManager.Local.Uid, GetDisplayName(PlayerManager.Local.Uid));
 
-        foreach (var kvp in PlayerManager.Peers)
-            FloatingTextHelper.UpdatePlayerLabel(kvp.Key, GetDisplayName(kvp.Key));
-
-        foreach (var kvp in PlayerManager.PublicPeers)
-        {
-            if (!PlayerManager.Peers.ContainsKey(kvp.Key))
-                FloatingTextHelper.UpdatePlayerLabel(kvp.Key, GetDisplayName(kvp.Key));
-        }
+        foreach (var peer in PlayerManager.PlayerTable.Values)
+            FloatingTextHelper.UpdatePlayerLabel(peer.Uid, GetDisplayName(peer.Uid));
     }
 }

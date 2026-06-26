@@ -18,14 +18,11 @@ internal static class HelloAckBehavior
                 WireRoomRole.Host,
                 MpManager.LocalScene.ToWire())
         };
-        foreach (var peer in PlayerManager.Peers.Values)
+        foreach (var peer in PlayerManager.Peers)
         {
-            var scene = PlayerManager.TryGetRecord(peer.Uid, out var record)
-                ? record.Scene
-                : MpManager.LocalScene.ToWire();
             ushort roomId = peer.Uid == clientUid ? MpConstants.PublicRoomId : MpConstants.DirectRoomId;
             var role = peer.Uid == clientUid ? WireRoomRole.None : WireRoomRole.Client;
-            players.Add(PlayerManager.SummaryFromPeer(peer, roomId, role, scene));
+            players.Add(PlayerManager.SummaryFromPeer(peer, roomId, role, peer.Scene.ToWire()));
         }
 
         new HelloAckAction

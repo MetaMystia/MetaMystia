@@ -101,10 +101,10 @@ public static class MpCommands
             if (MpManager.IsConnected)
             {
                 ctx.Log($"  {ConsoleFormat.Dim("Ping:")} {MpManager.LatencyDisplay} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Players:")} {MpManager.AllPlayersCount}/{ConfigManager.MaxPlayers.Value} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Scene:")} {MpManager.LocalScene}");
-                foreach (var kvp in PlayerManager.Peers)
+                foreach (var peer in PlayerManager.Peers)
                 {
-                    var role = kvp.Key == MpManager.Session.HostUid ? ConsoleFormat.Cmd("[S]") : ConsoleFormat.Dim("[C]");
-                    ctx.Log($"    {role} {ConsoleFormat.Arg(kvp.Value.Id)} {ConsoleFormat.Dim($"uid={kvp.Key}")}");
+                    var role = peer.Uid == MpManager.Session.HostUid ? ConsoleFormat.Cmd("[S]") : ConsoleFormat.Dim("[C]");
+                    ctx.Log($"    {role} {ConsoleFormat.Arg(peer.Id)} {ConsoleFormat.Dim($"uid={peer.Uid}")}");
                 }
             }
             else if (MpManager.IsPublicConnected)
@@ -249,14 +249,14 @@ public static class MpCommands
         kickIdCmd.SetHandler(ctx =>
         {
             if (!MpManager.IsRoomHost) { ctx.Log(TextId.MpKickHostOnly.Get()); return; }
-            if (PlayerManager.Peers.IsEmpty) { ctx.Log(TextId.MpKickNoTarget.Get()); return; }
+            if (!PlayerManager.Peers.Any()) { ctx.Log(TextId.MpKickNoTarget.Get()); return; }
             string name = ctx.ParseResult.GetValueForArgument(kickNameArg);
-            foreach (var kvp in PlayerManager.Peers)
+            foreach (var peer in PlayerManager.Peers)
             {
-                if (string.Equals(kvp.Value.Id, name, System.StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(peer.Id, name, System.StringComparison.OrdinalIgnoreCase))
                 {
-                    MpManager.DisconnectClient(kvp.Key);
-                    ctx.Log(TextId.MpKickSuccess.Get(kvp.Value.Id, kvp.Key));
+                    MpManager.DisconnectClient(peer.Uid);
+                    ctx.Log(TextId.MpKickSuccess.Get(peer.Id, peer.Uid));
                     return;
                 }
             }
@@ -270,10 +270,10 @@ public static class MpCommands
         kickUidCmd.SetHandler(ctx =>
         {
             if (!MpManager.IsRoomHost) { ctx.Log(TextId.MpKickHostOnly.Get()); return; }
-            if (PlayerManager.Peers.IsEmpty) { ctx.Log(TextId.MpKickNoTarget.Get()); return; }
+            if (!PlayerManager.Peers.Any()) { ctx.Log(TextId.MpKickNoTarget.Get()); return; }
             int uid = ctx.ParseResult.GetValueForArgument(kickUidArg);
             if (uid == PlayerManager.Local.Uid || uid == MpManager.Session.HostUid) { ctx.Log(TextId.MpKickSelf.Get()); return; }
-            if (PlayerManager.Peers.TryGetValue(uid, out var peer))
+            if (PlayerManager.TryGetRoomPeer(uid, out var peer))
             {
                 MpManager.DisconnectClient(uid);
                 ctx.Log(TextId.MpKickSuccess.Get(peer.Id, uid));
@@ -290,10 +290,10 @@ public static class MpCommands
         {
             ctx.Log(ConsoleFormat.SubCmd("/mp kick id", "<name>", TextId.MpDescKickId.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/mp kick uid", "<uid>", TextId.MpDescKickUid.Get()));
-            if (MpManager.IsRoomHost && !PlayerManager.Peers.IsEmpty)
+            if (MpManager.IsRoomHost && PlayerManager.Peers.Any())
             {
                 ctx.Log(ConsoleFormat.Dim("Online: " + string.Join(", ",
-                    PlayerManager.Peers.Select(p => $"{p.Value.Id}(uid={p.Key})"))));
+                    PlayerManager.Peers.Select(p => $"{p.Id}(uid={p.Uid})"))));
             }
         });
         mpCmd.AddCommand(kickCmd);
@@ -398,9 +398,9 @@ public static class MpCommands
         CommandRegistry.RegisterCompletions("mp ipv6", 0, "enable", "disable");
         CommandRegistry.RegisterCompletions("mp kick", 0, "id", "uid");
         CommandRegistry.RegisterDynamicCompletions("mp kick id", 0, () =>
-            PlayerManager.Peers.Values.Select(p => p.Id).ToArray());
+            PlayerManager.Peers.Select(p => p.Id).ToArray());
         CommandRegistry.RegisterDynamicCompletions("mp kick uid", 0, () =>
-            PlayerManager.Peers.Keys.Select(uid => uid.ToString()).ToArray());
+            PlayerManager.Peers.Select(p => p.Uid.ToString()).ToArray());
         CommandRegistry.RegisterHint("mp id", 0, "<player ID>");
         CommandRegistry.RegisterHint("mp connect", 0, "<IP address or IP:port>");
         CommandRegistry.RegisterHint("mp connect", 1, "<port>");

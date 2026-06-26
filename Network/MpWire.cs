@@ -193,7 +193,7 @@ public static partial class MpWire
             RejectBehavior.SendOnly(uid, RejectReason.KickedFromServer);
         FlushOutboundNow();
         _tcp?.DisconnectClient(uid);
-        if (PlayerManager.Peers.ContainsKey(uid))
+        if (PlayerManager.IsRoomPeer(uid))
             OnHostClientLeft(uid);
     }
 
@@ -389,7 +389,7 @@ public static partial class MpWire
 
     private static void OnHostClientLeft(int uid)
     {
-        if (PlayerManager.Peers.TryGetValue(uid, out var peer))
+        if (PlayerManager.TryGetRoomPeer(uid, out var peer))
         {
             var displayName = LiveModeManager.GetDisplayName(uid, peer.Id);
             InGameConsole.ShowPassiveFromAnyThread(TextId.PeerLeft.Get(displayName));

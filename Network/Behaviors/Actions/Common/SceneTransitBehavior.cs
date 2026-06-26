@@ -14,7 +14,7 @@ internal static class SceneTransitBehavior
     private static void Handle(SceneTransitAction action)
     {
         MpManager.PeerScene = action.Scene.ToGame();
-        if (PlayerManager.TryGetRecord(action.SenderUid, out var record))
-            record.Scene = action.Scene;
+        if (PlayerManager.TryGetVisiblePeer(action.SenderUid, out var peer))
+            peer.Scene = action.Scene.ToGame();
     }
 }
