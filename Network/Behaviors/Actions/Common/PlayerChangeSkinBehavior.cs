@@ -13,7 +13,7 @@ internal static class PlayerChangeSkinBehavior
 
     private static void Handle(PlayerChangeSkinAction action)
     {
-        if (!PlayerManager.TryGetVisiblePeer(action.SenderUid, out var peer))
+        if (!PlayerManager.PlayerTable.TryGetValue(action.SenderUid, out var peer))
             return;
 
         peer.Skin = action.Skin;

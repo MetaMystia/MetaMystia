@@ -44,7 +44,7 @@ internal static class MoveSyncBehavior
 
     private static void Handle(MoveSyncAction action)
     {
-        if (PlayerManager.TryGetVisiblePeer(action.SenderUid, out var peer))
+        if (PlayerManager.PlayerTable.TryGetValue(action.SenderUid, out var peer))
         {
             PlayerManager.TryEnsureDayScenePeer(action.SenderUid);
             peer.SyncFromPeer(

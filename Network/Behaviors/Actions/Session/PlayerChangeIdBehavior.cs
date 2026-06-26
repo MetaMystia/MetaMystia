@@ -33,7 +33,7 @@ internal static class PlayerChangeIdBehavior
             return;
         }
 
-        if (!PlayerManager.TryGetVisiblePeer(action.SenderUid, out var peer))
+        if (!PlayerManager.PlayerTable.TryGetValue(action.SenderUid, out var peer))
             return;
 
         var oldId = peer.Id;

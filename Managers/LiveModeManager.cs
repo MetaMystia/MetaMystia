@@ -21,7 +21,7 @@ public static class LiveModeManager
 
         if (uid == PlayerManager.Local.Uid)
             return GetLocalDisplayName();
-        if (PlayerManager.TryGetVisiblePeer(uid, out var peer))
+        if (PlayerManager.PlayerTable.TryGetValue(uid, out var peer))
             return peer.Id;
         if (!string.IsNullOrEmpty(peerIdFallback))
             return peerIdFallback;

@@ -29,7 +29,7 @@ internal static class MessageBehavior
         var senderName = PlayerManager.GetPeerName(action.SenderUid);
         InGameConsole.AddPeerMessage(senderName, action.Message);
         if (!LiveModeManager.SuppressFloatingChatBubbles
-            && PlayerManager.TryGetVisiblePeer(action.SenderUid, out var senderPeer)
+            && PlayerManager.PlayerTable.TryGetValue(action.SenderUid, out var senderPeer)
             && PlayerManager.LocalMapLabel == senderPeer.MapLabel)
         {
             FloatingTextHelper.ShowFloatingTextOnMainThread(

@@ -21,6 +21,8 @@ public static partial class PlayerManager
     /// </summary>
     public static LocalPlayer Local { get; } = new();
 
+    #region 玩家表
+
     /// <summary>
     /// 全程玩家全表
     /// </summary>
@@ -42,11 +44,18 @@ public static partial class PlayerManager
     /// </summary>
     public static PeerPlayer Peer => Peers.FirstOrDefault();
 
+    /// <summary>
+    /// 根据 UID 获取对端玩家显示名（直播模式下为 UID-{uid}）
+    /// </summary>
+    public static string GetPeerName(int uid) =>
+        LiveModeManager.GetDisplayName(uid);
+
+    #endregion
+
+    #region 房间相关
+
     private static bool InRoomScope(PeerPlayer peer) =>
         IsSameRoom(peer.RoomId) && peer.HasResources;
-
-    public static bool TryGetVisiblePeer(int uid, out PeerPlayer peer) =>
-        PlayerTable.TryGetValue(uid, out peer);
 
     public static bool TryGetRoomPeer(int uid, out PeerPlayer peer)
     {
@@ -61,11 +70,7 @@ public static partial class PlayerManager
     public static bool IsSameRoom(ushort roomId) =>
         MpManager.Session.IsInRoom && roomId == MpManager.Session.RoomId;
 
-    /// <summary>
-    /// 根据 UID 获取对端玩家显示名（直播模式下为 UID-{uid}）
-    /// </summary>
-    public static string GetPeerName(int uid) =>
-        LiveModeManager.GetDisplayName(uid);
+    #endregion
 
     #region Local 便捷属性
 
@@ -270,7 +275,7 @@ public static partial class PlayerManager
     {
         if (uid == Local.Uid || MpManager.LocalScene != Common.UI.Scene.DayScene)
             return;
-        if (!TryGetVisiblePeer(uid, out var peer) || peer.Scene != Common.UI.Scene.DayScene)
+        if (!PlayerTable.TryGetValue(uid, out var peer) || peer.Scene != Common.UI.Scene.DayScene)
             return;
         SpawnPeersForCurrentScene(new[] { peer });
     }
