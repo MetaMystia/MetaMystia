@@ -39,7 +39,7 @@ public partial class IzakayaSelectorPanelPatch
 
         Log.Info($"_OnGuideMapInitialize_b__21_0 called");
 
-        if (!MpManager.IsConnected)
+        if (!MpManager.IsRoomConnected)
         {
             Log.Info($"Not in multiplayer session, skipping patch");
             return RunOriginal;
@@ -58,7 +58,7 @@ public partial class IzakayaSelectorPanelPatch
 
         var mySelect = izakayaMapLabel.FormatIzakayaSelection(izakayaLevel);
 
-        if (MpManager.IsClient)
+        if (MpManager.IsRoomClient)
         {
             // 客机：发送 SELECT 后等待主机 CONFIRM，同时展示当前状态
             InGameConsole.ShowPassive(TextId.WaitingForHostConfirm.Get(mySelect));

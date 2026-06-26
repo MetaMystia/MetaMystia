@@ -54,7 +54,7 @@ public partial class UniversalGameManagerPatch
 
         // Log.LogInfo($"OpenDialogMenu called with dialogPackage: {dialogPackage?.name}");
 
-        if (!MpManager.IsConnected || dialogPackage?.name != "OnTransitionToNight") // dialogPackage 可能为空
+        if (!MpManager.IsRoomConnected || dialogPackage?.name != "OnTransitionToNight") // dialogPackage 可能为空
         {
             return RunOriginal;
         }
@@ -73,7 +73,7 @@ public partial class UniversalGameManagerPatch
     [HarmonyPrefix]
     public static void LoadScene_Prefix(Scene scene)
     {
-        if (MpManager.IsConnected)
+        if (MpManager.IsRoomConnected)
         {
             if (MpManager.LocalScene == Scene.DayScene && scene == Scene.WorkScene)
             {

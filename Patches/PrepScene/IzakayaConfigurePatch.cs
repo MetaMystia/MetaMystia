@@ -24,7 +24,7 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"RegisterToDailyRecipes: {id}");
 
-        if (MpManager.IsConnected && !PlayerManager.RecipeAvailable(id))
+        if (MpManager.IsRoomConnected && !PlayerManager.RecipeAvailable(id))
         {
             Log.LogWarning($"Peer does not have recipe {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerRecipeNotAvailable.Get(id));
@@ -41,7 +41,7 @@ public partial class IzakayaConfigurePatch
     public static bool RegisterToDailyBeverages_Prefix(int id)
     {
         Log.LogInfo($"RegisterToDailyBeverages: {id}");
-        if (MpManager.IsConnected && !PlayerManager.BeverageAvailable(id))
+        if (MpManager.IsRoomConnected && !PlayerManager.BeverageAvailable(id))
         {
             Log.LogWarning($"Peer does not have beverage {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerBeverageNotAvailable.Get(id));
@@ -64,7 +64,7 @@ public partial class IzakayaConfigurePatch
             return SkipOriginal;
         }
 
-        if (id != -1 && MpManager.IsConnected && !PlayerManager.CookerAvailable(id))
+        if (id != -1 && MpManager.IsRoomConnected && !PlayerManager.CookerAvailable(id))
         {
             Log.LogWarning($"Peer does not have cooker {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerCookerNotAvailable.Get(id));
@@ -121,7 +121,7 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"StoreFood: {sellable.Text.Name}");
         if (_skipPatchStoreFood) return;
-        if (!MpManager.IsConnected) return;
+        if (!MpManager.IsRoomConnected) return;
 
         var food = SellableFood.FromSellable(sellable);
         StoreFoodBehavior.Send(food);

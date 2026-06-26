@@ -870,8 +870,8 @@ public static partial class InGameConsole
             string displayMsg = LiveModeManager.MaskMessage(cmd);
             LogToConsole($"{localName}: {displayMsg}");
 
-            // Message 是 PublicRelay：公域大厅也应能发聊天，不能用 IsConnected（仅同房）。
-            if (MpManager.CanSeeOnlinePlayers)
+            // Message 是 PublicRelay：公域大厅也应能发聊天，IsConnected 已涵盖房间或公域连接。
+            if (MpManager.IsConnected)
                 MessageBehavior.Send(cmd);
 
             closeConsole = true;

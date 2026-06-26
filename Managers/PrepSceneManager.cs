@@ -20,7 +20,7 @@ public static partial class PrepSceneManager
 
     public static void Initialize()
     {
-        if (!MpManager.IsConnected)
+        if (!MpManager.IsRoomConnected)
         {
             return;
         }

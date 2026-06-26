@@ -7,7 +7,7 @@ internal static class NightMoveSyncBehavior
 {
     public static void Send()
     {
-        if (!MpManager.CanSeeOnlinePlayers || !MpManager.IsConnected || MpManager.LocalScene != Common.UI.Scene.WorkScene)
+        if (!MpManager.IsRoomConnected || MpManager.LocalScene != Common.UI.Scene.WorkScene)
             return;
         if (!PlayerManager.CharacterSpawnedAndInitialized)
             return;

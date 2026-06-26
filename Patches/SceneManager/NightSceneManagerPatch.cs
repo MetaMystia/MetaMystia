@@ -24,7 +24,7 @@ public static partial class NightSceneManagerPatch
         PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
 
-        if (!MpManager.CanSeeOnlinePlayers)
+        if (!MpManager.IsConnected)
         {
             return;
         }

@@ -96,9 +96,8 @@ public static class MpCommands
             ctx.Log(ConsoleFormat.Header("Multiplayer Status"));
             ctx.Log($"  {ConsoleFormat.Dim("Role:")} {ConsoleFormat.Cmd(MpManager.RoleName)} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("ID:")} {ConsoleFormat.Arg(MpManager.PlayerId)} {ConsoleFormat.Dim($"(uid={PlayerManager.Local.Uid})")}");
             ctx.Log($"  {ConsoleFormat.Dim("Transport:")} {MpManager.Session.TransportKind} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Scope:")} {MpManager.Session.SyncScope} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("RoomRole:")} {MpManager.Session.RoomRole} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Room:")} {MpManager.Session.RoomIdHex}");
-            bool connected = MpManager.IsConnected || MpManager.IsPublicConnected;
-            ctx.Log($"  {ConsoleFormat.Dim("Running:")} {(MpManager.IsRunning ? ConsoleFormat.Ok("Yes") : ConsoleFormat.Err("No"))} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Connected:")} {(connected ? ConsoleFormat.Ok("Yes") : ConsoleFormat.Err("No"))} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("IPv6:")} {(MpManager.EnableIPv6 ? ConsoleFormat.Ok("On") : ConsoleFormat.Dim("Off"))}");
-            if (MpManager.IsConnected)
+            ctx.Log($"  {ConsoleFormat.Dim("Running:")} {(MpManager.IsRunning ? ConsoleFormat.Ok("Yes") : ConsoleFormat.Err("No"))} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Connected:")} {(MpManager.IsConnected ? ConsoleFormat.Ok("Yes") : ConsoleFormat.Err("No"))} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("IPv6:")} {(MpManager.EnableIPv6 ? ConsoleFormat.Ok("On") : ConsoleFormat.Dim("Off"))}");
+            if (MpManager.IsRoomConnected)
             {
                 ctx.Log($"  {ConsoleFormat.Dim("Ping:")} {MpManager.LatencyDisplay} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Players:")} {MpManager.AllPlayersCount}/{ConfigManager.MaxPlayers.Value} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Scene:")} {MpManager.LocalScene}");
                 foreach (var peer in PlayerManager.Peers)
@@ -145,7 +144,7 @@ public static class MpCommands
             string address = ctx.ParseResult.GetValueForArgument(addressArg);
             int? port = ctx.ParseResult.GetValueForArgument(portArg);
 
-            if (MpManager.IsConnected)
+            if (MpManager.IsRoomConnected)
             {
                 ctx.Log(ConsoleFormat.Err(TextId.ConnectCommandConnected.Get(address)));
                 return;
@@ -310,7 +309,7 @@ public static class MpCommands
                 ctx.Log(TextId.MpMaxPlayersCurrent.Get(ConfigManager.MaxPlayers.Value));
                 return;
             }
-            if (!MpManager.IsRoomHost && MpManager.IsConnected)
+            if (!MpManager.IsRoomHost && MpManager.IsRoomConnected)
             {
                 ctx.Log(ConsoleFormat.Err(TextId.MpMaxPlayersHostOnly.Get()));
                 return;
@@ -354,7 +353,7 @@ public static class MpCommands
         {
             string action = ctx.ParseResult.GetValueForArgument(ipv6ActionArg);
             bool enable = action == "enable";
-            if (MpManager.IsConnectedServer)
+            if (MpManager.IsConnected)
             {
                 ctx.Log(ConsoleFormat.Err(TextId.MpIpv6RejectConnected.Get()));
                 return;

@@ -5,11 +5,9 @@ namespace MetaMystia.Network;
 [NetActionBehavior]
 internal static class MoveSyncBehavior
 {
-    // Also sends NightMoveSync while in WorkScene.
     public static void Send()
     {
-        // MoveSync 是 PublicRelay：公域/房间均可发送。CanSeeOnlinePlayers 已涵盖 IsInRoom || IsInPublicScope。
-        if (!MpManager.CanSeeOnlinePlayers)
+        if (!MpManager.IsConnected)
             return;
         if (MpManager.LocalScene != Common.UI.Scene.DayScene && MpManager.LocalScene != Common.UI.Scene.WorkScene)
             return;
@@ -46,7 +44,6 @@ internal static class MoveSyncBehavior
 
     private static void Handle(MoveSyncAction action)
     {
-        // MoveSync 是 PublicRelay：公域玩家也可见，不能只查 Peers（房间索引）。
         if (PlayerManager.TryGetVisiblePeer(action.SenderUid, out var peer))
         {
             PlayerManager.TryEnsureDayScenePeer(action.SenderUid);

@@ -153,7 +153,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool SpawnNormalGuestGroup_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
 
         if (MpManager.IsRoomHost)
         {
@@ -212,7 +212,7 @@ public partial class GuestsManagerPatch
         bool shouldFade,
         ref NormalGuestsController __result)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomClient)
         {
             __result = null;
@@ -275,7 +275,7 @@ public partial class GuestsManagerPatch
     public static bool SpawnSpecialGuestGroup_Prefix(ref int id, ref SpecialGuestsController __result)
     {
         if (IsReimuProtectionGuest(id)) return RunOriginal;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomClient)
         {
             __result = null;
@@ -323,7 +323,7 @@ public partial class GuestsManagerPatch
     public static void PostInitializeGuestGroup_Prefix(GuestGroupController initializedController)
     {
         if (IsReimuProtectionGuest(initializedController)) return;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             // 将主机生成的顾客信息广播给客机
@@ -351,7 +351,7 @@ public partial class GuestsManagerPatch
             return RunOriginal;
         }
 
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
 
         if (MpManager.IsRoomHost)
         {
@@ -390,7 +390,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool EvaluateOrder_Prefix(GuestGroupController toEvaluate)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
             return RunOriginal;
@@ -415,7 +415,7 @@ public partial class GuestsManagerPatch
     [HarmonyPostfix]
     public static void EvaluateOrder_Postfix(GuestGroupController toEvaluate, bool isTriggerByPartner)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             // 主机端直接记录评价结束，推进 Evaluating -> EatingDelay
@@ -474,7 +474,7 @@ public partial class GuestsManagerPatch
     public static bool TrySendToSeat_Prefix(GuestGroupController toTry, ref bool __result)
     {
         if (IsReimuProtectionGuest(toTry)) return RunOriginal;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomClient)
         {
             // 客机需要返回 true 并跳过原逻辑以短路 PostInitializeGuestGroup
@@ -494,7 +494,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool GenerateOrderSession_Prefix(GuestGroupController guestGroup)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomClient)
         {
             // 客机在 DoGenerateOrderSession 中直接调用 GenerateOrderSession 或通过调用 FirstOrder 而间接调用 DoGenerateOrderSession 前
@@ -518,7 +518,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool MainOrderCycle_Prefix(GuestGroupController toCycle)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
             return RunOriginal;
@@ -540,7 +540,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool CheckAndSendFromQueue_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
             // 主机需要精准捕获成功出队入座的顾客，因此劫持到 HijackCheckAndSendFromQueue 进行精准捕获与同步
@@ -565,7 +565,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool OnPatientDepleted_Prefix(GuestGroupController guest)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
             GuestFSM.OnPatientDepletedInQueue(guest);
@@ -587,7 +587,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool TryCloseIzakaya_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (NightSceneEventManagerPatch.IsHostCloseReplay) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
@@ -623,7 +623,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool PatientDepletedLeave_Prefix(GuestGroupController toPatientDepletedLeave)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
             // 上游 PatientDepletedDeskAction 已会让客机完整重放 PatientDepletedLeave 链路
@@ -661,7 +661,7 @@ public partial class GuestsManagerPatch
             return RunOriginal;
         }
 
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
             GuestFSM.OnLeaveFromDesk(

@@ -149,7 +149,7 @@ public static partial class PlayerListPanel
             needsGameplayData ? local.Position : Vector2.zero,
             local.IsDayOver, local.IsPrepOver,
             local.IzakayaMapLabel, local.IzakayaLevel,
-            isSelf: true, isHost: MpManager.IsServer);
+            isSelf: true, isHost: MpManager.IsRoomHost);
         lines.Add((localLine, local.Uid));
 
         // Peers sorted by UID

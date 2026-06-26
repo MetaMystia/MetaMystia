@@ -21,7 +21,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void Initialize_Postfix(EventManager __instance)
     {
-        if (!MpManager.IsConnected) return;
+        if (!MpManager.IsRoomConnected) return;
 
         Func<int> getWholeNightTime = () => MpManager.WorkTimeSecondOverride;
         __instance.GetWholeNightTime = getWholeNightTime;
@@ -31,7 +31,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void StartGuestInstantiateLoop_Postfix(EventManager __instance)
     {
-        if (MpManager.IsConnectedClient && __instance.onCreatorBoxGuestInstantiateLoop != null)
+        if (MpManager.IsRoomClient && __instance.onCreatorBoxGuestInstantiateLoop != null)
         {
             __instance.onCreatorBoxGuestInstantiateLoop = null;
             Log.Warning("已临时禁用造物者之盒协程。");
@@ -54,7 +54,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static void StartGuestSpawningAndTiming_Prefix(ref int gameTotalSeconds)
     {
-        if (MpManager.IsConnected)
+        if (MpManager.IsRoomConnected)
         {
             gameTotalSeconds = MpManager.WorkTimeSecondOverride;
             Log.InfoCaller($"gameTotalSeconds set to {gameTotalSeconds}s");
@@ -82,7 +82,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool FundEdit_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost) return RunOriginal;
         if (MpManager.IsRoomClient) return SkipOriginal;
         return RunOriginal;
@@ -100,7 +100,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void FundEdit_Postfix(float value, EventManager.MathOperation mathOperation)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             FundEditBehavior.Send(value, mathOperation);
@@ -111,7 +111,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool TipEdit_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost) return RunOriginal;
         if (MpManager.IsRoomClient) return SkipOriginal;
         return RunOriginal;
@@ -132,7 +132,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void TipEdit_Postfix(int value, EventManager.ServeType serveType, float comboBuff, float moodBuff, float extraBuff)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             TipEditBehavior.Send(value, serveType, comboBuff, moodBuff, extraBuff);
@@ -143,7 +143,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool ExpEdit_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost) return RunOriginal;
         if (MpManager.IsRoomClient) return SkipOriginal;
         return RunOriginal;
@@ -162,7 +162,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void ExpEdit_Postfix(float value, EventManager.MathOperation mathOperation)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             ExpEditBehavior.Send(value, mathOperation);
@@ -173,7 +173,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool PassionEdit_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return RunOriginal;
         if (MpManager.IsRoomHost) return RunOriginal;
         if (MpManager.IsRoomClient) return SkipOriginal;
         return RunOriginal;
@@ -192,7 +192,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void PassionEdit_Postfix(float value, EventManager.MathOperation mathOperation)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             PassionEditBehavior.Send(value, mathOperation);

@@ -17,7 +17,7 @@ public partial class NormalGuestsControllerPatch
     [HarmonyPostfix]
     public static void NormalGuest_PostEvaluation_Postfix(NormalGuestsController __instance)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         GuestFSM.OnPostEvaluation(__instance);
     }
 }

@@ -28,7 +28,7 @@ public partial class IzakayaConfigPannelPatch
     [HarmonyPostfix]
     public static void IzakayaConfigPannel_GoToSpecific_Postfix()
     {
-        if (MpManager.IsConnected == false)
+        if (MpManager.IsRoomConnected == false)
         {
             Log.LogDebug($"Not in multiplayer session, skipping patch");
             return;
@@ -51,7 +51,7 @@ public partial class IzakayaConfigPannelPatch
     [HarmonyPrefix]
     public static bool _SolveDailyCompletion_b__64_7_Prefix()
     {
-        if (!MpManager.IsConnected)
+        if (!MpManager.IsRoomConnected)
         {
             Log.LogDebug($"Not in multiplayer session, skipping patch");
             return RunOriginal;

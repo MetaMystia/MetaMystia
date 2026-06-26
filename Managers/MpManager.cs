@@ -28,7 +28,6 @@ public static partial class MpManager
     public static MpSession Session => MpWire.Session;
     public static bool IsRunning => MpWire.IsRunning;
     public static bool IsConnecting => MpWire.IsConnecting;
-    public static bool IsOnline => Session.IsOnline;
     public static bool IsInRoom => Session.IsInRoom;
     public static bool IsInPublicScope => Session.IsInPublicScope;
     public static bool IsRoomHost => Session.IsRoomHost;
@@ -36,14 +35,9 @@ public static partial class MpManager
     public static bool IsDirectHost => Session.TransportKind == TransportKind.DirectHost;
     public static bool IsDirectClient => Session.TransportKind == TransportKind.DirectClient;
     public static bool IsRelayClient => Session.IsRelay;
-    public static bool HasRoomConnection => MpWire.IsRoomConnected;
-    public static bool IsConnected => Session.IsInRoom && MpWire.IsRoomConnected;
+    public static bool IsRoomConnected => Session.IsInRoom && MpWire.IsRoomConnected;
     public static bool IsPublicConnected => Session.IsInPublicScope && MpWire.IsServerEndpointConnected;
-    public static bool IsConnectedClient => IsRoomClient && IsConnected;
-    public static bool IsConnectedServer => IsRoomHost && IsConnected;
-    public static bool IsServer => IsRoomHost;
-    public static bool IsClient => IsRoomClient;
-    public static bool CanSeeOnlinePlayers => IsRunning && (Session.IsInRoom || Session.IsInPublicScope);
+    public static bool IsConnected => IsRoomConnected || IsPublicConnected;
 
     public static bool LocalIsDayOver => PlayerManager.LocalIsDayOver;
     public static bool LocalIsPrepOver => PlayerManager.LocalIsPrepOver;
@@ -77,7 +71,7 @@ public static partial class MpManager
 
     private static bool _inStory;
     public static bool InStory => _inStory;
-    public static bool IsGameplaySyncActive => IsInRoom && HasRoomConnection && !InStory;
+    public static bool IsGameplaySyncActive => IsRoomConnected && !InStory;
     public static bool ShouldSkipAction => !IsGameplaySyncActive;
 
     public static void RefreshInStoryCache()
@@ -240,9 +234,9 @@ public static partial class MpManager
     {
         var status = new StringBuilder();
         status.AppendLine($"Self: {RoleTag} {PlayerId} (uid={PlayerManager.Local.Uid})");
-        status.AppendLine($"Port: {CurrentPort} | Running: {(IsRunning ? "Yes" : "No")} | Connected: {(IsConnected || IsPublicConnected ? "Yes" : "No")}");
+        status.AppendLine($"Port: {CurrentPort} | Running: {(IsRunning ? "Yes" : "No")} | Connected: {(IsConnected ? "Yes" : "No")}");
         status.AppendLine($"Transport: {Session.TransportKind} | Scope: {Session.SyncScope} | RoomRole: {Session.RoomRole} | Room: {Session.RoomIdHex}");
-        if (IsConnected)
+        if (IsRoomConnected)
         {
             status.AppendLine($"Ping: {LatencyDisplay} | Players: {AllPlayersCount}");
             foreach (var peer in PlayerManager.Peers)
@@ -262,7 +256,7 @@ public static partial class MpManager
             if (!Plugin.AllPatched)
                 return $"{TextId.ModPatchFailure.Get()} {BriefDebugText}";
             if (!IsRunning) return "Multiplayer: Off";
-            if (IsConnected)
+            if (IsRoomConnected)
             {
                 if (LiveModeManager.Mode == LiveMode.Partial)
                     return $"MP: {RoleTag} | {AllPlayersCount}Players | ping {LatencyDisplay}";
@@ -300,7 +294,7 @@ public static partial class MpManager
 
         IsMultiplayerAvailable = true;
 
-        if (IsConnected)
+        if (IsRoomConnected)
         {
             Log.Message($"Transit to {newScene}, disconnecting peers");
             DisconnectPeer();
@@ -333,7 +327,7 @@ public static partial class MpManager
 
     public static void DayOver()
     {
-        if (!IsConnectedServer) return;
+        if (!IsRoomHost) return;
         if (PlayerManager.AllDayOver)
         {
             DayAllReadyBehavior.Send();
@@ -347,7 +341,7 @@ public static partial class MpManager
 
     public static void PrepOver()
     {
-        if (!IsConnectedServer) return;
+        if (!IsRoomHost) return;
         if (PlayerManager.AllPrepOver)
         {
             PrepAllReadyBehavior.Send();

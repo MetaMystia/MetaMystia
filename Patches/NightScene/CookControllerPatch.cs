@@ -21,7 +21,7 @@ public partial class CookControllerPatch
     public static bool SetCook_Prefix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
     {
         // Log.Debug($"SetCook_Prefix called");
-        if (MpManager.IsConnected && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
+        if (MpManager.IsRoomConnected && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
         {
             Log.LogWarning($"Peer does not have recipe {recipe.Id}, skipping SetCook.");
             InGameConsole.ShowPassive(TextId.DLCPeerRecipeNotAvailable.Get(recipe.Id));

@@ -22,7 +22,7 @@ public partial class WorkSceneCookingSelectionPannel__c__DisplayClass79_0Patch
     [HarmonyPrefix]
     public static bool Method_Internal_Void_PDM_0_Prefix(WorkSceneCookingSelectionPannel.__c__DisplayClass79_0 __instance)
     {
-        if (!MpManager.IsConnected)
+        if (!MpManager.IsRoomConnected)
             return RunOriginal;
 
         var solved = __instance.solved;

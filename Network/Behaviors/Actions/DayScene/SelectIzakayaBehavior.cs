@@ -22,7 +22,7 @@ internal static class SelectIzakayaBehavior
         InGameConsole.ShowPassive(TextId.PeerSelectedIzakaya.Get(
             $"{peerName}", action.MapLabel.FormatIzakayaSelection(action.MapLevel)));
 
-        if (MpManager.IsServer)
+        if (MpManager.IsRoomHost)
         {
             IzakayaSelectorPanelPatch.TryConfirmSelection();
         }

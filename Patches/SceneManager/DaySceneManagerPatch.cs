@@ -26,7 +26,7 @@ public partial class DaySceneManagerPatch
         ResourceExManager.OnDaySceneAwake();
         PrepSceneManager.ClearPrepTable();
 
-        if (MpManager.CanSeeOnlinePlayers)
+        if (MpManager.IsConnected)
         {
             PlayerChangeSkinBehavior.Send(PlayerManager.Local.Skin);
         }
@@ -75,7 +75,7 @@ public partial class DaySceneManagerPatch
 
         PlayerManager.LocalIsDayOver = true;
 
-        if (!MpManager.IsConnected)
+        if (!MpManager.IsRoomConnected)
         {
             return RunOriginal;
         }

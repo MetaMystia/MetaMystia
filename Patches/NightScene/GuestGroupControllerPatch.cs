@@ -34,7 +34,7 @@ public partial class GuestGroupControllerPatch
     [HarmonyPrefix]
     public static void RefreshCurrentFundAndOrder_Prefix(GuestGroupController __instance)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             GuestFSM.OnRefreshCurrentFundAndOrder(__instance);
@@ -52,7 +52,7 @@ public partial class GuestGroupControllerPatch
     public static void MoveToDesk_Prefix(GuestGroupController __instance, int deskCode, ref Il2CppSystem.Action onMovementFinishCallback)
     {
         if (GuestsManagerPatch.IsReimuProtectionGuest(__instance)) return;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             GuestFSM.OnMoveToDesk(__instance, deskCode);
@@ -69,7 +69,7 @@ public partial class GuestGroupControllerPatch
     {
         // 注：有且只有在 Spell_Orin 的负面符卡中会有 tryToJumpQueue = true
         // TODO(Spell)
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
         if (MpManager.IsRoomHost)
         {
             GuestFSM.OnMoveToQueue(__instance);
@@ -86,7 +86,7 @@ public partial class GuestGroupControllerPatch
     [HarmonyPostfix]
     public static void TryOverrideEvaluateByBuff_Postfix(GuestGroupController __instance, ref int __result)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (MpManager.ShouldSkipAction || !MpManager.IsRoomConnected) return;
 
         var fsm = GuestsMap.GetGuestFsm(__instance);
         if (MpManager.IsRoomHost)
