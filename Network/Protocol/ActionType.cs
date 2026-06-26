@@ -2,22 +2,30 @@ namespace MetaMystia.Network;
 
 public enum ActionType : ushort
 {
+    // ===== 协议 =====
     ServerInfoRequest,
     ServerInfoReply,
     Ping,
     Pong,
-
     Hello,
     HelloAck,
     Reject,
     PeerLeave,
+    PlayerPresence,
+    JoinRoomRequest,
+    CreateRoomRequest,
+    LeaveRoom,
+    RoomAssign,
+    RoomKick,
+
+    // ===== 玩法 =====
+    Message,
     PlayerChangeId,
     PlayerChangeSkin,
-    Message,
 
-    SceneTransit,
     MoveSync,
     NightMoveSync,
+    SceneTransit,
 
     DayReady,
     DayAllReady,
@@ -56,11 +64,4 @@ public enum ActionType : ushort
     PassionEdit,
 
     IzakayaClose,
-
-    RoomAssign,
-    JoinRoomRequest,
-    LeaveRoom,
-    RoomKick,
-    PlayerPresence,
-    CreateRoomRequest,
 }
