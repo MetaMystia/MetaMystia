@@ -1,5 +1,7 @@
 using HarmonyLib;
 
+using DayScene;
+using DayScene.Interactables;
 using DayScene.Input;
 
 using MetaMystia.Network;
@@ -13,6 +15,13 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class DayScenePlayerInputPatch
 {
+    [HarmonyPatch(nameof(DayScenePlayerInputGenerator.UpdateCharacter), new[] { typeof(DaySceneMap), typeof(SpawnMarker) })]
+    [HarmonyPostfix]
+    public static void UpdateCharacter_Postfix()
+    {
+        PlayerManager.SpawnPeersForCurrentScene();
+    }
+
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.OnSprintPerformed))]
     [HarmonyPrefix]
     public static bool OnSprintPerformed_Prefix()

@@ -23,7 +23,6 @@ public partial class DaySceneManagerPatch
         MpManager.OnSceneTransit(Scene.DayScene);
         PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
-        PlayerManager.SpawnAllOnlinePeers();
         ResourceExManager.OnDaySceneAwake();
         PrepSceneManager.ClearPrepTable();
 

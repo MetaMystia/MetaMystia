@@ -7,7 +7,6 @@ using GameData.RunTime.DaySceneUtility;
 
 using MetaMystia.Network;
 using MetaMystia.UI;
-using SgrYuki;
 
 namespace MetaMystia;
 
@@ -28,8 +27,6 @@ public partial class PeerPlayer : NetPlayer
     public int CharacterModelId { get; set; } = 14;
 
     public bool IsSameMapAsLocal => MapLabel == LocalPlayer.CurrentMapLabel;
-
-    private string SpawnCommandKey => $"PeerSpawn_{CharacterId}";
 
     private static bool IsUnitReady(CharacterControllerUnit u) =>
         u != null && u.rb2d != null && u.cl2d != null;
@@ -105,47 +102,16 @@ public partial class PeerPlayer : NetPlayer
 
     #region 角色生命周期
 
-    /// <summary>
-    /// 根据当前场景生成角色并延迟设置（HeightProcessor、碰撞忽略、可见性）。
-    /// 仅在 DayScene / WorkScene 中有效，其他场景不做任何操作。
-    /// 整个流程会等待 Local unit 初始化完毕后才开始。
-    /// </summary>
-    public void SpawnForScene()
+    public void SpawnAtFarPosition()
     {
-        var scene = MpManager.LocalScene;
-        if (scene is not Common.UI.Scene.DayScene and not Common.UI.Scene.WorkScene)
-        {
-            Log.LogDebug($"SpawnForScene called in {scene}, skipping for '{CharacterId}'");
-            return;
-        }
-
-        if (IsUnitReady(unit))
-            return;
-
-        CommandScheduler.RemoveKeyFromKeyQueue(SpawnCommandKey);
-        bool visible = scene == Common.UI.Scene.WorkScene;
         var spawnPos = new Vector2(FAR_POS + Uid, FAR_POS);
-        Func<bool> readyWhen = scene == Common.UI.Scene.DayScene
-            ? () => IsUnitReady(PlayerManager.Local.unit)
-                && DayScene.SceneManager.Instance?.CurrentActiveMap != null
-            : () => IsUnitReady(PlayerManager.Local.unit)
-                && NightScene.MapManager.Instance?.height != null;
+        SpawnCharacter(spawnPos);
+    }
 
-        CommandScheduler.EnqueueKey(
-            key: SpawnCommandKey,
-            executeWhen: readyWhen,
-            execute: () =>
-            {
-                SpawnCharacter(spawnPos);
-                CommandScheduler.Enqueue(
-                    executeWhen: () => IsUnitReady(unit),
-                    execute: () => PostSpawnSetup(visible),
-                    timeoutSeconds: 30
-                );
-            },
-            timeoutSeconds: 60
-        );
-        Log.LogMessage($"PeerPlayer '{CharacterId}' spawn scheduled for {scene} at ({spawnPos.x}, {spawnPos.y})");
+    public void PostSpawnSetupForCurrentScene()
+    {
+        bool visible = MpManager.LocalScene == Common.UI.Scene.WorkScene;
+        PostSpawnSetup(visible);
     }
 
     /// <summary>
@@ -153,7 +119,6 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     public void DespawnCharacter()
     {
-        CommandScheduler.RemoveKeyFromKeyQueue(SpawnCommandKey);
         var collection = Common.SceneDirector.Instance?.characterCollection;
         if (collection == null || !collection.TryGetValue(CharacterId, out var existing))
             return;
@@ -295,13 +260,10 @@ public partial class PeerPlayer : NetPlayer
     {
         if (unit == null)
         {
-            if (firstSync)
-            {
-                MapLabel = mapLabel;
-                Speed = speed;
-                IsSprinting = isSprinting;
-                InputDirection = inputDirection;
-            }
+            MapLabel = mapLabel;
+            Speed = speed;
+            IsSprinting = isSprinting;
+            InputDirection = inputDirection;
             return;
         }
 

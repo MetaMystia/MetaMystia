@@ -48,6 +48,7 @@ public partial class PluginManager : MonoBehaviour
     {
         InGameConsole.Initialize();
         ResourceExManager.FlushPendingConsoleLogs();
+        PlayerManager.StartCoroutines();
     }
 
     [HideFromIl2Cpp]
@@ -135,18 +136,7 @@ public partial class PluginManager : MonoBehaviour
     private void FixedUpdate()
     {
         CommandScheduler.Tick();
-
-        switch (MpManager.LocalScene)
-        {
-            case Scene.DayScene:
-                PlayerManager.OnFixedUpdate();
-                break;
-            case Scene.WorkScene:
-                PlayerManager.OnFixedUpdate();
-                break;
-            default:
-                break;
-        }
+        PlayerManager.OnFixedUpdate();
     }
 
     private void OnDestroy()

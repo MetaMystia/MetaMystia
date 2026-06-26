@@ -116,16 +116,12 @@ internal static class HelloBehavior
         };
         var peer = PlayerManager.UpsertRoomMember(member, MpConstants.DirectRoomId);
 
-        if (MpManager.LocalScene is Scene.DayScene or Scene.WorkScene)
-        {
-            peer.ResetMotion();
-            peer.SpawnForScene();
-        }
+        if (MpManager.LocalScene == Scene.DayScene)
+            PlayerManager.SpawnPeersForCurrentScene(new[] { peer });
 
         HelloAckBehavior.Send(action.PeerInfo.Uid);
         RoomAssignBehavior.SendDirect(action.PeerInfo.Uid);
         RoomAssignBehavior.BroadcastDirectExcept(action.PeerInfo.Uid);
-        MpWire.OnPeerHandshakeComplete(action.PeerInfo.Uid);
 
         InGameConsole.ShowPassiveFromAnyThread(
             TextId.MpConnected.Get(LiveModeManager.GetDisplayName(action.PeerInfo.Uid)));

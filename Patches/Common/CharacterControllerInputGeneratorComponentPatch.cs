@@ -6,7 +6,6 @@ using Common.UI;
 
 using MetaMystia.Network;
 
-
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.CharacterUtility.CharacterControllerInputGeneratorComponent))]
@@ -18,14 +17,10 @@ public partial class CharacterControllerInputGeneratorComponentPatch
     public static void UpdateInputDirection_Prefix(CharacterControllerInputGeneratorComponent __instance, ref Vector2 inputDirection)
     {
         if (!MpManager.CanSeeOnlinePlayers)
-        {
             return;
-        }
 
         if (MpManager.LocalScene != Scene.DayScene && MpManager.LocalScene != Scene.WorkScene)
-        {
             return;
-        }
 
         try
         {

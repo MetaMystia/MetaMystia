@@ -34,7 +34,6 @@ internal static class RoomKickBehavior
 
         MpWire.Session.LeaveRelayRoomToPublic();
         PlayerManager.ClearRoomPeers();
-        MpWire.CancelRoomSync();
         MpWire.OnRelayPublicEntered();
     }
 }

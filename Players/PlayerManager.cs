@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -196,6 +197,21 @@ public static partial class PlayerManager
 
     #region 生命周期
 
+    public static void StartCoroutines()
+    {
+        PluginManager.Instance.StartManagedCoroutine(MoveSyncLoop());
+    }
+
+    private static IEnumerator MoveSyncLoop()
+    {
+        var wait = new WaitForSeconds(2f);
+        while (true)
+        {
+            MoveSyncBehavior.Send();
+            yield return wait;
+        }
+    }
+
     /// <summary>
     /// 重置所有玩家的同步状态（IsDayOver、IsPrepOver、IzakayaSelection 等）。
     /// 在 Prep 结束 / Work 开始 / 联机初始化时调用，避免后进场景的玩家覆盖先进场景玩家已提交的状态。
@@ -207,34 +223,59 @@ public static partial class PlayerManager
             peer.ResetState();
         Log.LogInfo($"PlayerManager state reset (peers: {Peers.Count})");
     }
-
-    /// <summary>
-    /// DayScene：为所有在线玩家（PlayerTable，含公域与房间）spawn 角色。
-    /// </summary>
-    public static void SpawnAllOnlinePeers()
+    
+    public static void SpawnPeersForCurrentScene(IEnumerable<PeerPlayer> peers = null)
     {
-        foreach (var record in PlayerTable.Values)
-        {
-            if (record.Player == null) continue;
-            record.Player.ResetMotion();
-            record.Player.SpawnForScene();
-        }
-        EnqueueLocalLabel();
-        Log.LogInfo($"PlayerManager online peers spawned (count: {PlayerTable.Count})");
-    }
+        if (MpManager.LocalScene is not Common.UI.Scene.DayScene and not Common.UI.Scene.WorkScene)
+            return;
 
-    /// <summary>
-    /// WorkScene：仅为本房间内 Peer（已携带资源）spawn 角色。
-    /// </summary>
-    public static void SpawnRoomPeers()
-    {
-        foreach (var peer in Peers.Values)
+        var collection = Common.SceneDirector.Instance?.characterCollection;
+        if (collection == null || !collection.TryGetValue("Self", out var localUnit) || localUnit == null)
+            return;
+
+        foreach (var peer in (peers ?? GetSpawnCandidates()).Where(p => p != null && IsSpawnCandidate(p.Uid)))
         {
             peer.ResetMotion();
-            peer.SpawnForScene();
+            peer.SpawnAtFarPosition();
+            peer.PostSpawnSetupForCurrentScene();
         }
-        EnqueueLocalLabel();
-        Log.LogInfo($"PlayerManager room peers spawned (peers: {Peers.Count})");
+
+        UI.FloatingTextHelper.SetPlayerLabel(
+            Local.Uid, LiveModeManager.GetDisplayName(Local.Uid), localUnit.transform);
+    }
+
+    private static IEnumerable<PeerPlayer> GetSpawnCandidates()
+    {
+        return MpManager.LocalScene switch
+        {
+            Common.UI.Scene.DayScene => PlayerTable.Values
+                .Where(record => record.Scene == WireScene.DayScene)
+                .Select(record => record.Player)
+                .Where(peer => peer != null),
+            Common.UI.Scene.WorkScene => Peers.Values,
+            _ => []
+        };
+    }
+
+    private static bool IsSpawnCandidate(int uid)
+    {
+        return MpManager.LocalScene switch
+        {
+            Common.UI.Scene.DayScene => PlayerTable.ContainsKey(uid),
+            Common.UI.Scene.WorkScene => Peers.ContainsKey(uid),
+            _ => false
+        };
+    }
+
+    public static void TryEnsureDayScenePeer(int uid)
+    {
+        if (uid == Local.Uid || MpManager.LocalScene != Common.UI.Scene.DayScene)
+            return;
+        if (!TryGetRecord(uid, out var record) || record.Scene != WireScene.DayScene)
+            return;
+        if (!TryGetVisiblePeer(uid, out var peer))
+            return;
+        SpawnPeersForCurrentScene(new[] { peer });
     }
 
     /// <summary>
@@ -246,16 +287,6 @@ public static partial class PlayerManager
             record.Player?.DespawnCharacter();
         UI.FloatingTextHelper.ClearAllLabels();
         Log.LogInfo("PlayerManager all peer characters despawned");
-    }
-
-    private static void EnqueueLocalLabel()
-    {
-        SgrYuki.CommandScheduler.Enqueue(
-            executeWhen: () => Local.unit != null,
-            execute: () => UI.FloatingTextHelper.SetPlayerLabel(
-                Local.Uid, LiveModeManager.GetDisplayName(Local.Uid), Local.unit.transform),
-            timeoutSeconds: 30
-        );
     }
 
     /// <summary>
@@ -306,20 +337,7 @@ public static partial class PlayerManager
         foreach (var summary in summaries)
             UpsertSummary(summary);
 
-        // 进入公域时收到 PlayerSummary 列表：若已在 DayScene/WorkScene，为所有可可视玩家 spawn 角色。
-        if (MpManager.LocalScene is Common.UI.Scene.DayScene or Common.UI.Scene.WorkScene)
-        {
-            foreach (var record in PlayerTable.Values)
-            {
-                if (record.Player == null) continue;
-                bool sameScopeVisible = IsSameRoom(record.RoomId)
-                    || (MpManager.Session.IsInPublicScope && record.RoomId == MpConstants.PublicRoomId);
-                if (!sameScopeVisible) continue;
-                record.Player.ResetMotion();
-                record.Player.SpawnForScene();
-            }
-            EnqueueLocalLabel();
-        }
+        SpawnPeersForCurrentScene();
     }
 
     public static PeerPlayer UpsertSummary(PlayerSummary summary)
@@ -559,19 +577,18 @@ public static partial class PlayerManager
 
     public static void SyncRoomPeersBeforeAssign(ushort roomId, IEnumerable<int> memberUids)
     {
-        var incoming = new HashSet<int>(memberUids ?? []);
-        foreach (var kvp in Peers)
-        {
-            if (incoming.Contains(kvp.Key))
-                continue;
+        var incoming = memberUids ?? [];
+        var stalePeers = Peers.Keys.Except(incoming).ToList();
 
-            kvp.Value.DespawnCharacter();
-            UI.FloatingTextHelper.RemovePlayerLabel(kvp.Key);
-            if (PlayerTable.TryGetValue(kvp.Key, out var record) && record.RoomId == roomId)
+        foreach (var uid in stalePeers)
+        {
+            Peers[uid].DespawnCharacter();
+            UI.FloatingTextHelper.RemovePlayerLabel(uid);
+            if (PlayerTable.TryGetValue(uid, out var record) && record.RoomId == roomId)
                 record.Resources = null;
         }
         RebuildIndexes();
-        Log.LogMessage($"Room peer roster synced (room={MpSession.FormatRoomId(roomId)}, members={incoming.Count})");
+        Log.LogMessage($"Room peer roster synced (room={MpSession.FormatRoomId(roomId)}, members={Peers.Count})");
     }
 
     public static void RebuildIndexes()
@@ -615,8 +632,8 @@ public static partial class PlayerManager
     public static void EnablePeerCollision(bool enable = true) =>
         EnablePeerCollision(Peer?.GetCharacterUnit(), enable);
 
-    public static bool IsPeerCharacter(string label) =>
-        Peers.Values.Any(p => p.CharacterId == label);
+    public static bool IsMetaMystiaPlayer(string label) =>
+        PlayerTable.Values.Any(record => record.Player?.CharacterId == label);
 
     #endregion
 }

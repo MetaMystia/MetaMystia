@@ -49,6 +49,7 @@ internal static class MoveSyncBehavior
         // MoveSync 是 PublicRelay：公域玩家也可见，不能只查 Peers（房间索引）。
         if (PlayerManager.TryGetVisiblePeer(action.SenderUid, out var peer))
         {
+            PlayerManager.TryEnsureDayScenePeer(action.SenderUid);
             peer.SyncFromPeer(
                 action.MapLabel,
                 action.IsSprinting,

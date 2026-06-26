@@ -92,9 +92,6 @@ internal static class RoomAssignBehavior
             }
         }
 
-        if (MpManager.LocalScene is Scene.DayScene or Scene.WorkScene)
-            PlayerManager.SpawnRoomPeers();
-
         // 仅在首次进入房间时提示；roster 刷新（加入/离开触发）不重复显示。
         if (!wasInRoom)
         {

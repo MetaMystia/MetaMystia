@@ -4,7 +4,6 @@ using Common.UI;
 using NightScene;
 
 using MetaMystia.Network;
-using SgrYuki;
 
 namespace MetaMystia;
 
@@ -34,16 +33,6 @@ public static partial class NightSceneManagerPatch
         PrepSceneManager.ClearPrepTable();
 
         PlayerManager.ResetState();
-        PlayerManager.SpawnRoomPeers();
-
-        CommandScheduler.EnqueueKey(
-            key: MpManager.PeerGetCharacterUnitNotNullCommand,
-            executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,
-            execute: () =>
-            {
-                PlayerManager.EnablePeerCollision(true);
-            },
-            timeoutSeconds: 120
-        );
+        PlayerManager.SpawnPeersForCurrentScene();
     }
 }

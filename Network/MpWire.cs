@@ -4,7 +4,6 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using MetaMystia.UI;
-using SgrYuki;
 
 namespace MetaMystia.Network;
 
@@ -12,8 +11,6 @@ namespace MetaMystia.Network;
 [AutoLog]
 public static partial class MpWire
 {
-    public const string SyncActionCommandId = "SyncAction";
-
     public static MpSession Session { get; } = new();
 
     private static DirectTcp _tcp;
@@ -119,7 +116,6 @@ public static partial class MpWire
         _running = false;
         StopIoThread();
         Session.Reset();
-        CancelSync();
         Log.LogInfo("[MpWire] Stopped");
     }
 
@@ -175,7 +171,6 @@ public static partial class MpWire
         {
             _tcp?.DisconnectAll();
             PlayerManager.ClearPeers();
-            CancelSync();
         }
         else if (Session.TransportKind == TransportKind.DirectClient)
         {
@@ -241,27 +236,17 @@ public static partial class MpWire
 
     public static void OnHandshakeComplete(string hostId)
     {
-        // 客机上行 socket 对端是服务端端点（uid=0）；房间玩法权威另由 Session.HostUid 表达。
         _tcp?.SetUplinkUid(MpConstants.HostUid);
         SceneTransitBehavior.Send(MpManager.LocalScene);
-        StartMoveSyncInterval(0.5f);
         InGameConsole.ShowPassiveFromAnyThread(TextId.MultiplayerConnected.Get());
     }
 
-    /// <summary>relay 客机进入公域：启动 MoveSync interval + 上报场景，但不显示房间连接提示。</summary>
+    /// <summary>relay 客机进入公域：上报当前场景。</summary>
     public static void OnRelayPublicEntered()
     {
-        StartMoveSyncInterval(0.5f);
         SceneTransitBehavior.Send(MpManager.LocalScene);
     }
 
-    private static void StartMoveSyncInterval(float intervalSeconds) =>
-        CommandScheduler.EnqueueInterval(SyncActionCommandId, intervalSeconds, MoveSyncBehavior.Send);
-
-    public static void OnPeerHandshakeComplete(int uid) =>
-        CommandScheduler.EnqueueInterval(SyncActionCommandId, 2f, MoveSyncBehavior.Send);
-
-    public static void CancelRoomSync() => CancelSync();
 
     // --- IO thread ---
 
@@ -416,7 +401,6 @@ public static partial class MpWire
         {
             MpManager.CheckContinueAfterDisconnect(uid, null);
         }
-        if (PlayerManager.Peers.IsEmpty) CancelSync();
     }
 
     private static void OnClientDisconnected()
@@ -428,7 +412,6 @@ public static partial class MpWire
         Session.Reset();
         _running = false;
         _connecting = false;
-        CancelSync();
         InGameConsole.ShowPassiveFromAnyThread(TextId.MultiplayerDisconnected.Get());
     }
 
@@ -439,12 +422,6 @@ public static partial class MpWire
         PlayerManager.Local.Uid = MpConstants.UnassignedUid;
         Session.Reset();
         _running = false;
-        CancelSync();
     }
 
-    private static void CancelSync()
-    {
-        CommandScheduler.RemoveKeyFromKeyQueue(MpManager.PeerGetCharacterUnitNotNullCommand);
-        CommandScheduler.CancelInterval(SyncActionCommandId);
-    }
 }

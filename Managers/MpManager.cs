@@ -146,7 +146,6 @@ public static partial class MpManager
             LeaveRoomBehavior.Send();
             Session.LeaveRelayRoomToPublic();
             PlayerManager.ClearRoomPeers();
-            MpWire.CancelRoomSync();
             MpWire.OnRelayPublicEntered();
             return true;
         }
@@ -309,8 +308,7 @@ public static partial class MpManager
         else if (!PlayerManager.Peers.IsEmpty)
         {
             PlayerManager.ClearPeers();
-            CommandScheduler.RemoveKeyFromKeyQueue(PeerGetCharacterUnitNotNullCommand);
-            CommandScheduler.CancelInterval(MpWire.SyncActionCommandId);
+            MoveSyncBehavior.Send();
         }
     }
 
