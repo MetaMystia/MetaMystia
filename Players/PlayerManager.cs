@@ -70,6 +70,14 @@ public static partial class PlayerManager
     public static bool IsSameRoom(ushort roomId) =>
         MpManager.Session.IsInRoom && roomId == MpManager.Session.RoomId;
 
+    /// <summary>同房对端展示顺序：房主优先，其余按 uid 升序。</summary>
+    public static IEnumerable<PeerPlayer> RoomPeersOrdered =>
+        Peers.OrderByDescending(p => p.Uid == MpManager.Session.HostUid).ThenBy(p => p.Uid);
+
+    /// <summary>公域对端展示顺序：按 uid 升序。</summary>
+    public static IEnumerable<PeerPlayer> PublicPeersOrdered =>
+        PublicPeers.OrderBy(p => p.Uid);
+
     #endregion
 
     #region Local 便捷属性

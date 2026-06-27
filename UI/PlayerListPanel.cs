@@ -141,7 +141,7 @@ public static partial class PlayerListPanel
         // 仅在游戏场景中读取坐标/地图标签，避免在 MainScene 等场景中触发 GetCharacterUnit 警告
         bool needsGameplayData = scene is Scene.DayScene or Scene.WorkScene or Scene.IzakayaPrepScene;
 
-        // 本地玩家 (UID=0 if host, else assigned)
+        // ── 第一行总是自己 ──
         var local = PlayerManager.Local;
         string localLine = FormatPlayer(
             local.Uid, local.Id, scene,
@@ -152,8 +152,8 @@ public static partial class PlayerListPanel
             isSelf: true, isHost: MpManager.IsRoomHost);
         lines.Add((localLine, local.Uid));
 
-        // Peers sorted by UID
-        foreach (var peer in PlayerManager.Peers.OrderBy(p => p.Uid))
+        // ── Room 域：房主优先，其余按 uid 升序；与本地一样按场景展示信息 ──
+        foreach (var peer in PlayerManager.RoomPeersOrdered)
         {
             string line = FormatPlayer(
                 peer.Uid, peer.Id, scene,
@@ -165,20 +165,31 @@ public static partial class PlayerListPanel
             lines.Add((line, peer.Uid));
         }
 
-        foreach (var peer in PlayerManager.PublicPeers.OrderBy(p => p.Uid))
+        // ── Public 域：按 uid 升序；显示各自场景，白天附带坐标 ──
+        foreach (var peer in PlayerManager.PublicPeersOrdered)
         {
-            string line = FormatPlayer(
-                peer.Uid, peer.Id, Scene.EmptyScene,
-                MapLabel.Unknown,
-                Vector2.zero,
-                false, false,
-                MapLabel.Unknown, 0,
-                isSelf: false, isHost: false,
-                scopeTag: "Online");
-            lines.Add((line, peer.Uid));
+            lines.Add((FormatPublicPlayer(peer), peer.Uid));
         }
 
         return lines;
+    }
+
+    /// <summary>
+    /// 公域玩家：名字 + 各自场景；若对端在白天则附带坐标（仅本地也在白天时坐标才有效）。
+    /// </summary>
+    private static string FormatPublicPlayer(PeerPlayer peer)
+    {
+        string dim = ColorToHex(DimColor);
+        string displayId = LiveModeManager.GetDisplayName(peer.Uid);
+        string name = LiveModeManager.IsActive
+            ? $"<color={ColorToHex(PeerColor)}>{displayId}</color>"
+            : $"<color={ColorToHex(PeerColor)}>[{peer.Uid}] {peer.Id}</color>";
+
+        string detail = peer.Scene.ToString();
+        if (peer.Scene == Scene.DayScene && MpManager.LocalScene == Scene.DayScene)
+            detail += $"  ({peer.Position.x:F2}, {peer.Position.y:F2})";
+
+        return $"{name}  <color={dim}>{detail}</color>";
     }
 
     private static string FormatPlayer(
@@ -186,8 +197,7 @@ public static partial class PlayerListPanel
         MapLabel mapLabel, Vector2 pos,
         bool isDayOver, bool isPrepOver,
         MapLabel izakayaMapLabel, int izakayaLevel,
-        bool isSelf, bool isHost,
-        string scopeTag = null)
+        bool isSelf, bool isHost)
     {
         // 名字颜色
         string nameColor;
@@ -197,11 +207,10 @@ public static partial class PlayerListPanel
         else nameColor = ColorToHex(PeerColor);
 
         string selfTag = isSelf ? " <color=#66FF88>★</color>" : "";
-        string suffix = string.IsNullOrEmpty(scopeTag) ? "" : $" <color={ColorToHex(DimColor)}>{scopeTag}</color>";
         string displayId = LiveModeManager.GetDisplayName(uid);
         string name = LiveModeManager.IsActive
-            ? $"<color={nameColor}>{displayId}</color>{selfTag}{suffix}"
-            : $"<color={nameColor}>[{uid}] {id}</color>{selfTag}{suffix}";
+            ? $"<color={nameColor}>{displayId}</color>{selfTag}"
+            : $"<color={nameColor}>[{uid}] {id}</color>{selfTag}";
         string dim = ColorToHex(DimColor);
 
         return scene switch

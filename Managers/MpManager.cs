@@ -45,7 +45,7 @@ public static partial class MpManager
     public static string PlayerId { get => ConfigManager.GetPlayerId(); set => ConfigManager.SetPlayerId(value); }
     public static long Latency => MpWire.LatencyMs;
 
-    public static string LatencyDisplay => IsRoomHost ? "local" : $"{Latency}ms";
+    public static string LatencyDisplay => IsDirectHost ? "local" : $"{Latency}ms";
     public static long TimestampNow => MpWire.NowMs;
     public static long TimeOffset { get => MpWire.TimeOffsetMs; set => MpWire.TimeOffsetMs = value; }
     public static long GetSynchronizedTimestampNow => MpWire.SyncedNowMs;
@@ -256,17 +256,20 @@ public static partial class MpManager
             if (!Plugin.AllPatched)
                 return $"{TextId.ModPatchFailure.Get()} {BriefDebugText}";
             if (!IsRunning) return "Multiplayer: Off";
+
+            var selfName = LiveModeManager.GetLocalDisplayName();
+
             if (IsRoomConnected)
             {
-                if (LiveModeManager.Mode == LiveMode.Partial)
-                    return $"MP: {RoleTag} | {AllPlayersCount}Players | ping {LatencyDisplay}";
-
-                var peerNames = string.Join(", ",
-                    PlayerManager.Peers.Select(p => LiveModeManager.GetDisplayName(p.Uid)));
-                return $"MP: {RoleTag} uid={PlayerManager.Local.Uid} | {AllPlayersCount}Players | ping {LatencyDisplay} | {peerNames}";
+                var hostName = LiveModeManager.GetDisplayName(Session.HostUid);
+                var roster = string.Join(", ",
+                    PlayerManager.RoomPeersOrdered.Select(p => LiveModeManager.GetDisplayName(p.Uid)));
+                var head = $"MP: Room {Session.RoomIdHex} | {selfName} uid={PlayerManager.Local.Uid}"
+                    + $" | {AllPlayersCount}/{OnlinePlayersCount} | host {hostName} | ping {LatencyDisplay}";
+                return string.IsNullOrEmpty(roster) ? head : $"{head} | {roster}";
             }
             if (IsPublicConnected)
-                return $"MP: Public | uid={PlayerManager.Local.Uid} | online {OnlinePlayersCount}";
+                return $"MP: Public | {selfName} uid={PlayerManager.Local.Uid} | online {OnlinePlayersCount}";
             return $"MP: {RoleName} (not connected)";
         }
     }

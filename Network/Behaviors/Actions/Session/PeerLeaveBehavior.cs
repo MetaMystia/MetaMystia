@@ -8,17 +8,23 @@ internal static class PeerLeaveBehavior
     public static void Send(int leavingUid)
     {
         if (!MpManager.IsRoomHost) return;
-        new PeerLeaveAction { PeerUid = leavingUid }.Enqueue();
+        new PeerLeaveAction
+        {
+            SenderUid = MpConstants.HostUid,
+            PeerUid = leavingUid,
+        }.Enqueue();
     }
 
     public static void Register(NetActionDispatcher dispatcher)
     {
-        dispatcher.Register<PeerLeaveAction>(Handle,
-            receiveScope: NetReceiveScope.ClientOnly);
+        dispatcher.Register<PeerLeaveAction>(Handle);
     }
 
     private static void Handle(PeerLeaveAction action)
     {
+        if (action.SenderUid != MpConstants.HostUid)
+            return;
+
         if (!PlayerManager.PlayerTable.ContainsKey(action.PeerUid))
             return;
 

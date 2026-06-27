@@ -17,10 +17,20 @@ internal static class RejectBehavior
     }
 
     public static void SendOnly(int uid, RejectReason reason, params string[] args) =>
-        new RejectAction { Reason = reason, Args = args, WireTargetUid = uid }.Enqueue();
+        new RejectAction
+        {
+            SenderUid = MpConstants.HostUid,
+            Reason = reason,
+            Args = args,
+            WireTargetUid = uid,
+        }.Enqueue();
 
     public static void BroadcastServerClosing() =>
-        new RejectAction { Reason = RejectReason.ServerClosed }.Enqueue();
+        new RejectAction
+        {
+            SenderUid = MpConstants.HostUid,
+            Reason = RejectReason.ServerClosed,
+        }.Enqueue();
 
     private static TextId ToTextId(RejectReason reason) => reason switch
     {
@@ -52,14 +62,40 @@ internal static class RejectBehavior
         MpWire.DisconnectPeer();
     }
 
+    public static void ShowOnly(RejectReason reason, params string[] args)
+    {
+        var text = FormatReason(reason, args);
+        Plugin.Instance?.Log.LogWarning($"Request rejected: {text}");
+        InGameConsole.ShowPassiveFromAnyThread(text);
+    }
+
     public static void Register(NetActionDispatcher dispatcher)
     {
-        dispatcher.Register<RejectAction>(Handle,
-            receiveScope: NetReceiveScope.ClientOnly);
+        dispatcher.Register<RejectAction>(Handle);
     }
 
     private static void Handle(RejectAction action)
     {
-        ShowAndDisconnect(action.Reason, action.Args);
+        if (action.SenderUid != MpConstants.HostUid)
+            return;
+
+        if (IsSoftReject(action.Reason))
+            ShowOnly(action.Reason, action.Args);
+        else
+            ShowAndDisconnect(action.Reason, action.Args);
+    }
+
+    private static bool IsSoftReject(RejectReason reason)
+    {
+        if (!MpWire.Session.IsOnline)
+            return false;
+
+        return reason is RejectReason.RoomRequestUnsupported
+            or RejectReason.RoomNotFound
+            or RejectReason.RoomIdExhausted
+            or RejectReason.PrepWorkReconnectBlocked
+            or RejectReason.RoomFull
+            or RejectReason.InvalidPlayerId
+            or RejectReason.DuplicatePeerId;
     }
 }

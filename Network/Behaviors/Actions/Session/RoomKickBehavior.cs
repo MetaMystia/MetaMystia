@@ -8,6 +8,7 @@ internal static class RoomKickBehavior
     public static void Send(int targetUid, RejectReason reason, params string[] args) =>
         new RoomKickAction
         {
+            SenderUid = MpConstants.HostUid,
             Reason = reason,
             Args = args,
             WireTargetUid = targetUid,
@@ -15,12 +16,14 @@ internal static class RoomKickBehavior
 
     public static void Register(NetActionDispatcher dispatcher)
     {
-        dispatcher.Register<RoomKickAction>(Handle,
-            receiveScope: NetReceiveScope.ClientOnly);
+        dispatcher.Register<RoomKickAction>(Handle);
     }
 
     private static void Handle(RoomKickAction action)
     {
+        if (action.SenderUid != MpConstants.HostUid)
+            return;
+
         var reason = RejectBehavior.FormatReason(action.Reason, action.Args);
         Plugin.Instance?.Log.LogWarning($"Kicked from room: {reason}");
         InGameConsole.ShowPassiveFromAnyThread(reason);
