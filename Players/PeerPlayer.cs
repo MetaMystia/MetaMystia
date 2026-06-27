@@ -214,7 +214,7 @@ public partial class PeerPlayer : NetPlayer
         if (collection != null && collection.TryGetValue("Self", out var selfUnit) && IsUnitReady(selfUnit))
             Physics2D.IgnoreCollision(unit.cl2d, selfUnit.cl2d, ignore);
 
-        foreach (var peer in PlayerManager.Peers)
+        foreach (var peer in PlayerManager.PlayerTable.Values)
         {
             if (peer == this || !IsUnitReady(peer.unit)) continue;
             Physics2D.IgnoreCollision(unit.cl2d, peer.unit.cl2d, ignore);
