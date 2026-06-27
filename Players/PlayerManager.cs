@@ -285,6 +285,9 @@ public static partial class PlayerManager
             return;
         if (!PlayerTable.TryGetValue(uid, out var peer) || peer.Scene != Common.UI.Scene.DayScene)
             return;
+        if (peer.GetCharacterUnit() != null)
+            return;
+
         SpawnPeersForCurrentScene(new[] { peer });
     }
 

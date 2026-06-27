@@ -112,7 +112,7 @@ internal static class NetActionRuntime
 
     private static LogLevel ReceiveLogLevel(NetAction action) => action switch
     {
-        PingAction or PongAction => LogLevel.Debug,
+        PingAction or PongAction or DayMoveSyncAction or NightMoveSyncAction => LogLevel.Debug,
         HelloAction or HelloAckAction or RoomAssignAction or MessageAction or PlayerPresenceAction or PeerLeaveAction or BuffAction => LogLevel.Message,
         RejectAction => LogLevel.Warning,
         _ => LogLevel.Info,
@@ -120,7 +120,7 @@ internal static class NetActionRuntime
 
     private static LogLevel SendLogLevel(NetAction action) => action switch
     {
-        PingAction or PongAction => LogLevel.Debug,
+        PingAction or PongAction or DayMoveSyncAction or NightMoveSyncAction => LogLevel.Debug,
         HelloAction or MessageAction or BuffAction => LogLevel.Message,
         _ => LogLevel.Info,
     };
