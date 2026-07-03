@@ -6,8 +6,8 @@ internal static class PingBehavior
     /// <summary>
     /// 客机→主机发送 Ping。
     /// </summary>
-    public static void Send(int id) =>
-        new PingAction { Id = id }.Enqueue();
+    public static void Send() =>
+        new PingAction { Id = MpWire.TrackPingSent() }.Enqueue();
 
     public static void Register(NetActionDispatcher dispatcher)
     {

@@ -220,6 +220,13 @@ public static partial class MpWire
         return sentMs;
     }
 
+    internal static int TrackPingSent()
+    {
+        int id = Interlocked.Increment(ref _pingId);
+        _pingSent[id] = NowMs;
+        return id;
+    }
+
     /// <summary>客机端：基于主机在收到 Ping 那一刻记录的时钟，估算本地与主机的时钟偏移。</summary>
     /// <param name="hostReceivedMs">主机收到 Ping 时的 NowMs（由 PongAction 携带回客机）。</param>
     /// <param name="sentMs">客机发出 Ping 时的本地 NowMs（由 UpdateLatency 返回）。</param>
@@ -302,7 +309,7 @@ public static partial class MpWire
                     if (now - _lastPingMs >= PingIntervalMs)
                     {
                         _lastPingMs = now;
-                        SendPingIo();
+                        PingBehavior.Send();
                     }
                 }
             }
@@ -312,14 +319,6 @@ public static partial class MpWire
             }
             Thread.Sleep(1);
         }
-    }
-
-    private static void SendPingIo()
-    {
-        int id = Interlocked.Increment(ref _pingId);
-        _pingSent[id] = NowMs;
-        var framed = NetPacket.FromAction(new PingAction { Id = id }).ToBytesWithLength();
-        _tcp?.Enqueue(null, null, framed, false);
     }
 
     // 反序列化已在 PacketBuffer（IO 线程）。主机转发与出站共用 ToBytesWithLength，避免维护第二套组帧逻辑。
