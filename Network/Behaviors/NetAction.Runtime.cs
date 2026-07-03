@@ -77,14 +77,14 @@ internal static class NetActionRuntime
 
         if (action is RoomAssignAction roomAssign)
         {
-            var members = roomAssign.Members ?? [];
+            var players = roomAssign.Players ?? [];
             return System.Text.Json.JsonSerializer.Serialize(new
             {
-                RoomId = MpSession.FormatRoomId(roomAssign.RoomId),
-                MembersCount = members.Length,
-                MemberIds = members.Take(3).Select(peer => peer.PeerId).ToArray(),
-                MembersTruncated = members.Length > 3,
-                HostUid = members.FirstOrDefault(peer => peer.Role == WireRoomRole.Host)?.Uid
+                RoomId = MpSession.FormatRoomId(players.FirstOrDefault()?.RoomId ?? MpConstants.PublicRoomId),
+                PlayersCount = players.Length,
+                PlayerIds = players.Take(3).Select(peer => peer.PeerId).ToArray(),
+                PlayersTruncated = players.Length > 3,
+                HostUid = players.FirstOrDefault(peer => peer.Role == WireRoomRole.Host)?.Uid
             });
         }
 

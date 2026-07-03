@@ -9,5 +9,5 @@ namespace MetaMystia.Network;
 public partial class HelloAckAction : NetAction
 {
     public int AssignedUid { get; set; }
-    public PlayerSummary[] Players { get; set; } = [];
+    public PlayerLiteData[] Players { get; set; } = [];
 }

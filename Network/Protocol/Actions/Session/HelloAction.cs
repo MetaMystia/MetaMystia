@@ -10,6 +10,5 @@ public partial class HelloAction : NetAction
 {
     public string Version { get; set; } = "";
     public string GameVersion { get; set; } = "";
-    public WireScene CurrentGameScene { get; set; }
-    public PlayerInfoData PeerInfo { get; set; }
+    public PlayerFullData Player { get; set; }
 }

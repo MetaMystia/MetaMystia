@@ -40,7 +40,7 @@ public partial class PeerPlayer : NetPlayer
     /// <summary>是否已加载房间层资源表（公域简表玩家为 false）。</summary>
     public bool HasResources { get; set; }
 
-    /// <summary>应用房间层增量资源表（来自 RoomMember）。null 表示降级为无资源（退房/公域）。</summary>
+    /// <summary>应用房间层增量资源表（来自 PlayerFullData）。null 表示降级为无资源（退房/公域）。</summary>
     public void ApplyResources(ResourceDataBaseData incremental)
     {
         if (incremental == null)
@@ -93,7 +93,7 @@ public partial class PeerPlayer : NetPlayer
 
     /// <summary>
     /// 构造对端玩家。资源表默认回落本地资源 ID（HasResources=false）；
-    /// 房间层资源由 <see cref="ApplyResources"/> 在收到 RoomMember 时补齐。
+    /// 房间层资源由 <see cref="ApplyResources"/> 在收到 PlayerFullData 时补齐。
     /// </summary>
     /// <param name="uid">玩家 UID，由端点分配</param>
     public PeerPlayer(int uid)

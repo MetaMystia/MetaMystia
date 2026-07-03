@@ -9,9 +9,5 @@ namespace MetaMystia.Network;
 [NetAction.PublicRelay]
 public partial class PlayerPresenceAction : NetAction
 {
-    public int Uid { get; set; }
-    public string PeerId { get; set; } = "";
-    public ushort RoomId { get; set; } = MpConstants.PublicRoomId;
-    public WireScene Scene { get; set; }
-    public PlayerSkinData Skin { get; set; }
+    public PlayerLiteData Player { get; set; }
 }

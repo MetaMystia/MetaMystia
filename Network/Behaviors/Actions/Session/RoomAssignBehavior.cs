@@ -14,8 +14,7 @@ internal static class RoomAssignBehavior
 
         new RoomAssignAction
         {
-            RoomId = MpSession.DirectRoomId,
-            Members = members,
+            Players = members,
             WireTargetUid = clientUid,
         }.Enqueue();
     }
@@ -25,20 +24,27 @@ internal static class RoomAssignBehavior
         if (!MpManager.IsRoomHost) return;
         new RoomAssignAction
         {
-            RoomId = MpSession.DirectRoomId,
-            Members = BuildDirectMembers(),
+            Players = BuildDirectMembers(),
             WireExceptUid = exceptUid,
         }.Enqueue();
     }
 
-    private static RoomMember[] BuildDirectMembers()
+    private static PlayerFullData[] BuildDirectMembers()
     {
-        var members = new System.Collections.Generic.List<RoomMember>
+        var members = new System.Collections.Generic.List<PlayerFullData>
         {
-            PlayerManager.RoomMemberFromPeer(PlayerManager.Local, WireRoomRole.Host, MpManager.LocalScene.ToWire())
+            PlayerManager.FullDataFromPeer(
+                PlayerManager.Local,
+                MpSession.DirectRoomId,
+                WireRoomRole.Host,
+                MpManager.LocalScene.ToWire())
         };
         foreach (var peer in PlayerManager.Peers)
-            members.Add(PlayerManager.RoomMemberFromPeer(peer, WireRoomRole.Client, peer.Scene.ToWire()));
+            members.Add(PlayerManager.FullDataFromPeer(
+                peer,
+                MpSession.DirectRoomId,
+                WireRoomRole.Client,
+                peer.Scene.ToWire()));
         return members.ToArray();
     }
 
@@ -52,9 +58,9 @@ internal static class RoomAssignBehavior
     private static void Handle(RoomAssignAction action)
     {
         bool wasInRoom = MpWire.Session.IsInRoom;
-        var members = action.Members ?? [];
-        var self = System.Linq.Enumerable.FirstOrDefault(members, m => m.Uid == PlayerManager.Local.Uid);
-        var host = System.Linq.Enumerable.FirstOrDefault(members, m => m.Role == WireRoomRole.Host);
+        var players = action.Players ?? [];
+        var self = System.Linq.Enumerable.FirstOrDefault(players, p => p.Uid == PlayerManager.Local.Uid);
+        var host = System.Linq.Enumerable.FirstOrDefault(players, p => p.Role == WireRoomRole.Host);
 
         if (self == null || host == null)
         {
@@ -70,28 +76,21 @@ internal static class RoomAssignBehavior
         };
 
         if (MpWire.Session.TransportKind == TransportKind.RelayClient)
-            MpWire.Session.EnterRelayRoom(role, action.RoomId, host.Uid);
+            MpWire.Session.EnterRelayRoom(role, self.RoomId, host.Uid);
         else
             MpWire.Session.EnterDirectClientRoom();
 
         MpWire.Session.AssignHostUid(host.Uid);
-        PlayerManager.SyncRoomPeersBeforeAssign(action.RoomId, System.Linq.Enumerable.Select(members, m => m.Uid));
+        PlayerManager.SyncRoomPeersBeforeAssign(self.RoomId, System.Linq.Enumerable.Select(players, p => p.Uid));
 
-        foreach (var member in members)
-        {
-            PlayerManager.UpsertRoomMember(member, action.RoomId);
-            if (PlayerManager.TryGetRoomPeer(member.Uid, out var peer))
-            {
-                peer.IsDayOver = member.IsDayOver;
-                peer.IsPrepOver = member.IsPrepOver;
-            }
-        }
+        foreach (var player in players)
+            PlayerManager.UpsertFullPlayer(player);
 
         // 仅在首次进入房间时提示；roster 刷新（加入/离开触发）不重复显示。
         if (!wasInRoom)
         {
             InGameConsole.ShowPassiveFromAnyThread(
-                TextId.MpEnteredRoom.Get(MpSession.FormatRoomId(action.RoomId)));
+                TextId.MpEnteredRoom.Get(MpSession.FormatRoomId(self.RoomId)));
             MpWire.OnHandshakeComplete(host.PeerId);
             InGameConsole.ShowPassiveFromAnyThread(
                 TextId.MpConnected.Get(LiveModeManager.GetDisplayName(host.Uid, host.PeerId)));

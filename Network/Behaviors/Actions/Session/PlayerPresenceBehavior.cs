@@ -9,11 +9,11 @@ internal static class PlayerPresenceBehavior
     {
         new PlayerPresenceAction
         {
-            Uid = PlayerManager.Local.Uid,
-            PeerId = PlayerManager.Local.Id,
-            RoomId = MpWire.Session.RoomId,
-            Scene = MpManager.LocalScene.ToWire(),
-            Skin = PlayerManager.Local.Skin,
+            Player = PlayerManager.LiteDataFromPeer(
+                PlayerManager.Local,
+                MpWire.Session.RoomId,
+                PlayerManager.CurrentWireRoomRole(),
+                MpManager.LocalScene.ToWire()),
         }.Enqueue();
     }
 
@@ -27,17 +27,18 @@ internal static class PlayerPresenceBehavior
         if (action.SenderUid != MpConstants.HostUid)
             return;
 
-        if (action.Uid == PlayerManager.Local.Uid)
+        var player = action.Player;
+        if (player == null || player.Uid == PlayerManager.Local.Uid)
             return;
 
-        bool wasRoomPeer = PlayerManager.IsRoomPeer(action.Uid);
-        PlayerManager.UpsertPresence(action);
+        bool wasRoomPeer = PlayerManager.IsRoomPeer(player.Uid);
+        PlayerManager.UpsertLitePlayer(player);
 
         // 非 DayScene 仅更新 PlayerTable；DayScene 尝试创建 NPC。
-        PlayerManager.TryEnsureDayScenePeer(action.Uid);
+        PlayerManager.TryEnsureDayScenePeer(player.Uid);
 
-        if (wasRoomPeer && !PlayerManager.IsRoomPeer(action.Uid))
+        if (wasRoomPeer && !PlayerManager.IsRoomPeer(player.Uid))
             InGameConsole.ShowPassiveFromAnyThread(
-                TextId.PeerLeft.Get(LiveModeManager.GetDisplayName(action.Uid, action.PeerId)));
+                TextId.PeerLeft.Get(LiveModeManager.GetDisplayName(player.Uid, player.PeerId)));
     }
 }

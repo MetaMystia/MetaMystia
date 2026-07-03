@@ -11,21 +11,16 @@ internal static class HelloBehavior
     /// </summary>
     public static void Send()
     {
-        PlayerInfoData peerInfo = new()
-        {
-            Uid = -1,
-            PeerId = MpManager.PlayerId,
-            IncrementalDataBase = PlayerManager.Local.IncrementalDataBase,
-            Skin = PlayerManager.Local.Skin,
-            IsDayOver = PlayerManager.LocalIsDayOver,
-            IsPrepOver = PlayerManager.LocalIsPrepOver
-        };
+        var player = PlayerManager.FullDataFromPeer(
+            PlayerManager.Local,
+            MpConstants.PublicRoomId,
+            WireRoomRole.None,
+            MpManager.LocalScene.ToWire());
 
         new HelloAction
         {
-            PeerInfo = peerInfo,
+            Player = player,
             Version = Plugin.ModVersion,
-            CurrentGameScene = MpManager.LocalScene.ToWire(),
             GameVersion = Plugin.GameVersion,
         }.Enqueue();
     }
@@ -52,27 +47,28 @@ internal static class HelloBehavior
             return;
         }
 
-        if (action.PeerInfo?.IncrementalDataBase is not { IsIncrementalReady: true })
+        var player = action.Player;
+        if (player?.Resources is not { IsIncrementalReady: true })
         {
             Plugin.Instance?.Log.LogWarning(
-                $"Rejecting connection from '{action.PeerInfo?.PeerId}' (uid={action.SenderUid}): game resources not loaded");
+                $"Rejecting connection from '{player?.PeerId}' (uid={action.SenderUid}): game resources not loaded");
             RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.GameResourcesNotLoaded);
             return;
         }
 
         if (MpManager.LocalScene == Scene.IzakayaPrepScene || MpManager.LocalScene == Scene.WorkScene)
         {
-            Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{action.PeerInfo.PeerId}' (uid={action.SenderUid}): " +
+            Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{player.PeerId}' (uid={action.SenderUid}): " +
                 $"reconnection not allowed in {MpManager.LocalScene}");
             InGameConsole.ShowPassiveFromAnyThread(TextId.PrepWorkReconnectBlocked.Get(
-                LiveModeManager.GetDisplayName(action.SenderUid, action.PeerInfo.PeerId)));
-            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.PrepWorkReconnectBlocked, action.PeerInfo.PeerId);
+                LiveModeManager.GetDisplayName(action.SenderUid, player.PeerId)));
+            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.PrepWorkReconnectBlocked, player.PeerId);
             return;
         }
 
         if (MpManager.AllPlayersCount >= ConfigManager.MaxPlayers.Value)
         {
-            Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{action.PeerInfo.PeerId}' (uid={action.SenderUid}): " +
+            Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{player.PeerId}' (uid={action.SenderUid}): " +
                 $"room full ({MpManager.AllPlayersCount}/{ConfigManager.MaxPlayers.Value})");
             RejectBehavior.SendAndDisconnect(
                 action.SenderUid,
@@ -80,50 +76,43 @@ internal static class HelloBehavior
                 MpManager.AllPlayersCount.ToString(),
                 ConfigManager.MaxPlayers.Value.ToString());
             InGameConsole.ShowPassiveFromAnyThread(TextId.RoomFullHostNotify.Get(
-                LiveModeManager.GetDisplayName(action.SenderUid, action.PeerInfo.PeerId),
+                LiveModeManager.GetDisplayName(action.SenderUid, player.PeerId),
                 MpManager.AllPlayersCount,
                 ConfigManager.MaxPlayers.Value));
             return;
         }
 
-        if (!MpManager.IsValidPlayerId(action.PeerInfo.PeerId))
+        if (!MpManager.IsValidPlayerId(player.PeerId))
         {
             Plugin.Instance?.Log.LogWarning(
-                $"Rejecting connection (uid={action.SenderUid}): invalid PeerId '{action.PeerInfo.PeerId}'");
+                $"Rejecting connection (uid={action.SenderUid}): invalid PeerId '{player.PeerId}'");
             RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.InvalidPlayerId);
             return;
         }
 
-        if (PlayerManager.IsPeerIdOnline(action.PeerInfo.PeerId))
+        if (PlayerManager.IsPeerIdOnline(player.PeerId))
         {
-            Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{action.PeerInfo.PeerId}' (uid={action.SenderUid}): " +
+            Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{player.PeerId}' (uid={action.SenderUid}): " +
                 "duplicate PeerId already online");
-            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.DuplicatePeerId, action.PeerInfo.PeerId);
+            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.DuplicatePeerId, player.PeerId);
             InGameConsole.ShowPassiveFromAnyThread(TextId.DuplicatePeerIdHostNotify.Get(
-                LiveModeManager.GetDisplayName(action.SenderUid, action.PeerInfo.PeerId)));
+                LiveModeManager.GetDisplayName(action.SenderUid, player.PeerId)));
             return;
         }
 
-        action.PeerInfo.Uid = action.SenderUid;
-        var member = new RoomMember
-        {
-            Uid = action.SenderUid,
-            PeerId = action.PeerInfo.PeerId,
-            Role = WireRoomRole.Client,
-            Scene = action.CurrentGameScene,
-            Skin = action.PeerInfo.Skin,
-            Resources = action.PeerInfo.IncrementalDataBase,
-        };
-        var peer = PlayerManager.UpsertRoomMember(member, MpConstants.DirectRoomId);
+        player.Uid = action.SenderUid;
+        player.RoomId = MpConstants.DirectRoomId;
+        player.Role = WireRoomRole.Client;
+        var peer = PlayerManager.UpsertFullPlayer(player);
 
         if (MpManager.LocalScene == Scene.DayScene)
             PlayerManager.SpawnPeersForCurrentScene(new[] { peer });
 
-        HelloAckBehavior.Send(action.PeerInfo.Uid);
-        RoomAssignBehavior.SendDirect(action.PeerInfo.Uid);
-        RoomAssignBehavior.BroadcastDirectExcept(action.PeerInfo.Uid);
+        HelloAckBehavior.Send(player.Uid);
+        RoomAssignBehavior.SendDirect(player.Uid);
+        RoomAssignBehavior.BroadcastDirectExcept(player.Uid);
 
         InGameConsole.ShowPassiveFromAnyThread(
-            TextId.MpConnected.Get(LiveModeManager.GetDisplayName(action.PeerInfo.Uid)));
+            TextId.MpConnected.Get(LiveModeManager.GetDisplayName(player.Uid)));
     }
 }

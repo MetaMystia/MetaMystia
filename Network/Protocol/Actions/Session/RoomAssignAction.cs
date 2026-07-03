@@ -8,6 +8,5 @@ namespace MetaMystia.Network;
 [MemoryPackable]
 public partial class RoomAssignAction : NetAction
 {
-    public ushort RoomId { get; set; }
-    public RoomMember[] Members { get; set; } = [];
+    public PlayerFullData[] Players { get; set; } = [];
 }

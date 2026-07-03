@@ -308,138 +308,86 @@ public static partial class PlayerManager
     public static bool IsPeerIdOnline(string peerId) =>
         PlayerTable.Values.Any(p => string.Equals(p.Id, peerId, System.StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>
-    /// 握手成功后，根据对端 UID 创建并注册 PeerPlayer
-    /// </summary>
-    public static PeerPlayer AddPeer(PlayerInfoData info)
-    {
-        return UpsertRoomMember(new RoomMember
-        {
-            Uid = info.Uid,
-            PeerId = info.PeerId,
-            Role = info.Uid == MpManager.Session.HostUid ? WireRoomRole.Host : WireRoomRole.Client,
-            Scene = MpManager.LocalScene.ToWire(),
-            Skin = info.Skin,
-            Resources = info.IncrementalDataBase,
-        }, MpManager.Session.RoomId);
-    }
-
-    public static PeerPlayer AddPublicPeer(PlayerInfoData info)
-    {
-        return UpsertPresence(new PlayerPresenceAction
-        {
-            Uid = info.Uid,
-            PeerId = info.PeerId,
-            RoomId = MpConstants.PublicRoomId,
-            Scene = MpManager.LocalScene.ToWire(),
-            Skin = info.Skin,
-        });
-    }
-
-    public static void LoadSummaries(PlayerSummary[] summaries)
+    public static void LoadLitePlayers(PlayerLiteData[] players)
     {
         ClearPeers();
-        if (summaries == null) return;
-        foreach (var summary in summaries)
-            UpsertSummary(summary);
+        if (players == null) return;
+        foreach (var player in players)
+            UpsertLitePlayer(player);
 
         SpawnPeersForCurrentScene();
     }
 
-    public static PeerPlayer UpsertSummary(PlayerSummary summary)
+    public static PeerPlayer UpsertLitePlayer(PlayerLiteData player)
     {
-        if (summary == null || summary.Uid == Local.Uid) return null;
-        var peer = GetOrCreatePeer(summary.Uid);
-        peer.Id = summary.PeerId ?? "";
-        peer.RoomId = summary.RoomId;
-        peer.Scene = summary.Scene.ToGame();
-        peer.Skin = summary.Skin ?? new PlayerSkinData();
-        peer.Role = summary.Role;
-        return peer;
-    }
-
-    public static PeerPlayer UpsertPresence(PlayerPresenceAction presence)
-    {
-        if (presence == null || presence.Uid == Local.Uid) return null;
-        var peer = GetOrCreatePeer(presence.Uid);
+        if (player == null || player.Uid == Local.Uid) return null;
+        var peer = GetOrCreatePeer(player.Uid);
         bool wasInRoom = InRoomScope(peer);
-        bool roomChanged = peer.RoomId != presence.RoomId;
-        peer.Id = presence.PeerId ?? "";
-        peer.RoomId = presence.RoomId;
-        peer.Scene = presence.Scene.ToGame();
-        peer.Skin = presence.Skin ?? new PlayerSkinData();
+        bool roomChanged = peer.RoomId != player.RoomId;
+        peer.Id = player.PeerId ?? "";
+        peer.RoomId = player.RoomId;
+        peer.Scene = player.Scene.ToGame();
+        peer.Skin = player.Skin ?? new PlayerSkinData();
+        peer.Role = player.Role;
         if (roomChanged)
             peer.ApplyResources(null);
-        if (presence.RoomId == MpConstants.PublicRoomId)
-            peer.Role = WireRoomRole.None;
         if (wasInRoom && !IsSameRoom(peer.RoomId))
-            HidePeer(presence.Uid);
+            HidePeer(player.Uid);
         return peer;
     }
 
-    public static PeerPlayer UpsertRoomMember(RoomMember member, ushort roomId)
+    public static PeerPlayer UpsertFullPlayer(PlayerFullData player)
     {
-        if (member == null || member.Uid == Local.Uid) return null;
-        var peer = GetOrCreatePeer(member.Uid);
-        peer.Id = member.PeerId ?? "";
-        peer.RoomId = roomId;
-        peer.Scene = member.Scene.ToGame();
-        peer.Skin = member.Skin ?? new PlayerSkinData();
-        peer.Role = member.Role;
-        peer.ApplyResources(member.Resources);
+        if (player == null || player.Uid == Local.Uid) return null;
+        var peer = GetOrCreatePeer(player.Uid);
+        peer.Id = player.PeerId ?? "";
+        peer.RoomId = player.RoomId;
+        peer.Scene = player.Scene.ToGame();
+        peer.Skin = player.Skin ?? new PlayerSkinData();
+        peer.Role = player.Role;
+        peer.ApplyResources(player.Resources);
+        peer.IsDayOver = player.IsDayOver;
+        peer.IsPrepOver = player.IsPrepOver;
         Log.LogMessage($"Upserted room peer '{peer.Id}' (uid={peer.Uid}, room={MpSession.FormatRoomId(peer.RoomId)}, characterId='{peer.CharacterId}')");
         return peer;
     }
 
-    public static PlayerSummary LocalSummary(WireRoomRole role)
+    public static PlayerLiteData LiteDataFromPeer(NetPlayer player, ushort roomId, WireRoomRole role, WireScene scene)
     {
-        return new PlayerSummary
-        {
-            Uid = Local.Uid,
-            PeerId = Local.Id,
-            RoomId = MpManager.Session.RoomId,
-            Scene = MpManager.LocalScene.ToWire(),
-            Skin = Local.Skin,
-            Role = role,
-        };
-    }
-
-    public static PlayerSummary SummaryFromPeer(NetPlayer player, ushort roomId, WireRoomRole role, WireScene scene)
-    {
-        return new PlayerSummary
+        return new PlayerLiteData
         {
             Uid = player.Uid,
-            PeerId = player.Id,
             RoomId = roomId,
+            Role = role,
+            PeerId = player.Id,
             Scene = scene,
             Skin = player.Skin,
-            Role = role,
         };
     }
 
-    public static RoomMember RoomMemberFromPeer(NetPlayer player, WireRoomRole role, WireScene scene)
+    public static PlayerFullData FullDataFromPeer(NetPlayer player, ushort roomId, WireRoomRole role, WireScene scene)
     {
-        return new RoomMember
+        return new PlayerFullData
         {
             Uid = player.Uid,
-            PeerId = player.Id,
+            RoomId = roomId,
             Role = role,
+            PeerId = player.Id,
             Scene = scene,
             Skin = player.Skin,
             Resources = player.IncrementalDataBase,
+            IsDayOver = player.IsDayOver,
+            IsPrepOver = player.IsPrepOver,
         };
     }
 
-    public static RoomMember LocalRoomMember(WireRoomRole role)
+    public static WireRoomRole CurrentWireRoomRole()
     {
-        return new RoomMember
+        return MpManager.Session.RoomRole switch
         {
-            Uid = Local.Uid,
-            PeerId = Local.Id,
-            Role = role,
-            Scene = MpManager.LocalScene.ToWire(),
-            Skin = Local.Skin,
-            Resources = Local.IncrementalDataBase,
+            RoomRole.Host => WireRoomRole.Host,
+            RoomRole.Client => WireRoomRole.Client,
+            _ => WireRoomRole.None,
         };
     }
 

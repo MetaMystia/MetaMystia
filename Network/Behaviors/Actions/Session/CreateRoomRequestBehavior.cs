@@ -14,7 +14,7 @@ internal static class CreateRoomRequestBehavior
 
     private static void Handle(CreateRoomRequestAction action)
     {
-        // 仅服务端端点处理；客机收到此请求一律拒绝（防止伪造端点权威）。
+        // 仅服务端端点处理；客机收到此请求一律拒绝。
         RejectBehavior.SendOnly(action.SenderUid, RejectReason.RoomRequestUnsupported);
     }
 }

@@ -3,17 +3,15 @@ using MemoryPack;
 namespace MetaMystia.Network;
 
 /// <summary>
-/// 房间层完整玩家记录：含资源表。
+/// Lite player row for lightweight lobby/public roster updates.
 /// </summary>
 [MemoryPackable]
-public partial class RoomMember
+public partial class PlayerLiteData
 {
     public int Uid { get; set; }
-    public string PeerId { get; set; } = "";
+    public ushort RoomId { get; set; } = MpConstants.PublicRoomId;
     public WireRoomRole Role { get; set; } = WireRoomRole.None;
+    public string PeerId { get; set; } = "";
     public WireScene Scene { get; set; }
     public PlayerSkinData Skin { get; set; }
-    public ResourceDataBaseData Resources { get; set; }
-    public bool IsDayOver { get; set; }
-    public bool IsPrepOver { get; set; }
 }

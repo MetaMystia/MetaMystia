@@ -10,9 +10,9 @@ internal static class HelloAckBehavior
     {
         if (!MpManager.IsRoomHost) return;
 
-        var players = new System.Collections.Generic.List<PlayerSummary>
+        var players = new System.Collections.Generic.List<PlayerLiteData>
         {
-            PlayerManager.SummaryFromPeer(
+            PlayerManager.LiteDataFromPeer(
                 PlayerManager.Local,
                 MpConstants.DirectRoomId,
                 WireRoomRole.Host,
@@ -22,7 +22,7 @@ internal static class HelloAckBehavior
         {
             ushort roomId = peer.Uid == clientUid ? MpConstants.PublicRoomId : MpConstants.DirectRoomId;
             var role = peer.Uid == clientUid ? WireRoomRole.None : WireRoomRole.Client;
-            players.Add(PlayerManager.SummaryFromPeer(peer, roomId, role, peer.Scene.ToWire()));
+            players.Add(PlayerManager.LiteDataFromPeer(peer, roomId, role, peer.Scene.ToWire()));
         }
 
         new HelloAckAction
@@ -42,7 +42,7 @@ internal static class HelloAckBehavior
     private static void Handle(HelloAckAction action)
     {
         PlayerManager.Local.Uid = action.AssignedUid;
-        PlayerManager.LoadSummaries(action.Players);
+        PlayerManager.LoadLitePlayers(action.Players);
         Plugin.Instance?.Log.LogMessage($"Assigned UID: {action.AssignedUid}");
         if (MpWire.Session.TransportKind == TransportKind.RelayClient)
         {
