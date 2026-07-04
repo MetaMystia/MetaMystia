@@ -17,6 +17,7 @@ public partial class ResourceDataBaseData
     public DlcPack DlcFlags { get; set; } = DlcPack.None;
 
     /// <summary>增量表已算出至少一个完整 DLC（None 表示资源尚未加载或列表为空）。</summary>
+    [MemoryPackIgnore]
     public bool IsIncrementalReady => DlcFlags != DlcPack.None;
 
     // from DataBaseCore
