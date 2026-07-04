@@ -6,32 +6,14 @@ namespace MetaMystia.Network;
 [NetActionBehavior]
 internal static class RoomAssignBehavior
 {
-    public static void SendDirect(int clientUid)
+    public static void Send()
     {
         if (!MpManager.IsRoomHost) return;
 
-        var members = BuildDirectMembers();
-
         new RoomAssignAction
         {
-            Players = members,
-            WireTargetUid = clientUid,
+            Players = PlayerManager.RoomPlayers.Select(player => player.ToFullData()).ToArray(),
         }.Enqueue();
-    }
-
-    public static void BroadcastDirectExcept(int exceptUid)
-    {
-        if (!MpManager.IsRoomHost) return;
-        new RoomAssignAction
-        {
-            Players = BuildDirectMembers(),
-            WireExceptUid = exceptUid,
-        }.Enqueue();
-    }
-
-    private static PlayerFullData[] BuildDirectMembers()
-    {
-        return PlayerManager.RoomPlayers.Select(player => player.ToFullData()).ToArray();
     }
 
     public static void Register(NetActionDispatcher dispatcher)

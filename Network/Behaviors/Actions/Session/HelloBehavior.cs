@@ -103,8 +103,7 @@ internal static class HelloBehavior
             PlayerManager.SpawnPeersForCurrentScene(new[] { peer });
 
         HelloAckBehavior.Send(player.Uid);
-        RoomAssignBehavior.SendDirect(player.Uid);
-        RoomAssignBehavior.BroadcastDirectExcept(player.Uid);
+        RoomAssignBehavior.Send();
 
         InGameConsole.ShowPassiveFromAnyThread(
             TextId.MpConnected.Get(LiveModeManager.GetDisplayName(player.Uid)));
