@@ -57,8 +57,8 @@ public static partial class MpManager
     public static long TimeOffset { get => MpWire.TimeOffsetMs; set => MpWire.TimeOffsetMs = value; }
     public static long GetSynchronizedTimestampNow => MpWire.SyncedNowMs;
 
-    public static int ConnectedPlayersCount => PlayerManager.RoomPeers.Count();
-    public static int AllPlayersCount => ConnectedPlayersCount + 1;
+    public static int RoomPeerCount => PlayerManager.RoomPeers.Count();
+    public static int RoomPlayersCount => RoomPeerCount + 1;
     public static int OnlinePlayersCount => PlayerManager.PlayerTable.Count + 1;
 
     public static string RoleTag => IsRoomHost ? "[H]" : IsRoomClient ? "[C]" : "[N]";
@@ -253,7 +253,7 @@ public static partial class MpManager
         status.AppendLine($"Transport: {Session.TransportKind} | Scope: {scope} | RoomRole: {PlayerManager.Local.Role} | Room: {MpSession.FormatRoomId(PlayerManager.Local.RoomId)}");
         if (IsRoomConnected)
         {
-            status.AppendLine($"Ping: {LatencyDisplay} | Players: {AllPlayersCount}");
+            status.AppendLine($"Ping: {LatencyDisplay} | Players: {RoomPlayersCount}");
             foreach (var peer in PlayerManager.RoomPeers)
                 status.AppendLine($"  Peer: {(peer.Uid == Session.HostUid ? "[S]" : "[C]")} {peer.Id} (uid={peer.Uid})");
         }
@@ -280,7 +280,7 @@ public static partial class MpManager
                 var roster = string.Join(", ",
                     PlayerManager.RoomPeersOrdered.Select(p => LiveModeManager.GetDisplayName(p.Uid)));
                 var head = $"MP: Room {MpSession.FormatRoomId(PlayerManager.Local.RoomId)} | {selfName} uid={PlayerManager.Local.Uid}"
-                    + $" | {AllPlayersCount}/{OnlinePlayersCount} | host {hostName} | ping {LatencyDisplay}";
+                    + $" | {RoomPlayersCount}/{OnlinePlayersCount} | host {hostName} | ping {LatencyDisplay}";
                 return string.IsNullOrEmpty(roster) ? head : $"{head} | {roster}";
             }
             if (IsPublicConnected)

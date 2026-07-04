@@ -60,18 +60,18 @@ internal static class HelloBehavior
             return;
         }
 
-        if (MpManager.AllPlayersCount >= ConfigManager.MaxPlayers.Value)
+        if (MpManager.OnlinePlayersCount >= ConfigManager.MaxPlayers.Value)
         {
             Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{player.PeerId}' (uid={action.SenderUid}): " +
-                $"room full ({MpManager.AllPlayersCount}/{ConfigManager.MaxPlayers.Value})");
+                $"room full ({MpManager.OnlinePlayersCount}/{ConfigManager.MaxPlayers.Value})");
             RejectBehavior.SendAndDisconnect(
                 action.SenderUid,
                 RejectReason.RoomFull,
-                MpManager.AllPlayersCount.ToString(),
+                MpManager.OnlinePlayersCount.ToString(),
                 ConfigManager.MaxPlayers.Value.ToString());
             InGameConsole.ShowPassiveFromAnyThread(TextId.RoomFullHostNotify.Get(
                 LiveModeManager.GetDisplayName(action.SenderUid, player.PeerId),
-                MpManager.AllPlayersCount,
+                MpManager.OnlinePlayersCount,
                 ConfigManager.MaxPlayers.Value));
             return;
         }
