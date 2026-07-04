@@ -31,18 +31,23 @@ public static partial class PlayerManager
     /// <summary>
     /// 同房间玩家投影视图，与 PublicPeers 按互斥
     /// </summary>
-    public static IEnumerable<PeerPlayer> Peers => PlayerTable.Values.Where(InRoomScope);
+    public static IEnumerable<PeerPlayer> RoomPeers => PlayerTable.Values.Where(InRoomScope);
 
     /// <summary>
-    /// 公共同步域内玩家投影视图，与 Peers 按互斥
+    /// 公共同步域内玩家投影视图，与 RoomPeers 按互斥
     /// </summary>
     public static IEnumerable<PeerPlayer> PublicPeers => PlayerTable.Values.Where(p => !InRoomScope(p));
 
     /// <summary>
-    /// 当前对端玩家（1v1 便捷访问，返回第一个 Peer）
-    /// 多人场景下，调用方应遍历 Peers 集合
+    /// 本地玩家 + 同房对端玩家。
     /// </summary>
-    public static PeerPlayer Peer => Peers.FirstOrDefault();
+    public static IEnumerable<NetPlayer> RoomPlayers => new NetPlayer[] { Local }.Concat(RoomPeers);
+
+    /// <summary>
+    /// 当前对端玩家（1v1 便捷访问，返回第一个 Peer）
+    /// 多人场景下，调用方应遍历 RoomPeers 集合
+    /// </summary>
+    public static PeerPlayer Peer => RoomPeers.FirstOrDefault();
 
     /// <summary>
     /// 根据 UID 获取对端玩家显示名（直播模式下为 UID-{uid}）
@@ -63,16 +68,16 @@ public static partial class PlayerManager
         return peer != null;
     }
 
-    /// <summary>指定 uid 当前是否为同房对端（替代旧 Peers.ContainsKey）。</summary>
+    /// <summary>指定 uid 当前是否为同房对端。</summary>
     public static bool IsRoomPeer(int uid) =>
         PlayerTable.TryGetValue(uid, out var peer) && InRoomScope(peer);
 
     public static bool IsSameRoom(ushort roomId) =>
-        MpManager.Session.IsInRoom && roomId == MpManager.Session.RoomId;
+        MpManager.IsInRoom && roomId == Local.RoomId;
 
     /// <summary>同房对端展示顺序：房主优先，其余按 uid 升序。</summary>
     public static IEnumerable<PeerPlayer> RoomPeersOrdered =>
-        Peers.OrderByDescending(p => p.Uid == MpManager.Session.HostUid).ThenBy(p => p.Uid);
+        RoomPeers.OrderByDescending(p => p.Uid == MpManager.Session.HostUid).ThenBy(p => p.Uid);
 
     /// <summary>公域对端展示顺序：按 uid 升序。</summary>
     public static IEnumerable<PeerPlayer> PublicPeersOrdered =>
@@ -98,13 +103,13 @@ public static partial class PlayerManager
     /// 所有对端是否都已完成 Day（聚合判断）
     /// </summary>
     public static bool AllPeersDayOver =>
-        Peers.Any() && Peers.All(p => p.IsDayOver);
+        RoomPeers.Any() && RoomPeers.All(p => p.IsDayOver);
 
     /// <summary>
     /// 所有对端是否都已完成 Prep（聚合判断）
     /// </summary>
     public static bool AllPeersPrepOver =>
-        Peers.Any() && Peers.All(p => p.IsPrepOver);
+        RoomPeers.Any() && RoomPeers.All(p => p.IsPrepOver);
 
     /// <summary>
     /// 全员（本地 + 所有对端）是否都已完成 Day
@@ -120,7 +125,7 @@ public static partial class PlayerManager
     /// 所有对端是否都已选择了与指定地图/等级一致的居酒屋
     /// </summary>
     public static bool AllPeersSelectedSameIzakaya(MapLabel mapLabel, int level) =>
-        Peers.Any() && Peers.All(p =>
+        RoomPeers.Any() && RoomPeers.All(p =>
             p.IzakayaMapLabel.IsSelected() && p.IzakayaLevel != 0
             && p.IzakayaMapLabel == mapLabel && p.IzakayaLevel == level);
 
@@ -128,7 +133,7 @@ public static partial class PlayerManager
     /// 是否所有对端都已做出选择（不论是否与本地一致）
     /// </summary>
     public static bool AllPeersHaveSelected =>
-        Peers.Any() && Peers.All(p =>
+        RoomPeers.Any() && RoomPeers.All(p =>
             p.IzakayaMapLabel.IsSelected() && p.IzakayaLevel != 0);
 
     #endregion
@@ -167,7 +172,7 @@ public static partial class PlayerManager
     /// </summary>
     public static string GetFirstMismatchSelection(MapLabel mapLabel, int level)
     {
-        foreach (var peer in Peers)
+        foreach (var peer in RoomPeers)
         {
             if (!peer.IzakayaMapLabel.IsSelected() || peer.IzakayaLevel == 0)
                 return $"{LiveModeManager.GetDisplayName(peer.Uid)}: {TextId.PeerIzakayaNotSelected.Get()}";
@@ -182,31 +187,31 @@ public static partial class PlayerManager
     #region 资源可用性聚合判断（所有玩家都拥有该资源才视为可用）
 
     public static bool FoodAvailable(int id) =>
-        Local.DataBase.FoodAvailable(id) && Peers.All(p => p.DataBase.FoodAvailable(id));
+        Local.DataBase.FoodAvailable(id) && RoomPeers.All(p => p.DataBase.FoodAvailable(id));
 
     public static bool RecipeAvailable(int id) =>
-        Local.DataBase.RecipeAvailable(id) && Peers.All(p => p.DataBase.RecipeAvailable(id));
+        Local.DataBase.RecipeAvailable(id) && RoomPeers.All(p => p.DataBase.RecipeAvailable(id));
 
     public static bool BeverageAvailable(int id) =>
-        Local.DataBase.BeverageAvailable(id) && Peers.All(p => p.DataBase.BeverageAvailable(id));
+        Local.DataBase.BeverageAvailable(id) && RoomPeers.All(p => p.DataBase.BeverageAvailable(id));
 
     public static bool IngredientAvailable(int id) =>
-        Local.DataBase.IngredientAvailable(id) && Peers.All(p => p.DataBase.IngredientAvailable(id));
+        Local.DataBase.IngredientAvailable(id) && RoomPeers.All(p => p.DataBase.IngredientAvailable(id));
 
     public static bool CookerAvailable(int id) =>
-        Local.DataBase.CookerAvailable(id) && Peers.All(p => p.DataBase.CookerAvailable(id));
+        Local.DataBase.CookerAvailable(id) && RoomPeers.All(p => p.DataBase.CookerAvailable(id));
 
     public static bool ItemAvailable(int id) =>
-        Local.DataBase.ItemAvailable(id) && Peers.All(p => p.DataBase.ItemAvailable(id));
+        Local.DataBase.ItemAvailable(id) && RoomPeers.All(p => p.DataBase.ItemAvailable(id));
 
     public static bool IzakayaAvailable(int id) =>
-        Local.DataBase.IzakayaAvailable(id) && Peers.All(p => p.DataBase.IzakayaAvailable(id));
+        Local.DataBase.IzakayaAvailable(id) && RoomPeers.All(p => p.DataBase.IzakayaAvailable(id));
 
     public static bool NormalGuestAvailable(int id) =>
-        Local.DataBase.NormalGuestAvailable(id) && Peers.All(p => p.DataBase.NormalGuestAvailable(id));
+        Local.DataBase.NormalGuestAvailable(id) && RoomPeers.All(p => p.DataBase.NormalGuestAvailable(id));
 
     public static bool SpecialGuestAvailable(int id) =>
-        Local.DataBase.SpecialGuestAvailable(id) && Peers.All(p => p.DataBase.SpecialGuestAvailable(id));
+        Local.DataBase.SpecialGuestAvailable(id) && RoomPeers.All(p => p.DataBase.SpecialGuestAvailable(id));
 
     #endregion
 
@@ -234,9 +239,9 @@ public static partial class PlayerManager
     public static void ResetState()
     {
         Local.ResetState();
-        foreach (var peer in Peers)
+        foreach (var peer in RoomPeers)
             peer.ResetState();
-        Log.LogInfo($"PlayerManager state reset (peers: {Peers.Count()})");
+        Log.LogInfo($"PlayerManager state reset (roomPeers: {RoomPeers.Count()})");
     }
 
     public static void SpawnPeersForCurrentScene(IEnumerable<PeerPlayer> peers = null)
@@ -264,7 +269,7 @@ public static partial class PlayerManager
         return MpManager.LocalScene switch
         {
             Common.UI.Scene.DayScene => PlayerTable.Values.Where(p => p.Scene == Common.UI.Scene.DayScene),
-            Common.UI.Scene.WorkScene => Peers,
+            Common.UI.Scene.WorkScene => RoomPeers,
             _ => []
         };
     }
@@ -352,45 +357,6 @@ public static partial class PlayerManager
         return peer;
     }
 
-    public static PlayerLiteData LiteDataFromPeer(NetPlayer player, ushort roomId, WireRoomRole role, WireScene scene)
-    {
-        return new PlayerLiteData
-        {
-            Uid = player.Uid,
-            RoomId = roomId,
-            Role = role,
-            PeerId = player.Id,
-            Scene = scene,
-            Skin = player.Skin,
-        };
-    }
-
-    public static PlayerFullData FullDataFromPeer(NetPlayer player, ushort roomId, WireRoomRole role, WireScene scene)
-    {
-        return new PlayerFullData
-        {
-            Uid = player.Uid,
-            RoomId = roomId,
-            Role = role,
-            PeerId = player.Id,
-            Scene = scene,
-            Skin = player.Skin,
-            Resources = player.IncrementalDataBase,
-            IsDayOver = player.IsDayOver,
-            IsPrepOver = player.IsPrepOver,
-        };
-    }
-
-    public static WireRoomRole CurrentWireRoomRole()
-    {
-        return MpManager.Session.RoomRole switch
-        {
-            RoomRole.Host => WireRoomRole.Host,
-            RoomRole.Client => WireRoomRole.Client,
-            _ => WireRoomRole.None,
-        };
-    }
-
     private static PeerPlayer GetOrCreatePeer(int uid) =>
         PlayerTable.GetOrAdd(uid, static key =>
         {
@@ -472,7 +438,7 @@ public static partial class PlayerManager
     /// </summary>
     public static void ClearRoomPeers()
     {
-        foreach (var peer in Peers.ToList())
+        foreach (var peer in RoomPeers.ToList())
         {
             peer.DespawnCharacter();
             UI.FloatingTextHelper.RemovePlayerLabel(peer.Uid);
@@ -487,14 +453,16 @@ public static partial class PlayerManager
     public static void SyncRoomPeersBeforeAssign(ushort roomId, IEnumerable<int> memberUids)
     {
         var incoming = memberUids?.ToHashSet() ?? [];
-        foreach (var peer in Peers.Where(p => !incoming.Contains(p.Uid)).ToList())
+        foreach (var peer in PlayerTable.Values
+            .Where(p => p.RoomId == roomId && p.HasResources && !incoming.Contains(p.Uid))
+            .ToList())
         {
             peer.DespawnCharacter();
             UI.FloatingTextHelper.RemovePlayerLabel(peer.Uid);
-            if (peer.RoomId == roomId)
-                peer.ApplyResources(null);
+            peer.ApplyResources(null);
         }
-        Log.LogMessage($"Room peer roster synced (room={MpSession.FormatRoomId(roomId)}, members={Peers.Count()})");
+        var roomPeers = PlayerTable.Values.Count(p => p.RoomId == roomId && p.HasResources);
+        Log.LogMessage($"Room peer roster synced (room={MpSession.FormatRoomId(roomId)}, members={roomPeers})");
     }
 
     #endregion

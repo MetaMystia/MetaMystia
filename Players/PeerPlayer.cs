@@ -28,15 +28,6 @@ public partial class PeerPlayer : NetPlayer
 
     #region 房间/同步域状态（取代旧 PlayerRecord，由 PlayerManager.Upsert* 维护）
 
-    /// <summary>对端所在房间号（绝对值，本地据此推导同房关系）。</summary>
-    public ushort RoomId { get; set; } = MpConstants.PublicRoomId;
-
-    /// <summary>对端当前场景（游戏原生枚举；WireScene 仅在收发边界转换）。</summary>
-    public Common.UI.Scene Scene { get; set; }
-
-    /// <summary>对端房间角色。</summary>
-    public WireRoomRole Role { get; set; } = WireRoomRole.None;
-
     /// <summary>是否已加载房间层资源表（公域简表玩家为 false）。</summary>
     public bool HasResources { get; set; }
 

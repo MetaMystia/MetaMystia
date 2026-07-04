@@ -30,9 +30,9 @@ internal static class NetActionRuntime
             LogWarning($"{MpManager.RoleTag} {action.ActionName()} from non-host uid={action.SenderUid}, ignoring");
             return;
         }
-        if (receiveScope == NetReceiveScope.ClientOnly && MpManager.Session.IsRoomHost)
+        if (receiveScope == NetReceiveScope.ClientOnly && MpManager.IsRoomHost)
             return;
-        if (receiveScope == NetReceiveScope.HostOnly && !MpManager.Session.IsRoomHost)
+        if (receiveScope == NetReceiveScope.HostOnly && !MpManager.IsRoomHost)
         {
             LogWarning($"{MpManager.RoleTag} {action.ActionName()} received by non-host, ignoring");
             return;

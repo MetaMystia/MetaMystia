@@ -9,11 +9,7 @@ internal static class PlayerPresenceBehavior
     {
         new PlayerPresenceAction
         {
-            Player = PlayerManager.LiteDataFromPeer(
-                PlayerManager.Local,
-                MpWire.Session.RoomId,
-                PlayerManager.CurrentWireRoomRole(),
-                MpManager.LocalScene.ToWire()),
+            Player = PlayerManager.Local.ToLiteData(),
         }.Enqueue();
     }
 

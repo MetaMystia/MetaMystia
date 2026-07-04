@@ -41,6 +41,8 @@ internal static class ServerInfoReplyBehavior
                 break;
             case ServerMode.Relay:
                 MpWire.Session.BeginConnecting(TransportKind.RelayClient);
+                PlayerManager.Local.RoomId = MpConstants.PublicRoomId;
+                PlayerManager.Local.Role = WireRoomRole.None;
                 HelloBehavior.Send();
                 break;
             default:

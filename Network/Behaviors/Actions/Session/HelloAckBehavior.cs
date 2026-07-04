@@ -1,3 +1,4 @@
+using System.Linq;
 using MetaMystia.UI;
 
 namespace MetaMystia.Network;
@@ -10,25 +11,10 @@ internal static class HelloAckBehavior
     {
         if (!MpManager.IsRoomHost) return;
 
-        var players = new System.Collections.Generic.List<PlayerLiteData>
-        {
-            PlayerManager.LiteDataFromPeer(
-                PlayerManager.Local,
-                MpConstants.DirectRoomId,
-                WireRoomRole.Host,
-                MpManager.LocalScene.ToWire())
-        };
-        foreach (var peer in PlayerManager.Peers)
-        {
-            ushort roomId = peer.Uid == clientUid ? MpConstants.PublicRoomId : MpConstants.DirectRoomId;
-            var role = peer.Uid == clientUid ? WireRoomRole.None : WireRoomRole.Client;
-            players.Add(PlayerManager.LiteDataFromPeer(peer, roomId, role, peer.Scene.ToWire()));
-        }
-
         new HelloAckAction
         {
             AssignedUid = clientUid,
-            Players = players.ToArray(),
+            Players = PlayerManager.RoomPlayers.Select(player => player.ToLiteData()).ToArray(),
             WireTargetUid = clientUid,
         }.Enqueue();
     }
@@ -47,6 +33,8 @@ internal static class HelloAckBehavior
         if (MpWire.Session.TransportKind == TransportKind.RelayClient)
         {
             MpWire.Session.EnterRelayPublic();
+            PlayerManager.Local.RoomId = MpConstants.PublicRoomId;
+            PlayerManager.Local.Role = WireRoomRole.None;
             MpWire.OnRelayPublicEntered();
             InGameConsole.ShowPassiveFromAnyThread(
                 TextId.MultiplayerPublicConnected.Get());

@@ -35,8 +35,10 @@ internal static class RoomKickBehavior
             return;
         }
 
-        MpWire.Session.LeaveRelayRoomToPublic();
         PlayerManager.ClearRoomPeers();
+        MpWire.Session.LeaveRelayRoomToPublic();
+        PlayerManager.Local.RoomId = MpConstants.PublicRoomId;
+        PlayerManager.Local.Role = WireRoomRole.None;
         MpWire.OnRelayPublicEntered();
     }
 }

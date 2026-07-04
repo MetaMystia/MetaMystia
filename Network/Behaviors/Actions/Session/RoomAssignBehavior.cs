@@ -1,4 +1,4 @@
-using Common.UI;
+using System.Linq;
 using MetaMystia.UI;
 
 namespace MetaMystia.Network;
@@ -31,21 +31,7 @@ internal static class RoomAssignBehavior
 
     private static PlayerFullData[] BuildDirectMembers()
     {
-        var members = new System.Collections.Generic.List<PlayerFullData>
-        {
-            PlayerManager.FullDataFromPeer(
-                PlayerManager.Local,
-                MpSession.DirectRoomId,
-                WireRoomRole.Host,
-                MpManager.LocalScene.ToWire())
-        };
-        foreach (var peer in PlayerManager.Peers)
-            members.Add(PlayerManager.FullDataFromPeer(
-                peer,
-                MpSession.DirectRoomId,
-                WireRoomRole.Client,
-                peer.Scene.ToWire()));
-        return members.ToArray();
+        return PlayerManager.RoomPlayers.Select(player => player.ToFullData()).ToArray();
     }
 
     public static void Register(NetActionDispatcher dispatcher)
@@ -57,7 +43,7 @@ internal static class RoomAssignBehavior
 
     private static void Handle(RoomAssignAction action)
     {
-        bool wasInRoom = MpWire.Session.IsInRoom;
+        bool wasInRoom = MpManager.IsInRoom;
         var players = action.Players ?? [];
         var self = System.Linq.Enumerable.FirstOrDefault(players, p => p.Uid == PlayerManager.Local.Uid);
         var host = System.Linq.Enumerable.FirstOrDefault(players, p => p.Role == WireRoomRole.Host);
@@ -68,20 +54,15 @@ internal static class RoomAssignBehavior
             return;
         }
 
-        var role = self.Role switch
-        {
-            WireRoomRole.Host => RoomRole.Host,
-            WireRoomRole.Client => RoomRole.Client,
-            _ => RoomRole.None,
-        };
-
         if (MpWire.Session.TransportKind == TransportKind.RelayClient)
-            MpWire.Session.EnterRelayRoom(role, self.RoomId, host.Uid);
+            MpWire.Session.EnterRelayRoom(host.Uid);
         else
             MpWire.Session.EnterDirectClientRoom();
 
         MpWire.Session.AssignHostUid(host.Uid);
         PlayerManager.SyncRoomPeersBeforeAssign(self.RoomId, System.Linq.Enumerable.Select(players, p => p.Uid));
+        PlayerManager.Local.RoomId = self.RoomId;
+        PlayerManager.Local.Role = self.Role;
 
         foreach (var player in players)
             PlayerManager.UpsertFullPlayer(player);

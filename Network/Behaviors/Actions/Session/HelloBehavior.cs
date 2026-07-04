@@ -11,15 +11,9 @@ internal static class HelloBehavior
     /// </summary>
     public static void Send()
     {
-        var player = PlayerManager.FullDataFromPeer(
-            PlayerManager.Local,
-            MpConstants.PublicRoomId,
-            WireRoomRole.None,
-            MpManager.LocalScene.ToWire());
-
         new HelloAction
         {
-            Player = player,
+            Player = PlayerManager.Local.ToFullData(),
             Version = Plugin.ModVersion,
             GameVersion = Plugin.GameVersion,
         }.Enqueue();

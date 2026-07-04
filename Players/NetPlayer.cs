@@ -3,6 +3,7 @@ using System;
 using UnityEngine;
 
 using Common.CharacterUtility;
+using MetaMystia.Network;
 
 namespace MetaMystia;
 
@@ -22,6 +23,48 @@ public abstract partial class NetPlayer
     /// 玩家的唯一标识符（主机=0，客机=1,2,3...），由主机在 HelloAck 中分配
     /// </summary>
     public int Uid { get; set; } = -1;
+
+    #endregion
+
+    #region 网络状态与投影
+
+    /// <summary>玩家所在房间号。Public 使用 <see cref="MpConstants.PublicRoomId"/>。</summary>
+    public ushort RoomId { get; set; } = MpConstants.PublicRoomId;
+
+    /// <summary>玩家房间角色。Public 中应为 <see cref="WireRoomRole.None"/>。</summary>
+    public WireRoomRole Role { get; set; } = WireRoomRole.None;
+
+    /// <summary>玩家当前场景。</summary>
+    public Common.UI.Scene Scene { get; set; } = Common.UI.Scene.EmptyScene;
+
+    public PlayerLiteData ToLiteData()
+    {
+        return new PlayerLiteData
+        {
+            Uid = Uid,
+            RoomId = RoomId,
+            Role = Role,
+            PeerId = Id,
+            Scene = Scene.ToWire(),
+            Skin = Skin,
+        };
+    }
+
+    public PlayerFullData ToFullData()
+    {
+        return new PlayerFullData
+        {
+            Uid = Uid,
+            RoomId = RoomId,
+            Role = Role,
+            PeerId = Id,
+            Scene = Scene.ToWire(),
+            Skin = Skin,
+            Resources = IncrementalDataBase,
+            IsDayOver = IsDayOver,
+            IsPrepOver = IsPrepOver,
+        };
+    }
 
     #endregion
 
