@@ -9,7 +9,7 @@ internal static class HelloAckBehavior
     /// <summary>服务端端点向指定客机确认控制面连接。</summary>
     public static void Send(int clientUid)
     {
-        if (!MpManager.IsRoomHost) return;
+        if (!MpManager.IsServerEndpoint) return;
 
         new HelloAckAction
         {

@@ -334,7 +334,8 @@ public static partial class PlayerManager
         peer.Scene = player.Scene.ToGame();
         peer.Skin = player.Skin ?? new PlayerSkinData();
         peer.Role = player.Role;
-        if (roomChanged)
+        bool leavingRoomScope = wasInRoom && !IsSameRoom(player.RoomId);
+        if (leavingRoomScope || (roomChanged && player.RoomId == MpConstants.PublicRoomId))
             peer.ApplyResources(null);
         if (wasInRoom && !IsSameRoom(peer.RoomId))
             HidePeer(player.Uid);
@@ -445,24 +446,6 @@ public static partial class PlayerManager
             peer.ApplyResources(null);
         }
         Log.LogMessage("Room peers cleared");
-    }
-
-    /// <summary>
-    /// RoomAssign 落地前，把不在新名单中的旧同房 peer 清掉角色并降级资源表。
-    /// </summary>
-    public static void SyncRoomPeersBeforeAssign(ushort roomId, IEnumerable<int> memberUids)
-    {
-        var incoming = memberUids?.ToHashSet() ?? [];
-        foreach (var peer in PlayerTable.Values
-            .Where(p => p.RoomId == roomId && p.HasResources && !incoming.Contains(p.Uid))
-            .ToList())
-        {
-            peer.DespawnCharacter();
-            UI.FloatingTextHelper.RemovePlayerLabel(peer.Uid);
-            peer.ApplyResources(null);
-        }
-        var roomPeers = PlayerTable.Values.Count(p => p.RoomId == roomId && p.HasResources);
-        Log.LogMessage($"Room peer roster synced (room={MpSession.FormatRoomId(roomId)}, members={roomPeers})");
     }
 
     #endregion

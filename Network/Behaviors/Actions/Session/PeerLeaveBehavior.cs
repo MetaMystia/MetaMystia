@@ -7,7 +7,7 @@ internal static class PeerLeaveBehavior
 {
     public static void Send(int leavingUid)
     {
-        if (!MpManager.IsRoomHost) return;
+        if (!MpManager.IsServerEndpoint) return;
         new PeerLeaveAction
         {
             SenderUid = MpConstants.HostUid,

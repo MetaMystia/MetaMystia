@@ -12,11 +12,9 @@ internal static class JoinRoomRequestBehavior
     public static void Register(NetActionDispatcher dispatcher)
     {
         dispatcher.Register<JoinRoomRequestAction>(Handle,
-            receiveScope: NetReceiveScope.HostOnly);
+            receiveScope: NetReceiveScope.EndpointOnly);
     }
 
-    private static void Handle(JoinRoomRequestAction action)
-    {
+    private static void Handle(JoinRoomRequestAction action) =>
         RejectBehavior.SendOnly(action.SenderUid, RejectReason.RoomRequestUnsupported);
-    }
 }

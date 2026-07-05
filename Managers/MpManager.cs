@@ -40,6 +40,7 @@ public static partial class MpManager
     public static bool IsRoomHost => IsInRoom && PlayerManager.Local.Role == WireRoomRole.Host;
     public static bool IsRoomClient => IsInRoom && PlayerManager.Local.Role == WireRoomRole.Client;
     public static bool IsDirectHost => Session.TransportKind == TransportKind.DirectHost;
+    public static bool IsServerEndpoint => IsDirectHost && IsRunning;
     public static bool IsDirectClient => Session.TransportKind == TransportKind.DirectClient;
     public static bool IsRelayClient => Session.IsRelay;
     public static bool IsRoomConnected => IsInRoom && MpWire.IsRoomConnected;
@@ -197,28 +198,6 @@ public static partial class MpManager
         Session.EnterRelayPublic();
         PlayerManager.Local.RoomId = MpConstants.PublicRoomId;
         PlayerManager.Local.Role = WireRoomRole.None;
-        return true;
-    }
-
-    public static bool EnterRelayRoomAsHost(ushort roomId, int hostUid = HOST_UID)
-    {
-        if (!EnsureMultiplayerAvailable()) return false;
-        MpWire.StartHost();
-        PlayerManager.Local.Uid = hostUid;
-        Session.EnterRelayRoom(hostUid);
-        PlayerManager.Local.RoomId = roomId;
-        PlayerManager.Local.Role = WireRoomRole.Host;
-        return true;
-    }
-
-    public static bool EnterRelayRoomAsClient(ushort roomId, int localUid, int hostUid = HOST_UID)
-    {
-        if (!EnsureMultiplayerAvailable()) return false;
-        MpWire.StartClientMode();
-        PlayerManager.Local.Uid = localUid;
-        Session.EnterRelayRoom(hostUid);
-        PlayerManager.Local.RoomId = roomId;
-        PlayerManager.Local.Role = WireRoomRole.Client;
         return true;
     }
 

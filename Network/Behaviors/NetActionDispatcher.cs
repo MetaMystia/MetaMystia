@@ -8,6 +8,7 @@ internal enum NetReceiveScope
     Any,
     ClientOnly,
     HostOnly,
+    EndpointOnly,
 }
 
 internal sealed class NetActionDispatcher

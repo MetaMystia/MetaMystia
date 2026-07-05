@@ -9,12 +9,9 @@ internal static class CreateRoomRequestBehavior
     public static void Register(NetActionDispatcher dispatcher)
     {
         dispatcher.Register<CreateRoomRequestAction>(Handle,
-            receiveScope: NetReceiveScope.HostOnly);
+            receiveScope: NetReceiveScope.EndpointOnly);
     }
 
-    private static void Handle(CreateRoomRequestAction action)
-    {
-        // 仅服务端端点处理；客机收到此请求一律拒绝。
+    private static void Handle(CreateRoomRequestAction action) =>
         RejectBehavior.SendOnly(action.SenderUid, RejectReason.RoomRequestUnsupported);
-    }
 }

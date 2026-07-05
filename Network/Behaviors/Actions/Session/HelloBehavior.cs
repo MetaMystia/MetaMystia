@@ -1,3 +1,4 @@
+using System.Linq;
 using Common.UI;
 using MetaMystia.UI;
 
@@ -6,9 +7,6 @@ namespace MetaMystia.Network;
 [NetActionBehavior]
 internal static class HelloBehavior
 {
-    /// <summary>
-    /// 客机发送 Hello 给主机请求连接。
-    /// </summary>
     public static void Send()
     {
         new HelloAction
@@ -22,7 +20,7 @@ internal static class HelloBehavior
     public static void Register(NetActionDispatcher dispatcher)
     {
         dispatcher.Register<HelloAction>(Handle,
-            receiveScope: NetReceiveScope.HostOnly);
+            receiveScope: NetReceiveScope.EndpointOnly);
     }
 
     private static void Handle(HelloAction action)
@@ -103,7 +101,26 @@ internal static class HelloBehavior
             PlayerManager.SpawnPeersForCurrentScene(new[] { peer });
 
         HelloAckBehavior.Send(player.Uid);
-        RoomAssignBehavior.Send();
+
+        var existing = new[] { PlayerManager.Local.ToFullData() }
+            .Concat(PlayerManager.RoomPeers.Where(p => p.Uid != player.Uid).Select(p => p.ToFullData()))
+            .ToArray();
+        new RoomEnterAction
+        {
+            SenderUid = MpConstants.HostUid,
+            Self = player,
+            ExistingMembers = existing,
+            WireTargetUid = player.Uid,
+        }.Enqueue();
+        foreach (var member in PlayerManager.RoomPeers.Where(p => p.Uid != player.Uid))
+        {
+            new RoomMemberJoinAction
+            {
+                SenderUid = MpConstants.HostUid,
+                Joined = player,
+                WireTargetUid = member.Uid,
+            }.Enqueue();
+        }
 
         InGameConsole.ShowPassiveFromAnyThread(
             TextId.MpConnected.Get(LiveModeManager.GetDisplayName(player.Uid)));

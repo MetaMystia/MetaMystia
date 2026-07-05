@@ -30,13 +30,15 @@ internal static class NetActionRuntime
             LogWarning($"{MpManager.RoleTag} {action.ActionName()} from non-host uid={action.SenderUid}, ignoring");
             return;
         }
-        if (receiveScope == NetReceiveScope.ClientOnly && MpManager.IsRoomHost)
+        if (receiveScope == NetReceiveScope.ClientOnly && MpManager.IsServerEndpoint)
             return;
         if (receiveScope == NetReceiveScope.HostOnly && !MpManager.IsRoomHost)
         {
             LogWarning($"{MpManager.RoleTag} {action.ActionName()} received by non-host, ignoring");
             return;
         }
+        if (receiveScope == NetReceiveScope.EndpointOnly && !MpManager.IsServerEndpoint)
+            return;
 
         handle();
     }
@@ -75,16 +77,13 @@ internal static class NetActionRuntime
             });
         }
 
-        if (action is RoomAssignAction roomAssign)
+        if (action is RoomEnterAction roomEnter)
         {
-            var players = roomAssign.Players ?? [];
             return System.Text.Json.JsonSerializer.Serialize(new
             {
-                RoomId = MpSession.FormatRoomId(players.FirstOrDefault()?.RoomId ?? MpConstants.PublicRoomId),
-                PlayersCount = players.Length,
-                PlayerIds = players.Take(3).Select(peer => peer.PeerId).ToArray(),
-                PlayersTruncated = players.Length > 3,
-                HostUid = players.FirstOrDefault(peer => peer.Role == WireRoomRole.Host)?.Uid
+                RoomId = MpSession.FormatRoomId(roomEnter.Self?.RoomId ?? MpConstants.PublicRoomId),
+                SelfUid = roomEnter.Self?.Uid,
+                ExistingCount = (roomEnter.ExistingMembers ?? []).Length,
             });
         }
 
@@ -113,7 +112,7 @@ internal static class NetActionRuntime
     private static LogLevel ReceiveLogLevel(NetAction action) => action switch
     {
         PingAction or PongAction or DayMoveSyncAction or NightMoveSyncAction => LogLevel.Debug,
-        HelloAction or HelloAckAction or RoomAssignAction or MessageAction or PlayerPresenceAction or PeerLeaveAction or BuffAction => LogLevel.Message,
+        HelloAction or HelloAckAction or RoomEnterAction or MessageAction or PublicPlayerUpsertAction or PeerLeaveAction or BuffAction => LogLevel.Message,
         RejectAction => LogLevel.Warning,
         _ => LogLevel.Info,
     };

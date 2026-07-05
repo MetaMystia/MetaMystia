@@ -11,11 +11,13 @@ public enum ActionType : ushort
     HelloAck,
     Reject,
     PeerLeave,
-    PlayerPresence,
+    PublicPlayerUpsert,
     JoinRoomRequest,
     CreateRoomRequest,
     LeaveRoom,
-    RoomAssign,
+    RoomEnter,
+    RoomMemberJoin,
+    RoomMemberLeave,
     RoomKick,
 
     // ===== 玩法 =====

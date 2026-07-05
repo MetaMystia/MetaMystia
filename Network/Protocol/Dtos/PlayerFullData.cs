@@ -17,4 +17,14 @@ public partial class PlayerFullData
     public ResourceDataBaseData Resources { get; set; }
     public bool IsDayOver { get; set; }
     public bool IsPrepOver { get; set; }
+
+    public PlayerLiteData ToLiteData() => new()
+    {
+        Uid = Uid,
+        RoomId = RoomId,
+        Role = Role,
+        PeerId = PeerId ?? "",
+        Scene = Scene,
+        Skin = Skin,
+    };
 }

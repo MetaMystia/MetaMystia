@@ -58,7 +58,7 @@ public static partial class MpWire
 
     public static bool CanSend => Session.TransportKind switch
     {
-        TransportKind.DirectHost => MpManager.IsInRoom && _running,
+        TransportKind.DirectHost => _running,
         TransportKind.DirectClient => IsServerEndpointConnected && (Session.IsConnecting || MpManager.IsInRoom),
         TransportKind.RelayClient => IsServerEndpointConnected && (Session.IsConnecting || MpManager.IsInPublicScope || MpManager.IsInRoom),
         _ => false
@@ -200,13 +200,13 @@ public static partial class MpWire
 
     public static void DisconnectClient(int uid, bool notify = true)
     {
-        if (!MpManager.IsRoomHost) return;
+        if (!MpManager.IsServerEndpoint) return;
         if (notify)
             RejectBehavior.SendOnly(uid, RejectReason.KickedFromServer);
         FlushOutboundNow();
         _tcp?.DisconnectClient(uid);
-        if (PlayerManager.IsRoomPeer(uid))
-            OnHostClientLeft(uid);
+        if (PlayerManager.PlayerTable.ContainsKey(uid))
+            OnEndpointClientLeft(uid);
     }
 
     // --- app send ---
@@ -219,7 +219,7 @@ public static partial class MpWire
         int? target = action.WireTargetUid;
         int? except = action.WireExceptUid;
 
-        if (Session.TransportKind == TransportKind.DirectHost && MpManager.IsRoomHost)
+        if (Session.TransportKind == TransportKind.DirectHost && MpManager.IsServerEndpoint)
             _outbox.Enqueue(new Outbound(framed, target, except, lowPriority));
         else if (Session.TransportKind is TransportKind.DirectClient or TransportKind.RelayClient)
             _outbox.Enqueue(new Outbound(framed, null, null, lowPriority));
@@ -351,8 +351,8 @@ public static partial class MpWire
 
     private static void OnWirePeerLeft(int uid)
     {
-        if (Session.TransportKind == TransportKind.DirectHost && MpManager.IsRoomHost && uid != Session.HostUid)
-            PluginManager.Instance?.RunOnMainThread(() => OnHostClientLeft(uid));
+        if (Session.TransportKind == TransportKind.DirectHost && MpManager.IsServerEndpoint && uid != Session.HostUid)
+            PluginManager.Instance?.RunOnMainThread(() => OnEndpointClientLeft(uid));
         else if (Session.TransportKind is TransportKind.DirectClient or TransportKind.RelayClient || Session.IsConnecting)
             PluginManager.Instance?.RunOnMainThread(OnClientDisconnected);
     }
@@ -391,14 +391,16 @@ public static partial class MpWire
     private static bool IsEndpointOnly(NetAction action) =>
         action is ServerInfoReplyAction
             or HelloAckAction
-            or RoomAssignAction
+            or RoomEnterAction
             or RoomKickAction
             or RejectAction
             or PongAction
             or PeerLeaveAction
-            or PlayerPresenceAction;
+            or PublicPlayerUpsertAction
+            or RoomMemberJoinAction
+            or RoomMemberLeaveAction;
 
-    private static void OnHostClientLeft(int uid)
+    private static void OnEndpointClientLeft(int uid)
     {
         if (PlayerManager.TryGetRoomPeer(uid, out var peer))
         {

@@ -9,17 +9,9 @@ internal static class LeaveRoomBehavior
     public static void Register(NetActionDispatcher dispatcher)
     {
         dispatcher.Register<LeaveRoomAction>(Handle,
-            receiveScope: NetReceiveScope.HostOnly);
+            receiveScope: NetReceiveScope.EndpointOnly);
     }
 
-    private static void Handle(LeaveRoomAction action)
-    {
-        if (!MpManager.Session.IsRelay)
-        {
-            RejectBehavior.SendOnly(action.SenderUid, RejectReason.RoomRequestUnsupported);
-            return;
-        }
-
-        RoomKickBehavior.Send(action.SenderUid, RejectReason.KickedFromRoom);
-    }
+    private static void Handle(LeaveRoomAction action) =>
+        RejectBehavior.SendOnly(action.SenderUid, RejectReason.RoomRequestUnsupported);
 }

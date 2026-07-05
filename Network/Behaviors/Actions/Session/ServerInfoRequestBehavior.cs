@@ -13,7 +13,7 @@ internal static class ServerInfoRequestBehavior
     public static void Register(NetActionDispatcher dispatcher)
     {
         dispatcher.Register<ServerInfoRequestAction>(Handle,
-            receiveScope: NetReceiveScope.HostOnly);
+            receiveScope: NetReceiveScope.EndpointOnly);
     }
 
     private static void Handle(ServerInfoRequestAction action)
