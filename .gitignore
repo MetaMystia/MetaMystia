@@ -3,6 +3,7 @@
 .agent
 *.user
 *.lscache
+*.local.props
 
 /bin
 /obj

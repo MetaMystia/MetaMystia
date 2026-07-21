@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <BepInExPath>/path/to/BepInEx</BepInExPath>
+  </PropertyGroup>
+</Project>
