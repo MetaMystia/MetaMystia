@@ -12,6 +12,7 @@ using GameData.Profile;
 using MetaMystia.ConsoleSystem;
 using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.Models;
+using MetaMystia.ResourceEx.SpellCollection;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -69,8 +70,12 @@ public static partial class ResourceExManager
     // Cloth pixel full cache: skinIndex -> CharacterSpriteSetFull (built during character init)
     private static Dictionary<int, CharacterSpriteSetFull> _clothPixelFullCache = new Dictionary<int, CharacterSpriteSetFull>();
 
+    /// <summary>
+    /// 初始化 ResourceEx 系统：重置符卡相关静态状态并加载所有资源包（注册与合并配置）。由 Plugin.Load 在 Mod 启动时调用一次。
+    /// </summary>
     public static void Initialize()
     {
+        SpellHelper.ResetCutinState();
         LoadAllResourcePackages();
     }
 
