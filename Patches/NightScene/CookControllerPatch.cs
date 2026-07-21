@@ -44,7 +44,7 @@ public partial class CookControllerPatch
         var gridIndex = __instance.GridIndex;
         var recipeId = recipe.Id;
         SellableFood food = SellableFood.FromSellable(thisResult);
-        CookAction.Send(gridIndex, food, recipeId);
+        NightCookAction.Send(gridIndex, food, recipeId);
     }
 
     [HarmonyPatch(nameof(CookController.Extract))]
@@ -58,7 +58,7 @@ public partial class CookControllerPatch
     {
         if (MpManager.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
-        ExtractAction.Send(gridIndex);
+        ExtractFromCookerAction.Send(gridIndex);
     }
 
     [HarmonyPatch(nameof(CookController.Store))]

@@ -11,16 +11,14 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class PeerJoinAction : Action
 {
-    public override ActionType Type => ActionType.PEER_JOIN;
 
     public PlayerInfo PeerInfo;
 
     protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Message;
 
+    [ClientOnlyReceive]
     public override void OnReceivedDerived()
     {
-        if (MpManager.IsHost) return;
-
         if (PeerInfo.Uid == PlayerManager.Local.Uid) return;
 
         if (!PlayerManager.Peers.TryGetValue(PeerInfo.Uid, out var peer))
@@ -39,22 +37,16 @@ public partial class PeerJoinAction : Action
             peer.IsDayOver = PeerInfo.IsDayOver;
             peer.IsPrepOver = PeerInfo.IsPrepOver;
         }
-        InGameConsole.ShowPassiveFromAnyThread(TextId.PeerJoined.Get(PeerInfo.PeerId));
+        InGameConsole.ShowPassiveFromAnyThread(TextId.PeerJoined.Get(LiveModeManager.GetDisplayName(PeerInfo.Uid)));
     }
 
     /// <summary>
     /// 主机向除 exceptUid 以外的所有客机广播新玩家加入
     /// </summary>
-    public static void BroadcastExcept(int newPeerUid, PlayerInfo peerInfo)
+    public static void Send(int exceptUid, PlayerInfo peerInfo)
     {
-        if (!MpManager.IsHost) return;
+        if (!MpManager.IsRoomHost) return;
         if (PlayerManager.Peers.Count <= 1) return;
-
-        var action = new PeerJoinAction
-        {
-            PeerInfo = peerInfo
-        };
-        var packet = NetPacket.FromSingleAction(action);
-        MpManager.SendToAllExcept(newPeerUid, packet);
+        new PeerJoinAction { PeerInfo = peerInfo, WireExceptUid = exceptUid }.Enqueue();
     }
 }

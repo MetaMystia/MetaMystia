@@ -11,10 +11,9 @@ namespace MetaMystia.Network;
 
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
+[RoomRelay]
 public partial class StoreSellableAction : Action
 {
-    public override ActionType Type => ActionType.STORE_SELLABLE;
 
     public enum StoreType
     {
@@ -45,16 +44,13 @@ public partial class StoreSellableAction : Action
                 Log.LogError($"StoreSellableAction.OnReceived called with unsupported FoodType: {FoodType}");
                 return;
         }
-        PluginManager.Instance.RunOnMainThread(() =>
+        var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
+        if (cookerController == null)
         {
-            var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
-            if (cookerController == null)
-            {
-                Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
-                return;
-            }
-            CookControllerPatch.Store_ReversePatch(cookerController, sellable);
-        });
+            Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
+            return;
+        }
+        CookControllerPatch.Store_ReversePatch(cookerController, sellable);
     }
 
     public static void Send(int gridIndex, Sellable sellable)
@@ -69,7 +65,7 @@ public partial class StoreSellableAction : Action
                     Food = food,
                     FoodType = StoreType.Food
                 };
-                action.SendToHostOrBroadcast();
+                action.Enqueue();
                 break;
             case Sellable.SellableType.Beverage:
                 int beverageId = sellable.id;
@@ -79,7 +75,7 @@ public partial class StoreSellableAction : Action
                     BeverageId = beverageId,
                     FoodType = StoreType.Beverage
                 };
-                action.SendToHostOrBroadcast();
+                action.Enqueue();
                 break;
             default:
                 Log.LogError($"StoreSellableAction.Send called with unsupported sellable type: {sellable.type}");

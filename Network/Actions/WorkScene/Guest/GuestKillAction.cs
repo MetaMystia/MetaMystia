@@ -14,42 +14,34 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class GuestKillAction : Action
 {
-    public override ActionType Type => ActionType.GuestKillAction;
 
     public int RuntimeId { get; set; }
     public GuestFSM.State HostStateBeforeKill { get; set; }   // 调试用：观测主客状态分歧
     public int DeskCode { get; set; } = -1;
 
+    [ClientOnlyReceive]
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        if (MpManager.IsConnectedHost) return;
-
         var rid = RuntimeId;
         var deskCode = DeskCode;
-        PluginManager.Instance.RunOnMainThread(() =>
+        var fsm = GuestsMap.GetGuestFsm(rid);
+        if (fsm == null)
         {
-            var fsm = GuestsMap.GetGuestFsm(rid);
-            if (fsm == null)
-            {
-                GuestService.CleanGuestOrderRegistrationForDesk(deskCode);
-                return;
-            }
+            GuestService.CleanGuestOrderRegistrationForDesk(deskCode);
+            return;
+        }
 
-            Log.Error($"Guest #{RuntimeId} is being killed by host (host was {HostStateBeforeKill}, client was {fsm.CurrentState})");
-            fsm.Kill();
-        });
+        Log.Error($"Guest #{RuntimeId} is being killed by host (host was {HostStateBeforeKill}, client was {fsm.CurrentState})");
+        fsm.Kill();
     }
 
-    public static void Send(int runtimeId, GuestFSM.State hostStateBeforeKill, int deskCode)
-    {
-        var action = new GuestKillAction
+    public static void Send(int runtimeId, GuestFSM.State hostStateBeforeKill, int deskCode) =>
+        new GuestKillAction
         {
             RuntimeId = runtimeId,
             HostStateBeforeKill = hostStateBeforeKill,
             DeskCode = deskCode
-        };
-        action.SendToHostOrBroadcast();
-    }
+        }.Enqueue();
 }

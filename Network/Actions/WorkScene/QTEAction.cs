@@ -10,10 +10,9 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
+[RoomRelay]
 public partial class QTEAction : Action
 {
-    public override ActionType Type => ActionType.QTE;
     public int GridIndex { get; set; }
     public float QTEScore { get; set; }
 
@@ -21,25 +20,15 @@ public partial class QTEAction : Action
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        PluginManager.Instance.RunOnMainThread(() =>
+        var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
+        if (cookerController == null)
         {
-            var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
-            if (cookerController == null)
-            {
-                Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
-                return;
-            }
-            CookControllerPatch.StartCookCountDown_ReversePatch(cookerController, QTEScore, false);
-        });
+            Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
+            return;
+        }
+        CookControllerPatch.StartCookCountDown_ReversePatch(cookerController, QTEScore, false);
     }
 
-    public static void Send(int gridIndex, float qteScore)
-    {
-        var action = new QTEAction
-        {
-            GridIndex = gridIndex,
-            QTEScore = qteScore
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(int gridIndex, float qteScore) =>
+        new QTEAction { GridIndex = gridIndex, QTEScore = qteScore }.Enqueue();
 }

@@ -8,110 +8,127 @@ namespace MetaMystia.Network;
 
 public enum ActionType : ushort
 {
-    PING,
-    PONG,
+    Ping,
+    Pong,
 
-    HELLO,
-    HELLO_ACK,
-    REJECT,
-    PEER_JOIN,
-    PEER_LEAVE,
+    Hello,
+    HelloAck,
+    Reject,
+    PeerJoin,
+    PeerLeave,
+    PlayerChangeId,
+    PlayerChangeSkin,
+    Message,
 
-    SCENE_TRANSIT,
-    SYNC,
-    READY,
-    MESSAGE,
-    SELECT,
-    CONFIRM_SELECT,
-    PREP,
-    NIGHTSYNC,
-    COOK,
-    EXTRACT,
+    SceneTransit,
+    MoveSync,
+    NightMoveSync,
+
+    DayReady,
+    DayAllReady,
+    SelectIzakaya,
+    ConfirmIzakaya,
+    UpdatePrep,
+    PrepReady,
+    PrepAllReady,
+
+    NightCook,
+    ExtractFromCooker,
+    StoreFood, // 这是往保温箱中存储，仅可以存储 food
+    StoreSellable, // 这是往空位存储，可以存储 sellable（food / beverage）
+    ExtractFood,
     QTE,
-    STORE_FOOD, // 这是往保温箱中存储，仅可以存储 food
-    STORE_SELLABLE, // 这是往空位存储，可以存储 sellable（food / beverage）
-    EXTRACT_FOOD,
-    BUFF,
-    IZAKAYA_CLOSE,
-    GET_COLLECTABLE, // disabled
-    PLAYER_ID_CHANGE,
-    SKIN_CHANGE,
+    Buff,
 
-    GuestSpawnAction,
-    MoveToDeskAction,
-    MoveToQueueAction,
-    PlayerRepellAction,
-    GenerateOrderAction,
-    ServeSellableAction,
-    EvaluateOrderAction,
-    ConfirmServeAction,
-    GuestLeaveAction,
-    SendFromQueueAction,
-    PatientDepletedQueueAction,
-    PatientDepletedDeskAction,
-    GuestKillAction,
-    FundEditAction,
-    TipEditAction,
-    ExpEditAction,
-    PassionEditAction,
-    GuestInviteAction,
+    GuestInvite,
+    GuestSpawn,
+    MoveToDesk,
+    MoveToQueue,
+    PlayerRepell,
+    GenerateOrder,
+    ServeSellable,
+    EvaluateOrder,
+    ConfirmServe,
+    GuestLeave,
+    SendFromQueue,
+    PatientDepletedQueue,
+    PatientDepletedDesk,
+    GuestKill,
+
+    FundEdit,
+    TipEdit,
+    ExpEdit,
+    PassionEdit,
+
+    IzakayaClose,
 }
 
 [MemoryPackable]
-[MemoryPackUnion((ushort)ActionType.PING, typeof(PingAction))]
-[MemoryPackUnion((ushort)ActionType.PONG, typeof(PongAction))]
-[MemoryPackUnion((ushort)ActionType.HELLO, typeof(HelloAction))]
-[MemoryPackUnion((ushort)ActionType.HELLO_ACK, typeof(HelloAckAction))]
-[MemoryPackUnion((ushort)ActionType.REJECT, typeof(RejectAction))]
-[MemoryPackUnion((ushort)ActionType.PEER_JOIN, typeof(PeerJoinAction))]
-[MemoryPackUnion((ushort)ActionType.PEER_LEAVE, typeof(PeerLeaveAction))]
-[MemoryPackUnion((ushort)ActionType.SCENE_TRANSIT, typeof(SceneTransitAction))]
-[MemoryPackUnion((ushort)ActionType.SYNC, typeof(SyncAction))]
-[MemoryPackUnion((ushort)ActionType.READY, typeof(ReadyAction))]
-[MemoryPackUnion((ushort)ActionType.MESSAGE, typeof(MessageAction))]
-[MemoryPackUnion((ushort)ActionType.SELECT, typeof(SelectAction))]
-[MemoryPackUnion((ushort)ActionType.CONFIRM_SELECT, typeof(ConfirmSelectAction))]
-[MemoryPackUnion((ushort)ActionType.PREP, typeof(PrepAction))]
-[MemoryPackUnion((ushort)ActionType.NIGHTSYNC, typeof(NightSyncAction))]
-[MemoryPackUnion((ushort)ActionType.COOK, typeof(CookAction))]
-[MemoryPackUnion((ushort)ActionType.EXTRACT, typeof(ExtractAction))]
+[MemoryPackUnion((ushort)ActionType.Ping, typeof(PingAction))]
+[MemoryPackUnion((ushort)ActionType.Pong, typeof(PongAction))]
+[MemoryPackUnion((ushort)ActionType.Hello, typeof(HelloAction))]
+[MemoryPackUnion((ushort)ActionType.HelloAck, typeof(HelloAckAction))]
+[MemoryPackUnion((ushort)ActionType.Reject, typeof(RejectAction))]
+[MemoryPackUnion((ushort)ActionType.PeerJoin, typeof(PeerJoinAction))]
+[MemoryPackUnion((ushort)ActionType.PeerLeave, typeof(PeerLeaveAction))]
+[MemoryPackUnion((ushort)ActionType.PlayerChangeId, typeof(PlayerChangeIdAction))]
+[MemoryPackUnion((ushort)ActionType.PlayerChangeSkin, typeof(PlayerChangeSkinAction))]
+[MemoryPackUnion((ushort)ActionType.Message, typeof(MessageAction))]
+[MemoryPackUnion((ushort)ActionType.SceneTransit, typeof(SceneTransitAction))]
+[MemoryPackUnion((ushort)ActionType.MoveSync, typeof(MoveSyncAction))]
+[MemoryPackUnion((ushort)ActionType.NightMoveSync, typeof(NightMoveSyncAction))]
+[MemoryPackUnion((ushort)ActionType.DayReady, typeof(DayReadyAction))]
+[MemoryPackUnion((ushort)ActionType.DayAllReady, typeof(DayAllReadyAction))]
+[MemoryPackUnion((ushort)ActionType.SelectIzakaya, typeof(SelectIzakayaAction))]
+[MemoryPackUnion((ushort)ActionType.ConfirmIzakaya, typeof(ConfirmIzakayaAction))]
+[MemoryPackUnion((ushort)ActionType.UpdatePrep, typeof(UpdatePrepAction))]
+[MemoryPackUnion((ushort)ActionType.PrepReady, typeof(PrepReadyAction))]
+[MemoryPackUnion((ushort)ActionType.PrepAllReady, typeof(PrepAllReadyAction))]
+[MemoryPackUnion((ushort)ActionType.NightCook, typeof(NightCookAction))]
+[MemoryPackUnion((ushort)ActionType.ExtractFromCooker, typeof(ExtractFromCookerAction))]
+[MemoryPackUnion((ushort)ActionType.StoreFood, typeof(StoreFoodAction))]
+[MemoryPackUnion((ushort)ActionType.StoreSellable, typeof(StoreSellableAction))]
+[MemoryPackUnion((ushort)ActionType.ExtractFood, typeof(ExtractFoodAction))]
 [MemoryPackUnion((ushort)ActionType.QTE, typeof(QTEAction))]
-[MemoryPackUnion((ushort)ActionType.STORE_FOOD, typeof(StoreFoodAction))]
-[MemoryPackUnion((ushort)ActionType.STORE_SELLABLE, typeof(StoreSellableAction))]
-[MemoryPackUnion((ushort)ActionType.EXTRACT_FOOD, typeof(ExtractFoodAction))]
-[MemoryPackUnion((ushort)ActionType.BUFF, typeof(BuffAction))]
-[MemoryPackUnion((ushort)ActionType.IZAKAYA_CLOSE, typeof(IzakayaCloseAction))]
-[MemoryPackUnion((ushort)ActionType.GET_COLLECTABLE, typeof(GetCollectableAction))]
-[MemoryPackUnion((ushort)ActionType.PLAYER_ID_CHANGE, typeof(PlayerIdChangeAction))]
-[MemoryPackUnion((ushort)ActionType.SKIN_CHANGE, typeof(SkinChangeAction))]
-[MemoryPackUnion((ushort)ActionType.GuestSpawnAction, typeof(GuestSpawnAction))]
-[MemoryPackUnion((ushort)ActionType.MoveToDeskAction, typeof(MoveToDeskAction))]
-[MemoryPackUnion((ushort)ActionType.MoveToQueueAction, typeof(MoveToQueueAction))]
-[MemoryPackUnion((ushort)ActionType.PlayerRepellAction, typeof(PlayerRepellAction))]
-[MemoryPackUnion((ushort)ActionType.GenerateOrderAction, typeof(GenerateOrderAction))]
-[MemoryPackUnion((ushort)ActionType.ServeSellableAction, typeof(ServeSellableAction))]
-[MemoryPackUnion((ushort)ActionType.EvaluateOrderAction, typeof(EvaluateOrderAction))]
-[MemoryPackUnion((ushort)ActionType.ConfirmServeAction, typeof(ConfirmServeAction))]
-[MemoryPackUnion((ushort)ActionType.GuestLeaveAction, typeof(GuestLeaveAction))]
-[MemoryPackUnion((ushort)ActionType.SendFromQueueAction, typeof(SendFromQueueAction))]
-[MemoryPackUnion((ushort)ActionType.PatientDepletedQueueAction, typeof(PatientDepletedQueueAction))]
-[MemoryPackUnion((ushort)ActionType.PatientDepletedDeskAction, typeof(PatientDepletedDeskAction))]
-[MemoryPackUnion((ushort)ActionType.GuestKillAction, typeof(GuestKillAction))]
-[MemoryPackUnion((ushort)ActionType.FundEditAction, typeof(FundEditAction))]
-[MemoryPackUnion((ushort)ActionType.TipEditAction, typeof(TipEditAction))]
-[MemoryPackUnion((ushort)ActionType.ExpEditAction, typeof(ExpEditAction))]
-[MemoryPackUnion((ushort)ActionType.PassionEditAction, typeof(PassionEditAction))]
-[MemoryPackUnion((ushort)ActionType.GuestInviteAction, typeof(GuestInviteAction))]
+[MemoryPackUnion((ushort)ActionType.Buff, typeof(BuffAction))]
+[MemoryPackUnion((ushort)ActionType.GuestInvite, typeof(GuestInviteAction))]
+[MemoryPackUnion((ushort)ActionType.GuestSpawn, typeof(GuestSpawnAction))]
+[MemoryPackUnion((ushort)ActionType.MoveToDesk, typeof(MoveToDeskAction))]
+[MemoryPackUnion((ushort)ActionType.MoveToQueue, typeof(MoveToQueueAction))]
+[MemoryPackUnion((ushort)ActionType.PlayerRepell, typeof(PlayerRepellAction))]
+[MemoryPackUnion((ushort)ActionType.GenerateOrder, typeof(GenerateOrderAction))]
+[MemoryPackUnion((ushort)ActionType.ServeSellable, typeof(ServeSellableAction))]
+[MemoryPackUnion((ushort)ActionType.EvaluateOrder, typeof(EvaluateOrderAction))]
+[MemoryPackUnion((ushort)ActionType.ConfirmServe, typeof(ConfirmServeAction))]
+[MemoryPackUnion((ushort)ActionType.GuestLeave, typeof(GuestLeaveAction))]
+[MemoryPackUnion((ushort)ActionType.SendFromQueue, typeof(SendFromQueueAction))]
+[MemoryPackUnion((ushort)ActionType.PatientDepletedQueue, typeof(PatientDepletedQueueAction))]
+[MemoryPackUnion((ushort)ActionType.PatientDepletedDesk, typeof(PatientDepletedDeskAction))]
+[MemoryPackUnion((ushort)ActionType.GuestKill, typeof(GuestKillAction))]
+[MemoryPackUnion((ushort)ActionType.FundEdit, typeof(FundEditAction))]
+[MemoryPackUnion((ushort)ActionType.TipEdit, typeof(TipEditAction))]
+[MemoryPackUnion((ushort)ActionType.ExpEdit, typeof(ExpEditAction))]
+[MemoryPackUnion((ushort)ActionType.PassionEdit, typeof(PassionEditAction))]
+[MemoryPackUnion((ushort)ActionType.IzakayaClose, typeof(IzakayaCloseAction))]
 [AutoLog]
 
 public abstract partial class Action
 {
-    public abstract ActionType Type { get; }
-    public long TimestampMs { get; protected set; }
+    protected long TimestampMs { get; set; }
     /// <summary>
-    /// 发送者的 UID（主机=0，客机=1,2,3...）
+    /// 发送者的 UID（由主机在转发/入站时写入；HostUid 来自 HelloAck，非固定值）。
     /// </summary>
     public int SenderUid { get; set; }
+
+    [MemoryPackIgnore] public int? WireTargetUid { get; set; }
+    [MemoryPackIgnore] public int? WireExceptUid { get; set; }
+
+    /// <summary>
+    /// 构造时填充 SenderUid 的来源。默认读取本地玩家 UID（依赖 Unity/il2cpp 运行时）。
+    /// 无运行时环境（如独立服务端）可替换为常量提供器，避免触发 PlayerManager 静态初始化。
+    /// </summary>
+    [MemoryPackIgnore]
+    public static Func<int> LocalUidProvider { get; set; } = static () => PlayerManager.Local.Uid;
 
     [MemoryPackIgnore]
     protected virtual LogLevel OnReceiveLogLevel { get; } = LogLevel.Info;
@@ -127,8 +144,8 @@ public abstract partial class Action
 
     protected Action()
     {
-        TimestampMs = MpManager.TimestampNow;
-        SenderUid = PlayerManager.Local.Uid;
+        TimestampMs = MpWire.NowMs;
+        SenderUid = LocalUidProvider();
     }
 
 
@@ -139,15 +156,39 @@ public abstract partial class Action
         var targetScene = GetReceivedScene();
         if (targetScene != null && MpManager.LocalScene != targetScene.Value)
         {
-            Log.Info($"{MpManager.RoleTag} Received in invalid scene: {Type}: {ToLogString()}");
+            Log.Info($"{MpManager.RoleTag} Received in invalid scene: {ActionName}: {ToLogString()}");
             return;
         }
         if (ShouldDiscardOnStory())
         {
-            Log.Info($"{MpManager.RoleTag} Discarded (in story): {Type}");
+            Log.Info($"{MpManager.RoleTag} Discarded (in story): {ActionName}");
             return;
         }
+        if (!PassesReceiveGuards()) return;
         OnReceivedDerived();
+    }
+
+    private bool PassesReceiveGuards()
+    {
+        var method = GetType().GetMethod(nameof(OnReceivedDerived));
+
+        if (method.GetCustomAttribute<RequireHostSenderAttribute>() != null
+            && SenderUid != MpManager.Session.HostUid)
+        {
+            Log.Warning($"{MpManager.RoleTag} {ActionName} from non-host uid={SenderUid}, ignoring", false);
+            return false;
+        }
+
+        if (method.GetCustomAttribute<ClientOnlyReceiveAttribute>() != null && MpManager.IsRoomHost)
+            return false;
+
+        if (method.GetCustomAttribute<HostOnlyReceiveAttribute>() != null && !MpManager.IsRoomHost)
+        {
+            Log.Warning($"{MpManager.RoleTag} {ActionName} received by non-host, ignoring", false);
+            return false;
+        }
+
+        return true;
     }
 
     private Common.UI.Scene? GetReceivedScene()
@@ -181,6 +222,8 @@ public abstract partial class Action
         return ToString();
     }
 
+    private string ActionName => GetType().Name;
+
     private static void LogAction(LogLevel logLevel, string logStr)
     {
         switch (logLevel)
@@ -208,77 +251,43 @@ public abstract partial class Action
 
     protected void LogActionReceived()
     {
-        string logStr = $"{MpManager.RoleTag} Received {Type}{(OnReceiveLogOnlyAction ? "" : $": {ToLogString()}")}";
+        string logStr = $"{MpManager.RoleTag} Received {ActionName}{(OnReceiveLogOnlyAction ? "" : $": {ToLogString()}")}";
         LogAction(OnReceiveLogLevel, logStr);
     }
 
     protected void LogActionSend()
     {
-        string logStr = $"{MpManager.RoleTag} Send {Type}{(OnSendLogOnlyAction ? "" : $": {ToLogString()}")}";
+        string logStr = $"{MpManager.RoleTag} Send {ActionName}{(OnSendLogOnlyAction ? "" : $": {ToLogString()}")}";
         LogAction(OnSendLogLevel, logStr);
     }
 
-    protected void SendToHostOrBroadcast()
+    protected void Enqueue(bool lowPriority = false)
     {
-        if (!MpManager.IsConnected) return;
+        if (!MpWire.CanSend) return;
         if (ShouldDiscardOnStory())
         {
-            Log.Info($"{MpManager.RoleTag} Will not send (in story): {Type}");
+            Log.Info($"{MpManager.RoleTag} Will not send (in story): {ActionName}");
             return;
         }
-
         LogActionSend();
-
-        var packet = NetPacket.FromSingleAction(this);
-        MpManager.SendToHostOrBroadcast(packet);
+        MpWire.EnqueueSend(this, lowPriority);
     }
 
     /// <summary>
-    /// 低优先级发送（拥塞时丢弃）
-    /// </summary>
-    protected void SendToHostOrBroadcastLowPriority()
-    {
-        if (!MpManager.IsConnected) return;
-        if (ShouldDiscardOnStory()) return;
-
-        LogActionSend();
-
-        var packet = NetPacket.FromSingleAction(this);
-        MpManager.SendToHostOrBroadcastLowPriority(packet);
-    }
-
-    protected void SendToPeer(long peerId)
-    {
-        if (!MpManager.IsConnected) return;
-        if (ShouldDiscardOnStory())
-        {
-            Log.Info($"{MpManager.RoleTag} Will not send (in story): {Type}");
-            return;
-        }
-
-        LogActionSend();
-
-        var packet = NetPacket.FromSingleAction(this);
-        MpManager.SendToHost(packet);
-    }
-
-    /// <summary>
-    /// 主机向指定 uid 的客机发送
-    /// </summary>
-    protected void SendToClient(int uid)
-    {
-        if (!MpManager.IsHost || !MpManager.IsConnected) return;
-        LogActionSend();
-        var packet = NetPacket.FromSingleAction(this);
-        MpManager.SendToClient(uid, packet);
-    }
-
-    /// <summary>
-    /// 标记需要主机转发给其他客机的 Action 类型。
-    /// 当客机发送一个带有此特性的 Action 时，主机处理后会自动转发给其他所有客机。
+    /// 标记需要房主/转发服务器转发给房间内其他玩家的 Action 类型。
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-    public class HostRelayAttribute : Attribute { }
+    public class RoomRelayAttribute : Attribute { }
+
+    /// <summary>Relay 公域转发标记；直连时与 <see cref="RoomRelayAttribute"/> 相同，由主机转发。</summary>
+    [AttributeUsage(AttributeTargets.Class, Inherited = false)]
+    public class PublicRelayAttribute : Attribute { }
+
+    /// <summary>
+    /// 旧名兼容：等价于 <see cref="RoomRelayAttribute"/>。
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class, Inherited = false)]
+    public class ServerRelayAttribute : RoomRelayAttribute { }
 
     public static void RegisterAllFormatter()
     {
@@ -294,4 +303,16 @@ public abstract partial class Action
 
     [AttributeUsage(AttributeTargets.Method)]
     protected class DiscardOnStoryAttribute : Attribute { }
+
+    /// <summary>仅当 SenderUid 为 Session.HostUid 时处理（主机权威广播）。</summary>
+    [AttributeUsage(AttributeTargets.Method)]
+    protected class RequireHostSenderAttribute : Attribute { }
+
+    /// <summary>仅客机处理；主机本地已是权威状态，忽略入站包。</summary>
+    [AttributeUsage(AttributeTargets.Method)]
+    protected class ClientOnlyReceiveAttribute : Attribute { }
+
+    /// <summary>仅主机处理（如握手、客机上报）。</summary>
+    [AttributeUsage(AttributeTargets.Method)]
+    protected class HostOnlyReceiveAttribute : Attribute { }
 }

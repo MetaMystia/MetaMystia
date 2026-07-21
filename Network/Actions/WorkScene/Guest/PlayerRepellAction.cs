@@ -4,10 +4,9 @@ namespace MetaMystia.Network;
 
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
+[RoomRelay]
 public partial class PlayerRepellAction : Action
 {
-    public override ActionType Type => ActionType.PlayerRepellAction;
 
     public int RuntimeId { get; set; }
 
@@ -16,21 +15,12 @@ public partial class PlayerRepellAction : Action
     public override void OnReceivedDerived()
     {
         var rid = RuntimeId;
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            var fsm = GuestsMap.GetGuestFsm(rid);
-            if (fsm == null) return;
-            fsm.Enqueue(nameof(GuestFSM.DoPlayerRepell),
-                () => GuestFSM.DoPlayerRepell(rid));
-        });
+        var fsm = GuestsMap.GetGuestFsm(rid);
+        if (fsm == null) return;
+        fsm.Enqueue(nameof(GuestFSM.DoPlayerRepell),
+            () => GuestFSM.DoPlayerRepell(rid));
     }
 
-    public static void Send(int runtimeId)
-    {
-        var action = new PlayerRepellAction()
-        {
-            RuntimeId = runtimeId
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(int runtimeId) =>
+        new PlayerRepellAction { RuntimeId = runtimeId }.Enqueue();
 }

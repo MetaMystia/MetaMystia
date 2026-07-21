@@ -1,8 +1,12 @@
 using System;
+using System.Collections;
 using System.IO;
 using System.Reflection;
 using System.Security.Cryptography;
 using BepInEx;
+using Il2CppInterop.Runtime.Attributes;
+using UnityEngine;
+
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -73,7 +77,24 @@ public static class Il2CppInteropPatcher
 
     public static void NotifyIfPatched()
     {
-        if (Patched)
-            InGameConsole.ShowPassive(TextId.Il2CppInteropPatchedRestartRequired.Get());
+        if (!Patched)
+            return;
+
+        var message = TextId.Il2CppInteropPatchedRestartRequired.Get();
+        if (PluginManager.Instance != null)
+            PluginManager.Instance.StartManagedCoroutine(InteropRestartReminderLoop(message));
+        else
+            InGameConsole.LogAlert(message);
+    }
+
+    [HideFromIl2Cpp]
+    private static IEnumerator InteropRestartReminderLoop(string message)
+    {
+        var wait = new WaitForSeconds(3f);
+        while (true)
+        {
+            InGameConsole.LogAlert(message);
+            yield return wait;
+        }
     }
 }

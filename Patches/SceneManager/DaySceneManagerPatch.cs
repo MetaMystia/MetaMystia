@@ -27,9 +27,9 @@ public partial class DaySceneManagerPatch
         ResourceExManager.OnDaySceneAwake();
         PrepSceneManager.ClearPrepTable();
 
-        if (MpManager.IsConnected)
+        if (MpManager.CanSeeOnlinePlayers)
         {
-            SkinChangeAction.Send(PlayerManager.Local.Skin);
+            PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
         }
 
         if (PatchRegistry.PatchedException != null)
@@ -60,7 +60,7 @@ public partial class DaySceneManagerPatch
 
     public static void OnDayOver()
     {
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             GuestInviteAction.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
         }
@@ -82,7 +82,7 @@ public partial class DaySceneManagerPatch
         }
 
         InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
-        ReadyAction.Send(ReadyType.DayOver);
+        DayReadyAction.Send();
         MpManager.DayOver();
         return SkipOriginal;
     }

@@ -31,7 +31,7 @@ public partial class DaySceneMapPatch
             var spawnMarkerConfig = npc.key.GetSpawnMarkerConfig();
             character.Character.rb2d.transform.position = new Vector3(spawnMarkerConfig.x, spawnMarkerConfig.y, 0);
             character.Character.SetRotation((int)spawnMarkerConfig.rotation);
-            isNPCOnMap = string.Equals(__instance.mapLabel, spawnMarkerConfig.mapLabel);
+            isNPCOnMap = MapLabelExtensions.FromMapKey(__instance.mapLabel) == MapLabelExtensions.FromMapKey(spawnMarkerConfig.mapLabel);
             return SkipOriginal;
         }
         return RunOriginal;

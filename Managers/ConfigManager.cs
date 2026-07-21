@@ -14,6 +14,16 @@ public enum RequestEnableMode
     ForceEnable      // 强制启用
 }
 
+/// <summary>
+/// 直播模式：全关、半开（遮 ID + 不可信区提示）、全开（遮 ID + 消息星号）
+/// </summary>
+public enum LiveMode
+{
+    Off,
+    Partial,
+    Full
+}
+
 
 
 [AutoLog]
@@ -41,6 +51,8 @@ public static partial class ConfigManager
     public static ConfigEntry<float> ConsoleWidth;
     public static ConfigEntry<float> ConsoleHeight;
     public static ConfigEntry<int> ConsoleFontSize;
+    public static ConfigEntry<float> ConsolePassiveLingerTime;
+    public static ConfigEntry<float> ConsolePassiveFadeTime;
 
     // Player list layout
     public static ConfigEntry<float> PlayerListX;
@@ -52,6 +64,7 @@ public static partial class ConfigManager
     public static ConfigEntry<KeyCode> KeyToggleStatus;
     public static ConfigEntry<KeyCode> KeyOpenCommand;
     public static ConfigEntry<KeyCode> KeyOpenChat;
+    public static ConfigEntry<LiveMode> LiveStreamingMode;
 
     public static void InitConfigs()
     {
@@ -91,9 +104,9 @@ public static partial class ConfigManager
             "启用 IPv6 双栈监听（IPv4 始终可用）");
 
         LocaleOverride = Config.Bind("General", "LocaleOverride", "",
-            "Path to a directory containing locale override JSON files (en.json, zh-CN.json).\n" +
-            "Supports absolute or relative path (relative to BepInEx/plugins/).\n" +
-            "翻译文件覆盖目录路径，支持绝对路径或相对路径(相对于 BepInEx/plugins/)");
+            "Locale override: a single .json file (merged into current game language, missing keys fall back to built-in),\n" +
+            "or a directory with en.json / zh-CN.json. Supports absolute or relative path (relative to BepInEx/plugins/).\n" +
+            "翻译覆盖：单个 .json 文件（按当前游戏语言覆盖，未覆盖项回退内置翻译），或含 en.json/zh-CN.json 的目录。");
 
         NoteBookSkinPortrait = Config.Bind("Experimental", "NoteBookSkinPortrait", false,
             "(Experimental) Enable portrait replacement for Skin System in NoteBook\n" +
@@ -120,6 +133,12 @@ public static partial class ConfigManager
         ConsoleFontSize = Config.Bind("Console", "FontSize", 0,
             "Console font size (0 = auto based on screen height)\n控制台字体大小（0=根据屏幕高度自动）");
 
+        ConsolePassiveLingerTime = Config.Bind("Console", "PassiveLingerTime", 4f,
+            "Seconds before passive chat messages start fading out\n被动聊天消息开始淡出前的停留时间（秒）");
+
+        ConsolePassiveFadeTime = Config.Bind("Console", "PassiveFadeTime", 1f,
+            "Passive chat message fade-out duration in seconds\n被动聊天消息淡出动画时长（秒）");
+
         // Player list
         PlayerListX = Config.Bind("PlayerList", "X", 8f,
             "Player list panel X position (pixels from left)\n玩家列表面板X坐标（左侧像素偏移）");
@@ -137,6 +156,10 @@ public static partial class ConfigManager
             "Key to open command console (with '/' prefix)\n打开命令控制台的按键（带 '/' 前缀）");
         KeyOpenChat = Config.Bind("Keybinds", "OpenChat", KeyCode.T,
             "Key to open chat\n打开聊天的按键");
+
+        LiveStreamingMode = Config.Bind("General", "LiveMode", LiveMode.Off,
+            "Live streaming privacy mode\n直播隐私模式\n" +
+            "Off: disabled | Partial: mask player IDs, show untrusted zone outline | Full: mask IDs and chat text");
     }
 
     public static string GetPlayerId()

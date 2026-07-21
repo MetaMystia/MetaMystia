@@ -1,8 +1,10 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using UnityEngine;
+using BepInEx.Unity.IL2CPP.Utils;
 using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.Attributes;
+using System;
+using System.Collections;
+using System.Collections.Concurrent;
+using UnityEngine;
 
 using Common.UI;
 
@@ -16,10 +18,9 @@ public partial class PluginManager : MonoBehaviour
 {
     public static PluginManager Instance { get; private set; }
     public static readonly string Label = $"{MyPluginInfo.PLUGIN_NAME} v{MyPluginInfo.PLUGIN_VERSION} loaded";
-    public static Debugger.WebDebugger Debugger = null;
+    public static Debugger.WebDebugger Debugger;
     public static bool IsStatusVisible { get; private set; } = true;
-    private readonly ConcurrentQueue<Action> _mainThreadQueue = new ConcurrentQueue<Action>();
-    private readonly List<(Action action, Func<bool> condition)> _conditionalActions = new List<(Action, Func<bool>)>();
+    private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
     public static bool DEBUG => ConfigManager.Debug.Value;
 
     public PluginManager(IntPtr ptr) : base(ptr)
@@ -49,6 +50,9 @@ public partial class PluginManager : MonoBehaviour
         ResourceExManager.FlushPendingConsoleLogs();
     }
 
+    [HideFromIl2Cpp]
+    public Coroutine StartManagedCoroutine(IEnumerator routine) => MonoBehaviourExtensions.StartCoroutine(this, routine);
+
     private void OnGUI()
     {
         InGameConsole.OnGUI();
@@ -66,6 +70,7 @@ public partial class PluginManager : MonoBehaviour
     private void Update()
     {
         UpdateRunOnMainThreadQueue();
+        Network.MpWire.FlushInbox();
         MpManager.RefreshInStoryCache();
         GuestsMap.TickAllPending();
 
@@ -80,14 +85,14 @@ public partial class PluginManager : MonoBehaviour
         {
             IsStatusVisible = !IsStatusVisible;
             Log.LogMessage($"Toggled text visibility: " + IsStatusVisible);
-            FloatingTextHelper.SetLabelsVisible(IsStatusVisible && MpManager.IsConnected);
+            FloatingTextHelper.SetLabelsVisible(IsStatusVisible && MpManager.CanSeeOnlinePlayers);
         }
 
         if (DEBUG)
         {
             if (Input.GetKeyDown(KeyCode.F1))
             {
-                MpManager.Start(MpManager.ROLE.Host);
+                MpManager.Start(MpManager.ROLE.Server);
                 InGameConsole.ShowPassive("[DEBUG] Started as Host");
             }
             if (Input.GetKeyDown(KeyCode.F2))
@@ -95,16 +100,11 @@ public partial class PluginManager : MonoBehaviour
                 _ = MpManager.ConnectToPeerAsync("127.0.0.1");
                 InGameConsole.ShowPassive("[DEBUG] Connecting to Self");
             }
+
             if (Input.GetKeyDown(KeyCode.F3))
             {
-                ResourceExManager.SpellTest();
+                StoryReplayManager.Test();
             }
-
-            if (Input.GetKeyDown(KeyCode.F4))
-            {
-                ResourceEx.AssetBundles.Test.Test1();
-            }
-
             if (Input.GetKeyDown(KeyCode.F11))
             {
                 Debugger ??= new Debugger.WebDebugger();
@@ -113,6 +113,7 @@ public partial class PluginManager : MonoBehaviour
         }
     }
 
+    [HideFromIl2Cpp]
     private void UpdateRunOnMainThreadQueue()
     {
         while (_mainThreadQueue.TryDequeue(out var action))
@@ -128,6 +129,7 @@ public partial class PluginManager : MonoBehaviour
         }
     }
 
+    [HideFromIl2Cpp]
     public void RunOnMainThread(Action action) => _mainThreadQueue.Enqueue(action);
 
     private void FixedUpdate()
@@ -149,5 +151,6 @@ public partial class PluginManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        StopAllCoroutines();
     }
 }

@@ -16,7 +16,7 @@ namespace MetaMystia.Patch;
 public partial class IzakayaSelectorPanelPatch
 {
     public static IzakayaSelectorPanel_New instanceRef = null;
-    public static Dictionary<string, Common.UI.GlobalMap.IGuideMapSpot> cachedSpots = new();
+    public static Dictionary<MapLabel, Common.UI.GlobalMap.IGuideMapSpot> cachedSpots = new();
 
     [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapInitialize))]
     [HarmonyPrefix]
@@ -45,18 +45,18 @@ public partial class IzakayaSelectorPanelPatch
             return RunOriginal;
         }
 
-        var izakayaMapLabel = __instance.m_CurrentSelectedSpot.PrimaryName;
+        var izakayaMapLabel = MapLabelExtensions.FromMapKey(__instance.m_CurrentSelectedSpot.PrimaryName);
         var izakayaLevel = (int)__instance.m_CurrentSelectedIzakayaLevel;
-        Log.Message($"Selected Spot: {izakayaMapLabel}, Level: {izakayaLevel}");
+        Log.Message($"Selected Spot: {izakayaMapLabel.ToMapKey()}, Level: {izakayaLevel}");
 
         // 记录自己的选择
         PlayerManager.Local.IzakayaMapLabel = izakayaMapLabel;
         PlayerManager.Local.IzakayaLevel = izakayaLevel;
 
         // 广播自己的选择
-        SelectAction.Send(izakayaMapLabel, izakayaLevel);
+        SelectIzakayaAction.Send(izakayaMapLabel, izakayaLevel);
 
-        var mySelect = $"{Utils.GetMapLabelNameCN(izakayaMapLabel)} {Utils.GetMapLevelNameCN(izakayaLevel)}";
+        var mySelect = izakayaMapLabel.FormatIzakayaSelection(izakayaLevel);
 
         if (MpManager.IsClient)
         {
@@ -80,13 +80,13 @@ public partial class IzakayaSelectorPanelPatch
         var level = PlayerManager.Local.IzakayaLevel;
 
         // 主机自己还没选择
-        if (string.IsNullOrEmpty(mapLabel) || level == 0)
+        if (!mapLabel.IsSelected() || level == 0)
         {
             Log.Info("Host has not selected izakaya yet, waiting...");
             return;
         }
 
-        var mySelect = $"{Utils.GetMapLabelNameCN(mapLabel)} {Utils.GetMapLevelNameCN(level)}";
+        var mySelect = mapLabel.FormatIzakayaSelection(level);
 
         if (!PlayerManager.AllPeersSelectedSameIzakaya(mapLabel, level))
         {
@@ -98,7 +98,7 @@ public partial class IzakayaSelectorPanelPatch
 
         // 全员一致 → 广播 CONFIRM_SELECT → 本地执行切换
         Log.LogMessage($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
-        ConfirmSelectAction.Broadcast(mapLabel, level);
+        ConfirmIzakayaAction.Send(mapLabel, level);
         InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(mySelect));
 
         TryProceedWithConfirmedSelection(mapLabel, (IzakayaLevel)level);
@@ -113,9 +113,9 @@ public partial class IzakayaSelectorPanelPatch
         var myLevel = PlayerManager.Local.IzakayaLevel;
 
         // 自己还没选，不显示摘要
-        if (string.IsNullOrEmpty(myMapLabel) || myLevel == 0) return;
+        if (!myMapLabel.IsSelected() || myLevel == 0) return;
 
-        var mySelect = $"{Utils.GetMapLabelNameCN(myMapLabel)} {Utils.GetMapLevelNameCN(myLevel)}";
+        var mySelect = myMapLabel.FormatIzakayaSelection(myLevel);
 
         if (!PlayerManager.AllPeersSelectedSameIzakaya(myMapLabel, myLevel))
         {
@@ -124,7 +124,7 @@ public partial class IzakayaSelectorPanelPatch
         }
     }
 
-    public static void TryProceedWithConfirmedSelection(string mapLabel, IzakayaLevel mapLevel)
+    public static void TryProceedWithConfirmedSelection(MapLabel mapLabel, IzakayaLevel mapLevel)
     {
         SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
 
@@ -153,12 +153,12 @@ public partial class IzakayaSelectorPanelPatch
     [HarmonyPrefix]
     public static void OnGuideMapSpotSelected_Prefix(ref Common.UI.GlobalMap.IGuideMapSpot guideMapSpot)
     {
-        if (guideMapSpot != null && !string.IsNullOrEmpty(guideMapSpot.PrimaryName))
+        if (guideMapSpot != null && MapLabelExtensions.TryFromMapKey(guideMapSpot.PrimaryName, out var mapLabel))
         {
-            cachedSpots[guideMapSpot.PrimaryName] = guideMapSpot;
+            cachedSpots[mapLabel] = guideMapSpot;
         }
 
-        Log.Info($"OnGuideMapSpotSelected called, guideMapSpot.PrimaryName: {guideMapSpot.PrimaryName}");
+        Log.Info($"OnGuideMapSpotSelected called, guideMapSpot.PrimaryName: {guideMapSpot?.PrimaryName}");
     }
 
     [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapSpotSelected))]

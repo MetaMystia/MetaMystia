@@ -14,7 +14,6 @@ namespace MetaMystia.Network;
 
 public partial class TipEditAction : Action
 {
-    public override ActionType Type => ActionType.TipEditAction;
 
     public int IntValue { get; set; }
     public EventManager.ServeType ServeType { get; set; }
@@ -22,22 +21,17 @@ public partial class TipEditAction : Action
     public float MoodBuff { get; set; }
     public float ExtraBuff { get; set; }
 
+    [ClientOnlyReceive]
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        if (MpManager.IsConnectedHost) return;
-
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            var em = EventManager.Instance;
-            if (em == null) return;
-            NightSceneEventManagerPatch.TipEdit_ReversePatch(em, IntValue, ServeType, ComboBuff, MoodBuff, ExtraBuff);
-        });
+        var em = EventManager.Instance;
+        if (em == null) return;
+        NightSceneEventManagerPatch.TipEdit_ReversePatch(em, IntValue, ServeType, ComboBuff, MoodBuff, ExtraBuff);
     }
 
-    public static void Send(int value, EventManager.ServeType serveType, float comboBuff, float moodBuff, float extraBuff)
-    {
+    public static void Send(int value, EventManager.ServeType serveType, float comboBuff, float moodBuff, float extraBuff) =>
         new TipEditAction
         {
             IntValue = value,
@@ -45,6 +39,5 @@ public partial class TipEditAction : Action
             ComboBuff = comboBuff,
             MoodBuff = moodBuff,
             ExtraBuff = extraBuff
-        }.SendToHostOrBroadcast();
-    }
+        }.Enqueue();
 }

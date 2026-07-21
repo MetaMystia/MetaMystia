@@ -11,7 +11,6 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class GenerateOrderAction : Action
 {
-    public override ActionType Type => ActionType.GenerateOrderAction;
 
     public int RuntimeId { get; set; }
     public GuestsManager.OrderGenerationResult Result { get; set; }
@@ -37,31 +36,27 @@ public partial class GenerateOrderAction : Action
         var notShowInUI = NotShowInUI;
         var freeOrder = FreeOrder;
 
-        PluginManager.Instance.RunOnMainThread(() =>
+        var fsm = GuestsMap.GetGuestFsm(rid);
+        if (fsm == null) return;
+        fsm.Enqueue(nameof(GuestFSM.DoGenerateOrderSession), () =>
         {
-            var fsm = GuestsMap.GetGuestFsm(rid);
-            if (fsm == null) return;
-            fsm.Enqueue(nameof(GuestFSM.DoGenerateOrderSession), () =>
+            GuestsManager.OrderBase orderData;
+            if (orderType == GuestsManager.OrderBase.OrderType.Normal)
             {
-                GuestsManager.OrderBase orderData;
-                if (orderType == GuestsManager.OrderBase.OrderType.Normal)
-                {
-                    var guest = fsm.Controller.GetAllGuests().ToArray().First();
-                    orderData = new GuestsManager.NormalOrder(guest, requestFood, requestBev, deskCode, notShowInUI, freeOrder);
-                }
-                else
-                {
-                    var specialGuest = DataBaseCharacter.RefSGuest(fsm.Ids[0]);
-                    orderData = new GuestsManager.SpecialOrder(specialGuest, requestFood, requestBev, deskCode, notShowInUI, freeOrder);
-                }
-                return GuestFSM.DoGenerateOrderSession(rid, result, overrideResult, orderData);
-            });
+                var guest = fsm.Controller.GetAllGuests().ToArray().First();
+                orderData = new GuestsManager.NormalOrder(guest, requestFood, requestBev, deskCode, notShowInUI, freeOrder);
+            }
+            else
+            {
+                var specialGuest = DataBaseCharacter.RefSGuest(fsm.Ids[0]);
+                orderData = new GuestsManager.SpecialOrder(specialGuest, requestFood, requestBev, deskCode, notShowInUI, freeOrder);
+            }
+            return GuestFSM.DoGenerateOrderSession(rid, result, overrideResult, orderData);
         });
     }
 
-    public static void Send(int runtimeId, GuestsManager.OrderGenerationResult result, GuestsManager.OrderGenerationResult? overrideResult, GuestsManager.OrderBase orderData)
-    {
-        var action = new GenerateOrderAction()
+    public static void Send(int runtimeId, GuestsManager.OrderGenerationResult result, GuestsManager.OrderGenerationResult? overrideResult, GuestsManager.OrderBase orderData) =>
+        new GenerateOrderAction
         {
             RuntimeId = runtimeId,
             Result = result,
@@ -72,7 +67,5 @@ public partial class GenerateOrderAction : Action
             DeskCode = orderData?.DeskCode ?? -1,
             NotShowInUI = orderData?.NotShowInUI ?? false,
             FreeOrder = orderData?.FreeOrder ?? false
-        };
-        action.SendToHostOrBroadcast();
-    }
+        }.Enqueue();
 }

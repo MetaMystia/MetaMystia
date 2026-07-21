@@ -12,11 +12,10 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class HelloAckAction : Action
 {
-    public override ActionType Type => ActionType.HELLO_ACK;
     public int AssignedUid { get; set; }
 
     /// <summary>
-    /// 主机信息（uid=0）
+    /// 主机信息（Uid = Session.HostUid）
     /// </summary>
     public PlayerInfo HostInfo { get; set; }
 
@@ -43,20 +42,17 @@ public partial class HelloAckAction : Action
     /// <summary>
     /// 客机处理：设置自身 UID，注册主机和已有 peer
     /// </summary>
+    [ClientOnlyReceive]
     public override void OnReceivedDerived()
     {
-        if (MpManager.IsHost)
-        {
-            Log.LogWarning("HelloAck received by host, ignoring");
-            return;
-        }
-
         // 设置本地 UID
         PlayerManager.Local.Uid = AssignedUid;
         Log.LogMessage($"Assigned UID: {AssignedUid}");
 
-        // 注册主机为 peer (uid=0)
-        HostInfo.Uid = 0;
+        // 记录主机下发的真实 HostUid（直连模式下为 0，服务端模式下由服务端分配）
+        MpWire.Session.AssignHostUid(HostInfo.Uid);
+
+        // 注册主机为 peer
         PlayerManager.AddPeer(HostInfo);
 
         // 注册已有的其他 peer
@@ -71,30 +67,30 @@ public partial class HelloAckAction : Action
             PlayerManager.SpawnPeers();
         }
 
-        MpManager.OnHandshakeComplete(HostInfo.PeerId);
-        InGameConsole.ShowPassiveFromAnyThread(TextId.MpConnected.Get(HostInfo.PeerId));
+        MpWire.OnHandshakeComplete(HostInfo.PeerId);
+        InGameConsole.ShowPassiveFromAnyThread(TextId.MpConnected.Get(LiveModeManager.GetDisplayName(HostInfo.Uid)));
     }
 
     /// <summary>
     /// 主机向指定客机发送 HelloAck
     /// </summary>
-    public static void SendTo(int clientUid)
+    public static void Send(int clientUid)
     {
-        // 收集已有 peer（不含新加入者自身）
+        if (!MpManager.IsRoomHost) return;
+
         var existingPeers = new System.Collections.Generic.List<PlayerInfo>();
         foreach (var kvp in PlayerManager.Peers)
         {
-            if (kvp.Key == clientUid) continue; // 不含新加入者自身
+            if (kvp.Key == clientUid) continue;
             existingPeers.Add(PlayerInfo.FromPlayer(kvp.Value));
         }
-
-        var hostInfo = PlayerInfo.FromPlayer(PlayerManager.Local);
 
         new HelloAckAction
         {
             AssignedUid = clientUid,
-            HostInfo = hostInfo,
-            ExistingPeers = existingPeers.ToArray()
-        }.SendToClient(clientUid);
+            HostInfo = PlayerInfo.FromPlayer(PlayerManager.Local),
+            ExistingPeers = existingPeers.ToArray(),
+            WireTargetUid = clientUid,
+        }.Enqueue();
     }
 }

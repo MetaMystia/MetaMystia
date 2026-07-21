@@ -37,8 +37,8 @@ public static class SkinCommands
             PlayerManager.Local.Skin.SetSkin(characterId, selectedType, skinIndex);
             PlayerManager.Local.IsCustomSkinOverride = true;
             PlayerManager.Local.UpdateCharacterSprite();
-            if (MpManager.IsConnected)
-                SkinChangeAction.Send(PlayerManager.Local.Skin);
+            if (MpManager.CanSeeOnlinePlayers)
+                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
             PlayerManager.RefreshPortrait();
             ctx.Log(TextId.SkinMsgSetOk.Get(characterId, selectedType, skinIndex));
         });
@@ -51,8 +51,8 @@ public static class SkinCommands
             PlayerManager.Local.IsCustomSkinOverride = false;
             PlayerManager.InitLocalSkin();
             PlayerManager.Local.UpdateCharacterSprite();
-            if (MpManager.IsConnected)
-                SkinChangeAction.Send(PlayerManager.Local.Skin);
+            if (MpManager.CanSeeOnlinePlayers)
+                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
             PlayerManager.RefreshPortrait();
             ctx.Log(TextId.SkinMsgResetOk.Get());
         });
@@ -71,8 +71,8 @@ public static class SkinCommands
                 PlayerManager.Local.IsCustomSkinOverride = false;
                 PlayerManager.InitLocalSkin();
                 PlayerManager.Local.UpdateCharacterSprite();
-                if (MpManager.IsConnected)
-                    SkinChangeAction.Send(PlayerManager.Local.Skin);
+                if (MpManager.CanSeeOnlinePlayers)
+                    PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
                 PlayerManager.RefreshPortrait();
                 ctx.Log(TextId.SkinMsgNetClearOk.Get());
                 return;
@@ -108,8 +108,8 @@ public static class SkinCommands
             PlayerManager.Local.IsCustomSkinOverride = true;
             // 先应用 Fallback 占位，下载完成后 NetSkinManager 会自动重新刷新
             PlayerManager.Local.UpdateCharacterSprite();
-            if (MpManager.IsConnected)
-                SkinChangeAction.Send(PlayerManager.Local.Skin);
+            if (MpManager.CanSeeOnlinePlayers)
+                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
             PlayerManager.RefreshPortrait();
 
             NetSkinManager.RequestSkin(name, ok =>
@@ -120,6 +120,25 @@ public static class SkinCommands
             ctx.Log(TextId.SkinMsgNetRequesting.Get(name));
         });
         skinCmd.AddCommand(netCmd);
+
+        // /skin rot on|off|clear
+        var rotCmd = new Command("rot", "Toggle character rotation");
+        var rotStateArg = new Argument<string>("state", "Rotation state: on, off, or clear")
+            .FromAmong("on", "off", "clear");
+        rotCmd.AddArgument(rotStateArg);
+        rotCmd.SetHandler(ctx =>
+        {
+            var state = ctx.ParseResult.GetValueForArgument(rotStateArg);
+            bool? value = state switch { "on" => true, "off" => false, _ => null };
+            PlayerManager.Local.Skin.SetRotate(value);
+            if (value.HasValue)
+                PlayerManager.Local.UpdateCharacterSprite();
+            if (MpManager.CanSeeOnlinePlayers)
+                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+            var msg = value switch { true => TextId.SkinMsgRotOn, false => TextId.SkinMsgRotOff, null => TextId.SkinMsgRotClear };
+            ctx.Log(msg.Get());
+        });
+        skinCmd.AddCommand(rotCmd);
 
         // /skin list
         var listCmd = new Command("list", "List all available skins");
@@ -135,6 +154,7 @@ public static class SkinCommands
             ctx.Log(ConsoleFormat.Header(TextId.SkinHelpHeader.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/skin set", "<charId> <Default|Explicit|DLC> <skinIdx>", TextId.SkinDescSet.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/skin net", "<name|off|refresh>", TextId.SkinDescNet.Get()));
+            ctx.Log(ConsoleFormat.SubCmd("/skin rot", "<on|off|clear>", TextId.SkinDescRot.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/skin off", null, TextId.SkinDescOff.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/skin list", null, TextId.SkinDescList.Get()));
             ctx.Log(ConsoleFormat.Line);
@@ -142,8 +162,9 @@ public static class SkinCommands
 
         root.AddCommand(skinCmd);
 
-        CommandRegistry.RegisterCompletions("skin", 0, "set", "net", "off", "list");
+        CommandRegistry.RegisterCompletions("skin", 0, "set", "net", "rot", "off", "list");
         CommandRegistry.RegisterCompletions("skin set", 1, "Default", "Explicit", "DLC");
+        CommandRegistry.RegisterCompletions("skin rot", 0, "on", "off", "clear");
         CommandRegistry.RegisterHint("skin set", 0, "<characterId>");
         CommandRegistry.RegisterHint("skin set", 2, "<skinIndex>");
         CommandRegistry.RegisterHint("skin net", 0, "<name|off|refresh>");

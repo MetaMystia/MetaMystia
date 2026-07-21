@@ -19,10 +19,9 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
+[PublicRelay]
 public partial class SceneTransitAction : Action
 {
-    public override ActionType Type => ActionType.SCENE_TRANSIT;
 
     [MemoryPackAllowSerialize]
     public Common.UI.Scene Scene { get; set; }
@@ -32,12 +31,6 @@ public partial class SceneTransitAction : Action
         return;
     }
 
-    public static void Send(Common.UI.Scene scene)
-    {
-        var action = new SceneTransitAction
-        {
-            Scene = scene,
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(Common.UI.Scene scene) =>
+        new SceneTransitAction { Scene = scene }.Enqueue();
 }

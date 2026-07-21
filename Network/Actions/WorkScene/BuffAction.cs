@@ -37,10 +37,9 @@ public static class QTEBuffExtension
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
+[RoomRelay]
 public partial class BuffAction : Action
 {
-    public override ActionType Type => ActionType.BUFF;
     public QTEBuff Buff;
     protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Message;
     protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Message;
@@ -64,6 +63,6 @@ public partial class BuffAction : Action
 
     public static void Send(QTEBuff buff)
     {
-        new BuffAction { Buff = buff }.SendToHostOrBroadcast();
+        new BuffAction { Buff = buff }.Enqueue();
     }
 }

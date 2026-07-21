@@ -11,20 +11,18 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class RejectAction : Action
 {
-    public override ActionType Type => ActionType.REJECT;
     public TextId ReasonId { get; set; }
     public string[] ReasonArgs { get; set; } = [];
 
     protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Warning;
 
+    [ClientOnlyReceive]
     public override void OnReceivedDerived()
     {
-        if (MpManager.IsHost) return;
-
         var reason = ReasonId.Get(ReasonArgs);
         Log.LogWarning($"Connection rejected: {reason}");
         InGameConsole.ShowPassiveFromAnyThread(reason);
-        MpManager.DisconnectPeer();
+        MpWire.DisconnectPeer();
     }
 
     /// <summary>
@@ -32,7 +30,9 @@ public partial class RejectAction : Action
     /// </summary>
     public static void SendAndDisconnect(int uid, TextId reasonId, params string[] args)
     {
-        new RejectAction { ReasonId = reasonId, ReasonArgs = args }.SendToClient(uid);
-        MpManager.DisconnectClient(uid);
+        // 先断开再发 Reject 会导致 DirectTcp 找不到 targetUid；Reject 应在断开前入队，
+        // 且 DirectTcp 对找不到的 targetUid 不得广播（否则会误伤所有在线客机）。
+        new RejectAction { ReasonId = reasonId, ReasonArgs = args, WireTargetUid = uid }.Enqueue();
+        MpWire.DisconnectClient(uid);
     }
 }

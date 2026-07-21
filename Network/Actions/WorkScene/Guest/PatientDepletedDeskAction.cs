@@ -20,32 +20,21 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class PatientDepletedDeskAction : Action
 {
-    public override ActionType Type => ActionType.PatientDepletedDeskAction;
 
     public int RuntimeId { get; set; }
 
+    [ClientOnlyReceive]
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        if (MpManager.IsConnectedHost) return;
-
         var rid = RuntimeId;
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            var fsm = GuestsMap.GetGuestFsm(rid);
-            if (fsm == null) return;
-            fsm.Enqueue(nameof(GuestFSM.DoPatientDepletedAtDesk),
-                () => GuestFSM.DoPatientDepletedAtDesk(rid));
-        });
+        var fsm = GuestsMap.GetGuestFsm(rid);
+        if (fsm == null) return;
+        fsm.Enqueue(nameof(GuestFSM.DoPatientDepletedAtDesk),
+            () => GuestFSM.DoPatientDepletedAtDesk(rid));
     }
 
-    public static void Send(int runtimeId)
-    {
-        var action = new PatientDepletedDeskAction
-        {
-            RuntimeId = runtimeId
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(int runtimeId) =>
+        new PatientDepletedDeskAction { RuntimeId = runtimeId }.Enqueue();
 }

@@ -54,12 +54,17 @@ public abstract partial class NetPlayer
     }
     private ResourceDataBase _incrementalDataBase;
 
+    public void ReloadResourceTable()
+    {
+        DataBase.LoadResourceIds();
+        _incrementalDataBase = null;
+    }
 
     #region 角色状态
     /// <summary>
-    /// 当前所在地图标签(主要用于 `DayScene`)
+    /// 当前所在地图（主要用于 `DayScene`）
     /// </summary>
-    public string MapLabel { get; set; } = "";
+    public MapLabel MapLabel { get; set; } = MapLabel.Unknown;
 
     /// <summary>
     /// 是否已经结束白天
@@ -72,9 +77,9 @@ public abstract partial class NetPlayer
     public bool IsPrepOver { get; set; } = false;
 
     /// <summary>
-    /// 选择的居酒屋地图标签（选店阶段）
+    /// 选择的居酒屋地图（选店阶段）
     /// </summary>
-    public string IzakayaMapLabel { get; set; } = "";
+    public MapLabel IzakayaMapLabel { get; set; } = MapLabel.Unknown;
 
     /// <summary>
     /// 选择的居酒屋等级（选店阶段）
@@ -127,6 +132,7 @@ public abstract partial class NetPlayer
     /// <param name="z"></param>
     public void SetZ(int z)
     {
+        if (rb2d == null) return;
         var pos = rb2d.transform.position;
         rb2d.transform.position = new Vector3(pos.x, pos.y, z);
     }
@@ -136,10 +142,10 @@ public abstract partial class NetPlayer
     /// </summary>
     public virtual void ResetState()
     {
-        MapLabel = "";
+        MapLabel = MapLabel.Unknown;
         IsDayOver = false;
         IsPrepOver = false;
-        IzakayaMapLabel = "";
+        IzakayaMapLabel = MapLabel.Unknown;
         IzakayaLevel = 0;
     }
 

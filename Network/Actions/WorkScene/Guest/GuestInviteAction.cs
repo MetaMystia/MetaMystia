@@ -15,34 +15,25 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class GuestInviteAction : Action
 {
-    public override ActionType Type => ActionType.GuestInviteAction;
 
     public List<int> InvitedGuestIds { get; set; } = [];
 
+    [HostOnlyReceive]
     public override void OnReceivedDerived()
     {
-        if (!MpManager.IsConnectedHost) return;
-
         var invitedGuestIds = InvitedGuestIds ?? [];
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            var tracker = StatusTracker.Instance;
-            if (tracker == null) return;
+        var tracker = StatusTracker.Instance;
+        if (tracker == null) return;
 
-            foreach (var guestId in invitedGuestIds.Distinct().Where(PlayerManager.SpecialGuestAvailable))
-            {
-                StatusTrackerPatch.RecordInvitedGuest_ReversePatch(tracker, guestId);
-            }
-        });
+        foreach (var guestId in invitedGuestIds.Distinct().Where(PlayerManager.SpecialGuestAvailable))
+        {
+            StatusTrackerPatch.RecordInvitedGuest_ReversePatch(tracker, guestId);
+        }
     }
 
     public static void Send(List<int> invitedGuestIds)
     {
-        if (!MpManager.IsConnectedClient) return;
-
-        new GuestInviteAction
-        {
-            InvitedGuestIds = invitedGuestIds ?? []
-        }.SendToHostOrBroadcast();
+        if (!MpManager.IsRoomClient) return;
+        new GuestInviteAction { InvitedGuestIds = invitedGuestIds ?? [] }.Enqueue();
     }
 }

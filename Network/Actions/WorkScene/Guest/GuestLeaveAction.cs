@@ -17,38 +17,30 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class GuestLeaveAction : Action
 {
-    public override ActionType Type => ActionType.GuestLeaveAction;
 
     public int RuntimeId { get; set; }
     public byte LeaveType { get; set; }
     public bool TriggerLeaveBuff { get; set; }
 
+    [ClientOnlyReceive]
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        if (MpManager.IsConnectedHost) return;
-
         var rid = RuntimeId;
         var leaveType = (GuestGroupController.LeaveType)LeaveType;
         var triggerLeaveBuff = TriggerLeaveBuff;
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            var fsm = GuestsMap.GetGuestFsm(rid);
-            if (fsm == null) return;
-            fsm.Enqueue(nameof(GuestFSM.DoLeaveFromDesk),
-                () => GuestFSM.DoLeaveFromDesk(rid, leaveType, triggerLeaveBuff));
-        });
+        var fsm = GuestsMap.GetGuestFsm(rid);
+        if (fsm == null) return;
+        fsm.Enqueue(nameof(GuestFSM.DoLeaveFromDesk),
+            () => GuestFSM.DoLeaveFromDesk(rid, leaveType, triggerLeaveBuff));
     }
 
-    public static void Send(int runtimeId, GuestGroupController.LeaveType leaveType, bool triggerLeaveBuff)
-    {
-        var action = new GuestLeaveAction
+    public static void Send(int runtimeId, GuestGroupController.LeaveType leaveType, bool triggerLeaveBuff) =>
+        new GuestLeaveAction
         {
             RuntimeId = runtimeId,
             LeaveType = (byte)leaveType,
             TriggerLeaveBuff = triggerLeaveBuff
-        };
-        action.SendToHostOrBroadcast();
-    }
+        }.Enqueue();
 }

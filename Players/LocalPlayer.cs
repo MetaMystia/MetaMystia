@@ -45,17 +45,15 @@ public partial class LocalPlayer : NetPlayer
     }
 
     /// <summary>
-    /// 当前地图标签，从 SceneDirector 读取。
-    /// 设置时同步更新所有 Peer 的可见状态。
+    /// 当前地图，从 SceneDirector 读取。
     /// </summary>
-    public static new string MapLabel
+    public static MapLabel CurrentMapLabel
     {
-        get => Common.SceneDirector.Instance.currentActiveScene.Key;
-        set
+        get
         {
-            MapLabel = value;
-            foreach (var peer in PlayerManager.Peers.Values)
-                peer.UpdateVisibleState();
+            var key = Common.SceneDirector.Instance?.currentActiveScene?.Key;
+            MapLabelExtensions.TryFromMapKey(key, out var label);
+            return label;
         }
     }
 

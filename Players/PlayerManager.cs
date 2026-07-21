@@ -4,6 +4,7 @@ using UnityEngine;
 
 using Common.CharacterUtility;
 using MetaMystia.Network;
+using MetaMystia.UI;
 
 namespace MetaMystia;
 
@@ -24,20 +25,28 @@ public static partial class PlayerManager
     public static ConcurrentDictionary<int, PeerPlayer> Peers { get; } = new();
 
     /// <summary>
+    /// 同服务器公共同步域内的远程玩家（不参与房间玩法流程）。
+    /// </summary>
+    public static ConcurrentDictionary<int, PeerPlayer> PublicPeers { get; } = new();
+
+    /// <summary>
     /// 当前对端玩家（1v1 便捷访问，返回第一个 Peer）
     /// 多人场景下，调用方应遍历 Peers 集合
     /// </summary>
     public static PeerPlayer Peer => Peers.Values.FirstOrDefault();
 
+    public static bool TryGetVisiblePeer(int uid, out PeerPlayer peer) =>
+        Peers.TryGetValue(uid, out peer) || PublicPeers.TryGetValue(uid, out peer);
+
     /// <summary>
-    /// 根据 UID 获取对端玩家名字，找不到则返回 "uid={uid}"
+    /// 根据 UID 获取对端玩家显示名（直播模式下为 UID-{uid}）
     /// </summary>
     public static string GetPeerName(int uid) =>
-        Peers.TryGetValue(uid, out var peer) ? peer.Id : $"uid={uid}";
+        LiveModeManager.GetDisplayName(uid);
 
     #region Local 便捷属性
 
-    public static string LocalMapLabel => LocalPlayer.MapLabel;
+    public static MapLabel LocalMapLabel => LocalPlayer.CurrentMapLabel;
     public static bool LocalIsSprinting { get => Local.IsSprinting; set => Local.IsSprinting = value; }
     public static Vector2 LocalInputDirection { get => Local.InputDirection; set => Local.InputDirection = value; }
     public static bool CharacterSpawnedAndInitialized => Local.CharacterSpawnedAndInitialized;
@@ -74,9 +83,9 @@ public static partial class PlayerManager
     /// <summary>
     /// 所有对端是否都已选择了与指定地图/等级一致的居酒屋
     /// </summary>
-    public static bool AllPeersSelectedSameIzakaya(string mapLabel, int level) =>
+    public static bool AllPeersSelectedSameIzakaya(MapLabel mapLabel, int level) =>
         Peers.Count > 0 && Peers.Values.All(p =>
-            !string.IsNullOrEmpty(p.IzakayaMapLabel) && p.IzakayaLevel != 0
+            p.IzakayaMapLabel.IsSelected() && p.IzakayaLevel != 0
             && p.IzakayaMapLabel == mapLabel && p.IzakayaLevel == level);
 
     /// <summary>
@@ -84,7 +93,7 @@ public static partial class PlayerManager
     /// </summary>
     public static bool AllPeersHaveSelected =>
         Peers.Count > 0 && Peers.Values.All(p =>
-            !string.IsNullOrEmpty(p.IzakayaMapLabel) && p.IzakayaLevel != 0);
+            p.IzakayaMapLabel.IsSelected() && p.IzakayaLevel != 0);
 
     #endregion
 
@@ -106,7 +115,7 @@ public static partial class PlayerManager
             Log.LogWarning($"SetPeerPrepOver: peer uid={uid} not found");
     }
 
-    public static void SetPeerIzakayaSelection(int uid, string mapLabel, int level)
+    public static void SetPeerIzakayaSelection(int uid, MapLabel mapLabel, int level)
     {
         if (Peers.TryGetValue(uid, out var peer))
         {
@@ -120,14 +129,14 @@ public static partial class PlayerManager
     /// <summary>
     /// 获取选择不一致的首个 Peer 的选择描述（用于通知），无不一致则返回 null
     /// </summary>
-    public static string GetFirstMismatchSelection(string mapLabel, int level)
+    public static string GetFirstMismatchSelection(MapLabel mapLabel, int level)
     {
         foreach (var peer in Peers.Values)
         {
-            if (string.IsNullOrEmpty(peer.IzakayaMapLabel) || peer.IzakayaLevel == 0)
-                return $"{peer.Id}: 未选择";
+            if (!peer.IzakayaMapLabel.IsSelected() || peer.IzakayaLevel == 0)
+                return $"{LiveModeManager.GetDisplayName(peer.Uid)}: {TextId.PeerIzakayaNotSelected.Get()}";
             if (peer.IzakayaMapLabel != mapLabel || peer.IzakayaLevel != level)
-                return $"{peer.Id}: {Utils.GetMapLabelNameCN(peer.IzakayaMapLabel)} {Utils.GetMapLevelNameCN(peer.IzakayaLevel)}";
+                return $"{LiveModeManager.GetDisplayName(peer.Uid)}: {peer.IzakayaMapLabel.FormatIzakayaSelection(peer.IzakayaLevel)}";
         }
         return null;
     }
@@ -191,10 +200,16 @@ public static partial class PlayerManager
             peer.ResetMotion();
             peer.SpawnForScene();
         }
+        foreach (var peer in PublicPeers.Values)
+        {
+            peer.ResetMotion();
+            peer.SpawnForScene();
+        }
         // 为本地玩家也添加头顶标签（等 Local unit 初始化后）
         SgrYuki.CommandScheduler.Enqueue(
             executeWhen: () => Local.unit != null,
-            execute: () => UI.FloatingTextHelper.SetPlayerLabel(Local.Uid, Local.Id, Local.unit.transform),
+            execute: () => UI.FloatingTextHelper.SetPlayerLabel(
+                Local.Uid, LiveModeManager.GetDisplayName(Local.Uid), Local.unit.transform),
             timeoutSeconds: 30
         );
         Log.LogInfo($"PlayerManager peers spawned (peers: {Peers.Count})");
@@ -206,6 +221,11 @@ public static partial class PlayerManager
     public static bool IsPeerIdOnline(string peerId)
     {
         foreach (var kvp in Peers)
+        {
+            if (string.Equals(kvp.Value.Id, peerId, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        foreach (var kvp in PublicPeers)
         {
             if (string.Equals(kvp.Value.Id, peerId, System.StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -222,7 +242,9 @@ public static partial class PlayerManager
         var uid = info.Uid;
         var peerId = info.PeerId;
         var skin = info.Skin;
-        
+
+        PublicPeers.TryRemove(uid, out _);
+
         if (Peers.TryGetValue(uid, out var existing))
         {
             Log.LogWarning($"Peer with uid={uid} already exists (id='{existing.Id}'), replacing");
@@ -235,6 +257,25 @@ public static partial class PlayerManager
         peer.ResetMotion();
         Peers[uid] = peer;
         Log.LogMessage($"Added peer '{peerId}' (uid={uid}, characterId='{peer.CharacterId}')");
+        return peer;
+    }
+
+    public static PeerPlayer AddPublicPeer(PlayerInfo info)
+    {
+        var uid = info.Uid;
+        var peerId = info.PeerId;
+        if (Peers.ContainsKey(uid))
+        {
+            Log.LogInfo($"Public peer '{peerId}' (uid={uid}) is already in room peers, skipping public registration");
+            return Peers[uid];
+        }
+
+        var peer = new PeerPlayer(uid, info.IncrementalDataBase) { Id = peerId };
+        if (info.Skin != null) peer.Skin = info.Skin;
+        peer.ResetState();
+        peer.ResetMotion();
+        PublicPeers[uid] = peer;
+        Log.LogMessage($"Added public peer '{peerId}' (uid={uid}, characterId='{peer.CharacterId}')");
         return peer;
     }
 
@@ -269,32 +310,18 @@ public static partial class PlayerManager
     }
 
     /// <summary>
-    /// 隐藏指定对端玩家的角色（移到不可见层级）并移除头顶标签。
+    /// 销毁指定对端玩家的角色、取消 pending spawn，并移除头顶标签。
     /// 在移除 peer 之前调用，避免留下"幽灵"角色。
     /// </summary>
     public static void HidePeer(int uid)
     {
-        if (Peers.TryGetValue(uid, out var peer))
-        {
-            peer.UpdateVisibleState(false);
-        }
+        if (Peers.TryGetValue(uid, out var peer) || PublicPeers.TryGetValue(uid, out peer))
+            peer.DespawnCharacter();
         UI.FloatingTextHelper.RemovePlayerLabel(uid);
     }
 
     /// <summary>
-    /// 隐藏所有对端玩家的角色和标签（客机断开连接时调用）
-    /// </summary>
-    public static void HideAllPeers()
-    {
-        foreach (var kvp in Peers)
-        {
-            kvp.Value.UpdateVisibleState(false);
-        }
-        UI.FloatingTextHelper.ClearAllLabels();
-    }
-
-    /// <summary>
-    /// 移除一个对端玩家（先隐藏角色和标签）
+    /// 移除一个对端玩家（先销毁角色和标签）
     /// </summary>
     public static bool RemovePeer(int uid)
     {
@@ -304,17 +331,41 @@ public static partial class PlayerManager
             Log.LogMessage($"Removed peer '{peer.Id}' (uid={uid})");
             return true;
         }
+        if (PublicPeers.TryRemove(uid, out peer))
+        {
+            Log.LogMessage($"Removed public peer '{peer.Id}' (uid={uid})");
+            return true;
+        }
         return false;
     }
 
     /// <summary>
-    /// 清除所有对端玩家（先隐藏所有角色，断开连接时调用）
+    /// 清除所有对端玩家（先销毁所有角色并取消 pending spawn，断开连接时调用）
     /// </summary>
     public static void ClearPeers()
     {
-        HideAllPeers();
+        foreach (var peer in Peers.Values)
+            peer.DespawnCharacter();
+        foreach (var peer in PublicPeers.Values)
+            peer.DespawnCharacter();
+        UI.FloatingTextHelper.ClearAllLabels();
         Peers.Clear();
+        PublicPeers.Clear();
         Log.LogMessage($"All peers cleared");
+    }
+
+    /// <summary>
+    /// 清除房间内对端玩家（销毁角色、取消 pending spawn，并移除标签）
+    /// </summary>
+    public static void ClearRoomPeers()
+    {
+        foreach (var kvp in Peers)
+        {
+            kvp.Value.DespawnCharacter();
+            UI.FloatingTextHelper.RemovePlayerLabel(kvp.Key);
+        }
+        Peers.Clear();
+        Log.LogMessage("Room peers cleared");
     }
 
     #endregion
@@ -327,6 +378,10 @@ public static partial class PlayerManager
     public static void OnFixedUpdate()
     {
         foreach (var peer in Peers.Values)
+        {
+            peer.OnFixedUpdate();
+        }
+        foreach (var peer in PublicPeers.Values)
         {
             peer.OnFixedUpdate();
         }
@@ -350,7 +405,8 @@ public static partial class PlayerManager
         EnablePeerCollision(Peer?.GetCharacterUnit(), enable);
 
     public static bool IsPeerCharacter(string label) =>
-        Peers.Values.Any(p => p.CharacterId == label);
+        Peers.Values.Any(p => p.CharacterId == label) ||
+        PublicPeers.Values.Any(p => p.CharacterId == label);
 
     #endregion
 }

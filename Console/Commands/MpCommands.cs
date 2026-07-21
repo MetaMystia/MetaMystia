@@ -20,12 +20,12 @@ public static class MpCommands
         startCmd.AddArgument(startPortArg);
         startCmd.SetHandler(ctx =>
         {
-            if (MpManager.IsRunning && MpManager.IsHost)
+            if (MpManager.IsRunning && MpManager.IsDirectHost)
             {
                 ctx.Log(TextId.MpAlreadyStarted.Get(MpManager.RoleName));
                 return;
             }
-            if (MpManager.IsRunning && MpManager.IsClient)
+            if (MpManager.IsRunning && !MpManager.IsDirectHost)
             {
                 ctx.Log(TextId.MpSwitchingToHost.Get());
                 MpManager.Stop();
@@ -36,13 +36,15 @@ public static class MpCommands
                 ctx.Log(ConsoleFormat.Err(TextId.MpPortRange.Get()));
                 return;
             }
-            if (MpManager.Start(MpManager.ROLE.Host, port))
+            if (MpManager.Start(MpManager.ROLE.Server, port))
             {
                 if (port != MpManager.DEFAULT_PORT)
                     ctx.Log(TextId.MpStartedOnPort.Get(port));
                 else
                     ctx.Log(TextId.MpStartedAsHost.Get());
             }
+            else if (!MpManager.IsMultiplayerAvailable)
+                ctx.Log(ConsoleFormat.Err(TextId.MpMainSceneRequired.Get()));
         });
 
         // /mp start server (deprecated alias)
@@ -50,18 +52,20 @@ public static class MpCommands
         startServerCmd.SetHandler(ctx =>
         {
             ctx.Log(ConsoleFormat.Warn(TextId.MpStartDeprecated.Get()));
-            if (MpManager.IsRunning && MpManager.IsHost)
+            if (MpManager.IsRunning && MpManager.IsDirectHost)
             {
                 ctx.Log(TextId.MpAlreadyStarted.Get(MpManager.RoleName));
                 return;
             }
-            if (MpManager.IsRunning && MpManager.IsClient)
+            if (MpManager.IsRunning && !MpManager.IsDirectHost)
             {
                 ctx.Log(TextId.MpSwitchingToHost.Get());
                 MpManager.Stop();
             }
-            if (MpManager.Start(MpManager.ROLE.Host))
+            if (MpManager.Start(MpManager.ROLE.Server))
                 ctx.Log(TextId.MpStartedAsHost.Get());
+            else if (!MpManager.IsMultiplayerAvailable)
+                ctx.Log(ConsoleFormat.Err(TextId.MpMainSceneRequired.Get()));
         });
         startCmd.AddCommand(startServerCmd);
 
@@ -91,10 +95,11 @@ public static class MpCommands
         {
             ctx.Log(ConsoleFormat.Header("Multiplayer Status"));
             ctx.Log($"  {ConsoleFormat.Dim("Role:")} {ConsoleFormat.Cmd(MpManager.RoleName)} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("ID:")} {ConsoleFormat.Arg(MpManager.PlayerId)} {ConsoleFormat.Dim($"(uid={PlayerManager.Local.Uid})")}");
+            ctx.Log($"  {ConsoleFormat.Dim("Transport:")} {MpManager.Session.TransportKind} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Scope:")} {MpManager.Session.SyncScope} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("RoomRole:")} {MpManager.Session.RoomRole}");
             ctx.Log($"  {ConsoleFormat.Dim("Running:")} {(MpManager.IsRunning ? ConsoleFormat.Ok("Yes") : ConsoleFormat.Err("No"))} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Connected:")} {(MpManager.IsConnected ? ConsoleFormat.Ok("Yes") : ConsoleFormat.Err("No"))} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("IPv6:")} {(MpManager.EnableIPv6 ? ConsoleFormat.Ok("On") : ConsoleFormat.Dim("Off"))}");
             if (MpManager.IsConnected)
             {
-                ctx.Log($"  {ConsoleFormat.Dim("Ping:")} {MpManager.Latency}ms {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Players:")} {MpManager.AllPlayersCount}/{ConfigManager.MaxPlayers.Value} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Scene:")} {MpManager.LocalScene}");
+                ctx.Log($"  {ConsoleFormat.Dim("Ping:")} {MpManager.LatencyDisplay} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Players:")} {MpManager.AllPlayersCount}/{ConfigManager.MaxPlayers.Value} {ConsoleFormat.Dim("|")} {ConsoleFormat.Dim("Scene:")} {MpManager.LocalScene}");
                 foreach (var kvp in PlayerManager.Peers)
                 {
                     var role = kvp.Key == MpManager.HOST_UID ? ConsoleFormat.Cmd("[S]") : ConsoleFormat.Dim("[C]");
@@ -118,7 +123,7 @@ public static class MpCommands
                 return;
             }
             MpManager.PlayerId = id;
-            PlayerIdChangeAction.Send(id);
+            PlayerChangeIdAction.Send(id);
             ctx.Log(TextId.MpPlayerIdSet.Get(id));
         });
         mpCmd.AddCommand(idCmd);
@@ -179,7 +184,7 @@ public static class MpCommands
         var disconnectCmd = new Command("disconnect", "Disconnect from peer");
         disconnectCmd.SetHandler(ctx =>
         {
-            if (!MpManager.IsConnected)
+            if (!MpManager.IsOnline)
                 ctx.Log(TextId.MpNoActiveConnection.Get());
             else
             {
@@ -197,7 +202,7 @@ public static class MpCommands
         kickIdCmd.AddArgument(kickNameArg);
         kickIdCmd.SetHandler(ctx =>
         {
-            if (!MpManager.IsHost) { ctx.Log(TextId.MpKickHostOnly.Get()); return; }
+            if (!MpManager.IsRoomHost) { ctx.Log(TextId.MpKickHostOnly.Get()); return; }
             if (PlayerManager.Peers.IsEmpty) { ctx.Log(TextId.MpKickNoTarget.Get()); return; }
             string name = ctx.ParseResult.GetValueForArgument(kickNameArg);
             foreach (var kvp in PlayerManager.Peers)
@@ -218,7 +223,7 @@ public static class MpCommands
         kickUidCmd.AddArgument(kickUidArg);
         kickUidCmd.SetHandler(ctx =>
         {
-            if (!MpManager.IsHost) { ctx.Log(TextId.MpKickHostOnly.Get()); return; }
+            if (!MpManager.IsRoomHost) { ctx.Log(TextId.MpKickHostOnly.Get()); return; }
             if (PlayerManager.Peers.IsEmpty) { ctx.Log(TextId.MpKickNoTarget.Get()); return; }
             int uid = ctx.ParseResult.GetValueForArgument(kickUidArg);
             if (uid == MpManager.HOST_UID) { ctx.Log(TextId.MpKickSelf.Get()); return; }
@@ -239,7 +244,7 @@ public static class MpCommands
         {
             ctx.Log(ConsoleFormat.SubCmd("/mp kick id", "<name>", TextId.MpDescKickId.Get()));
             ctx.Log(ConsoleFormat.SubCmd("/mp kick uid", "<uid>", TextId.MpDescKickUid.Get()));
-            if (MpManager.IsHost && !PlayerManager.Peers.IsEmpty)
+            if (MpManager.IsRoomHost && !PlayerManager.Peers.IsEmpty)
             {
                 ctx.Log(ConsoleFormat.Dim("Online: " + string.Join(", ",
                     PlayerManager.Peers.Select(p => $"{p.Value.Id}(uid={p.Key})"))));
@@ -259,7 +264,7 @@ public static class MpCommands
                 ctx.Log(TextId.MpMaxPlayersCurrent.Get(ConfigManager.MaxPlayers.Value));
                 return;
             }
-            if (!MpManager.IsHost && MpManager.IsConnected)
+            if (!MpManager.IsRoomHost && MpManager.IsConnected)
             {
                 ctx.Log(ConsoleFormat.Err(TextId.MpMaxPlayersHostOnly.Get()));
                 return;
@@ -281,7 +286,7 @@ public static class MpCommands
         continueCmd.AddArgument(phaseArg);
         continueCmd.SetHandler(ctx =>
         {
-            if (!MpManager.IsHost)
+            if (!MpManager.IsRoomHost)
             {
                 ctx.Log(TextId.MpContinueHostOnly.Get());
                 return;
@@ -303,14 +308,14 @@ public static class MpCommands
         {
             string action = ctx.ParseResult.GetValueForArgument(ipv6ActionArg);
             bool enable = action == "enable";
-            if (MpManager.IsConnectedHost)
+            if (MpManager.IsConnectedServer)
             {
                 ctx.Log(ConsoleFormat.Err(TextId.MpIpv6RejectConnected.Get()));
                 return;
             }
             ConfigManager.EnableIPv6.Value = enable;
             ctx.Log(enable ? TextId.MpIpv6Enabled.Get() : TextId.MpIpv6Disabled.Get());
-            if (MpManager.IsRunning && MpManager.IsHost)
+            if (MpManager.IsRunning && MpManager.IsDirectHost)
             {
                 MpManager.Restart();
                 ctx.Log(TextId.MpIpv6Restarted.Get());

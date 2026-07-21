@@ -4,7 +4,7 @@
     <LangVersion>14</LangVersion>
     <AssemblyName>MetaMystia</AssemblyName>
     <Product>MetaMystia</Product>
-    <Version>0.25.1</Version>
+    <Version>0.26.5</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;
@@ -63,6 +63,12 @@
       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="Network\Protocol\**" />
+    <EmbeddedResource Remove="Network\Protocol\**" />
+    <None Remove="Network\Protocol\**" />
+    <Compile Remove="MetaMystia.Protocol\**" />
+    <EmbeddedResource Remove="MetaMystia.Protocol\**" />
+    <None Remove="MetaMystia.Protocol\**" />
     <Compile Remove="MetaMystia.Generators\**" />
     <EmbeddedResource Remove="MetaMystia.Generators\**" />
     <None Remove="MetaMystia.Generators\**" />

@@ -45,6 +45,7 @@ public static partial class CommandRegistry
         Commands.DebugCommands.Register(_root);
         Commands.LinkCommands.Register(_root);
         Commands.ResourceExCommands.Register(_root);
+        Commands.LiveCommands.Register(_root);
 
         // Build parser without default help/version or verbose error reporting
         _parser = new CommandLineBuilder(_root)

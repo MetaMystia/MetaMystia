@@ -8,7 +8,6 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class GuestSpawnAction : Action
 {
-    public override ActionType Type => ActionType.GuestSpawnAction;
 
     public int RuntimeId { get; set; }
     public GuestSpawnInfo SpawnInfo { get; set; }
@@ -17,16 +16,9 @@ public partial class GuestSpawnAction : Action
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        PluginManager.Instance.RunOnMainThread(() => GuestFSM.DoSpawn(RuntimeId, SpawnInfo));
+        GuestFSM.DoSpawn(RuntimeId, SpawnInfo);
     }
 
-    public static void Send(int runtimeId, GuestSpawnInfo spawnInfo)
-    {
-        var action = new GuestSpawnAction()
-        {
-            RuntimeId = runtimeId,
-            SpawnInfo = spawnInfo,
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(int runtimeId, GuestSpawnInfo spawnInfo) =>
+        new GuestSpawnAction { RuntimeId = runtimeId, SpawnInfo = spawnInfo }.Enqueue();
 }

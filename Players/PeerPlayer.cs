@@ -27,7 +27,12 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     public int CharacterModelId { get; set; } = 14;
 
-    public bool IsSameMapAsLocal => MapLabel == LocalPlayer.MapLabel;
+    public bool IsSameMapAsLocal => MapLabel == LocalPlayer.CurrentMapLabel;
+
+    private string SpawnCommandKey => $"PeerSpawn_{CharacterId}";
+
+    private static bool IsUnitReady(CharacterControllerUnit u) =>
+        u != null && u.rb2d != null && u.cl2d != null;
 
     #region 角色运动速度修正
     /// <summary>
@@ -108,51 +113,52 @@ public partial class PeerPlayer : NetPlayer
     public void SpawnForScene()
     {
         var scene = MpManager.LocalScene;
-        bool visible;
-        // 生成在远处，由后续 Sync 位置修正定位；每个 peer 按 uid 偏移 1 格避免碰撞
-        var spawnPos = new Vector2(FAR_POS + Uid, FAR_POS);
-
-        switch (scene)
+        if (scene is not Common.UI.Scene.DayScene and not Common.UI.Scene.WorkScene)
         {
-            case Common.UI.Scene.DayScene:
-                visible = false;
-                CommandScheduler.Enqueue(
-                    executeWhen: () => PlayerManager.Local.unit != null
-                        && DayScene.SceneManager.Instance?.CurrentActiveMap != null,
-                    execute: () =>
-                    {
-                        SpawnCharacter(spawnPos);
-                        CommandScheduler.Enqueue(
-                            executeWhen: () => unit != null,
-                            execute: () => PostSpawnSetup(visible),
-                            timeoutSeconds: 30
-                        );
-                    },
-                    timeoutSeconds: 60
-                );
-                break;
-            case Common.UI.Scene.WorkScene:
-                visible = true;
-                CommandScheduler.Enqueue(
-                    executeWhen: () => PlayerManager.Local.GetCharacterUnit() != null
-                        && NightScene.MapManager.Instance?.height != null,
-                    execute: () =>
-                    {
-                        SpawnCharacter(spawnPos);
-                        CommandScheduler.Enqueue(
-                            executeWhen: () => unit != null,
-                            execute: () => PostSpawnSetup(visible),
-                            timeoutSeconds: 30
-                        );
-                    },
-                    timeoutSeconds: 60
-                );
-                break;
-            default:
-                Log.LogDebug($"SpawnForScene called in {scene}, skipping for '{CharacterId}'");
-                return;
+            Log.LogDebug($"SpawnForScene called in {scene}, skipping for '{CharacterId}'");
+            return;
         }
+
+        CommandScheduler.RemoveKeyFromKeyQueue(SpawnCommandKey);
+        bool visible = scene == Common.UI.Scene.WorkScene;
+        var spawnPos = new Vector2(FAR_POS + Uid, FAR_POS);
+        Func<bool> readyWhen = scene == Common.UI.Scene.DayScene
+            ? () => IsUnitReady(PlayerManager.Local.unit)
+                && DayScene.SceneManager.Instance?.CurrentActiveMap != null
+            : () => IsUnitReady(PlayerManager.Local.unit)
+                && NightScene.MapManager.Instance?.height != null;
+
+        CommandScheduler.EnqueueKey(
+            key: SpawnCommandKey,
+            executeWhen: readyWhen,
+            execute: () =>
+            {
+                SpawnCharacter(spawnPos);
+                CommandScheduler.Enqueue(
+                    executeWhen: () => IsUnitReady(unit),
+                    execute: () => PostSpawnSetup(visible),
+                    timeoutSeconds: 30
+                );
+            },
+            timeoutSeconds: 60
+        );
         Log.LogMessage($"PeerPlayer '{CharacterId}' spawn scheduled for {scene} at ({spawnPos.x}, {spawnPos.y})");
+    }
+
+    /// <summary>
+    /// 取消 pending spawn，从 characterCollection 移除并销毁对端角色 GameObject。
+    /// </summary>
+    public void DespawnCharacter()
+    {
+        CommandScheduler.RemoveKeyFromKeyQueue(SpawnCommandKey);
+        var collection = Common.SceneDirector.Instance?.characterCollection;
+        if (collection == null || !collection.TryGetValue(CharacterId, out var existing))
+            return;
+
+        collection.Remove(CharacterId);
+        if (existing != null)
+            UnityEngine.Object.Destroy(existing.gameObject);
+        Log.LogMessage($"Despawned character '{CharacterId}'");
     }
 
     /// <summary>
@@ -160,28 +166,41 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     private void PostSpawnSetup(bool visible)
     {
+        if (!IsUnitReady(unit)) return;
+
         TryAddHeightProcessor();
         IgnoreCollisionWithSelf();
         UpdateVisibleState(visible);
-        FloatingTextHelper.SetPlayerLabel(Uid, Id, unit.transform);
+        FloatingTextHelper.SetPlayerLabel(Uid, LiveModeManager.GetDisplayName(Uid), unit.transform);
         Skin.ApplyToUnit(unit);
         Log.LogMessage($"PeerPlayer '{CharacterId}' post-spawn setup done (visible={visible})");
     }
 
     private void SpawnCharacter(Vector2 position)
     {
-        if (Common.SceneDirector.Instance.characterCollection.ContainsKey(CharacterId))
+        var collection = Common.SceneDirector.Instance?.characterCollection;
+        if (collection == null) return;
+
+        if (collection.TryGetValue(CharacterId, out var existing))
         {
-            Log.LogInfo($"Character '{CharacterId}' already exists, skip spawning");
-            return;
+            if (IsUnitReady(existing))
+            {
+                Log.LogInfo($"Character '{CharacterId}' already exists, skip spawning");
+                return;
+            }
+            collection.Remove(CharacterId);
+            if (existing != null)
+                UnityEngine.Object.Destroy(existing.gameObject);
+            Log.LogInfo($"Removed stale character '{CharacterId}' before respawn");
         }
+
         Common.SceneDirector.Instance.SpawnCharacter(Common.SceneDirector.Identity.Special, CharacterModelId, position, CharacterId);
         Log.LogMessage($"Spawned character '{CharacterId}' at ({position.x}, {position.y})");
     }
 
     private void TryAddHeightProcessor()
     {
-        if (unit == null) return;
+        if (!IsUnitReady(unit)) return;
 
         if (unit.GetComponent<HeightBlendedInputProcessorComponent>() == null)
             unit.AddInputProcessor<HeightBlendedInputProcessorComponent>();
@@ -200,15 +219,15 @@ public partial class PeerPlayer : NetPlayer
 
     public void IgnoreCollisionWithSelf(bool ignore = true)
     {
-        if (unit == null) return;
-        var selfUnit = Common.SceneDirector.Instance?.characterCollection["Self"];
-        if (selfUnit != null)
+        if (!IsUnitReady(unit)) return;
+
+        var collection = Common.SceneDirector.Instance?.characterCollection;
+        if (collection != null && collection.TryGetValue("Self", out var selfUnit) && IsUnitReady(selfUnit))
             Physics2D.IgnoreCollision(unit.cl2d, selfUnit.cl2d, ignore);
 
-        // 与所有已有 peer 之间也关闭碰撞
         foreach (var peer in PlayerManager.Peers.Values)
         {
-            if (peer == this || peer.unit == null) continue;
+            if (peer == this || !IsUnitReady(peer.unit)) continue;
             Physics2D.IgnoreCollision(unit.cl2d, peer.unit.cl2d, ignore);
         }
     }
@@ -217,9 +236,9 @@ public partial class PeerPlayer : NetPlayer
 
     public override CharacterControllerUnit GetCharacterUnit()
     {
-        if (Common.SceneDirector.Instance?.characterCollection.TryGetValue(CharacterId, out var characterUnit) ?? false)
-            return characterUnit;
-        return null;
+        if (Common.SceneDirector.Instance?.characterCollection.TryGetValue(CharacterId, out var characterUnit) != true)
+            return null;
+        return IsUnitReady(characterUnit) ? characterUnit : null;
     }
 
     public CharacterConditionComponent GetCharacterComponent() =>
@@ -266,7 +285,7 @@ public partial class PeerPlayer : NetPlayer
     /// <summary>
     /// DayScene 同步：接收对端的地图、奔跑、方向、位置
     /// </summary>
-    public void SyncFromPeer(string mapLabel, bool isSprinting, float speed, Vector2 inputDirection, Vector2 position)
+    public void SyncFromPeer(MapLabel mapLabel, bool isSprinting, float speed, Vector2 inputDirection, Vector2 position)
     {
         if (unit == null)
         {
@@ -308,7 +327,7 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     public void NightSyncFromPeer(float speed, Vector2 inputDirection, Vector2 position)
     {
-        if (unit == null) return;
+        if (!IsUnitReady(unit)) return;
 
         Speed = speed;
         unit.MoveSpeedMultiplier = speed;
@@ -337,7 +356,7 @@ public partial class PeerPlayer : NetPlayer
 
     public void UpdateVisibleState(bool? forceVisible = null)
     {
-        if (unit == null) return;
+        if (!IsUnitReady(unit)) return;
 
         bool visible = forceVisible ?? IsSameMapAsLocal;
         SetZ(visible ? 0 : LARGE_Z_VALUE);

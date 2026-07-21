@@ -10,10 +10,9 @@ namespace MetaMystia.Network;
 /// 任何玩家 → 所有玩家：发送聊天消息
 /// </summary>
 [MemoryPackable]
-[HostRelay]
+[PublicRelay]
 public partial class MessageAction : Action
 {
-    public override ActionType Type => ActionType.MESSAGE;
 
     [MemoryPackIgnore]
     private const int maxMessageLen = 1024;
@@ -25,10 +24,12 @@ public partial class MessageAction : Action
     {
         var senderName = PlayerManager.GetPeerName(SenderUid);
         InGameConsole.AddPeerMessage(senderName, Message);
-        if (PlayerManager.Peers.TryGetValue(SenderUid, out var senderPeer)
+        if (!LiveModeManager.SuppressFloatingChatBubbles
+            && PlayerManager.TryGetVisiblePeer(SenderUid, out var senderPeer)
             && PlayerManager.LocalMapLabel == senderPeer.MapLabel)
         {
-            FloatingTextHelper.ShowFloatingTextOnMainThread(senderPeer.GetCharacterUnit(), Message);
+            FloatingTextHelper.ShowFloatingTextOnMainThread(
+                senderPeer.GetCharacterUnit(), LiveModeManager.MaskMessage(Message));
         }
     }
     private static MessageAction CreateMsgAction(string msg)
@@ -45,7 +46,8 @@ public partial class MessageAction : Action
 
     public static void Send(string message)
     {
-        FloatingTextHelper.ShowFloatingTextSelfOnMainThread(message);
-        CreateMsgAction(message).SendToHostOrBroadcast();
+        if (!LiveModeManager.SuppressFloatingChatBubbles)
+            FloatingTextHelper.ShowFloatingTextSelfOnMainThread(LiveModeManager.MaskMessage(message));
+        CreateMsgAction(message).Enqueue();
     }
 }

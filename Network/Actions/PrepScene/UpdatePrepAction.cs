@@ -8,10 +8,9 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
-public partial class PrepAction : Action
+[RoomRelay]
+public partial class UpdatePrepAction : Action
 {
-    public override ActionType Type => ActionType.PREP;
 
     [MemoryPackable]
     public partial class Table
@@ -23,6 +22,23 @@ public partial class PrepAction : Action
         public Dictionary<int, long> BeverageDeletions { get; set; } = [];
 
         public CookerSlot[] Cookers { get; set; } = CookerSlot.CreateDefaultArray();
+
+        public Table Clone()
+        {
+            var cookers = Cookers ?? CookerSlot.CreateDefaultArray();
+            var clonedCookers = new CookerSlot[cookers.Length];
+            for (int i = 0; i < cookers.Length; i++)
+                clonedCookers[i] = cookers[i]?.Clone() ?? new CookerSlot();
+
+            return new Table
+            {
+                RecipeAdditions = new Dictionary<int, long>(RecipeAdditions),
+                RecipeDeletions = new Dictionary<int, long>(RecipeDeletions),
+                BeverageAdditions = new Dictionary<int, long>(BeverageAdditions),
+                BeverageDeletions = new Dictionary<int, long>(BeverageDeletions),
+                Cookers = clonedCookers,
+            };
+        }
     }
 
     public Table PrepTable { get; set; } = new Table();
@@ -30,17 +46,12 @@ public partial class PrepAction : Action
     protected override bool OnSendLogOnlyAction => true;
     protected override bool OnReceiveLogOnlyAction => true;
 
+    [CheckScene(Common.UI.Scene.IzakayaPrepScene)]
     public override void OnReceivedDerived()
     {
         PrepSceneManager.MergeFromPeer(PrepTable);
     }
 
-    public static void Send(Table prepTable)
-    {
-        var action = new PrepAction
-        {
-            PrepTable = prepTable
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(Table prepTable) =>
+        new UpdatePrepAction { PrepTable = prepTable }.Enqueue();
 }

@@ -21,7 +21,7 @@ public static class GetCommands
             switch (field)
             {
                 case "currentactivemaplabel":
-                    ctx.Log(TextId.CurrentMapLabel.Get(PlayerManager.LocalMapLabel));
+                    ctx.Log(TextId.CurrentMapLabel.Get(PlayerManager.LocalMapLabel.GetDisplayName()));
                     break;
                 case "pos":
                     ctx.Log(TextId.MystiaPosition.Get(PlayerManager.LocalPosition));

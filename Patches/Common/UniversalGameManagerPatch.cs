@@ -2,6 +2,7 @@ using HarmonyLib;
 using System.Collections.Generic;
 
 using Common.UI;
+using GameData.Core.Collections.DaySceneUtility;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -17,8 +18,6 @@ public partial class UniversalGameManagerPatch
     [HarmonyPrefix]
     public static bool OpenDialogMenu_Prefix(ref GameData.Profile.DialogPackage dialogPackage, Il2CppSystem.Action onFinishCallback, ref Il2CppSystem.Action<Dictionary<int, string>> overrideReplaceTextCallback, DEYU.AdpUISystem.Managers.AdpUIPanelManager.PanelVisualMode previousPanelVisualMode = DEYU.AdpUISystem.Managers.AdpUIPanelManager.PanelVisualMode.HideVisual)
     {
-        Log.Warning($"OpenDialogMenu_Prefix called for dialogPackage: {dialogPackage?.name} onFinishCallback: {onFinishCallback != null} overrideReplaceTextCallback: {overrideReplaceTextCallback != null} previousPanelVisualMode: {previousPanelVisualMode}");
-
         if (dialogPackage == null)
         {
             // dialogPackage 为空时，直接调用原方法，将 onFinishCallback 传递下去
@@ -34,6 +33,9 @@ public partial class UniversalGameManagerPatch
             dialogPackage.dialogContext = ResourceExManager.ExampleDialog.dialogContext;
             Log.Info($"Replaced dialogPackage.dialogContext with ExampleDialog.dialogContext");
         }
+        
+        StoryReplayRecentHistory.Record(dialogPackage);
+        
         if (ResourceExManager.ExistsDialogPackage(dialogPackage.name) && overrideReplaceTextCallback == null)
         {
             UniversalGameManager.OpenDialogMenu(

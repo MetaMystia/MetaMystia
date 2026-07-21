@@ -32,7 +32,7 @@ public partial class IzakayaConfigurePatch
         }
 
         PrepSceneManager.localPrepTable.RecipeAdditions[id] = MpManager.GetSynchronizedTimestampNow;
-        PrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
@@ -49,7 +49,7 @@ public partial class IzakayaConfigurePatch
         }
 
         PrepSceneManager.localPrepTable.BeverageAdditions[id] = MpManager.GetSynchronizedTimestampNow;
-        PrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
@@ -77,7 +77,7 @@ public partial class IzakayaConfigurePatch
 
         Log.LogInfo($"RegisterToCookers: id={id}, index={index}, ts={timestamp}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
 
-        PrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
@@ -87,7 +87,7 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"LogoffFromDailyRecipes: {id}");
         PrepSceneManager.localPrepTable.RecipeDeletions[id] = MpManager.GetSynchronizedTimestampNow;
-        PrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyBeverages))]
@@ -96,7 +96,7 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"LogoffFromDailyBeverages: {id}");
         PrepSceneManager.localPrepTable.BeverageDeletions[id] = MpManager.GetSynchronizedTimestampNow;
-        PrepAction.Send(PrepSceneManager.localPrepTable);
+        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogOffFromCookers))]

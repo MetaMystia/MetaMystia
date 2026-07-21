@@ -9,10 +9,9 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
+[RoomRelay]
 public partial class StoreFoodAction : Action
 {
-    public override ActionType Type => ActionType.STORE_FOOD;
     public SellableFood Food { get; set; }
 
     protected override bool OnSendLogOnlyAction => true;
@@ -21,20 +20,11 @@ public partial class StoreFoodAction : Action
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            IzakayaConfigurePatch.StoreFood_Original(Food.ToSellable());
-            WorkSceneStoragePannelPatch.instanceRef?.UpdateFoodField();
-            WorkSceneStoragePannelPatch.instanceRef?.m_FoodsGroup?.UpdateElements();
-        });
+        IzakayaConfigurePatch.StoreFood_Original(Food.ToSellable());
+        WorkSceneStoragePannelPatch.instanceRef?.UpdateFoodField();
+        WorkSceneStoragePannelPatch.instanceRef?.m_FoodsGroup?.UpdateElements();
     }
 
-    public static void Send(SellableFood food)
-    {
-        var action = new StoreFoodAction
-        {
-            Food = food
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(SellableFood food) =>
+        new StoreFoodAction { Food = food }.Enqueue();
 }

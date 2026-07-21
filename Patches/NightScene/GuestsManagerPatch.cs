@@ -155,7 +155,7 @@ public partial class GuestsManagerPatch
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
 
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             var cook = NightScene.CookingUtility.CookSystemManager.Instance;
             for (var attempt = 0; attempt < MaxNormalGuestRerollAttempts; attempt++)
@@ -183,7 +183,7 @@ public partial class GuestsManagerPatch
             return SkipOriginal;
         }
 
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             // 客机不生成顾客，应由主机通过联机 OnSpawn 通知生成
             Log.Info("Skipping SpawnNormalGuestGroup on client");
@@ -213,13 +213,13 @@ public partial class GuestsManagerPatch
         ref NormalGuestsController __result)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             __result = null;
             return SkipOriginal;
         }
 
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             if (!TryReplaceUnavailableNormalGuests(ref normalGuests))
             {
@@ -276,12 +276,12 @@ public partial class GuestsManagerPatch
     {
         if (IsReimuProtectionGuest(id)) return RunOriginal;
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             __result = null;
             return SkipOriginal;
         }
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             if (TryResolveAvailableSpecialGuest(ref id)) return RunOriginal;
             __result = null;
@@ -324,7 +324,7 @@ public partial class GuestsManagerPatch
     {
         if (IsReimuProtectionGuest(initializedController)) return;
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             // 将主机生成的顾客信息广播给客机
             var normalSpawnArgs = initializedController.ControllType == GuestsManager.GuestType.Normal
@@ -347,19 +347,19 @@ public partial class GuestsManagerPatch
         if (SkipPlayerRepellPatch.TryConsume())
         {
             SkipRepellInternalPatch.Grant(); // TODO
-            if (MpManager.IsConnectedHost) SkipRepellInternalLeaveBroadcastPatch.Grant();
+            if (MpManager.IsRoomHost) SkipRepellInternalLeaveBroadcastPatch.Grant();
             return RunOriginal;
         }
 
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
 
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             SkipRepellInternalLeaveBroadcastPatch.Grant();
             GuestFSM.OnPlayerRepell(deskCode);
             return RunOriginal;
         }
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             GuestFSM.OnPlayerRepell(deskCode);
             // 客机会阻止 RepellInternal LeaveFromDesk 等方法的调用，因此不仅需要 return RunOriginal
@@ -391,11 +391,11 @@ public partial class GuestsManagerPatch
     public static bool EvaluateOrder_Prefix(GuestGroupController toEvaluate)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             return RunOriginal;
         }
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             var fsm = GuestsMap.GetGuestFsm(toEvaluate);
             return fsm.OverrideEvalResult != GuestGroupController.EvaluationResult.Null
@@ -416,13 +416,13 @@ public partial class GuestsManagerPatch
     public static void EvaluateOrder_Postfix(GuestGroupController toEvaluate, bool isTriggerByPartner)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             // 主机端直接记录评价结束，推进 Evaluating -> EatingDelay
             GuestFSM.OnEatingDelay(toEvaluate);
             return;
         }
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             var fsm = GuestsMap.GetGuestFsm(toEvaluate);
             if (fsm?.CurrentState == GuestFSM.State.Evaluating &&
@@ -455,7 +455,7 @@ public partial class GuestsManagerPatch
             // 则同样设置 SkipLeaveFromDeskPatch 以正常执行 LeaveFromDesk
             SkipLeaveFromDeskPatch.Grant();
         }
-        if (skipLeaveBroadcast && MpManager.IsConnectedHost)
+        if (skipLeaveBroadcast && MpManager.IsRoomHost)
         {
             SkipLeaveFromDeskBroadcastPatch.Grant();
         }
@@ -475,7 +475,7 @@ public partial class GuestsManagerPatch
     {
         if (IsReimuProtectionGuest(toTry)) return RunOriginal;
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             // 客机需要返回 true 并跳过原逻辑以短路 PostInitializeGuestGroup
             __result = true;
@@ -495,7 +495,7 @@ public partial class GuestsManagerPatch
     public static bool GenerateOrderSession_Prefix(GuestGroupController guestGroup)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             // 客机在 DoGenerateOrderSession 中直接调用 GenerateOrderSession 或通过调用 FirstOrder 而间接调用 DoGenerateOrderSession 前
             // 将订单结果暂存至 PendingOrder，若此处检查到 PendingOrder 则认定为是重放状态
@@ -519,11 +519,11 @@ public partial class GuestsManagerPatch
     public static bool MainOrderCycle_Prefix(GuestGroupController toCycle)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             return RunOriginal;
         }
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             // 客机的 MainOrderCycle 当被跳过，只有主机有权主动推进
             return SkipOriginal;
@@ -541,14 +541,14 @@ public partial class GuestsManagerPatch
     public static bool CheckAndSendFromQueue_Prefix()
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             // 主机需要精准捕获成功出队入座的顾客，因此劫持到 HijackCheckAndSendFromQueue 进行精准捕获与同步
             GuestService.HijackCheckAndSendFromQueue();
             return SkipOriginal;
         }
 
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             return SkipOriginal;
         }
@@ -566,12 +566,12 @@ public partial class GuestsManagerPatch
     public static bool OnPatientDepleted_Prefix(GuestGroupController guest)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             GuestFSM.OnPatientDepletedInQueue(guest);
         }
 
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             return SkipOriginal;
         }
@@ -589,13 +589,13 @@ public partial class GuestsManagerPatch
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
         if (NightSceneEventManagerPatch.IsHostCloseReplay) return RunOriginal;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
-            IzakayaCloseAction.Broadcast();
+            IzakayaCloseAction.Send();
             return RunOriginal;
         }
 
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             return SkipOriginal;
         }
@@ -624,7 +624,7 @@ public partial class GuestsManagerPatch
     public static bool PatientDepletedLeave_Prefix(GuestGroupController toPatientDepletedLeave)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             // 上游 PatientDepletedDeskAction 已会让客机完整重放 PatientDepletedLeave 链路
             // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Postfix 再发 GuestLeaveAction。
@@ -632,7 +632,7 @@ public partial class GuestsManagerPatch
             GuestFSM.OnPatientDepletedAtDesk(toPatientDepletedLeave);
             return RunOriginal;
         }
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             return SkipOriginal;
         }
@@ -662,7 +662,7 @@ public partial class GuestsManagerPatch
         }
 
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             GuestFSM.OnLeaveFromDesk(
                 toLeave,
@@ -672,7 +672,7 @@ public partial class GuestsManagerPatch
             return RunOriginal;
         }
 
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             return SkipOriginal;
         }

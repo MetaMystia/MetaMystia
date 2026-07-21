@@ -18,18 +18,6 @@ public partial class IzakayaConfigPannelPatch
     public static IzakayaConfigPannel instanceRef = null;
 
     [HarmonyPatch(nameof(IzakayaConfigPannel.OnPanelOpen))]
-    [HarmonyPrefix]
-    public static void IzakayaConfigPannel_OnPanelOpen_Prefix(IzakayaConfigPannel __instance)
-    {
-        if (MpManager.IsConnected)
-        {
-            PrepSceneManager.ClearGroups();
-            PrepSceneManager.UpdateAll();
-        }
-        Log.InfoCaller($"called");
-    }
-
-    [HarmonyPatch(nameof(IzakayaConfigPannel.OnPanelOpen))]
     [HarmonyPostfix]
     public static void IzakayaConfigPannel_OnPanelOpen_Postfix(IzakayaConfigPannel __instance)
     {
@@ -70,8 +58,8 @@ public partial class IzakayaConfigPannelPatch
         }
         PlayerManager.LocalIsPrepOver = true;
         InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
-        ReadyAction.Send(ReadyType.PrepOver);
-        if (MpManager.IsConnectedHost)
+        PrepReadyAction.Send();
+        if (MpManager.IsRoomHost)
         {
             MpManager.PrepOver();
         }

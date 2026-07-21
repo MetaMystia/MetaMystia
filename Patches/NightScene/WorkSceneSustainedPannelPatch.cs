@@ -17,7 +17,7 @@ public partial class WorkSceneSustainedPannelPatch
     [HarmonyPrefix]
     public static bool OnFastForwardSubmit_Prefix()
     {
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             Log.Message("Client attempted to fast forward, blocked");
             return SkipOriginal;

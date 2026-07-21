@@ -5,6 +5,7 @@ using static GameData.Core.Collections.DaySceneUtility.Collections.Product;
 using static GameData.Core.Collections.Sellable;
 using static GameData.Profile.SchedulerNode;
 using static GameData.Profile.SchedulerNode.Trigger;
+using GameData.Profile.SchedulerNodeCollection;
 using static GameData.Profile.SchedulerNodeCollection.MissionNode.FinishCondition;
 
 namespace MetaMystia.ResourceEx.Models;
@@ -192,15 +193,16 @@ public class DialogPackageConfig
     public int Count => dialogList?.Count ?? 0;
 
     public DialogConfig this[int index] => dialogList[index];
+}
 
-    public System.Action<Il2CppSystem.Collections.Generic.Dictionary<int, string>> GetOverrideReplaceTextCallback()
-    {
-        return replaceDict =>
-        {
-            for (int i = 0; i < Count; i++)
-                replaceDict[i] = this[i].text;
-        };
-    }
+public class DialogBranchOptionConfig
+{
+    public string text { get; set; }
+    /// <summary>
+    /// One-based dialog number; Count + 1 means finish this dialog package.
+    /// </summary>
+    public int jump { get; set; }
+    public int? price { get; set; }
 }
 
 public class DialogActionConfig
@@ -217,6 +219,22 @@ public class DialogActionConfig
     /// For Sound actions: relative path or rex URI to a WAV asset.
     /// </summary>
     public string sound { get; set; }
+
+    /// <summary>
+    /// For Branch actions: option text, target dialog index, and optional price.
+    /// Jump values are one-based dialog numbers; dialogList.Count + 1 means finish this dialog package.
+    /// </summary>
+    public List<DialogBranchOptionConfig> options { get; set; }
+
+    /// <summary>
+    /// For Goto actions: one-based dialog number; dialogList.Count + 1 means finish this dialog package.
+    /// </summary>
+    public int? index { get; set; }
+
+    /// <summary>
+    /// For End actions: optional native dialog exit code. Normal dialog menus can leave this as 0.
+    /// </summary>
+    public int? exitCode { get; set; }
 
     public bool shouldSet { get; set; } = true;
 }
@@ -283,8 +301,12 @@ public class MissionNodeConfig
     public List<MissionRewardConfig> postRewards { get; set; }
     public List<MissionFinishConditionConfig> finishConditions { get; set; }
     public EventDataConfig missionFinishEvent { get; set; }
+    public EventDataConfig missionFailedEvent { get; set; }
     public List<string> postMissionsAfterPerformance { get; set; }
     public List<string> postEvents { get; set; }
+    public bool isTimedMission { get; set; } = false;
+    public MissionNode.MissionFailedAction missionFailedAction { get; set; } = MissionNode.MissionFailedAction.None;
+    public TriggerConfig missionTimeLimit { get; set; }
 }
 
 public class MissionRewardConfig
@@ -319,10 +341,20 @@ public class EventNodeConfig
     public List<string> postEvents { get; set; }
 }
 
+public class DayConfig
+{
+    public Day.DayType dayType { get; set; }
+    public Day.CalculateType dayCalcType { get; set; }
+    public int day { get; set; }
+    public int dayRangeMin { get; set; }
+    public int dayRangeMax { get; set; }
+}
+
 public class TriggerConfig
 {
     public TriggerType triggerType { get; set; }
     public string triggerId { get; set; }
+    public DayConfig time { get; set; }
 }
 
 public class ScheduledEventConfig

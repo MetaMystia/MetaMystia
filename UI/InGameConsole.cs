@@ -89,8 +89,8 @@ public static partial class InGameConsole
     // Passive mode config (Minecraft-style fade)
     // ====================================================================
     private const int PassiveMaxLines = 10;
-    private const float PassiveLingerTime = 4f;   // seconds before fade starts
-    private const float PassiveFadeTime = 1f;      // fade-out duration
+    private static float PassiveLingerTime => ConfigManager.ConsolePassiveLingerTime.Value;
+    private static float PassiveFadeTime => ConfigManager.ConsolePassiveFadeTime.Value;
 
     // ====================================================================
     // Layout constants
@@ -194,6 +194,7 @@ public static partial class InGameConsole
 
     public static void AddPeerMessage(string senderName, string message)
     {
+        message = LiveModeManager.MaskMessage(message);
         LogToConsole(TextId.PeerMessagePrefix.Get(senderName, message));
     }
 
@@ -390,6 +391,9 @@ public static partial class InGameConsole
             DrawOpenMode();
         else
             DrawPassiveMode();
+
+        if (LiveModeManager.ShowUntrustedZoneOutline)
+            DrawLiveUntrustedZoneOutline();
     }
 
     private static void DrainPendingLogs()
@@ -573,6 +577,7 @@ public static partial class InGameConsole
 
         float totalH = logAreaH + InputHeight + DragHandleHeight;
         float dragY = logY - DragHandleHeight;
+        bool lockConsoleUi = LiveModeManager.LockConsoleUi;
 
         // ── Drag handle ──
         var dragRect = new Rect(panelX, dragY, panelW, DragHandleHeight);
@@ -587,27 +592,34 @@ public static partial class InGameConsole
             AdjustFontSize(2);
 
         // Drag logic
-        if (e.type == EventType.MouseDown && dragRect.Contains(e.mousePosition))
+        if (!lockConsoleUi)
         {
-            _isDragging = true;
-            _dragOffset = e.mousePosition - new Vector2(panelX, dragY);
-            e.Use();
+            if (e.type == EventType.MouseDown && dragRect.Contains(e.mousePosition))
+            {
+                _isDragging = true;
+                _dragOffset = e.mousePosition - new Vector2(panelX, dragY);
+                e.Use();
+            }
+            if (_isDragging)
+            {
+                if (e.type == EventType.MouseDrag)
+                {
+                    float newX = e.mousePosition.x - _dragOffset.x;
+                    float newTopY = e.mousePosition.y - _dragOffset.y;
+                    ConfigManager.ConsoleX.Value = Mathf.Clamp(newX, 0, Screen.width - panelW);
+                    ConfigManager.ConsoleY.Value = Mathf.Clamp(newTopY, 0, Screen.height - totalH);
+                    e.Use();
+                }
+                if (e.type == EventType.MouseUp)
+                {
+                    _isDragging = false;
+                    e.Use();
+                }
+            }
         }
-        if (_isDragging)
+        else if (_isDragging)
         {
-            if (e.type == EventType.MouseDrag)
-            {
-                float newX = e.mousePosition.x - _dragOffset.x;
-                float newTopY = e.mousePosition.y - _dragOffset.y;
-                ConfigManager.ConsoleX.Value = Mathf.Clamp(newX, 0, Screen.width - panelW);
-                ConfigManager.ConsoleY.Value = Mathf.Clamp(newTopY, 0, Screen.height - totalH);
-                e.Use();
-            }
-            if (e.type == EventType.MouseUp)
-            {
-                _isDragging = false;
-                e.Use();
-            }
+            _isDragging = false;
         }
 
         // Background behind log area + input
@@ -618,29 +630,36 @@ public static partial class InGameConsole
             ResizeHandleSize, ResizeHandleSize);
         GUI.DrawTexture(resizeRect, _resizeHandleTexture, ScaleMode.StretchToFill);
 
-        if (e.type == EventType.MouseDown && resizeRect.Contains(e.mousePosition))
+        if (!lockConsoleUi)
         {
-            _isResizing = true;
-            _resizeStart = e.mousePosition;
-            _resizeStartW = panelW;
-            _resizeStartH = logAreaH;
-            e.Use();
+            if (e.type == EventType.MouseDown && resizeRect.Contains(e.mousePosition))
+            {
+                _isResizing = true;
+                _resizeStart = e.mousePosition;
+                _resizeStartW = panelW;
+                _resizeStartH = logAreaH;
+                e.Use();
+            }
+            if (_isResizing)
+            {
+                if (e.type == EventType.MouseDrag)
+                {
+                    float dw = e.mousePosition.x - _resizeStart.x;
+                    float dh = e.mousePosition.y - _resizeStart.y; // down = taller (console grows upward)
+                    ConfigManager.ConsoleWidth.Value = Mathf.Max(_resizeStartW + dw, MinPanelW);
+                    ConfigManager.ConsoleHeight.Value = Mathf.Max(_resizeStartH + dh, MinPanelH);
+                    e.Use();
+                }
+                if (e.type == EventType.MouseUp)
+                {
+                    _isResizing = false;
+                    e.Use();
+                }
+            }
         }
-        if (_isResizing)
+        else if (_isResizing)
         {
-            if (e.type == EventType.MouseDrag)
-            {
-                float dw = e.mousePosition.x - _resizeStart.x;
-                float dh = e.mousePosition.y - _resizeStart.y; // down = taller (console grows upward)
-                ConfigManager.ConsoleWidth.Value = Mathf.Max(_resizeStartW + dw, MinPanelW);
-                ConfigManager.ConsoleHeight.Value = Mathf.Max(_resizeStartH + dh, MinPanelH);
-                e.Use();
-            }
-            if (e.type == EventType.MouseUp)
-            {
-                _isResizing = false;
-                e.Use();
-            }
+            _isResizing = false;
         }
 
         // Log area (scrollable, bottom-aligned) — virtualized to avoid laying out
@@ -835,21 +854,21 @@ public static partial class InGameConsole
     public static void LogError(string text)
         => LogToConsole($"<color=#FF6666>{text}</color>");
 
+    /// <summary>Log a prominent red alert (large bold text).</summary>
+    public static void LogAlert(string text)
+        => LogToConsole($"<size=22><color=#FF4444><b>{text}</b></color></size>");
+
     private static void ExecuteCommand(string cmd, out bool closeConsole)
     {
         closeConsole = false;
         Log.LogMessage($"Console Command: {cmd}");
 
-        // Command echo (disabled by default, kept for future use)
-        const bool ShowCommandEcho = false;
-        if (ShowCommandEcho)
-            LogToConsole(TextId.CommandPrompt.Get(cmd));
-
         bool isMessage = cmd[0] != '/';
         if (isMessage)
         {
-            string localName = MpManager.PlayerId ?? "Player";
-            LogToConsole($"{localName}: {cmd}");
+            string localName = LiveModeManager.GetLocalDisplayName();
+            string displayMsg = LiveModeManager.MaskMessage(cmd);
+            LogToConsole($"{localName}: {displayMsg}");
 
             if (MpManager.IsConnected)
                 MessageAction.Send(cmd);
@@ -861,5 +880,39 @@ public static partial class InGameConsole
             string commandInput = cmd[1..];
             closeConsole = CommandRegistry.Execute(commandInput, _consoleContext);
         }
+    }
+
+    private static void GetConsolePanelRect(out Rect panelRect)
+    {
+        float panelW = ConfigManager.ConsoleWidth.Value;
+        float logAreaH = ConfigManager.ConsoleHeight.Value;
+        float panelX = ConfigManager.ConsoleX.Value;
+        float panelBottomY = ConfigManager.ConsoleY.Value < 0
+            ? Screen.height - BottomMargin
+            : ConfigManager.ConsoleY.Value + logAreaH + InputHeight;
+        float inputY = panelBottomY - InputHeight;
+        float logY = inputY - logAreaH;
+        float dragY = logY - DragHandleHeight;
+        float totalH = logAreaH + InputHeight + DragHandleHeight;
+        panelRect = new Rect(panelX, dragY, panelW, totalH);
+    }
+
+    private static void DrawLiveUntrustedZoneOutline()
+    {
+        GetConsolePanelRect(out var rect);
+        const float thickness = 3f;
+        var color = new Color(1f, 0.85f, 0.1f, 0.95f);
+        DrawRectOutline(rect, color, thickness);
+    }
+
+    private static void DrawRectOutline(Rect rect, Color color, float thickness)
+    {
+        var prev = GUI.color;
+        GUI.color = color;
+        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, thickness), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.x, rect.y, thickness, rect.height), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), Texture2D.whiteTexture);
+        GUI.color = prev;
     }
 }

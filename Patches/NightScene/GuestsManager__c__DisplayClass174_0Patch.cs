@@ -27,11 +27,11 @@ public partial class GuestsManager__c__DisplayClass174_0Patch
     public static bool GenerateOrderInternal_Prefix(ref OrderGenerationResult __result, GuestGroupController toGenerate, ref GuestsManager.OrderBase orderData)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             return RunOriginal;
         }
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             var pending = GuestsMap.GetGuestFsm(toGenerate)?.PendingOrder;
             if (pending.HasValue)
@@ -57,7 +57,7 @@ public partial class GuestsManager__c__DisplayClass174_0Patch
     public static void GenerateOrderInternal_Postfix(GuestsManager.OrderGenerationResult __result, GuestGroupController toGenerate, ref GuestsManager.OrderBase orderData)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsConnectedHost)
+        if (MpManager.IsRoomHost)
         {
             GuestFSM.OnGenerateOrderInternal(__result, toGenerate, orderData);
         }
@@ -72,7 +72,7 @@ public partial class GuestsManager__c__DisplayClass174_0Patch
     public static void CheckRemainingFund_Postfix(ref OrderGenerationResult __result, SpecialGuestsController toGenerate)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsConnectedClient)
+        if (MpManager.IsRoomClient)
         {
             var pending = GuestsMap.GetGuestFsm(toGenerate)?.PendingOrder;
             if (pending.HasValue)

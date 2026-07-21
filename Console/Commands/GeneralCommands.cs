@@ -40,7 +40,7 @@ public static class GeneralCommands
             ctx.Log(TextId.NotInDayScene.Get());
             return;
         }
-        ctx.Log(TextId.MapInfoDisplay.Get(PlayerManager.LocalMapLabel, PlayerManager.LocalPosition));
+        ctx.Log(TextId.MapInfoDisplay.Get(PlayerManager.LocalMapLabel.GetDisplayName(), PlayerManager.LocalPosition));
     }
 
     private static void EnableBepInConsoleHandler(InvocationContext ctx)
@@ -64,6 +64,7 @@ public static class GeneralCommands
         ["enable_bepin_console"] = TextId.CmdDescEnableBepinConsole,
         ["link"] = TextId.CmdDescLink,
         ["resourceex"] = TextId.CmdDescResourceEx,
+        ["live"] = TextId.CmdDescLive,
     };
 
     private static void HelpHandler(InvocationContext ctx)

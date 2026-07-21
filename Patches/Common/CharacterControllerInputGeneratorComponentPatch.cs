@@ -17,7 +17,7 @@ public partial class CharacterControllerInputGeneratorComponentPatch
     [HarmonyPrefix]
     public static void UpdateInputDirection_Prefix(CharacterControllerInputGeneratorComponent __instance, ref Vector2 inputDirection)
     {
-        if (!MpManager.IsConnected)
+        if (!MpManager.CanSeeOnlinePlayers)
         {
             return;
         }
@@ -38,7 +38,7 @@ public partial class CharacterControllerInputGeneratorComponentPatch
             if (__instance.name == characterCollection["Self"].name)
             {
                 PlayerManager.LocalInputDirection = inputDirection;
-                SyncAction.Send();
+                MoveSyncAction.Send();
             }
         }
         catch (System.Exception e)

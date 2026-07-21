@@ -43,6 +43,8 @@ public enum TextId
     // Network Error Messages
     ModVersionMismatch,
     GameVersionMismatch,
+    GameResourcesNotLoaded,
+    MpMainSceneRequired,
     SceneMismatchDisconnected,
 
     // Connection Status Notifications
@@ -126,6 +128,38 @@ public enum TextId
     MystiaPosition,
     UnknownField,
 
+    // Map labels
+    MapLabel_Unknown,
+    MapLabel_Home,
+    MapLabel_Basement,
+    MapLabel_BeastForest,
+    MapLabel_HumanVillage,
+    MapLabel_HakureiShrine,
+    MapLabel_ScarletMansion,
+    MapLabel_BambooForest,
+    MapLabel_PartyStage,
+    MapLabel_Hakugyokurou,
+    MapLabel_DLC1_MagicForest,
+    MapLabel_DLC1_YoukaiMountain,
+    MapLabel_DLC2_FormerHell,
+    MapLabel_DLC2_EarthSpiritsPalace,
+    MapLabel_DLC3_MyourenTemple,
+    MapLabel_DLC3_DivineSpiritMausoleum,
+    MapLabel_DLC3_HakureiFestival,
+    MapLabel_DLC4_GardenOfTheSun,
+    MapLabel_DLC4_ShiningNeedleCastle,
+    MapLabel_DLC4_ScarletMansionBasement,
+    MapLabel_DLC5_Makai,
+    MapLabel_DLC5_LunarCapital,
+
+    // Izakaya map levels
+    MapLevel_Cart,
+    MapLevel_Cabin,
+    MapLevel_Izakaya,
+    MapLevel_Unknown,
+    PeerIzakayaNotSelected,
+    InvalidMapKey,
+
     // Console Error Messages
     UnknownCommand,
     UnknownMethod,
@@ -195,6 +229,7 @@ public enum TextId
     CallDescTryCloseIzakaya,
     SkinDescSet,
     SkinDescNet,
+    SkinDescRot,
     SkinDescOff,
     SkinDescList,
 
@@ -209,6 +244,9 @@ public enum TextId
     SkinMsgNetRefreshNoSkin,
     SkinMsgNetLoaded,
     SkinMsgNetFailed,
+    SkinMsgRotOn,
+    SkinMsgRotOff,
+    SkinMsgRotClear,
 
     // Console startup & link
     ConsoleStarPrompt,
@@ -268,6 +306,16 @@ public enum TextId
     MpIpv6Restarted,
     MpIpv6RejectConnected,
     MpDescIpv6,
+
+    // Live streaming mode
+    CmdDescLive,
+    LiveUsage,
+    LiveEmergencyFull,
+    LiveInvalidMode,
+    LiveModeOff,
+    LiveModePartial,
+    LiveModeFull,
+    LivePartialReminder,
 }
 
 public static class L10n
@@ -283,18 +331,6 @@ public static class L10n
         var asm = Assembly.GetExecutingAssembly();
         LoadLanguageFromResource(asm, Language.English, "MetaMystia.UI.Locales.en.json");
         LoadLanguageFromResource(asm, Language.ChineseSimplified, "MetaMystia.UI.Locales.zh-CN.json");
-
-        var overrideDir = ConfigManager.LocaleOverride?.Value;
-        if (!string.IsNullOrWhiteSpace(overrideDir))
-        {
-            if (!Path.IsPathRooted(overrideDir))
-            {
-                var pluginDir = Path.GetDirectoryName(asm.Location);
-                overrideDir = Path.Combine(pluginDir, overrideDir);
-            }
-            LoadLanguageFromFile(Language.English, Path.Combine(overrideDir, "en.json"));
-            LoadLanguageFromFile(Language.ChineseSimplified, Path.Combine(overrideDir, "zh-CN.json"));
-        }
     }
 
     private static void LoadLanguageFromResource(Assembly asm, Language lang, string resourceName)
@@ -309,18 +345,56 @@ public static class L10n
         MergeJson(lang, reader.ReadToEnd());
     }
 
-    private static void LoadLanguageFromFile(Language lang, string path)
+    private static void LoadLanguageFromFile(Language lang, string path, bool warnIfMissing = false)
     {
-        if (!File.Exists(path)) return;
+        if (!File.Exists(path))
+        {
+            if (warnIfMissing)
+                Plugin.Instance?.Log.LogWarning($"L10n override not found: {path}");
+            return;
+        }
         try
         {
             MergeJson(lang, File.ReadAllText(path, System.Text.Encoding.UTF8));
-            Plugin.Instance?.Log.LogInfo($"L10n override loaded: {path}");
+            Plugin.Instance?.Log.LogInfo($"L10n override loaded ({lang}): {path}");
         }
         catch (Exception ex)
         {
             Plugin.Instance?.Log.LogWarning($"L10n override failed: {path} — {ex.Message}");
         }
+    }
+
+    private static string ResolveLocalePath(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var path = raw.Trim().Trim('"');
+        if (!Path.IsPathRooted(path))
+        {
+            var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            path = Path.Combine(pluginDir, path);
+        }
+        return path;
+    }
+
+    private static void LoadLocaleOverride()
+    {
+        var path = ResolveLocalePath(ConfigManager.LocaleOverride?.Value);
+        if (path == null) return;
+
+        if (File.Exists(path))
+        {
+            LoadLanguageFromFile(Language, path, warnIfMissing: true);
+            return;
+        }
+
+        if (Directory.Exists(path))
+        {
+            LoadLanguageFromFile(Language.English, Path.Combine(path, "en.json"));
+            LoadLanguageFromFile(Language.ChineseSimplified, Path.Combine(path, "zh-CN.json"));
+            return;
+        }
+
+        Plugin.Instance?.Log.LogWarning($"L10n override path not found: {path}");
     }
 
     private static void MergeJson(Language lang, string json)
@@ -340,6 +414,7 @@ public static class L10n
     public static void PostInitializeTable()
     {
         PostInitialized = true;
+        LoadLocaleOverride();
     }
 
     public static string Get(this TextId key, params object[] args)
@@ -347,8 +422,12 @@ public static class L10n
         if (!Table.TryGetValue(key, out var langMap))
             return $"[L10N_MISSING:{key}]";
 
-        if (!langMap.TryGetValue(Language, out var text))
+        if (!langMap.TryGetValue(Language, out var text) || string.IsNullOrEmpty(text))
             text = langMap.GetValueOrDefault(Language.ChineseSimplified);
+        if (string.IsNullOrEmpty(text))
+            text = langMap.GetValueOrDefault(Language.English);
+        if (string.IsNullOrEmpty(text))
+            return $"[L10N_MISSING:{key}]";
 
         return args.Length > 0
             ? string.Format(text, args)

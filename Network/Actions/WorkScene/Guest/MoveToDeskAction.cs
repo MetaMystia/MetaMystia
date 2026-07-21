@@ -6,7 +6,6 @@ namespace MetaMystia.Network;
 [AutoLog]
 public partial class MoveToDeskAction : Action
 {
-    public override ActionType Type => ActionType.MoveToDeskAction;
 
     public int RuntimeId { get; set; }
     public int DeskCode { get; set; }
@@ -18,22 +17,12 @@ public partial class MoveToDeskAction : Action
     {
         var rid = RuntimeId;
         var deskCode = DeskCode;
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            var fsm = GuestsMap.GetGuestFsm(rid);
-            if (fsm == null) return;
-            fsm.Enqueue(nameof(GuestFSM.DoMoveToDesk),
-                () => GuestFSM.DoMoveToDesk(rid, deskCode));
-        });
+        var fsm = GuestsMap.GetGuestFsm(rid);
+        if (fsm == null) return;
+        fsm.Enqueue(nameof(GuestFSM.DoMoveToDesk),
+            () => GuestFSM.DoMoveToDesk(rid, deskCode));
     }
 
-    public static void Send(int runtimeId, int deskCode)
-    {
-        var action = new MoveToDeskAction()
-        {
-            RuntimeId = runtimeId,
-            DeskCode = deskCode
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(int runtimeId, int deskCode) =>
+        new MoveToDeskAction { RuntimeId = runtimeId, DeskCode = deskCode }.Enqueue();
 }

@@ -9,17 +9,16 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
-public partial class SyncAction : Action
+[PublicRelay]
+public partial class MoveSyncAction : Action
 {
-    public override ActionType Type => ActionType.SYNC;
     public float Vx { get; set; }
     public float Vy { get; set; }
     public float Px { get; set; }
     public float Py { get; set; }
     public bool IsSprinting { get; set; }
     public float Speed { get; set; }
-    public string MapLabel { get; set; }
+    public MapLabel MapLabel { get; set; }
 
     protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Debug;
     protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Debug;
@@ -27,18 +26,15 @@ public partial class SyncAction : Action
     [CheckScene(Common.UI.Scene.DayScene)]
     public override void OnReceivedDerived()
     {
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            if (PlayerManager.Peers.TryGetValue(SenderUid, out var peer))
-                peer.SyncFromPeer(MapLabel, IsSprinting, Speed,
-                    new UnityEngine.Vector2(Vx, Vy), new UnityEngine.Vector2(Px, Py));
-        });
+        if (PlayerManager.TryGetVisiblePeer(SenderUid, out var peer))
+            peer.SyncFromPeer(MapLabel, IsSprinting, Speed,
+                new UnityEngine.Vector2(Vx, Vy), new UnityEngine.Vector2(Px, Py));
     }
 
     // Also send nightsync
     public static void Send()
     {
-        if (!MpManager.IsConnected)
+        if (!MpManager.CanSeeOnlinePlayers || !MpManager.IsConnected)
         {
             return;
         }
@@ -56,15 +52,8 @@ public partial class SyncAction : Action
 
         if (MpManager.LocalScene == Common.UI.Scene.WorkScene)
         {
-            var action = new NightSyncAction
-            {
-                Vx = inputDirection.x,
-                Vy = inputDirection.y,
-                Px = position.x,
-                Py = position.y,
-                Speed = PlayerManager.Local.Speed
-            };
-            action.SendToHostOrBroadcastLowPriority();
+            NightMoveSyncAction.Send();
+            return;
         }
         else
         {
@@ -72,7 +61,7 @@ public partial class SyncAction : Action
             var isSprinting = PlayerManager.LocalIsSprinting;
             var speed = PlayerManager.Local.Speed;
 
-            var action = new SyncAction
+            var action = new MoveSyncAction
             {
                 IsSprinting = isSprinting,
                 Speed = speed,
@@ -82,7 +71,7 @@ public partial class SyncAction : Action
                 Px = position.x,
                 Py = position.y
             };
-            action.SendToHostOrBroadcastLowPriority();
+            action.Enqueue(lowPriority: true);
         }
     }
 }

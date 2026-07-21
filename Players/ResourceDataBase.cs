@@ -20,6 +20,9 @@ public partial class ResourceDataBase
     /// </summary>
     public DlcPack DlcFlags { get; set; } = DlcPack.None;
 
+    /// <summary>增量表已算出至少一个完整 DLC（None 表示资源尚未加载或列表为空）。</summary>
+    public bool IsIncrementalReady => DlcFlags != DlcPack.None;
+
     // from DataBaseCore
     public List<int> Foods { get; private set; } = [];
     public List<int> Recipes { get; private set; } = [];

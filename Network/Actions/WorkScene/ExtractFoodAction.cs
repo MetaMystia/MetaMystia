@@ -11,10 +11,9 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[HostRelay]
+[RoomRelay]
 public partial class ExtractFoodAction : Action
 {
-    public override ActionType Type => ActionType.EXTRACT_FOOD;
     public SellableFood Food { get; set; }
 
     protected override bool OnSendLogOnlyAction => true;
@@ -23,20 +22,11 @@ public partial class ExtractFoodAction : Action
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        PluginManager.Instance.RunOnMainThread(() =>
-        {
-            IzakayaConfigure.Instance?.RemoveStoredFood(Food.GetFromLocal());
-            WorkSceneStoragePannelPatch.instanceRef?.UpdateFoodField();
-            WorkSceneStoragePannelPatch.instanceRef?.m_FoodsGroup?.UpdateElements();
-        });
+        IzakayaConfigure.Instance?.RemoveStoredFood(Food.GetFromLocal());
+        WorkSceneStoragePannelPatch.instanceRef?.UpdateFoodField();
+        WorkSceneStoragePannelPatch.instanceRef?.m_FoodsGroup?.UpdateElements();
     }
 
-    public static void Send(SellableFood food)
-    {
-        var action = new ExtractFoodAction
-        {
-            Food = food
-        };
-        action.SendToHostOrBroadcast();
-    }
+    public static void Send(SellableFood food) =>
+        new ExtractFoodAction { Food = food }.Enqueue();
 }
