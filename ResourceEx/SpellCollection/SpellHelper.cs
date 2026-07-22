@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using GameData.CoreLanguage;
 using GameData.CoreLanguage.Collections;
+using MetaMystia;
 using NightScene.EventUtility;
+using NightScene.GuestManagementUtility;
 using SgrYuki;
 using UnityEngine;
 
@@ -101,5 +103,27 @@ internal static class SpellHelper
             return;
         }
         buffDescription[buffType] = new ObjectLanguageBase(name: title, Description: description, visual: visual);
+    }
+
+    /// <summary>
+    /// 获取当前在场的所有稀客角色 ID 集合，用于符卡拉卡召唤前去重。
+    /// 遍历 GuestsMap 快照，筛选类型为 Special 且尚未离场的客人（状态非 Left/Dead/None，且 HaveNotLeft 为真）。
+    /// </summary>
+    /// <returns>在场稀客的 ID 集合；无符合条件者返回空集合（非空）。</returns>
+    internal static HashSet<int> GetOnFieldSpecialGuestIds()
+    {
+        var onFieldSpecialIds = new HashSet<int>();
+        var allGuests = GuestsMap.GetAllGuestsSnapshot();
+
+        foreach (var (_, fsm) in allGuests)
+        {
+            if (fsm.GuestType != GuestsManager.GuestType.Special) continue;
+            if (fsm.CurrentState is GuestFSM.State.Left or GuestFSM.State.Dead or GuestFSM.State.None) continue;
+            if (fsm.Controller?.HaveNotLeft() is not true) continue;
+
+            onFieldSpecialIds.UnionWith(fsm.Ids);
+        }
+
+        return onFieldSpecialIds;
     }
 }
