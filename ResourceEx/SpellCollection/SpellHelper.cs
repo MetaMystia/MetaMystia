@@ -2,6 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using GameData.CoreLanguage;
+using GameData.CoreLanguage.Collections;
+using NightScene.EventUtility;
 using SgrYuki;
 using UnityEngine;
 
@@ -77,5 +80,26 @@ internal static class SpellHelper
         if ((uint)(Time.frameCount - _pendingCutinFrame) > CutinFlagExpireFrames) return false;
 
         return CutinShift.TryGetValue(ownerIdentifier, out offsetY);
+    }
+
+    /// <summary>
+    /// 向游戏 Buff 描述字典注入一条自定义 Buff 的显示名、描述与图标，供右下角 Buff 栏显示。
+    /// </summary>
+    /// <param name="buffType">目标 Buff 类型，由调用方在各符卡 US 内定义并传入</param>
+    /// <param name="title">显示名称，非空。须由调用方传入 L10n 解析后的文案</param>
+    /// <param name="description">显示描述，非空。须由调用方传入 L10n 解析后的文案</param>
+    /// <param name="visual">显示图标，无则传 null。</param>
+    internal static void RegisterBuffDescription(
+        EventManager.BuffType buffType, string title, string description, Sprite? visual = null)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(description);
+        var buffDescription = DataBaseLanguage.BuffDescription;
+        if (buffDescription == null)
+        {
+            Log.LogError("[SpellHelper] BuffDescription 未初始化，无法注入自定义 Buff 描述。");
+            return;
+        }
+        buffDescription[buffType] = new ObjectLanguageBase(name: title, Description: description, visual: visual);
     }
 }

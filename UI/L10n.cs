@@ -316,6 +316,14 @@ public enum TextId
     LiveModePartial,
     LiveModeFull,
     LivePartialReminder,
+
+    // Spell Card Custom Buff Descriptions (ResourceEx / SpellCollection)
+    Spell_Daiyousei_BuffName,
+    Spell_Daiyousei_BuffDesc,
+    Spell_Shinki_BuffName,
+    Spell_Shinki_BuffDesc,
+    Spell_Koakuma_BuffName,
+    Spell_Koakuma_BuffDesc,
 }
 
 public static class L10n
