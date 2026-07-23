@@ -71,6 +71,8 @@ public static partial class ResourceExManager
 
     public static void Initialize()
     {
+        SpellHelper.ResetCutinState();
+        SpellHelper.ResetBuffDelegateState();
         LoadAllResourcePackages();
     }
 
