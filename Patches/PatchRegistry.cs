@@ -47,6 +47,7 @@ public static partial class PatchRegistry
         typeof(GuestsManager__c__DisplayClass174_0Patch),
         typeof(SpecialGuestsControllerPatch),
         typeof(NormalGuestsControllerPatch),
+        typeof(SpellDeclareCutinCharacterPatch),
 
         typeof(RunTimeAlbumPatch),
         typeof(RunTimeSchedulerPatch),
