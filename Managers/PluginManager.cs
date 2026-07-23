@@ -17,7 +17,15 @@ namespace MetaMystia;
 public partial class PluginManager : MonoBehaviour
 {
     public static PluginManager Instance { get; private set; }
-    public static readonly string Label = $"{MyPluginInfo.PLUGIN_NAME} v{MyPluginInfo.PLUGIN_VERSION} loaded";
+    public static string Label
+    {
+        get
+        {
+            int packCount = ResourceExManager.LoadedPackages.Count;
+            string packLabel = packCount == 1 ? "pack" : "packs";
+            return $"{MyPluginInfo.PLUGIN_NAME} v{MyPluginInfo.PLUGIN_VERSION} loaded with {packCount} rex {packLabel}";
+        }
+    }
     public static Debugger.WebDebugger Debugger;
     public static bool IsStatusVisible { get; private set; } = true;
     private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
