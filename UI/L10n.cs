@@ -320,6 +320,10 @@ public enum TextId
     // Spell Card Custom Buff Descriptions (ResourceEx / SpellCollection)
     Spell_Daiyousei_BuffName,
     Spell_Daiyousei_BuffDesc,
+    Spell_Daiyousei_NameRed,
+    Spell_Daiyousei_DescRed,
+    Spell_Daiyousei_NameBlack,
+    Spell_Daiyousei_DescBlack,
     Spell_Shinki_BuffName,
     Spell_Shinki_BuffDesc,
     Spell_Koakuma_BuffName,

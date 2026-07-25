@@ -16,10 +16,10 @@ public static partial class ResourceExManager
 {
     public static void SpellTest()
     {
-        const int spellId = 9000;
+        const int spellId = 8999;
         const string portraitUri = "rex://ResourceExample/assets/Character/9000/Portrait/0.png";
 
-        // 1. 注册 Spell_Test 并新建实例，作为 9000 号角色的符卡。
+        // 1. 注册 Spell_Test 并新建实例，作为 8999 号角色的符卡（测试卡；大妖精正式符卡占 9000，小恶魔占 9001）。
         //    - RegisterTypeInIl2Cpp 把这个托管类型登记到 il2cpp 域，让 il2cpp 认识它的 vtable，
         //      之后 ScriptableObject.CreateInstance<T>() 才能在 Unity native 侧真正造出 Spell_Test
         //      子类实例，OnPositiveBuffExecute 等 override 才能被游戏 native 调用命中。
