@@ -21,6 +21,8 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void Initialize_Postfix(EventManager __instance)
     {
+        ResourceExManager.RegisterDaiyouseiSpell();
+
         if (!MpManager.IsConnected) return;
 
         Func<int> getWholeNightTime = () => MpManager.WorkTimeSecondOverride;
