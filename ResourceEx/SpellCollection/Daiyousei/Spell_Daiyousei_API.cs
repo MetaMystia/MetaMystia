@@ -6,8 +6,10 @@ using GameData.Core.Collections.CharacterUtility;
 using GameData.Core.Collections.NightSceneUtility;
 using GameData.CoreLanguage;
 using MetaMiku;
+using MetaMystia.ResourceEx.SpellCollection;
 using MetaMystia.ResourceEx.SpellCollection.Daiyousei;
 using MetaMystia.UI;
+using NightScene.EventUtility;
 
 namespace MetaMystia;
 
@@ -25,21 +27,17 @@ public static partial class ResourceExManager
         const int spellLanguageVersionCount = 2;
         const string portraitUri = "rex://ResourceExample/assets/Character/9000/Portrait/0.png";
 
-        // 1. 注册类型并向 il2cpp 域注入，随后创建托管侧实例（CreateInstance 依赖上一步注入）。
         ClassInjector.RegisterTypeInIl2Cpp<Spell_Daiyousei>();
         var spell = ScriptableObject.CreateInstance<Spell_Daiyousei>();
 
-        // 2. 以稀客 id 为 key 登记符卡（key 即绑定关系：游戏按稀客 id 查得此符卡）。
         var spellHandle = new Common.SceneDirector.RuntimeHandle<SpellBase>(spell);
         DataBaseNight.SpecialGuestSpell[daiyouseiGuestId] = spellHandle.Cast<IAssetHandle<SpellBase>>();
 
-        // 3. 注册符卡名称与描述，文本走 L10n（规则 32 i18n，不硬编码中文）。
         var langs = new Il2CppReferenceArray<LanguageBase>(spellLanguageVersionCount);
         langs[0] = new LanguageBase(TextId.Spell_Daiyousei_NameRed.Get(), TextId.Spell_Daiyousei_DescRed.Get());
         langs[1] = new LanguageBase(TextId.Spell_Daiyousei_NameBlack.Get(), TextId.Spell_Daiyousei_DescBlack.Get());
         GameData.CoreLanguage.Collections.DataBaseLanguage.SpellLang[daiyouseiGuestId] = langs;
 
-        // 4. 通过 rex 管线加载示例立绘并注册（真实素材待 U6f 转正）。
         if (TryGetSprite(portraitUri, out var portraitSprite) && portraitSprite != null)
         {
             var spriteAssetHandle = new Common.SceneDirector.RuntimeHandle<Sprite>(portraitSprite)
@@ -53,7 +51,27 @@ public static partial class ResourceExManager
             Log.Warning($"[Daiyousei] 加载立绘 sprite 失败：{portraitUri}");
         }
 
-        // 5. 标记该稀客拥有符卡，使夜场流程能正确识别并可被宣言。
         DataBaseCharacter.CharacterHasSpell[daiyouseiGuestId] = true;
+    }
+
+    /// <summary>
+    /// 注册大妖精符卡的自定义 Buff 描述与图标（U6c），供右下角 Buff 栏显示。
+    /// 须与 RegisterDaiyouseiSpell 同调用点（EventManager.Initialize Postfix）调用一次，非每帧。
+    /// </summary>
+    public static void RegisterDaiyouseiBuff()
+    {
+        const string buffIconUri = "rex://ResourceExample/assets/Buff/9000_1.png";
+
+        TryGetSprite(buffIconUri, out var buffIcon);
+        if (buffIcon == null)
+        {
+            Log.Warning($"[Daiyousei] 加载 Buff 图标失败：{buffIconUri}");
+        }
+
+        SpellHelper.RegisterBuffDescription(
+            (EventManager.BuffType)Spell_Daiyousei.DaiyouseiFogBuffType,
+            TextId.Spell_Daiyousei_BuffName.Get(),
+            TextId.Spell_Daiyousei_BuffDesc.Get(),
+            buffIcon);
     }
 }
