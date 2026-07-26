@@ -112,14 +112,6 @@ public partial class PluginManager : MonoBehaviour
             {
                 StoryReplayManager.Test();
             }
-            if (Input.GetKeyDown(KeyCode.F5))
-            {
-                ResourceExManager.SpellTest();
-            }
-            if (Input.GetKeyDown(KeyCode.F4))
-            {
-                ResourceEx.AssetBundles.Test.Test1();
-            }
             if (Input.GetKeyDown(KeyCode.F11))
             {
                 Debugger ??= new Debugger.WebDebugger();
