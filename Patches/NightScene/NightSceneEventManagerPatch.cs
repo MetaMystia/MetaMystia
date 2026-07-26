@@ -22,6 +22,11 @@ public static partial class NightSceneEventManagerPatch
     public static readonly PatchBypassToken HostCloseReplay = new();
     public static bool IsHostCloseReplay => HostCloseReplay.Pending > 0;
 
+    /// <summary>
+    /// 事件管理器初始化后挂接大妖精符卡注册与 Buff 描述注入；联机主机额外覆写整夜时长来源。
+    /// 仅作注册挂接（Postfix 不跳过原生初始化流程），联机外不改动原生行为。
+    /// </summary>
+    /// <param name="__instance">事件管理器实例。</param>
     [HarmonyPatch(nameof(EventManager.Initialize))]
     [HarmonyPostfix]
     public static void Initialize_Postfix(EventManager __instance)
