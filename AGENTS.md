@@ -19,6 +19,7 @@
 - Harmony Hook：[`docs/harmony-hook-style.md`](docs/harmony-hook-style.md)
 - 网络 Action：[`docs/network-action-style.md`](docs/network-action-style.md)
 - 线程与调度：[`docs/threading-and-scheduling.md`](docs/threading-and-scheduling.md)
+- 协程：[`docs/coroutine-style.md`](docs/coroutine-style.md)
 - Il2CppInterop：[`docs/il2cpp-interop-guide.md`](docs/il2cpp-interop-guide.md)
 - Il2CppInterop 缺陷：[`docs/il2cppinterop-defects.md`](docs/il2cppinterop-defects.md)
 - 日志与调用追踪：[`docs/logging-and-tracing.md`](docs/logging-and-tracing.md)
@@ -30,6 +31,7 @@
 
 - 代码务必极简，减少包装，禁止无意义的代码、转发层和调用链。没有明确复用、隔离或抽象价值时，应直接调用目标逻辑。发现具有通用性的代码时，应适时提醒用户考虑重构。
 - 在语义清晰且不影响可读性时，鼓励使用 `?.`、`??` 等 C# 语法糖简化代码。
+- `CommandScheduler` 计划弃用，应减少使用。新增延迟、等待和周期逻辑优先使用协程；仅在维护现有调度代码或确有兼容需要时继续使用。
 - 除网络通信、文件操作等 IO 边界外，禁止使用 `try-catch`。不得通过捕获异常掩盖逻辑错误、状态错误或尚未理解的问题。
 - 禁止对游戏相关对象使用反射。必须依据逆向代码和 `BepInEx/interop/` 提供的类型与成员进行强类型调用。
 - 禁止使用 `UnityEngine.Debug` 等 Unity 日志接口。应使用项目的 `AutoLog`，通过 BepInEx 日志系统记录信息。
