@@ -103,13 +103,26 @@ internal static class SpellHelper
     private static bool BuffDescriptionTemplateNullWarned;
 
     /// <summary>
+    /// 各 Buff 类型注册时记录的持续秒数表，供渲染包装器换算剩余秒数。
+    /// </summary>
+    private static readonly Dictionary<EventManager.BuffType, int> BuffDurationByType = new();
+
+    /// <summary>
     /// 每次 Mod 初始化时清空 Buff 委托保活表，避免上一局残留。
     /// </summary>
     internal static void ResetBuffDelegateState()
     {
         BuffDelegateKeepAlive.Clear();
         BuffDescriptionTemplateNullWarned = false;
+        BuffDurationByType.Clear();
     }
+
+    /// <summary>
+    /// 查询某 Buff 类型注册时记录的持续秒数。
+    /// </summary>
+    /// <returns>持续秒数；未登记时返回 0（非本 Mod 管理的 Buff）。</returns>
+    internal static int GetBuffDurationSeconds(EventManager.BuffType buffType)
+        => BuffDurationByType.TryGetValue(buffType, out var duration) ? duration : 0;
 
     /// <summary>
     /// 描述模板为 null 时一次性告警，返回空串兜底。
@@ -142,8 +155,12 @@ internal static class SpellHelper
     private static Il2CppSystem.Func<int, string, string> BuildNumericContextOverride()
         => DelegateSupport.ConvertDelegate<Il2CppSystem.Func<int, string, string>>(
             (Func<int, string, string>)((remainingValue, template) =>
-                template == null ? WarnNullBuffDescriptionTemplate()
-                                 : template.Replace(RemainingValuePlaceholder, remainingValue.ToString())))
+            {
+                var result = template == null
+                    ? WarnNullBuffDescriptionTemplate()
+                    : template.Replace(RemainingValuePlaceholder, remainingValue.ToString());
+                return result;
+            }))
            ?? throw new InvalidOperationException("Buff 描述回调（数值型）的 il2cpp 委托转换失败。");
 
     /// <summary>
@@ -219,7 +236,7 @@ internal static class SpellHelper
     }
 
     /// <summary>
-    /// 注册一个持续定时 Buff，按 durationSeconds 自动倒数，计时与 UI 刷新由游戏原生接管，描述每帧将模板中的 $t 替换为剩余秒数。
+    /// 注册一个持续定时 Buff，按 durationSeconds 自动倒数，计时与 UI 刷新由游戏原生接管。
     /// </summary>
     /// <param name="eventManager">夜晚场景事件管理器实例，非空。</param>
     /// <param name="durationSeconds">Buff 总持续秒数，须为正数。</param>
@@ -240,12 +257,12 @@ internal static class SpellHelper
         }
 
         var keepAliveEntry = new List<object>();
-        var descriptionCallback = BuildNumericContextOverride();
-        keepAliveEntry.Add(descriptionCallback);
+        BuffDurationByType[buffType] = durationSeconds;
         var onBuffEndCallback = BuildEndCallback(keepAliveEntry, onBuffEnd);
 
+        // currentBuffContextOverride 传 null：$t 替换由渲染包装器按原生 progress 接管
         eventManager.RegisterTimedBuff(
-            durationSeconds, buffType, out onInterruptThisBuffCallback, onBuffEndCallback, descriptionCallback, null);
+            durationSeconds, buffType, out onInterruptThisBuffCallback, onBuffEndCallback, null, null);
 
         onInterruptThisBuffCallback = BuildInterruptCallback(keepAliveEntry, onInterruptThisBuffCallback);
         BuffDelegateKeepAlive.Add(keepAliveEntry);

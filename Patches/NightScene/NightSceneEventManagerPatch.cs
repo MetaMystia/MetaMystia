@@ -3,8 +3,13 @@ using System;
 using HarmonyLib;
 
 using NightScene.EventUtility;
+using NightScene.UI;
+
+using Il2CppInterop.Runtime;
+using Il2CppSystem;
 
 using MetaMystia.Network;
+using MetaMystia.ResourceEx.SpellCollection;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
@@ -22,10 +27,11 @@ public static partial class NightSceneEventManagerPatch
     public static void Initialize_Postfix(EventManager __instance)
     {
         ResourceExManager.RegisterDaiyouseiSpell();
+        ResourceExManager.RegisterDaiyouseiBuff();
 
         if (!MpManager.IsConnected) return;
 
-        Func<int> getWholeNightTime = () => MpManager.WorkTimeSecondOverride;
+        System.Func<int> getWholeNightTime = () => MpManager.WorkTimeSecondOverride;
         __instance.GetWholeNightTime = getWholeNightTime;
     }
 
@@ -199,5 +205,33 @@ public static partial class NightSceneEventManagerPatch
         {
             PassionEditAction.Send(value, mathOperation);
         }
+    }
+
+    /// <summary>
+    /// 包装原生 RegisterTimedBuffRecord 返回的 onBuffUpdate，使描述中的 $t 按原生 progress 同步替换为剩余秒数。
+    /// 仅对由本 Mod 注册且持续秒数已知的 Buff 类型生效；其余 Buff 保持原生行为。
+    /// </summary>
+    /// <param name="buffType">Buff 类型。</param>
+    /// <param name="onBuffUpdate">原生返回的 Buff 描述/进度更新回调，补丁将其替换为带 $t 替换的包装回调。</param>
+    [HarmonyPatch(typeof(UIManager), nameof(UIManager.RegisterTimedBuffRecord))]
+    [HarmonyPostfix]
+    public static void RegisterTimedBuffRecord_Postfix(EventManager.BuffType buffType, ref Il2CppSystem.Action<string, float> onBuffUpdate)
+    {
+        var duration = SpellHelper.GetBuffDurationSeconds(buffType);
+        if (duration <= 0) return;
+
+        var originalUpdate = onBuffUpdate;
+        System.Action<string, float> wrapper = (context, progress) =>
+        {
+            var clampedProgress = System.Math.Clamp(progress, 0f, 1f);
+
+            var remainingSeconds = System.Math.Clamp(clampedProgress * duration, 0f, duration);
+            var fixedContext = context == null
+                ? string.Empty
+                : context.Replace(SpellHelper.RemainingValuePlaceholder, ((int)System.Math.Ceiling(remainingSeconds)).ToString());
+            originalUpdate.Invoke(fixedContext, progress);
+        };
+        onBuffUpdate = Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<Il2CppSystem.Action<string, float>>(wrapper)
+            ?? throw new System.InvalidOperationException("Buff 渲染包装器（Action<string,float>）的 il2cpp 委托转换失败。");
     }
 }

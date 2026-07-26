@@ -2,6 +2,7 @@ using Il2CppInterop.Runtime.Attributes;
 using Il2CppSystem.Collections;
 using GameData.Core.Collections.NightSceneUtility;
 using MetaMystia.ResourceEx.SpellCollection;
+using NightScene.EventUtility;
 
 namespace MetaMystia.ResourceEx.SpellCollection.Daiyousei;
 
@@ -11,6 +12,11 @@ namespace MetaMystia.ResourceEx.SpellCollection.Daiyousei;
 [AutoLog]
 public partial class Spell_Daiyousei : SpellBase
 {
+    internal const int DaiyouseiFogBuffType = 100;
+
+    // 黑卡「飞雾」Buff 持续秒数，须与 zh-CN.json 的 Spell_Daiyousei_BuffDesc 模板（$t 剩余秒数）语义一致。
+    private const int DaiyouseiFogDurationSeconds = 30;
+
     /// <summary>
     /// 返回符卡归属角色标识，供宣言日志与立绘偏移识别使用。
     /// 标识统一取自 SpellHelper.DaiyouseiOwnerIdentifier，保证与立绘偏移表键一致。
@@ -33,7 +39,7 @@ public partial class Spell_Daiyousei : SpellBase
     }
 
     /// <summary>
-    /// 红卡效果入口。本阶段符卡仅完成注册可被宣言，尚未实现红卡效果，返回 null 使流程不触发任何效果。
+    /// 红卡效果入口
     /// </summary>
     /// <param name="spellExecutionContext">符卡执行上下文，提供角色与回调等信息</param>
     /// <returns>il2cpp 协程迭代器；本阶段返回 null 表示不触发任何效果</returns>
@@ -43,12 +49,18 @@ public partial class Spell_Daiyousei : SpellBase
     }
 
     /// <summary>
-    /// 黑卡效果入口。本阶段符卡仅完成注册可被宣言，尚未实现黑卡效果，返回 null 使流程不触发任何效果。
+    /// 黑卡效果入口
     /// </summary>
     /// <param name="spellExecutionContext">符卡执行上下文，提供角色与回调等信息</param>
-    /// <returns>il2cpp 协程迭代器；本阶段返回 null 表示不触发任何效果</returns>
+    /// <returns>il2cpp 协程迭代器；返回 null 表示无额外视觉效果，Buff 实例已由本方法同步注册</returns>
     public override IEnumerator OnNegativeBuffExecute(SpellExecutionContext spellExecutionContext)
     {
+        SpellHelper.RegisterTimedBuff(
+            Manager,
+            DaiyouseiFogDurationSeconds,
+            (EventManager.BuffType)DaiyouseiFogBuffType,
+            out _,
+            null);
         return null;
     }
 }
