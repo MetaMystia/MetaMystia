@@ -7,7 +7,8 @@
 - Unity 主线程：生命周期、场景、UI 和绝大多数游戏对象访问。
 - `MpWire` IO 线程：TCP 接收、发送和连接维护。
 - `Task` 或异步 IO：HTTP、文件及 WebDebugger 等外部操作。
-- `CommandScheduler`：由 Unity 主线程更新的条件调度。
+- 协程：由 Unity 主线程推进的延迟、等待和周期逻辑。
+- `CommandScheduler`：计划弃用的旧条件调度。
 
 禁止在非主线程调用 Unity API，或读取、修改 Unity 对象及游戏对象。后台线程只能处理已明确证明线程安全的纯托管数据；相关操作必须通过 `RunOnMainThread()` 切回主线程执行。
 
@@ -42,11 +43,10 @@ PluginManager.Instance?.RunOnMainThread(() =>
 
 ## CommandScheduler
 
-`CommandScheduler` 适合处理依赖游戏状态的延迟执行，例如等待对象初始化、等待前一操作完成或按固定间隔执行同步任务。
+`CommandScheduler` 计划弃用，应减少使用。新增延迟、等待和周期逻辑优先使用协程。仅在维护现有调度代码或确有兼容需要时继续使用。
 
-- 使用 `Enqueue` 表达条件、操作和超时。
-- 使用 `EnqueueKey` 合并或替换同一语义的待执行任务。
-- 使用 `EnqueueInterval` 管理周期任务，并在不再需要时取消。
+- 不得为新增逻辑扩展 `CommandScheduler` 接口或增加包装层。
+- 修改现有调用时，应评估能否直接迁移为协程。
 - 超时应记录明确原因，不能无限等待。
 - 不得用调度器掩盖未知的调用时序；时序不明时先审计实际执行流。
 
@@ -54,18 +54,7 @@ PluginManager.Instance?.RunOnMainThread(() =>
 
 ## 协程
 
-项目的托管协程使用 `System.Collections.IEnumerator`。通过 `PluginManager.StartManagedCoroutine()` 或 BepInEx 提供的扩展启动。
-
-当游戏 API 要求 `Il2CppSystem.Collections.IEnumerator` 时，托管迭代器必须使用 `WrapToIl2Cpp()` 转换。两种 `IEnumerator` 不可直接混用。
-
-```csharp
-private static System.Collections.IEnumerator Routine()
-{
-    yield return null;
-}
-```
-
-不得在返回 `Il2CppSystem.Collections.IEnumerator` 的方法中直接编写 `yield return`，因为 C# 编译器生成的是托管状态机。
+新增延迟、条件等待和周期逻辑优先使用协程。具体规则见 [`coroutine-style.md`](coroutine-style.md)。
 
 ## 异步与 IO
 
@@ -79,7 +68,8 @@ private static System.Collections.IEnumerator Routine()
 - 当前代码实际运行在哪个线程。
 - 是否访问 Unity 或游戏对象。
 - 是否需要 `RunOnMainThread()`。
+- 是否可以使用协程替代 `CommandScheduler`。
 - 调度条件是否来自已确认的游戏时序。
 - 是否设置超时和取消条件。
-- 协程使用的是托管还是 Il2Cpp 接口。
+- 是否遵循协程规范。
 - IO 与游戏状态更新是否明确分离。
