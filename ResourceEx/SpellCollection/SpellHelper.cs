@@ -2,9 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using GameData.Core.Collections.CharacterUtility;
+using GameData.Core.Collections.NightSceneUtility;
 using GameData.CoreLanguage;
 using GameData.CoreLanguage.Collections;
 using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using Il2CppSystem.Linq;
 using MetaMystia;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
@@ -22,6 +26,12 @@ internal static class SpellHelper
     private const string KoakumaOwnerIdentifier = "_ResourceExample_Koakuma";
     private const float CutinOffsetY = -300f;
     private const int CutinFlagExpireFrames = 5;
+
+    // 符卡召唤稀客的固定入参：座位交由排队自动分配、计入营业记录、不插队、生成时淡入
+    private const int SummonTargetDeskCodeAuto = -1;
+    private const bool SummonRecordToIzakaya = true;
+    private const bool SummonTryToJumpQueue = false;
+    private const bool SummonShouldFade = true;
 
     // 单例静态待消费状态：运行时仅保留最后一次 Set 的结果
     // 仅限主线程调用
@@ -398,23 +408,86 @@ internal static class SpellHelper
     }
 
     /// <summary>
-    /// 获取当前在场的所有稀客角色 ID 集合，用于符卡拉卡召唤前去重。
+    /// 获取当前在场（含排队中）的所有稀客角色 ID 集合，用于符卡拉卡召唤前去重。
+    /// 直接枚举原生 GuestsManager 的在场/排队控制器，单机与联机均可用，
+    /// 不依赖仅联机同步才写入的 GuestsMap，避免单机下召唤的稀客未被登记导致验重失效。
     /// </summary>
     /// <returns>在场稀客的 ID 集合，无符合条件者返回空集合。</returns>
     internal static HashSet<int> GetOnFieldSpecialGuestIds()
     {
         var onFieldSpecialIds = new HashSet<int>();
-        var allGuests = GuestsMap.GetAllGuestsSnapshot();
+        var guestsManager = GuestsManager.Instance;
+        if (guestsManager == null) return onFieldSpecialIds;
 
-        foreach (var (_, fsm) in allGuests)
+        CollectSpecialGuestIds(guestsManager.AllGuestInDeskController.ToArray(), onFieldSpecialIds);
+        CollectSpecialGuestIds(GuestGroupController.QueuedGuestControllers.ToArray(), onFieldSpecialIds);
+        return onFieldSpecialIds;
+    }
+
+    /// <summary>
+    /// 从一组已物化的客人控制器中，筛出仍在场（未离开）的稀客并将其成员角色 ID 并入目标集合。
+    /// 入参用 il2cpp 引用数组（而非 IEnumerable&lt;T&gt; 接口），规避 il2cpp 泛型集合无法直接 foreach 的限制。
+    /// </summary>
+    /// <param name="controllers">已物化的客人控制器数组（在场或排队）。</param>
+    /// <param name="target">待并入稀客 ID 的目标集合。</param>
+    private static void CollectSpecialGuestIds(
+        Il2CppArrayBase<GuestGroupController> controllers, HashSet<int> target)
+    {
+        for (var i = 0; i < controllers.Length; i++)
         {
-            if (fsm.GuestType != GuestsManager.GuestType.Special) continue;
-            if (fsm.CurrentState is GuestFSM.State.Left or GuestFSM.State.Dead or GuestFSM.State.None) continue;
-            if (fsm.Controller?.HaveNotLeft() is not true) continue;
+            var controller = controllers[i];
+            if (controller == null) continue;
+            if (controller.ControllType != GuestsManager.GuestType.Special) continue;
+            if (controller.HaveNotLeft() is not true) continue;
+            var guests = controller.GetAllGuests().ToArray();
+            for (var j = 0; j < guests.Length; j++)
+            {
+                target.Add(guests[j].Id);
+            }
+        }
+    }
 
-            onFieldSpecialIds.UnionWith(fsm.Ids);
+    /// <summary>
+    /// 按指定 id 召唤稀客入场，含数据存在性与联机可用性预检；成功后标记该稀客「今晚已生成」，防止自然刷客重复出现。
+    /// </summary>
+    /// <param name="guestId">目标稀客 id。</param>
+    /// <returns>成功召唤返回 true；管理器缺失、稀客数据缺失、不可用或生成失败返回 false。</returns>
+    internal static bool TrySummonSpecialGuest(int guestId)
+    {
+        if (GuestsManager.Instance == null)
+        {
+            Log.LogWarning($"[SpellHelper] GuestsManager 未就绪，无法召唤稀客 id={guestId}。");
+            return false;
+        }
+        if (DataBaseCharacter.RefSGuest(guestId) == null)
+        {
+            Log.LogWarning($"[SpellHelper] 稀客数据不存在，跳过召唤 id={guestId}。");
+            return false;
+        }
+        if (!PlayerManager.SpecialGuestAvailable(guestId))
+        {
+            Log.LogWarning($"[SpellHelper] 稀客 id={guestId} 当前不可用，跳过召唤。");
+            return false;
         }
 
-        return onFieldSpecialIds;
+        var controller = GuestsManager.Instance.SpawnSpecialGuestGroup(
+            guestId,
+            SpecialGuestsController.GuestSpawnType.Normal,
+            new Il2CppSystem.Nullable<Vector3>(),
+            null,
+            GuestGroupController.LeaveType.Move,
+            SummonRecordToIzakaya,
+            SummonTargetDeskCodeAuto,
+            SummonTryToJumpQueue,
+            null,
+            SummonShouldFade);
+        if (controller == null)
+        {
+            Log.LogWarning($"[SpellHelper] SpawnSpecialGuestGroup 返回 null，召唤失败 id={guestId}。");
+            return false;
+        }
+
+        EventManager.Instance.SetTargetGuestHasSpawnedHandle?.Invoke(guestId);
+        return true;
     }
 }
