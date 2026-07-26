@@ -4,6 +4,7 @@
 *.user
 *.lscache
 *.local.props
+*.local.md
 
 /bin
 /obj
