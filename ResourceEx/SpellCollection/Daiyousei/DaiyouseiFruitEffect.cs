@@ -31,6 +31,8 @@ internal static class DaiyouseiFruitEffect
     // 单个水果飞行时长与缩小淡出时长（秒）
     private const float FlyDurationSeconds = 0.5f;
     private const float ShrinkFadeDurationSeconds = 0.2f;
+    // 入库时是否抑制库存回调（false=触发原生入库明细弹条）
+    private const bool InventoryCallbackSuppressed = false;
 
     private static readonly LogWrapper Log = new(BepInEx.Logging.Logger.CreateLogSource(nameof(DaiyouseiFruitEffect)), nameof(DaiyouseiFruitEffect));
 
@@ -165,7 +167,7 @@ internal static class DaiyouseiFruitEffect
     {
         var il2cppFruitIds = new Il2CppSystem.Collections.Generic.List<int>(fruitIds.Count);
         foreach (var fruitId in fruitIds) il2cppFruitIds.Add(fruitId);
-        RunTimeStorage.IngredientInRange(il2cppFruitIds.ToIEnumerable(), false);
+        RunTimeStorage.IngredientInRange(il2cppFruitIds.ToIEnumerable(), InventoryCallbackSuppressed);
         Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage(TextId.Spell_Daiyousei_GrantFruit.Get());
         Log.LogInfo($"[DaiyouseiFruitEffect] 已发放 {fruitIds.Count} 个水果食材。");
     }

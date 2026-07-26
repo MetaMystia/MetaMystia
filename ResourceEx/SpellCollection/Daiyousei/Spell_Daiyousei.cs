@@ -106,10 +106,10 @@ public partial class Spell_Daiyousei : SpellBase
     }
 
     /// <summary>
-    /// 黑卡效果入口
+    /// 黑卡 雾符「妖精的薄雾」效果入口：同步注册 30 秒飞雾 Buff，并解耦启动屏幕空间雾气视觉。
     /// </summary>
     /// <param name="spellExecutionContext">符卡执行上下文，提供角色与回调等信息</param>
-    /// <returns>il2cpp 协程迭代器；返回 null 表示无额外视觉效果，Buff 实例已由本方法同步注册</returns>
+    /// <returns>il2cpp 协程迭代器；返回 null 表示无额外同步视觉效果，雾气视觉经独立协程异步播放</returns>
     public override IEnumerator OnNegativeBuffExecute(SpellExecutionContext spellExecutionContext)
     {
         SpellHelper.RegisterTimedBuff(
@@ -118,6 +118,22 @@ public partial class Spell_Daiyousei : SpellBase
             (EventManager.BuffType)DaiyouseiFogBuffType,
             out _,
             null);
+        StartFogVisual();
         return null;
+    }
+
+    /// <summary>
+    /// 启动黑卡雾气视觉协程，与符卡执行解耦以免阻塞符卡收尾（30 秒寿命自管理）。
+    /// 若 PluginManager 未就绪则跳过视觉、仅保留右下角 Buff 栏条目。
+    /// </summary>
+    [HideFromIl2Cpp]
+    private static void StartFogVisual()
+    {
+        if (PluginManager.Instance == null)
+        {
+            Log.LogWarning("[Daiyousei] PluginManager 未就绪，跳过雾气视觉");
+            return;
+        }
+        PluginManager.Instance.StartManagedCoroutine(DaiyouseiFogEffect.StartFogRoutine(DaiyouseiFogDurationSeconds));
     }
 }
