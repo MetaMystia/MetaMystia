@@ -20,6 +20,17 @@ Interop 壳代码中的成员均以 `public` 形式暴露。禁止因为逆向�
 
 不得根据普通 C# 经验替换 Interop 签名中的类型。
 
+## 网络协议枚举边界
+
+`Network/Protocol/` 由独立的纯托管项目编译，不得直接引用游戏枚举。需要进入线协议的游戏枚举使用对应的 `Wire*` 镜像，并只在 `Network/Behaviors/WireEnumMaps.cs` 中双向转换。
+
+- `Wire*` 的成员名称和数值必须与目标游戏版本一致。
+- 新增或修改映射前，必须同时核对逆向源码和项目引用的 Interop DLL。
+- `Plugin.Load()` 会调用 `WireEnumMaps.AssertAligned()` 检查名称、数量和数值。
+- 不得在其他业务代码中散落强制转换，或用协议枚举替代游戏 API 要求的实际枚举类型。
+
+网络协议层的其他边界规则见 [`network-action-style.md`](network-action-style.md)。
+
 ## 集合与数组
 
 复杂处理应遵循以下顺序：

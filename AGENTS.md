@@ -14,10 +14,20 @@
 
 逆向代码用于审计游戏行为，项目引用的 Interop DLL 是编译和调用的实际依据。禁止因逆向代码中的访问级别而使用反射。相关差异和映射规则将由独立参考文档补充。
 
+### 网络重构阶段
+
+当前网络层处于全面重构和升级阶段。审计或开发网络功能时，不受现有内部 API、文件布局、协议结构和历史实现约束，可以主动提出跨模块、大批量及破坏性重构方案。
+
+- 评估方案时以重构后的整体简洁性、状态唯一性、边界清晰度、可靠性和可测试性为准，不以改动规模或对旧内部设计的兼容程度为准。
+- 不得为了减少改动或保留旧接口而增加无长期价值的适配层、转发层、双轨实现和重复状态。
+- 大型重构应同步更新所有调用方、协议消费者、测试和文档，避免长期保留新旧架构并行的过渡状态。
+- 对外协议或部署兼容性确有要求时，必须明确兼容范围、成本和移除条件；没有明确要求时，可以采用破坏性变更换取更简单可靠的最终结构。
+
 ## 开发参考
 
 - Harmony Hook：[`docs/harmony-hook-style.md`](docs/harmony-hook-style.md)
-- 网络 Action：[`docs/network-action-style.md`](docs/network-action-style.md)
+- 网络架构：[`docs/network-architecture.md`](docs/network-architecture.md)
+- 网络 Action 与 Behavior：[`docs/network-action-style.md`](docs/network-action-style.md)
 - 线程与调度：[`docs/threading-and-scheduling.md`](docs/threading-and-scheduling.md)
 - 协程：[`docs/coroutine-style.md`](docs/coroutine-style.md)
 - Il2CppInterop：[`docs/il2cpp-interop-guide.md`](docs/il2cpp-interop-guide.md)

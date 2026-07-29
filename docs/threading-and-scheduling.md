@@ -5,7 +5,7 @@
 项目主要存在以下执行环境：
 
 - Unity 主线程：生命周期、场景、UI 和绝大多数游戏对象访问。
-- `MpWire` IO 线程：TCP 接收、发送和连接维护。
+- `MpWire` IO 线程：TCP 接收、发送、组帧、反序列化、直连转发和连接维护。
 - `Task` 或异步 IO：HTTP、文件及 WebDebugger 等外部操作。
 - 协程：由 Unity 主线程推进的延迟、等待和周期逻辑。
 - `CommandScheduler`：计划弃用的旧条件调度。
@@ -17,11 +17,14 @@
 `DirectTcp` 只由 `MpWire` IO 线程驱动。IO 线程负责：
 
 - 接受或维护连接；
-- 读取和组装网络帧；
-- 将入站 Action 放入 `_inbox`；
+- 读取字节并由 `PacketBuffer` 组帧和反序列化；
+- 在 DirectHost 模式下按 Relay 标记转发 Action；
+- 将已反序列化的 Action 放入 `_inbox`；
 - 从 `_outbox` 取出数据并发送。
 
-IO 线程不得直接修改玩家、场景、UI 或其他游戏状态。入站 Action 由主线程统一取出并调用 `OnReceived()`。
+IO 线程不得直接修改玩家、场景、UI 或其他游戏状态。`PluginManager.Update()` 在主线程调用 `MpWire.FlushInbox()`，再由 `NetActionDispatcher` 执行接收约束和对应的 `Behavior.Handle()`。
+
+出站 Action 在调用 `Enqueue()` 的线程完成序列化，再进入并发队列。`Send()` 不会自动切换线程；从 IO 线程或后台任务发送时，只能构造和读取纯托管且线程安全的数据。普通玩法 Behavior 应从主线程读取游戏状态后再发送。
 
 需要从连接事件更新游戏状态时，使用 `PluginManager.Instance?.RunOnMainThread(...)`。
 
@@ -40,6 +43,8 @@ PluginManager.Instance?.RunOnMainThread(() =>
 - 不得把生命周期不明确的游戏对象跨线程长期保存后再使用。
 - 主线程操作必须短小，不得在其中执行阻塞式网络或文件 IO。
 - `[OnMainThread]` 目前只表达调用约束，不会自动切换线程。调用方仍需保证实际执行线程正确。
+
+`PluginManager.Update()` 先执行 `RunOnMainThread()` 队列，再处理网络 `_inbox`。不得依赖两个队列跨帧交错的未声明顺序；需要严格先后关系时，应在同一个主线程回调或 Behavior 中明确表达。
 
 ## CommandScheduler
 
@@ -68,6 +73,8 @@ PluginManager.Instance?.RunOnMainThread(() =>
 - 当前代码实际运行在哪个线程。
 - 是否访问 Unity 或游戏对象。
 - 是否需要 `RunOnMainThread()`。
+- Action 构造和序列化是否只读取线程安全数据。
+- 入站逻辑是否由 Dispatcher 在主线程执行。
 - 是否可以使用协程替代 `CommandScheduler`。
 - 调度条件是否来自已确认的游戏时序。
 - 是否设置超时和取消条件。

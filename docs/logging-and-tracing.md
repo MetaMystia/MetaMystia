@@ -46,9 +46,15 @@ Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx
 
 ## Action 日志
 
-网络 Action 的发送和接收日志由 `Action` 基类统一处理。具体 Action 只在需要时覆盖日志级别、仅记录名称或精简 `ToLogString()`。
+网络 Action 的发送和接收日志由 `Network/Behaviors/NetAction.Runtime.cs` 统一处理。协议 Action 不使用 `[AutoLog]`，Behavior 也不得为普通收发重复记录相同日志。
 
-不得在每个 `Send()` 和 `OnReceivedDerived()` 中重复记录同一条收发日志。
+新增高频或大载荷 Action 时，在 `NetActionRuntime` 集中调整：
+
+- `ReceiveLogLevel()`、`SendLogLevel()`：选择收发日志级别；
+- `ReceiveLogOnlyAction()`、`SendLogOnlyAction()`：仅记录 Action 名称；
+- `ToLogString()`：为大载荷或敏感结构提供摘要。
+
+Behavior 只记录统一收发日志无法表达的业务结果、拒绝原因或状态不一致。不得在每个 `Send()` 和 `Handle()` 中重复记录固定流程。
 
 ## TracePatch
 
