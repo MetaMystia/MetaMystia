@@ -318,9 +318,22 @@ public partial class PlayerSkin
         var table = new StringBuilder();
         foreach (var skin in ListAllSkins())
         {
-            table.AppendLine($"{skin.name}: {skin.skin.CharacterId} {skin.skin.SelectedType} {skin.skin.SkinIndex}");
+            var displayName = GetSkinDisplayName(skin.skin.CharacterId, skin.name);
+            table.AppendLine($"{displayName}: {skin.skin.CharacterId} {skin.skin.SelectedType} {skin.skin.SkinIndex}");
         }
         return table.ToString();
+    }
+
+    // The base game's built-in skin asset names contain two Chinese typos.
+    // Keep the correction local to `/skin list` instead of mutating shared assets.
+    private static string GetSkinDisplayName(int characterId, string name)
+    {
+        return (characterId, name) switch
+        {
+            (2003, "古地名觉") => "古明地觉",
+            (2006, "古地名恋") => "古明地恋",
+            _ => name
+        };
     }
 
     /// <summary>
