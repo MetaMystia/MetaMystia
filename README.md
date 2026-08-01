@@ -35,6 +35,23 @@
 - 第一原作：**ZUN@上海アリス幻樂団**
 - 第二原作：**[东方夜雀食堂 / Touhou Mystia’s Izakaya](https://store.steampowered.com/app/1584090/)**
 
+### 开源项目
+
+本项目直接使用或在构建过程中使用了以下开源项目。各项目的版权与许可归其原作者所有。
+
+| 项目 | 用途 | 开源协议 |
+| --- | --- | --- |
+| [BepInEx](https://github.com/BepInEx/BepInEx) / [BepInEx.PluginInfoProps](https://github.com/BepInEx/BepInEx.Templates) | Mod 运行框架与构建元数据 | LGPL-2.1-only / MIT |
+| [Il2CppInterop](https://github.com/BepInEx/Il2CppInterop) | IL2CPP 与 .NET 互操作 | LGPL-3.0-only |
+| [HarmonyX](https://github.com/BepInEx/HarmonyX) | 运行时方法补丁 | MIT |
+| [MemoryPack](https://github.com/Cysharp/MemoryPack) | 网络数据序列化 | MIT |
+| [NLua](https://github.com/nlua/NLua)、[KeraLua](https://github.com/nlua/KeraLua) 与 [Lua](https://www.lua.org/) | Lua 脚本运行支持 | MIT |
+| [System.CommandLine](https://github.com/dotnet/command-line-api) | 控制台命令解析 | MIT |
+| [Fody](https://github.com/Fody/Fody) / [Costura.Fody](https://github.com/Fody/Costura) | 构建期程序集处理 | MIT |
+| [Roslyn](https://github.com/dotnet/roslyn) | 源代码生成器编译支持 | MIT |
+
+MetaMystia 本身采用 [GNU Affero General Public License v3](LICENSE) 开源。
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=MetaMikuAI/MetaMystia&type=date&legend=top-left)](https://www.star-history.com/#MetaMikuAI/MetaMystia&type=date&legend=top-left)
