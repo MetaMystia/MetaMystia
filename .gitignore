@@ -1,29 +1,22 @@
 .idea
 .vs
 .agent
+.claude
 *.user
 *.lscache
 *.local.props
 *.local.md
 
-/bin
-/obj
 /artifacts/
 /src/**/bin/
 /src/**/obj/
+/bin
+/obj
 
 /Assembly-CSharp/.vs/
 /Assembly-CSharp/obj/
 /Assembly-CSharp/Assembly-CSharp.csproj
-/MystiaReverse/
-/DebugImpl/
-
-/meta-mystia-network/
 
 private.pem
 
-copilot-instructions.md
-
 __pycache__
-
-.claude
