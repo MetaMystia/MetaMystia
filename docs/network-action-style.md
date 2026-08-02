@@ -6,8 +6,8 @@
 
 每个 Action 通常对应两个文件：
 
-- `Network/Protocol/Actions/<场景>/ExampleAction.cs`：共享协议类型。
-- `Network/Behaviors/Actions/<场景>/ExampleBehavior.cs`：Mod 端发送和接收行为。
+- `src/MetaMystia.Protocol/Actions/<场景>/ExampleAction.cs`：共享协议类型。
+- `src/MetaMystia.Mod/Network/Behaviors/Actions/<场景>/ExampleBehavior.cs`：Mod 端发送和接收行为。
 
 协议 Action 示例：
 
@@ -55,7 +55,7 @@ internal static class ExampleBehavior
 
 ## 协议层约束
 
-`Network/Protocol/` 由 `MetaMystia.Protocol` 独立编译，必须保持纯托管：
+`src/MetaMystia.Protocol/` 由 `MetaMystia.Protocol` 独立编译，必须保持纯托管：
 
 - 不得引用 BepInEx、Unity、Interop DLL、游戏命名空间或 Mod 行为类型。
 - Action 和 DTO 使用 `[MemoryPackable]`，并声明为 `partial`。
@@ -71,10 +71,10 @@ internal static class ExampleBehavior
 
 新增 Action 时必须同时完成：
 
-1. 在 `Network/Protocol/ActionType.cs` 末尾追加枚举值。
-2. 在 `Network/Protocol/NetAction.cs` 增加对应的 `[MemoryPackUnion]`。
-3. 在 `Network/Protocol/Actions/` 增加具体 Action。
-4. 在 `Network/Behaviors/Actions/` 增加对应 Behavior。
+1. 在 `src/MetaMystia.Protocol/ActionType.cs` 末尾追加枚举值。
+2. 在 `src/MetaMystia.Protocol/NetAction.cs` 增加对应的 `[MemoryPackUnion]`。
+3. 在 `src/MetaMystia.Protocol/Actions/` 增加具体 Action。
+4. 在 `src/MetaMystia.Mod/Network/Behaviors/Actions/` 增加对应 Behavior。
 5. 确认 Action、`ActionType`、Union 标签和 Behavior 一一对应。
 
 Behavior 使用 `[NetActionBehavior]`，并声明准确签名的：

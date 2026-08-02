@@ -8,12 +8,9 @@
 
 /bin
 /obj
-/LogGenerator/bin/
-/LogGenerator/obj/
-/MetaMystia.Generators/bin/
-/MetaMystia.Generators/obj/
-/MetaMystia.Protocol/bin/
-/MetaMystia.Protocol/obj/
+/artifacts/
+/src/**/bin/
+/src/**/obj/
 
 /Assembly-CSharp/.vs/
 /Assembly-CSharp/obj/
@@ -26,7 +23,6 @@
 private.pem
 
 copilot-instructions.md
-.github/memories/
 
 __pycache__
 

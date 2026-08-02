@@ -4,7 +4,7 @@
 
 - 一个游戏目标类对应一个 Patch 类和一个主要文件。
 - Patch 类使用 `[HarmonyPatch(typeof(...))]` 声明目标类型，并使用 `[AutoLog]` 接入项目日志。类级 `typeof` 必须写完整的命名空间和类名。
-- Patch 统一注册到 `Patches/PatchRegistry.cs`。
+- Patch 统一注册到 `src/MetaMystia.Mod/Patches/PatchRegistry.cs`。
 - 方法级 `[HarmonyPatch]` 必须使用 `nameof(短类名.方法名)`，并在文件顶部添加对应命名空间的 `using`。不得在 `nameof` 中重复完整命名空间，也不得使用字符串硬编码方法名。重载方法必须明确参数类型。
 - Hook 方法按 `目标方法_Prefix`、`目标方法_Postfix`、`目标方法_ReversePatch` 命名。
 

@@ -4,7 +4,7 @@ using MetaMystia.UI;
 
 namespace MetaMystia;
 
-// MapLabel 枚举本体已迁入 Network/Protocol/Enums/MapLabel.cs（协议层）。
+// MapLabel 枚举本体位于 src/MetaMystia.Protocol/Enums/MapLabel.cs（协议层）。
 // 此处仅保留依赖游戏 TextId 的展示/解析扩展，属行为侧，留 mod。
 
 public static class MapLabelExtensions

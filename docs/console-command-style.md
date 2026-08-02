@@ -2,7 +2,7 @@
 
 ## 组织方式
 
-- 每组命令放在 `Console/Commands/` 下的独立静态类中。
+- 每组命令放在 `src/MetaMystia.Mod/Console/Commands/` 下的独立静态类中。
 - 命令类提供 `public static void Register(RootCommand root)`。
 - 顶级命令由 `CommandRegistry.Initialize()` 统一注册。
 - 相关子命令在同一个 `Register()` 中构建并挂到父命令。

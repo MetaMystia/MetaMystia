@@ -4,9 +4,9 @@
 
 项目本地化由以下部分组成：
 
-- `UI/L10n.cs` 中的 `TextId` 枚举；
-- `UI/Locales/en.json`；
-- `UI/Locales/zh-CN.json`；
+- `src/MetaMystia.Mod/UI/L10n.cs` 中的 `TextId` 枚举；
+- `src/MetaMystia.Mod/UI/Locales/en.json`；
+- `src/MetaMystia.Mod/UI/Locales/zh-CN.json`；
 - `TextId.Get(...)` 格式化和语言回退逻辑。
 
 面向用户的新文本必须使用 `TextId`，不得直接散落在业务代码中。协议字段、内部日志、调试标识和专有名词不受此限制。

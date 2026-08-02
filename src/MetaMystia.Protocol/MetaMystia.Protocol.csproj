@@ -4,12 +4,9 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>14</LangVersion>
     <Nullable>disable</Nullable>
-    <RootNamespace>MetaMystia</RootNamespace>
+    <AssemblyName>MetaMystia.Protocol</AssemblyName>
+    <RootNamespace>MetaMystia.Protocol</RootNamespace>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="..\Network\Protocol\**\*.cs" Link="Network\Protocol\%(RecursiveDir)%(Filename)%(Extension)" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.21.4" />

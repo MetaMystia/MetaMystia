@@ -6,7 +6,7 @@ using MemoryPack;
 namespace MetaMystia;
 
 // 数据半边（协议层）：字段 + 序列化 + 纯数据的增量压缩/展开逻辑（零游戏依赖）。
-// 行为半边（mod，[AutoLog] + DataBaseCore/DataBaseCharacter 装载/日志）见 Players/ResourceDataBase.cs。
+// 行为半边（mod，[AutoLog] + DataBaseCore/DataBaseCharacter 装载/日志）见 src/MetaMystia.Mod/Players/ResourceDataBase.cs。
 
 [MemoryPackable]
 public partial class ResourceDataBaseData

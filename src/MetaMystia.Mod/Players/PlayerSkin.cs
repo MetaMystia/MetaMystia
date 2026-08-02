@@ -15,7 +15,7 @@ using SgrYuki.Utils;
 namespace MetaMystia;
 
 // 行为半边（mod）：皮肤解析、立绘、应用到 unit 等游戏逻辑（Addressables/Sprite/CharacterControllerUnit）。
-// 数据半边（序列化字段 + SetNetSkin/SetRotate）见 Network/Protocol/Dtos/PlayerSkinData.cs。
+// 数据半边（序列化字段 + SetNetSkin/SetRotate）见 src/MetaMystia.Protocol/Dtos/PlayerSkinData.cs。
 // 边界：游戏枚举 CharacterSkinSets.SelectedType 与协议层 WireSkinType 在此互转（WireEnumMaps）。
 
 public static class PlayerSkin

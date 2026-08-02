@@ -5,7 +5,7 @@ using MetaMystia.Network;
 namespace MetaMystia;
 
 // 数据半边（协议层）：序列化字段，零游戏依赖（游戏枚举以 WireSkinType 镜像）。
-// 行为半边（mod，皮肤解析/立绘/应用到 unit 等）见 Players/PlayerSkin.cs。
+// 行为半边（mod，皮肤解析/立绘/应用到 unit 等）见 src/MetaMystia.Mod/Players/PlayerSkin.cs。
 
 [MemoryPackable]
 public partial class PlayerSkinData

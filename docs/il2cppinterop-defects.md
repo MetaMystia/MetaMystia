@@ -4,7 +4,7 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 不得将普通逻辑错误默认归因于 Il2CppInterop。必须先按 [`il2cpp-interop-guide.md`](il2cpp-interop-guide.md) 的排查顺序确认版本、签名、时机、生命周期和类型边界。只有缺陷可复现且原因明确时，才允许增加低层绕过；绕过必须限定到具体类型和签名。
 
-## `Utils/MetaMikuUtils.cs`
+## `src/MetaMystia.Mod/Utils/MetaMikuUtils.cs`
 
 `ForceAddOrUpdateValueTuple<TKey, TValue>` 用于修复 Il2Cpp `Dictionary` 写入已装箱值类型时的数据偏移。
 
@@ -16,9 +16,9 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 2. 从目标 Dictionary 的 IL2CPP 元数据中定位双参数 `set_Item`。
 3. 固定值类型 Key，通过 `il2cpp_runtime_invoke` 传入 Key 指针和未装箱 Value 指针。
 
-此方法仅适用于已确认存在该缺陷的 `Dictionary<TKey, TValue>` 写入，不得作为通用 Dictionary API。当前调用位于 `ResourceEx/SpecialGuest.cs`，用于写入 `DataBaseLanguage.SpecialGuest`。
+此方法仅适用于已确认存在该缺陷的 `Dictionary<TKey, TValue>` 写入，不得作为通用 Dictionary API。当前调用位于 `src/MetaMystia.Mod/ResourceEx/SpecialGuest.cs`，用于写入 `DataBaseLanguage.SpecialGuest`。
 
-## `Utils/Il2CppOutDelegate.cs`
+## `src/MetaMystia.Mod/Utils/Il2CppOutDelegate.cs`
 
 `Il2CppOutDelegate` 用于构造 `DaySceneChatSelectionPannel.GetSelectionConfigurationCallback`。该委托包含 `string`、`bool` 和 `Il2CppSystem.Action` 三个 `out` 参数，普通 `DelegateSupport.ConvertDelegate` 无法正确表达其原生写回布局。
 
@@ -30,7 +30,7 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 4. 持有原生 Invoker 和生成委托的托管引用，防止被 GC 回收。
 5. 在原生回调边界捕获异常、记录日志并清空输出，禁止托管异常越过原生边界。
 
-该实现仅支持 `GetSelectionConfigurationCallback`，不得扩展为未经验证的通用 `out/ref` 委托转换器。当前由 `Managers/StoryReplayManager.cs` 用于构建对话回放菜单选项。
+该实现仅支持 `GetSelectionConfigurationCallback`，不得扩展为未经验证的通用 `out/ref` 委托转换器。当前由 `src/MetaMystia.Mod/Managers/StoryReplayManager.cs` 用于构建对话回放菜单选项。
 
 ## 维护规则
 

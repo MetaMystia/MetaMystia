@@ -1,17 +1,17 @@
 # 网络架构
 
-本文描述 Mod 端和共享协议层的当前边界。独立 Relay 服务端不在本仓库中，本文不定义其内部实现。
+本文描述 Mod 端和共享协议层的当前边界。仓库中的 `src/MetaMystia.Server/` 目前只有空入口，尚未实现 Relay 服务端。
 
 ## 模块边界
 
-- `MetaMystia.Protocol/`：独立的 `netstandard2.1` 项目，链接编译 `Network/Protocol/**/*.cs`，供 Mod、服务端和测试客户端共享。
-- `Network/Protocol/`：线协议类型，包括 `NetPacket`、`NetAction`、具体 Action、DTO、协议枚举和 `PacketBuffer`。
-- `Network/Behaviors/`：Mod 端行为层，负责发送入口、接收约束、游戏状态读写和协议类型与游戏类型的转换。
-- `Network/MpWire.cs`：Mod 端线层，管理收发队列、IO 线程、组帧、直连转发和主线程分发入口。
-- `Network/DirectTcp.cs`：直连 TCP 实现，只由 `MpWire` IO 线程驱动。
-- `Network/MpSession.cs`：记录传输类型、连接阶段和当前房主 UID。
-- `Managers/MpManager.cs`：联机应用层，组合传输、作用域、房间角色、场景和玩法状态。
-- `Players/PlayerManager.cs`：维护本地玩家与远端玩家表，并提供公域和房间投影视图。
+- `src/MetaMystia.Protocol/`：独立的 `netstandard2.1` 项目，直接拥有线协议类型，包括 `NetPacket`、`NetAction`、具体 Action、DTO、协议枚举和 `PacketBuffer`。
+- `src/MetaMystia.Mod/Network/Behaviors/`：Mod 端行为层，负责发送入口、接收约束、游戏状态读写和协议类型与游戏类型的转换。
+- `src/MetaMystia.Mod/Network/MpWire.cs`：Mod 端线层，管理收发队列、IO 线程、组帧、直连转发和主线程分发入口。
+- `src/MetaMystia.Mod/Network/DirectTcp.cs`：直连 TCP 实现，只由 `MpWire` IO 线程驱动。
+- `src/MetaMystia.Mod/Network/MpSession.cs`：记录传输类型、连接阶段和当前房主 UID。
+- `src/MetaMystia.Mod/Managers/MpManager.cs`：联机应用层，组合传输、作用域、房间角色、场景和玩法状态。
+- `src/MetaMystia.Mod/Players/PlayerManager.cs`：维护本地玩家与远端玩家表，并提供公域和房间投影视图。
+- `src/MetaMystia.Server/`：可独立构建和发布的服务端宿主；当前保持空实现，尚未引入业务依赖。
 
 协议层不得引用 BepInEx、Unity、Interop DLL、游戏命名空间或 Mod 行为类型。游戏相关数据必须先转换为纯托管 DTO、稳定标识或 `Wire*` 枚举。
 

@@ -22,7 +22,7 @@ Interop 壳代码中的成员均以 `public` 形式暴露。禁止因为逆向�
 
 ## 网络协议枚举边界
 
-`Network/Protocol/` 由独立的纯托管项目编译，不得直接引用游戏枚举。需要进入线协议的游戏枚举使用对应的 `Wire*` 镜像，并只在 `Network/Behaviors/WireEnumMaps.cs` 中双向转换。
+`src/MetaMystia.Protocol/` 由独立的纯托管项目编译，不得直接引用游戏枚举。需要进入线协议的游戏枚举使用对应的 `Wire*` 镜像，并只在 `src/MetaMystia.Mod/Network/Behaviors/WireEnumMaps.cs` 中双向转换。
 
 - `Wire*` 的成员名称和数值必须与目标游戏版本一致。
 - 新增或修改映射前，必须同时核对逆向源码和项目引用的 Interop DLL。

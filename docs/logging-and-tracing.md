@@ -46,7 +46,7 @@ Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx
 
 ## Action 日志
 
-网络 Action 的发送和接收日志由 `Network/Behaviors/NetAction.Runtime.cs` 统一处理。协议 Action 不使用 `[AutoLog]`，Behavior 也不得为普通收发重复记录相同日志。
+网络 Action 的发送和接收日志由 `src/MetaMystia.Mod/Network/Behaviors/NetAction.Runtime.cs` 统一处理。协议 Action 不使用 `[AutoLog]`，Behavior 也不得为普通收发重复记录相同日志。
 
 新增高频或大载荷 Action 时，在 `NetActionRuntime` 集中调整：
 

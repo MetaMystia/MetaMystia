@@ -8,7 +8,7 @@ using SgrYuki.Utils;
 namespace MetaMystia;
 
 // 行为半边（mod）：依赖游戏 DataBaseCore / DataBaseCharacter 的装载与日志。
-// 数据半边（字段 + 序列化 + 增量逻辑）见 Network/Protocol/Dtos/ResourceDataBaseData.cs。
+// 数据半边（字段 + 序列化 + 增量逻辑）见 src/MetaMystia.Protocol/Dtos/ResourceDataBaseData.cs。
 
 public static class ResourceDataBase
 {
