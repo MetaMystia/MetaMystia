@@ -16,7 +16,7 @@ public static partial class MetricsReporter
     private const string TrackingSiteId = "13";
     private const string TrackingServiceEndpoint = "https://track.izakaya.cc/api.php";
     private const string MetaMystiaVersionApiUrl = "https://api.izakaya.cc/version/meta-mystia";
-    public const string UserAgent = "MetaMystia/1.0 (+https://github.com/MetaMikuAI/MetaMystia)";
+    public const string UserAgent = "MetaMystia/1.0 (+https://github.com/MetaMystia/MetaMystia)";
 
     private static string BuildTrackingUrl(string userId, Dictionary<string, string> parameters)
     {

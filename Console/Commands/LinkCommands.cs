@@ -7,7 +7,7 @@ namespace MetaMystia.ConsoleSystem.Commands;
 
 public static class LinkCommands
 {
-    private const string MetaMystiaUrl = "https://github.com/MetaMikuAI/MetaMystia";
+    private const string MetaMystiaUrl = "https://github.com/MetaMystia/MetaMystia";
     private const string IzakayaUrl = "https://izakaya.cc/";
 
     public static void Register(RootCommand root)

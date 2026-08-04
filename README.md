@@ -54,4 +54,4 @@ MetaMystia 本身采用 [GNU Affero General Public License v3](LICENSE) 开源�
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=MetaMikuAI/MetaMystia&type=date&legend=top-left)](https://www.star-history.com/#MetaMikuAI/MetaMystia&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=MetaMystia/MetaMystia&type=date&legend=top-left)](https://www.star-history.com/#MetaMystia/MetaMystia&type=date&legend=top-left)
