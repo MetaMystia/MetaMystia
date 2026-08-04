@@ -131,8 +131,7 @@ public static class SkinCommands
             var state = ctx.ParseResult.GetValueForArgument(rotStateArg);
             bool? value = state switch { "on" => true, "off" => false, _ => null };
             PlayerManager.Local.Skin.SetRotate(value);
-            if (value.HasValue)
-                PlayerManager.Local.UpdateCharacterSprite();
+            PlayerManager.Local.UpdateCharacterSprite();
             if (MpManager.CanSeeOnlinePlayers)
                 PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
             var msg = value switch { true => TextId.SkinMsgRotOn, false => TextId.SkinMsgRotOff, null => TextId.SkinMsgRotClear };
