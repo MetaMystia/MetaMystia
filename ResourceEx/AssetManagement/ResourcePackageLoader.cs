@@ -118,7 +118,7 @@ public static partial class ResourcePackageLoader
             ZipArchiveEntry configEntry = null;
             foreach (var entry in archive.Entries)
             {
-                if (entry.FullName.EndsWith("ResourceEx.json", StringComparison.OrdinalIgnoreCase))
+                if (entry.Name.Equals("ResourceEx.json", StringComparison.OrdinalIgnoreCase))
                 {
                     // Prefer shorter path (root level)
                     if (configEntry == null || entry.FullName.Length < configEntry.FullName.Length)
