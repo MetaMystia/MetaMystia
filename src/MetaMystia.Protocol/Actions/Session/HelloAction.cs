@@ -8,7 +8,7 @@ namespace MetaMystia.Network;
 [MemoryPackable]
 public partial class HelloAction : NetAction
 {
-    public string Version { get; set; } = "";
+    public string ModVersion { get; set; } = "";
     public string GameVersion { get; set; } = "";
     public PlayerFullData Player { get; set; }
 }

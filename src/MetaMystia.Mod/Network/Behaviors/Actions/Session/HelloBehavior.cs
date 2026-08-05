@@ -12,7 +12,7 @@ internal static class HelloBehavior
         new HelloAction
         {
             Player = PlayerManager.Local.ToFullData(),
-            Version = Plugin.ModVersion,
+            ModVersion = Plugin.ModVersion,
             GameVersion = Plugin.GameVersion,
         }.Enqueue();
     }
@@ -25,9 +25,9 @@ internal static class HelloBehavior
 
     private static void Handle(HelloAction action)
     {
-        if (action.Version != Plugin.ModVersion)
+        if (action.ModVersion != Plugin.ModVersion)
         {
-            Plugin.Instance?.Log.LogError($"Mod version mismatch! Local: {Plugin.ModVersion}, Remote: {action.Version}");
+            Plugin.Instance?.Log.LogError($"Mod version mismatch! Local: {Plugin.ModVersion}, Remote: {action.ModVersion}");
             RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.ModVersionMismatch);
             return;
         }
