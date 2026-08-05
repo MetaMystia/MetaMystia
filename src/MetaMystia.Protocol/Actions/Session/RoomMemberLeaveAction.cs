@@ -6,7 +6,6 @@ namespace MetaMystia.Network;
 [MemoryPackable]
 public partial class RoomMemberLeaveAction : NetAction
 {
-    public ushort RoomId { get; set; }
     public int Uid { get; set; }
     public RoomLeaveReason Reason { get; set; }
 }

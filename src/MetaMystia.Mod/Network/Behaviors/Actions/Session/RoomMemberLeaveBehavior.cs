@@ -16,13 +16,7 @@ internal static class RoomMemberLeaveBehavior
         if (action.SenderUid != MpConstants.HostUid)
             return;
 
-        if (!PlayerManager.IsSameRoom(action.RoomId))
-            return;
-
         if (!PlayerManager.PlayerTable.TryGetValue(action.Uid, out var peer))
-            return;
-
-        if (peer.RoomId != action.RoomId)
             return;
 
         bool wasRoomPeer = PlayerManager.IsRoomPeer(action.Uid);
