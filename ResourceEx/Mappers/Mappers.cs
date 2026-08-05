@@ -240,6 +240,24 @@ public static partial class Mappers
 
     #endregion
 
+    #region NewsNode Mappers
+
+    public static LanguageBase ToNewsLanguage(this NewsNodeConfig config)
+    {
+        return new LanguageBase(config.title, config.description);
+    }
+
+    public static NewsNode ToNewsNode(this NewsNodeConfig config)
+    {
+        var newsNode = ScriptableObject.CreateInstance<NewsNode>();
+        newsNode.name = config.label;
+        newsNode.label = config.label;
+        newsNode.debugLabel = config.debugLabel ?? config.label ?? "";
+        return newsNode;
+    }
+
+    #endregion
+
     #region EventNode Mappers
 
     public static EventNode ToEventNode(this EventNodeConfig config)

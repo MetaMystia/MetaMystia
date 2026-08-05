@@ -172,6 +172,7 @@ public class ResourceConfig
     public List<ClothConfig> clothes { get; set; }
     public List<MissionNodeConfig> missionNodes { get; set; }
     public List<EventNodeConfig> eventNodes { get; set; }
+    public List<NewsNodeConfig> newsNodes { get; set; }
     public List<MerchantConfig> merchants { get; set; }
 }
 
@@ -339,6 +340,14 @@ public class EventNodeConfig
     public List<MissionRewardConfig> postRewards { get; set; }
     public List<string> postMissionsAfterPerformance { get; set; }
     public List<string> postEvents { get; set; }
+}
+
+public class NewsNodeConfig
+{
+    public string label { get; set; }
+    public string debugLabel { get; set; }
+    public string title { get; set; }
+    public string description { get; set; }
 }
 
 public class DayConfig

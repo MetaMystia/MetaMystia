@@ -142,6 +142,7 @@ public static class ResourceExCommands
         if (config?.dialogPackages?.Count > 0) parts.Add($"Dialogs: {config.dialogPackages.Count}");
         if (config?.missionNodes?.Count > 0) parts.Add($"Missions: {config.missionNodes.Count}");
         if (config?.eventNodes?.Count > 0) parts.Add($"Events: {config.eventNodes.Count}");
+        if (config?.newsNodes?.Count > 0) parts.Add($"News: {config.newsNodes.Count}");
         if (config?.merchants?.Count > 0) parts.Add($"Merchants: {config.merchants.Count}");
         if (config?.clothes?.Count > 0) parts.Add($"Clothes: {config.clothes.Count}");
 
