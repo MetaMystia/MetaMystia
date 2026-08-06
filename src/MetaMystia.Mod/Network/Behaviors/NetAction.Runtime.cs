@@ -77,13 +77,13 @@ internal static class NetActionRuntime
             });
         }
 
-        if (action is RoomEnterAction roomEnter)
+        if (action is RoomAssignAction roomAssign)
         {
             return System.Text.Json.JsonSerializer.Serialize(new
             {
-                RoomId = MpSession.FormatRoomId(roomEnter.Self?.RoomId ?? MpConstants.PublicRoomId),
-                SelfUid = roomEnter.Self?.Uid,
-                ExistingCount = (roomEnter.ExistingMembers ?? []).Length,
+                RoomId = MpSession.FormatRoomId(roomAssign.Self?.RoomId ?? MpConstants.PublicRoomId),
+                SelfUid = roomAssign.Self?.Uid,
+                ExistingCount = (roomAssign.ExistingMembers ?? []).Length,
             });
         }
 
@@ -112,7 +112,7 @@ internal static class NetActionRuntime
     private static LogLevel ReceiveLogLevel(NetAction action) => action switch
     {
         PingAction or PongAction or DayMoveSyncAction or NightMoveSyncAction => LogLevel.Debug,
-        HelloAction or HelloAckAction or RoomEnterAction or MessageAction or PublicPlayerUpsertAction or PeerLeaveAction or BuffAction => LogLevel.Message,
+        HelloAction or HelloAckAction or RoomAssignAction or MessageAction or PublicPlayerUpsertAction or PeerLeaveAction or BuffAction => LogLevel.Message,
         RejectAction => LogLevel.Warning,
         _ => LogLevel.Info,
     };

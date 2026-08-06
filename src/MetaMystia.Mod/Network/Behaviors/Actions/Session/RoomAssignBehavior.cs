@@ -4,15 +4,15 @@ using MetaMystia.UI;
 namespace MetaMystia.Network;
 
 [NetActionBehavior]
-internal static class RoomEnterBehavior
+internal static class RoomAssignBehavior
 {
     public static void Register(NetActionDispatcher dispatcher)
     {
-        dispatcher.Register<RoomEnterAction>(Handle,
+        dispatcher.Register<RoomAssignAction>(Handle,
             receiveScope: NetReceiveScope.ClientOnly);
     }
 
-    private static void Handle(RoomEnterAction action)
+    private static void Handle(RoomAssignAction action)
     {
         if (action.SenderUid != MpConstants.HostUid)
             return;

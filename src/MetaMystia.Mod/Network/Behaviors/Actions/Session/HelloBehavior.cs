@@ -105,7 +105,7 @@ internal static class HelloBehavior
         var existing = new[] { PlayerManager.Local.ToFullData() }
             .Concat(PlayerManager.RoomPeers.Where(p => p.Uid != player.Uid).Select(p => p.ToFullData()))
             .ToArray();
-        new RoomEnterAction
+        new RoomAssignAction
         {
             SenderUid = MpConstants.HostUid,
             Self = player,

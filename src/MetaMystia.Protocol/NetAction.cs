@@ -10,7 +10,7 @@ namespace MetaMystia.Network;
 [MemoryPackUnion((ushort)ActionType.Pong, typeof(PongAction))]
 [MemoryPackUnion((ushort)ActionType.Hello, typeof(HelloAction))]
 [MemoryPackUnion((ushort)ActionType.HelloAck, typeof(HelloAckAction))]
-[MemoryPackUnion((ushort)ActionType.RoomEnter, typeof(RoomEnterAction))]
+[MemoryPackUnion((ushort)ActionType.RoomAssign, typeof(RoomAssignAction))]
 [MemoryPackUnion((ushort)ActionType.JoinRoomRequest, typeof(JoinRoomRequestAction))]
 [MemoryPackUnion((ushort)ActionType.LeaveRoom, typeof(LeaveRoomAction))]
 [MemoryPackUnion((ushort)ActionType.RoomKick, typeof(RoomKickAction))]

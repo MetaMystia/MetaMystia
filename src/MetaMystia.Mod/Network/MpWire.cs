@@ -391,7 +391,7 @@ public static partial class MpWire
     private static bool IsEndpointOnly(NetAction action) =>
         action is ServerInfoReplyAction
             or HelloAckAction
-            or RoomEnterAction
+            or RoomAssignAction
             or RoomKickAction
             or RejectAction
             or PongAction

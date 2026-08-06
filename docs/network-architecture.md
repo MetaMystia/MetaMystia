@@ -54,13 +54,13 @@
 3. 端点返回 `ServerInfoReplyAction`，声明游戏版本、Mod 版本和 `ServerMode`。
 4. 客户端确认版本和模式后发送 `HelloAction`。
 5. 端点返回 `HelloAckAction`，分配 UID 并下发全服轻量玩家表。
-6. Direct 模式继续返回 `RoomEnterAction`，客户端进入直连房间。
+6. Direct 模式继续返回 `RoomAssignAction`，客户端进入直连房间。
 7. Relay 模式先进入公域，之后通过 `CreateRoomRequestAction` 或 `JoinRoomRequestAction` 请求进入房间。
 
 房间和公域成员变化使用增量 Action：
 
 - `PublicPlayerUpsertAction` 更新公域轻量玩家记录。
-- `RoomEnterAction` 向进房者下发自身身份和现有成员全量表。
+- `RoomAssignAction` 向进房者下发自身身份和现有成员全量表。
 - `RoomNewPlayerJoinedAction`、`RoomMemberLeaveAction` 更新房间成员。
 - `RoomKickAction` 使 Relay 客户端退回公域；Direct 踢出使用断开连接。
 - `PeerLeaveAction` 用于直连端点通告连接离开。
