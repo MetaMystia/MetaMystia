@@ -61,7 +61,7 @@
 
 - `PublicPlayerUpsertAction` 更新公域轻量玩家记录。
 - `RoomEnterAction` 向进房者下发自身身份和现有成员全量表。
-- `RoomMemberJoinAction`、`RoomMemberLeaveAction` 更新房间成员。
+- `RoomNewPlayerJoinedAction`、`RoomMemberLeaveAction` 更新房间成员。
 - `RoomKickAction` 使 Relay 客户端退回公域；Direct 踢出使用断开连接。
 - `PeerLeaveAction` 用于直连端点通告连接离开。
 

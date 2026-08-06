@@ -397,7 +397,7 @@ public static partial class MpWire
             or PongAction
             or PeerLeaveAction
             or PublicPlayerUpsertAction
-            or RoomMemberJoinAction
+            or RoomNewPlayerJoinedAction
             or RoomMemberLeaveAction;
 
     private static void OnEndpointClientLeft(int uid)

@@ -16,7 +16,7 @@ public enum ActionType : ushort
     CreateRoomRequest,
     LeaveRoom,
     RoomEnter,
-    RoomMemberJoin,
+    RoomNewPlayerJoined,
     RoomMemberLeave,
     RoomKick,
 

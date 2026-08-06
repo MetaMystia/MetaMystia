@@ -114,7 +114,7 @@ internal static class HelloBehavior
         }.Enqueue();
         foreach (var member in PlayerManager.RoomPeers.Where(p => p.Uid != player.Uid))
         {
-            new RoomMemberJoinAction
+            new RoomNewPlayerJoinedAction
             {
                 SenderUid = MpConstants.HostUid,
                 Joined = player,

@@ -4,15 +4,15 @@ using MetaMystia.UI;
 namespace MetaMystia.Network;
 
 [NetActionBehavior]
-internal static class RoomMemberJoinBehavior
+internal static class RoomNewPlayerJoinedBehavior
 {
     public static void Register(NetActionDispatcher dispatcher)
     {
-        dispatcher.Register<RoomMemberJoinAction>(Handle,
+        dispatcher.Register<RoomNewPlayerJoinedAction>(Handle,
             receiveScope: NetReceiveScope.ClientOnly);
     }
 
-    private static void Handle(RoomMemberJoinAction action)
+    private static void Handle(RoomNewPlayerJoinedAction action)
     {
         if (action.SenderUid != MpConstants.HostUid)
             return;

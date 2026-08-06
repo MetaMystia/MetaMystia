@@ -15,7 +15,7 @@ namespace MetaMystia.Network;
 [MemoryPackUnion((ushort)ActionType.LeaveRoom, typeof(LeaveRoomAction))]
 [MemoryPackUnion((ushort)ActionType.RoomKick, typeof(RoomKickAction))]
 [MemoryPackUnion((ushort)ActionType.PublicPlayerUpsert, typeof(PublicPlayerUpsertAction))]
-[MemoryPackUnion((ushort)ActionType.RoomMemberJoin, typeof(RoomMemberJoinAction))]
+[MemoryPackUnion((ushort)ActionType.RoomNewPlayerJoined, typeof(RoomNewPlayerJoinedAction))]
 [MemoryPackUnion((ushort)ActionType.RoomMemberLeave, typeof(RoomMemberLeaveAction))]
 [MemoryPackUnion((ushort)ActionType.CreateRoomRequest, typeof(CreateRoomRequestAction))]
 [MemoryPackUnion((ushort)ActionType.Reject, typeof(RejectAction))]
