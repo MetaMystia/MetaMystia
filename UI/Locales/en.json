@@ -238,5 +238,18 @@
     "LiveModeOff": "Live mode: OFF",
     "LiveModePartial": "Live mode: PARTIAL (IDs masked, chat bar locked, untrusted zone outlined)",
     "LiveModeFull": "Live mode: FULL (IDs and chat masked)",
-    "LivePartialReminder": "Live PARTIAL: chat area is not fully trusted — add a mosaic overlay in your streaming software. Chat bar position and size cannot be changed while live mode is on; use /live off to disable live mode if you need to adjust the chat bar."
+    "LivePartialReminder": "Live PARTIAL: chat area is not fully trusted — add a mosaic overlay in your streaming software. Chat bar position and size cannot be changed while live mode is on; use /live off to disable live mode if you need to adjust the chat bar.",
+    "Spell_Daiyousei_BuffName": "",
+    "Spell_Daiyousei_BuffDesc": "",
+    "Spell_Daiyousei_NameRed": "",
+    "Spell_Daiyousei_DescRed": "",
+    "Spell_Daiyousei_NameBlack": "",
+    "Spell_Daiyousei_DescBlack": "",
+    "Spell_Daiyousei_SummonFriend": "",
+    "Spell_Daiyousei_SummonKeine": "",
+    "Spell_Daiyousei_GrantFruit": "",
+    "Spell_Shinki_BuffName": "",
+    "Spell_Shinki_BuffDesc": "",
+    "Spell_Koakuma_BuffName": "",
+    "Spell_Koakuma_BuffDesc": ""
 }

@@ -12,6 +12,7 @@ using GameData.Profile;
 using MetaMystia.ConsoleSystem;
 using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.Models;
+using MetaMystia.ResourceEx.SpellCollection;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -71,6 +72,8 @@ public static partial class ResourceExManager
 
     public static void Initialize()
     {
+        SpellHelper.ResetCutinState();
+        SpellHelper.ResetBuffDelegateState();
         LoadAllResourcePackages();
     }
 

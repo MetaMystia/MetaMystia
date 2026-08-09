@@ -97,6 +97,21 @@ public static partial class GuestsMap
     }
 
     /// <summary>
+    /// 返回注册表中所有客人 FSM 的快照副本（runtimeId 与 FSM 的键值对列表）。
+    /// 返回副本而非底层字典引用，避免调用方在遍历期间因 StoreGuest/Remove 修改字典而引发集合变更异常。
+    /// </summary>
+    /// <returns>包含所有已注册客人 FSM 的列表（非空）。</returns>
+    public static List<(int runtimeId, GuestFSM fsm)> GetAllGuestsSnapshot()
+    {
+        var snapshot = new List<(int, GuestFSM)>(_allGuests.Count);
+        foreach (var kvp in _allGuests)
+        {
+            snapshot.Add((kvp.Key, kvp.Value));
+        }
+        return snapshot;
+    }
+
+    /// <summary>
     /// 从注册表移除某个 RuntimeId 对应的 FSM。
     /// 用于 FallBack / GuestKill 等终态清理后释放槽位，防止后续 hook 命中僵尸 FSM 导致二次 FallBack。
     /// </summary>
