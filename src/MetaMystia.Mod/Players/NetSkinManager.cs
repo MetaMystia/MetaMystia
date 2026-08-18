@@ -151,7 +151,7 @@ public static partial class NetSkinManager
         if (File.Exists(cachedPath))
         {
             Log.Info($"NetSkin：从磁盘缓存加载 「{name}」");
-            PluginManager.Instance.RunOnMainThread(() =>
+            PluginManager.RunOnMainThread(() =>
             {
                 bool ok = TryParseAndRegister(name, File.ReadAllBytes(cachedPath));
                 FinishRequest(name, ok);
@@ -203,7 +203,7 @@ public static partial class NetSkinManager
                 return;
 
             Log.Info($"NetSkin：服务端 「{name}」 已更新，重新加载");
-            PluginManager.Instance.RunOnMainThread(() =>
+            PluginManager.RunOnMainThread(() =>
             {
                 if (TryParseAndRegister(name, bytes))
                     RefreshPlayersUsingSkin(name);
@@ -256,7 +256,7 @@ public static partial class NetSkinManager
         TryWriteDiskCache(name, payload, etag, "写入磁盘缓存");
 
         // 主线程解析
-        PluginManager.Instance.RunOnMainThread(() =>
+        PluginManager.RunOnMainThread(() =>
         {
             bool parsed = TryParseAndRegister(name, payload);
             FinishRequest(name, parsed);
@@ -265,7 +265,7 @@ public static partial class NetSkinManager
 
     private static void FinishOnMainThread(string name, bool ok)
     {
-        PluginManager.Instance.RunOnMainThread(() => FinishRequest(name, ok));
+        PluginManager.RunOnMainThread(() => FinishRequest(name, ok));
     }
 
     private static void FinishRequest(string name, bool ok)

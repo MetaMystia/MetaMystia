@@ -39,7 +39,7 @@ public partial class IzakayaConfigPannelPatch
         //     但是还会附带检查除去不合法的 厨具 选项
         //     如果在联机中直接调用该方法，可能会导致 厨具 选项出现不同步的问题
         //     因此这里做了一个补丁，强制在调用 GoToSpecific 之后再重新更新厨具选项
-        PluginManager.Instance.RunOnMainThread(() =>
+        PluginManager.RunOnMainThread(() =>
         {
             PrepSceneManager.UpdateCookers();
             PrepSceneManager.UpdateUI();

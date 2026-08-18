@@ -49,7 +49,7 @@ public class Plugin : BasePlugin
         Log.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
         try
         {
-            ClassInjector.RegisterTypeInIl2Cpp<PluginManager>();
+            ClassInjector.RegisterTypeInIl2Cpp<PluginHost>();
             Log.LogInfo("Registered C# Types in Il2Cpp");
         }
         catch (Exception ex)
@@ -106,13 +106,13 @@ public class Plugin : BasePlugin
         [HarmonyPostfix]
         static void Handle()
         {
-            if (PluginManager.Instance == null)
+            if (PluginHost.Instance == null)
             {
                 Instance.Log.LogMessage("Bootstrapping Trainer...");
                 try
                 {
-                    PluginManager.Create("PluginManager");
-                    if (PluginManager.Instance != null)
+                    PluginHost.Create("MetaMystiaHost");
+                    if (PluginHost.Instance != null)
                     {
                         Instance.Log.LogMessage("Trainer Bootstrapped!");
                     }

@@ -385,11 +385,8 @@ namespace MetaMystia.Debugger
 
         private async Task<T> RunOnMainThreadAsync<T>(Func<T> func)
         {
-            if (PluginManager.Instance == null)
-                throw new InvalidOperationException("PluginManager not initialized");
-
             var tcs = new TaskCompletionSource<T>();
-            PluginManager.Instance.RunOnMainThread(() =>
+            PluginManager.RunOnMainThread(() =>
             {
                 try { tcs.SetResult(func()); }
                 catch (Exception ex) { tcs.SetException(ex); }

@@ -315,9 +315,9 @@ public static partial class MpWire
     private static void OnWirePeerLeft(int uid)
     {
         if (Session.IsRoomHost && uid != Session.HostUid)
-            PluginManager.Instance?.RunOnMainThread(() => OnHostClientLeft(uid));
+            PluginManager.RunOnMainThread(() => OnHostClientLeft(uid));
         else if (Session.IsRoomClient)
-            PluginManager.Instance?.RunOnMainThread(OnClientDisconnected);
+            PluginManager.RunOnMainThread(OnClientDisconnected);
     }
 
     // 仅执行已反序列化 Action 的 OnReceived（Unity / PlayerManager）；转发已在 OnWirePacket（IO 线程）完成。

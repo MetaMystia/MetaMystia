@@ -1,22 +1,17 @@
-using BepInEx.Unity.IL2CPP.Utils;
-using Il2CppInterop.Runtime;
-using Il2CppInterop.Runtime.Attributes;
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using UnityEngine;
 
-using Common.UI;
-
 using MetaMystia.UI;
-using SgrYuki;
 
 namespace MetaMystia;
 
+/// <summary>
+/// 模组静态业务入口（与其他 Manager 一致）。帧循环驱动见 <see cref="PluginHost"/>。
+/// </summary>
 [AutoLog]
-public partial class PluginManager : MonoBehaviour
+public static partial class PluginManager
 {
-    public static PluginManager Instance { get; private set; }
     public static string Label
     {
         get
@@ -28,72 +23,44 @@ public partial class PluginManager : MonoBehaviour
     }
     public static Debugger.WebDebugger Debugger;
     public static bool IsStatusVisible { get; private set; } = true;
-    private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
+    private static readonly ConcurrentQueue<Action> _mainThreadQueue = new();
     public static bool DEBUG => ConfigManager.Debug.Value;
 
-    public PluginManager(IntPtr ptr) : base(ptr)
+    /// <summary>
+    /// 跨线程入队到主线程执行（由 <see cref="PluginHost"/> 每帧泵出）。
+    /// </summary>
+    public static void RunOnMainThread(Action action) => _mainThreadQueue.Enqueue(action);
+
+    /// <summary>
+    /// 泵出主线程队列，由 <see cref="PluginHost"/>.Update 每帧调用。
+    /// </summary>
+    public static void TickMainThreadQueue()
     {
-        if (Instance != null)
+        while (_mainThreadQueue.TryDequeue(out var action))
         {
-            Log.LogWarning($"Another instance of PluginManager already exists! Destroying this one.");
-            Destroy(this);
-            return;
-        }
-        Instance = this;
-    }
-
-    internal static GameObject Create(string name)
-    {
-        var gameObject = new GameObject(name);
-        DontDestroyOnLoad(gameObject);
-
-        gameObject.AddComponent(Il2CppType.Of<PluginManager>());
-
-        return gameObject;
-    }
-
-    private void Awake()
-    {
-        InGameConsole.Initialize();
-        ResourceExManager.FlushPendingConsoleLogs();
-    }
-
-    [HideFromIl2Cpp]
-    public Coroutine StartManagedCoroutine(IEnumerator routine) => MonoBehaviourExtensions.StartCoroutine(this, routine);
-
-    private void OnGUI()
-    {
-        InGameConsole.OnGUI();
-        PlayerListPanel.OnGUI();
-
-        if (IsStatusVisible)
-        {
-            var info = new System.Text.StringBuilder();
-            info.AppendLine(Label);
-            info.AppendLine(MpManager.BriefStatus);
-            GUI.Label(new Rect(10, Screen.height - 50, 600, 50), info.ToString());
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                Log.LogError($"Error executing on main thread: {e.Message}\n{e.StackTrace}");
+            }
         }
     }
 
-    private void Update()
+    /// <summary>
+    /// 每帧快捷键处理，由 <see cref="PluginHost"/>.Update 调用。
+    /// </summary>
+    public static void HandleShortcuts()
     {
-        UpdateRunOnMainThreadQueue();
-        Network.MpWire.FlushInbox();
-        MpManager.RefreshInStoryCache();
-        GuestsMap.TickAllPending();
-
-        InGameConsole.Update();
-        PlayerListPanel.Update();
-
         if (Input.GetKeyDown(ConfigManager.KeyToggleLog.Value)) // KeyCode.RightShift
         {
             Log.LogInfo($"\n");
         }
         if (Input.GetKeyDown(ConfigManager.KeyToggleStatus.Value)) // KeyCode.Backslash
         {
-            IsStatusVisible = !IsStatusVisible;
-            Log.LogMessage($"Toggled text visibility: " + IsStatusVisible);
-            FloatingTextHelper.SetLabelsVisible(IsStatusVisible && MpManager.CanSeeOnlinePlayers);
+            ToggleStatusVisibility();
         }
 
         if (DEBUG)
@@ -121,44 +88,23 @@ public partial class PluginManager : MonoBehaviour
         }
     }
 
-    [HideFromIl2Cpp]
-    private void UpdateRunOnMainThreadQueue()
+    /// <summary>
+    /// 绘制状态条，由 <see cref="PluginHost"/>.OnGUI 调用。
+    /// </summary>
+    public static void DrawStatusOverlay()
     {
-        while (_mainThreadQueue.TryDequeue(out var action))
-        {
-            try
-            {
-                action();
-            }
-            catch (Exception e)
-            {
-                Log.LogError($"Error executing on main thread: {e.Message}\n{e.StackTrace}");
-            }
-        }
+        if (!IsStatusVisible) return;
+
+        var info = new System.Text.StringBuilder();
+        info.AppendLine(Label);
+        info.AppendLine(MpManager.BriefStatus);
+        GUI.Label(new Rect(10, Screen.height - 50, 600, 50), info.ToString());
     }
 
-    [HideFromIl2Cpp]
-    public void RunOnMainThread(Action action) => _mainThreadQueue.Enqueue(action);
-
-    private void FixedUpdate()
+    private static void ToggleStatusVisibility()
     {
-        CommandScheduler.Tick();
-
-        switch (MpManager.LocalScene)
-        {
-            case Scene.DayScene:
-                PlayerManager.OnFixedUpdate();
-                break;
-            case Scene.WorkScene:
-                PlayerManager.OnFixedUpdate();
-                break;
-            default:
-                break;
-        }
-    }
-
-    private void OnDestroy()
-    {
-        StopAllCoroutines();
+        IsStatusVisible = !IsStatusVisible;
+        Log.LogMessage($"Toggled text visibility: " + IsStatusVisible);
+        FloatingTextHelper.SetLabelsVisible(IsStatusVisible && MpManager.CanSeeOnlinePlayers);
     }
 }

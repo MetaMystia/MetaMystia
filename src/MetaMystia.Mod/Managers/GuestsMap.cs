@@ -110,7 +110,7 @@ public static partial class GuestsMap
 
     /// <summary>
     /// 兜底：在没有任何 To/Enqueue 触发的帧上仍能让超时项过期。
-    /// 由 PluginManager.Update 每帧调用。
+    /// 由 PluginHost.Update 每帧调用。
     /// </summary>
     public static void TickAllPending()
     {

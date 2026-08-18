@@ -81,8 +81,8 @@ public static class Il2CppInteropPatcher
             return;
 
         var message = TextId.Il2CppInteropPatchedRestartRequired.Get();
-        if (PluginManager.Instance != null)
-            PluginManager.Instance.StartManagedCoroutine(InteropRestartReminderLoop(message));
+        if (PluginHost.Instance != null)
+            PluginHost.Instance.StartManagedCoroutine(InteropRestartReminderLoop(message));
         else
             InGameConsole.LogAlert(message);
     }

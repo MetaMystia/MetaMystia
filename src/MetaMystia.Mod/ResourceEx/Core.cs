@@ -39,7 +39,7 @@ public static partial class ResourceExManager
 
     /// <summary>
     /// Flush pending resource pack load messages to InGameConsole's deferred queue.
-    /// Call once after InGameConsole.Initialize() (e.g. PluginManager.Awake).
+    /// Call once after InGameConsole.Initialize() (e.g. PluginHost.Awake).
     /// </summary>
     public static void FlushPendingConsoleLogs()
     {

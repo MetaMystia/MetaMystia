@@ -844,7 +844,7 @@ public static partial class InGameConsole
 
     /// <summary>Replaces Notify.ShowOnMainThread — dispatches to main thread, then logs gold event.</summary>
     public static void ShowPassiveFromAnyThread(string text)
-        => PluginManager.Instance.RunOnMainThread(() => ShowPassive(text));
+        => PluginManager.RunOnMainThread(() => ShowPassive(text));
 
     /// <summary>Log a green success message.</summary>
     public static void LogSuccess(string text)

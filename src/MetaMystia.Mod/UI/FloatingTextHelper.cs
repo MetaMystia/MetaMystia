@@ -237,11 +237,11 @@ public static partial class FloatingTextHelper
 
     public static void ShowFloatingTextOnMainThread(Common.CharacterUtility.CharacterControllerUnit component, string Message)
     {
-        PluginManager.Instance.RunOnMainThread(() => ShowFloatingText(component, Message));
+        PluginManager.RunOnMainThread(() => ShowFloatingText(component, Message));
     }
 
     public static void ShowFloatingTextSelfOnMainThread(string Message)
     {
-        PluginManager.Instance.RunOnMainThread(() => ShowFloatingTextSelf(Message));
+        PluginManager.RunOnMainThread(() => ShowFloatingTextSelf(Message));
     }
 }
