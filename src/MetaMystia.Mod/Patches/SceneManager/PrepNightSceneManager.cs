@@ -15,5 +15,6 @@ public partial class PrepNightSceneManagerPatch
     {
         MpManager.OnSceneTransit(Scene.IzakayaPrepScene);
         PrepSceneManager.Initialize();
+        PrepSceneManager.FlushBufferedTables();
     }
 }

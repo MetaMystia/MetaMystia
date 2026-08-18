@@ -27,7 +27,31 @@ public static partial class PrepSceneManager
         GameData.RunTime.Common.StatusTracker.Instance.partners.Clear();
     }
 
-    public static void ClearPrepTable() => localPrepTable = new UpdatePrepAction.Table();
+    /// <summary>Day→Prep 转场窗口期缓存的 Prep 表，进入 PrepScene 后由 <see cref="FlushBufferedTables"/> 重放。</summary>
+    private static readonly List<UpdatePrepAction.Table> bufferedPrepTables = new();
+
+    /// <summary>缓存转场窗口期收到的 Prep 表（仅 Day→Prep 过渡期由 UpdatePrepAction 调用）。</summary>
+    public static void BufferPrepTable(UpdatePrepAction.Table prepTable)
+    {
+        if (prepTable == null) return;
+        bufferedPrepTables.Add(prepTable);
+        Log.LogInfo($"Buffered prep table for replay (pending: {bufferedPrepTables.Count})");
+    }
+
+    /// <summary>进入 PrepScene 后重放窗口期缓存的 Prep 表（LWW 合并，幂等）。</summary>
+    public static void FlushBufferedTables()
+    {
+        if (bufferedPrepTables.Count == 0) return;
+        Log.LogInfo($"Replaying {bufferedPrepTables.Count} buffered prep table(s)");
+        bufferedPrepTables.ForEach(MergeFromPeer);
+        bufferedPrepTables.Clear();
+    }
+
+    public static void ClearPrepTable()
+    {
+        localPrepTable = new UpdatePrepAction.Table();
+        bufferedPrepTables.Clear();
+    }
 
     public static UpdatePrepAction.Table GetLocalPrepTableSnapshot() => localPrepTable.Clone();
 

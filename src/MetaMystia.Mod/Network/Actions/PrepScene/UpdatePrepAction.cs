@@ -46,10 +46,21 @@ public partial class UpdatePrepAction : Action
     protected override bool OnSendLogOnlyAction => true;
     protected override bool OnReceiveLogOnlyAction => true;
 
-    [CheckScene(Common.UI.Scene.IzakayaPrepScene)]
     public override void OnReceivedDerived()
     {
-        PrepSceneManager.MergeFromPeer(PrepTable);
+        switch (MpManager.LocalScene)
+        {
+            case Common.UI.Scene.IzakayaPrepScene:
+                PrepSceneManager.MergeFromPeer(PrepTable);
+                break;
+            case Common.UI.Scene.DayScene:
+                // Day→Prep 转场窗口期缓存，进入 PrepScene 后由 PrepSceneManager.FlushBufferedTables 重放
+                PrepSceneManager.BufferPrepTable(PrepTable);
+                break;
+            default:
+                Log.LogInfo($"Discarded UpdatePrepAction in {MpManager.LocalScene}");
+                break;
+        }
     }
 
     public static void Send(Table prepTable) =>
