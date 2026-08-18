@@ -5,32 +5,34 @@ namespace MetaMystia.Network;
 [NetActionBehavior]
 internal static class RoomKickBehavior
 {
-    public static void Send(int targetUid, RejectReason reason, params string[] args) =>
+    public static void Send(int targetUid, ushort roomId, RoomKickReason reason) =>
         new RoomKickAction
         {
-            SenderUid = MpConstants.HostUid,
+            SenderUid = PlayerManager.Local.Uid,
+            TargetUid = targetUid,
+            RoomId = roomId,
             Reason = reason,
-            Args = args,
             WireTargetUid = targetUid,
         }.Enqueue();
 
     public static void Register(NetActionDispatcher dispatcher)
     {
-        dispatcher.Register<RoomKickAction>(Handle);
+        dispatcher.Register<RoomKickAction>(Handle,
+            receiveScope: NetReceiveScope.ClientOnly);
     }
 
     private static void Handle(RoomKickAction action)
     {
-        if (action.SenderUid != MpConstants.HostUid)
+        if (!MpManager.IsInRoom
+            || action.SenderUid != MpWire.Session.HostUid
+            || action.TargetUid != PlayerManager.Local.Uid
+            || action.RoomId != PlayerManager.Local.RoomId)
             return;
 
-        var reason = RejectBehavior.FormatReason(action.Reason, action.Args);
-        Plugin.Instance?.Log.LogWarning($"Kicked from room: {reason}");
-        InGameConsole.ShowPassiveFromAnyThread(reason);
+        Plugin.Instance?.Log.LogWarning($"Kicked from room: {action.Reason}");
+        InGameConsole.ShowPassiveFromAnyThread(TextId.KickedFromRoom.Get());
         if (!MpWire.Session.IsRelay)
         {
-            // direct 模式下 host 用 Reject(KickedFromServer) 踢人，client 不会收到 RoomKick；
-            // 此分支为防御性保留：若 direct client 意外收到 RoomKick，退化为断连。
             MpWire.DisconnectPeer();
             return;
         }

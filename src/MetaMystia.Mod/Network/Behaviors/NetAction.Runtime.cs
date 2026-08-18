@@ -113,7 +113,7 @@ internal static class NetActionRuntime
     {
         PingAction or PongAction or DayMoveSyncAction or NightMoveSyncAction => LogLevel.Debug,
         HelloAction or HelloAckAction or RoomAssignAction or MessageAction or PublicPlayerUpsertAction or PeerLeaveAction or BuffAction => LogLevel.Message,
-        RejectAction => LogLevel.Warning,
+        HandshakeRejectAction or RoomRequestRejectAction or ServerKickAction => LogLevel.Warning,
         _ => LogLevel.Info,
     };
 

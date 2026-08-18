@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -77,6 +78,7 @@ public static partial class MpManager
 #endif
 
     private static bool _inStory;
+    private static int _roomRequestGeneration;
     public static bool InStory => _inStory;
     public static bool IsGameplaySyncActive => IsRoomConnected && !InStory;
     public static bool ShouldSkipAction => !IsGameplaySyncActive;
@@ -135,9 +137,20 @@ public static partial class MpManager
         return MpWire.ConnectAsync(peerIp, port, stop_existed_server);
     }
 
-    public static void DisconnectPeer() => MpWire.DisconnectPeer();
+    public static void DisconnectPeer() => MpWire.LeaveServerAndDisconnect();
 
-    public static void DisconnectClient(int uid) => MpWire.DisconnectClient(uid);
+    public static void DisconnectClient(int uid)
+    {
+        if (!IsRoomHost || !PlayerManager.IsRoomPeer(uid))
+        {
+            MpWire.DisconnectClient(uid);
+            return;
+        }
+
+        RoomKickBehavior.Send(uid, PlayerManager.Local.RoomId, RoomKickReason.KickedByHost);
+        if (IsDirectHost)
+            MpWire.DisconnectClient(uid, notify: false, leaveReason: RoomLeaveReason.Kicked);
+    }
 
     public static bool LeaveRoom()
     {
@@ -162,7 +175,9 @@ public static partial class MpManager
     {
         if (!Session.IsRelay || !IsInPublicScope) return false;
         if (roomId == MpConstants.PublicRoomId || roomId == MpConstants.DirectRoomId) return false;
+        if (!Session.TryBeginRoomRequest()) return false;
         JoinRoomRequestBehavior.Send(roomId);
+        StartRoomRequestTimeout();
         return true;
     }
 
@@ -173,8 +188,31 @@ public static partial class MpManager
     public static bool CreateRelayRoom()
     {
         if (!Session.IsRelay || !IsInPublicScope) return false;
+        if (!Session.TryBeginRoomRequest()) return false;
         CreateRoomRequestBehavior.Send();
+        StartRoomRequestTimeout();
         return true;
+    }
+
+    private static void StartRoomRequestTimeout()
+    {
+        var generation = ++_roomRequestGeneration;
+        PluginManager.Instance?.StartManagedCoroutine(RoomRequestTimeout(generation));
+    }
+
+    internal static void EndRoomRequest()
+    {
+        Session.EndRoomRequest();
+        _roomRequestGeneration++;
+    }
+
+    private static IEnumerator RoomRequestTimeout(int generation)
+    {
+        yield return new UnityEngine.WaitForSeconds(10f);
+        if (generation != _roomRequestGeneration || !Session.RoomRequestPending) yield break;
+
+        Log.LogWarning("Room request timed out; closing the connection");
+        MpWire.DisconnectPeer();
     }
 
     public static bool TryParseRoomId(string text, out ushort roomId)

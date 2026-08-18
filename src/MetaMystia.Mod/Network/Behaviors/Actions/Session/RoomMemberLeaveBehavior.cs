@@ -13,7 +13,10 @@ internal static class RoomMemberLeaveBehavior
 
     private static void Handle(RoomMemberLeaveAction action)
     {
-        if (action.SenderUid != MpConstants.HostUid)
+        if (!MpWire.Session.IsRelay || action.SenderUid != MpConstants.HostUid)
+            return;
+
+        if (action.RoomId != PlayerManager.Local.RoomId)
             return;
 
         if (!PlayerManager.PlayerTable.TryGetValue(action.Uid, out var peer))
@@ -26,7 +29,7 @@ internal static class RoomMemberLeaveBehavior
         if (wasRoomPeer)
             PlayerManager.HidePeer(action.Uid);
 
-        if (action.Reason == RoomLeaveReason.Voluntary && wasRoomPeer)
+        if (wasRoomPeer)
             InGameConsole.ShowPassiveFromAnyThread(
                 TextId.PeerLeft.Get(LiveModeManager.GetDisplayName(action.Uid, peer.Id)));
     }

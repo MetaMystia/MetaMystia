@@ -16,5 +16,5 @@ internal static class JoinRoomRequestBehavior
     }
 
     private static void Handle(JoinRoomRequestAction action) =>
-        RejectBehavior.SendOnly(action.SenderUid, RejectReason.RoomRequestUnsupported);
+        RoomRequestRejectBehavior.Send(action.SenderUid, RoomRequestRejectReason.RoomRequestUnsupported);
 }

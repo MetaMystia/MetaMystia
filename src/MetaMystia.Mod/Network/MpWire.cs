@@ -114,7 +114,7 @@ public static partial class MpWire
         if (!_running) return;
         if (Session.TransportKind == TransportKind.DirectHost)
         {
-            RejectBehavior.BroadcastServerClosing();
+            ServerShutdownBehavior.Broadcast();
             FlushOutboundNow();
         }
         _running = false;
@@ -174,6 +174,17 @@ public static partial class MpWire
         }
     }
 
+    public static void LeaveServerAndDisconnect()
+    {
+        if (Session.TransportKind is (TransportKind.DirectClient or TransportKind.RelayClient)
+            && IsServerEndpointConnected)
+        {
+            LeaveServerBehavior.Send();
+            FlushOutboundNow();
+        }
+        DisconnectPeer();
+    }
+
     public static void DisconnectPeer()
     {
         if (!_running && Session.TransportKind == TransportKind.None) return;
@@ -198,15 +209,18 @@ public static partial class MpWire
         Log.LogMessage("[MpWire] Disconnected");
     }
 
-    public static void DisconnectClient(int uid, bool notify = true)
+    public static void DisconnectClient(
+        int uid,
+        bool notify = true,
+        RoomLeaveReason leaveReason = RoomLeaveReason.Kicked)
     {
         if (!MpManager.IsServerEndpoint) return;
         if (notify)
-            RejectBehavior.SendOnly(uid, RejectReason.KickedFromServer);
+            ServerKickBehavior.Send(uid, ServerKickReason.KickedByServer);
         FlushOutboundNow();
         _tcp?.DisconnectClient(uid);
         if (PlayerManager.PlayerTable.ContainsKey(uid))
-            OnEndpointClientLeft(uid);
+            OnEndpointClientLeft(uid, leaveReason);
     }
 
     // --- app send ---
@@ -352,7 +366,10 @@ public static partial class MpWire
     private static void OnWirePeerLeft(int uid)
     {
         if (Session.TransportKind == TransportKind.DirectHost && MpManager.IsServerEndpoint && uid != Session.HostUid)
-            PluginManager.Instance?.RunOnMainThread(() => OnEndpointClientLeft(uid));
+        {
+            if (PlayerManager.PlayerTable.ContainsKey(uid))
+                PluginManager.Instance?.RunOnMainThread(() => OnEndpointClientLeft(uid, RoomLeaveReason.Disconnected));
+        }
         else if (Session.TransportKind is TransportKind.DirectClient or TransportKind.RelayClient || Session.IsConnecting)
             PluginManager.Instance?.RunOnMainThread(OnClientDisconnected);
     }
@@ -393,27 +410,33 @@ public static partial class MpWire
             or HelloAckAction
             or RoomAssignAction
             or RoomKickAction
-            or RejectAction
+            or HandshakeRejectAction
+            or RoomRequestRejectAction
+            or ServerKickAction
+            or ServerShutdownAction
             or PongAction
             or PeerLeaveAction
             or PublicPlayerUpsertAction
             or RoomNewPlayerJoinedAction
-            or RoomMemberLeaveAction;
+            or RoomMemberLeaveAction
+            or LeaveRoomAction
+            or LeaveServerAction;
 
-    private static void OnEndpointClientLeft(int uid)
+    private static void OnEndpointClientLeft(int uid, RoomLeaveReason reason)
     {
+        if (!PlayerManager.PlayerTable.ContainsKey(uid))
+            return;
+
         if (PlayerManager.TryGetRoomPeer(uid, out var peer))
         {
             var displayName = LiveModeManager.GetDisplayName(uid, peer.Id);
             InGameConsole.ShowPassiveFromAnyThread(TextId.PeerLeft.Get(displayName));
-            PeerLeaveBehavior.Send(uid);
+            PeerLeaveBehavior.Send(uid, reason);
             PlayerManager.RemovePeer(uid);
             MpManager.CheckContinueAfterDisconnect(uid, displayName);
         }
         else
-        {
             MpManager.CheckContinueAfterDisconnect(uid, null);
-        }
     }
 
     private static void OnClientDisconnected()

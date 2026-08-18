@@ -13,5 +13,5 @@ internal static class CreateRoomRequestBehavior
     }
 
     private static void Handle(CreateRoomRequestAction action) =>
-        RejectBehavior.SendOnly(action.SenderUid, RejectReason.RoomRequestUnsupported);
+        RoomRequestRejectBehavior.Send(action.SenderUid, RoomRequestRejectReason.RoomRequestUnsupported);
 }

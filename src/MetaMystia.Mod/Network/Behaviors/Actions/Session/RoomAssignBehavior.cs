@@ -20,7 +20,8 @@ internal static class RoomAssignBehavior
         var self = action.Self;
         if (self == null)
         {
-            RejectBehavior.ShowAndDisconnect(RejectReason.Unknown);
+            Plugin.Instance?.Log.LogError("RoomAssignAction has no self player");
+            MpWire.DisconnectPeer();
             return;
         }
 
@@ -29,10 +30,12 @@ internal static class RoomAssignBehavior
             ?? (self.Role == WireRoomRole.Host ? self : null);
         if (host == null)
         {
-            RejectBehavior.ShowAndDisconnect(RejectReason.Unknown);
+            Plugin.Instance?.Log.LogError("RoomAssignAction has no room host");
+            MpWire.DisconnectPeer();
             return;
         }
 
+        MpManager.EndRoomRequest();
         bool wasInRoom = MpManager.IsInRoom;
 
         if (MpWire.Session.IsRelay)

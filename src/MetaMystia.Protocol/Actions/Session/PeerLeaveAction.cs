@@ -9,4 +9,5 @@ namespace MetaMystia.Network;
 public partial class PeerLeaveAction : NetAction
 {
     public int PeerUid { get; set; }
+    public RoomLeaveReason Reason { get; set; }
 }

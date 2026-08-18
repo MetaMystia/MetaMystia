@@ -13,6 +13,7 @@ public sealed class MpSession
     public TransportKind TransportKind { get; private set; } = TransportKind.None;
     public bool IsConnecting { get; private set; }
     public int HostUid { get; private set; } = MpConstants.UnassignedUid;
+    public bool RoomRequestPending { get; private set; }
 
     public bool IsOnline => TransportKind != TransportKind.None && !IsConnecting;
     public bool IsRelay => TransportKind == TransportKind.RelayClient;
@@ -24,6 +25,7 @@ public sealed class MpSession
         TransportKind = TransportKind.None;
         IsConnecting = false;
         HostUid = MpConstants.UnassignedUid;
+        RoomRequestPending = false;
     }
 
     public void BeginConnecting(TransportKind transportKind)
@@ -31,6 +33,7 @@ public sealed class MpSession
         TransportKind = transportKind;
         IsConnecting = true;
         HostUid = MpConstants.UnassignedUid;
+        RoomRequestPending = false;
     }
 
     public void EnterDirectHostRoom()
@@ -75,4 +78,13 @@ public sealed class MpSession
         }
         EnterRelayPublic();
     }
+
+    public bool TryBeginRoomRequest()
+    {
+        if (RoomRequestPending) return false;
+        RoomRequestPending = true;
+        return true;
+    }
+
+    public void EndRoomRequest() => RoomRequestPending = false;
 }

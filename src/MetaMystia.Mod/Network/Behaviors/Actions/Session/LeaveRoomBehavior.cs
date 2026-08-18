@@ -12,6 +12,5 @@ internal static class LeaveRoomBehavior
             receiveScope: NetReceiveScope.EndpointOnly);
     }
 
-    private static void Handle(LeaveRoomAction action) =>
-        RejectBehavior.SendOnly(action.SenderUid, RejectReason.RoomRequestUnsupported);
+    private static void Handle(LeaveRoomAction _) { }
 }

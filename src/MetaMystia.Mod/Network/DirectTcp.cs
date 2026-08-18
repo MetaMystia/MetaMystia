@@ -82,7 +82,7 @@ internal sealed class DirectTcp
         if (_isHost)
         {
             // 指定 targetUid 时只发给该连接；找不到则丢弃，不能退化为广播
-            // （RejectAction 等会在入队后立即 DisconnectClient，目标可能已离线）。
+            // （拒绝或踢出 Action 会在入队后立即断开，目标可能已离线）。
             if (targetUid is int uid)
             {
                 if (_clients.TryGetValue(uid, out var one))

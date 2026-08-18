@@ -28,14 +28,14 @@ internal static class HelloBehavior
         if (action.ModVersion != Plugin.ModVersion)
         {
             Plugin.Instance?.Log.LogError($"Mod version mismatch! Local: {Plugin.ModVersion}, Remote: {action.ModVersion}");
-            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.ModVersionMismatch);
+            HandshakeRejectBehavior.SendAndDisconnect(action.SenderUid, HandshakeRejectReason.ModVersionMismatch);
             return;
         }
 
         if (action.GameVersion != Plugin.GameVersion)
         {
             Plugin.Instance?.Log.LogError($"Game version mismatch! Local: {Plugin.GameVersion}, Remote: {action.GameVersion}");
-            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.GameVersionMismatch);
+            HandshakeRejectBehavior.SendAndDisconnect(action.SenderUid, HandshakeRejectReason.GameVersionMismatch);
             return;
         }
 
@@ -44,7 +44,7 @@ internal static class HelloBehavior
         {
             Plugin.Instance?.Log.LogWarning(
                 $"Rejecting connection from '{player?.PeerId}' (uid={action.SenderUid}): game resources not loaded");
-            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.GameResourcesNotLoaded);
+            HandshakeRejectBehavior.SendAndDisconnect(action.SenderUid, HandshakeRejectReason.GameResourcesNotLoaded);
             return;
         }
 
@@ -52,9 +52,8 @@ internal static class HelloBehavior
         {
             Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{player.PeerId}' (uid={action.SenderUid}): " +
                 $"reconnection not allowed in {MpManager.LocalScene}");
-            InGameConsole.ShowPassiveFromAnyThread(TextId.PrepWorkReconnectBlocked.Get(
-                LiveModeManager.GetDisplayName(action.SenderUid, player.PeerId)));
-            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.PrepWorkReconnectBlocked, player.PeerId);
+            InGameConsole.ShowPassiveFromAnyThread(TextId.PrepWorkReconnectBlocked.Get());
+            HandshakeRejectBehavior.SendAndDisconnect(action.SenderUid, HandshakeRejectReason.PrepWorkReconnectBlocked);
             return;
         }
 
@@ -62,11 +61,9 @@ internal static class HelloBehavior
         {
             Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{player.PeerId}' (uid={action.SenderUid}): " +
                 $"room full ({MpManager.OnlinePlayersCount}/{ConfigManager.MaxPlayers.Value})");
-            RejectBehavior.SendAndDisconnect(
+            HandshakeRejectBehavior.SendAndDisconnect(
                 action.SenderUid,
-                RejectReason.RoomFull,
-                MpManager.OnlinePlayersCount.ToString(),
-                ConfigManager.MaxPlayers.Value.ToString());
+                HandshakeRejectReason.ServerFull);
             InGameConsole.ShowPassiveFromAnyThread(TextId.RoomFullHostNotify.Get(
                 LiveModeManager.GetDisplayName(action.SenderUid, player.PeerId),
                 MpManager.OnlinePlayersCount,
@@ -78,7 +75,7 @@ internal static class HelloBehavior
         {
             Plugin.Instance?.Log.LogWarning(
                 $"Rejecting connection (uid={action.SenderUid}): invalid PeerId '{player.PeerId}'");
-            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.InvalidPlayerId);
+            HandshakeRejectBehavior.SendAndDisconnect(action.SenderUid, HandshakeRejectReason.InvalidPlayerId);
             return;
         }
 
@@ -86,7 +83,7 @@ internal static class HelloBehavior
         {
             Plugin.Instance?.Log.LogWarning($"Rejecting connection from '{player.PeerId}' (uid={action.SenderUid}): " +
                 "duplicate PeerId already online");
-            RejectBehavior.SendAndDisconnect(action.SenderUid, RejectReason.DuplicatePeerId, player.PeerId);
+            HandshakeRejectBehavior.SendAndDisconnect(action.SenderUid, HandshakeRejectReason.DuplicatePlayerId);
             InGameConsole.ShowPassiveFromAnyThread(TextId.DuplicatePeerIdHostNotify.Get(
                 LiveModeManager.GetDisplayName(action.SenderUid, player.PeerId)));
             return;

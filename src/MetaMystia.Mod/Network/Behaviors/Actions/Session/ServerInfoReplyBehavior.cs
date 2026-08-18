@@ -24,13 +24,13 @@ internal static class ServerInfoReplyBehavior
     {
         if (action.ModVersion != Plugin.ModVersion)
         {
-            RejectBehavior.ShowAndDisconnect(RejectReason.ModVersionMismatch);
+            HandshakeRejectBehavior.ShowAndDisconnect(HandshakeRejectReason.ModVersionMismatch);
             return;
         }
 
         if (action.GameVersion != Plugin.GameVersion)
         {
-            RejectBehavior.ShowAndDisconnect(RejectReason.GameVersionMismatch);
+            HandshakeRejectBehavior.ShowAndDisconnect(HandshakeRejectReason.GameVersionMismatch);
             return;
         }
 
@@ -46,7 +46,7 @@ internal static class ServerInfoReplyBehavior
                 HelloBehavior.Send();
                 break;
             default:
-                RejectBehavior.ShowAndDisconnect(RejectReason.UnsupportedServerMode);
+                HandshakeRejectBehavior.ShowAndDisconnect(HandshakeRejectReason.UnsupportedServerMode);
                 break;
         }
     }

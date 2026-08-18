@@ -62,10 +62,34 @@
 - `PublicPlayerUpsertAction` 更新公域轻量玩家记录。
 - `RoomAssignAction` 向进房者下发自身身份和现有成员全量表。
 - `RoomNewPlayerJoinedAction`、`RoomMemberLeaveAction` 更新房间成员。
-- `RoomKickAction` 使 Relay 客户端退回公域；Direct 踢出使用断开连接。
+- `RoomKickAction` 在 Relay 中使目标退回公域，在 Direct 中使目标断开连接。
 - `PeerLeaveAction` 用于直连端点通告连接离开。
 
-请求、端点确认、房间成员增量和公域增量具有不同语义，不得合并为一个含义不明确的 Action。
+请求、结果和成员增量具有不同语义，不得合并为一个含义不明确的 Action。
+
+## 控制面 Action
+
+控制流由 Action 类型决定，`Reason` 只描述原因，不改变状态迁移。
+
+| Action | 方向 | 字段 | 收到后的状态 |
+| --- | --- | --- | --- |
+| `HandshakeRejectAction` | 端点 -> 握手中的客户端 | `HandshakeRejectReason Reason` | 断开连接，进入 Offline |
+| `RoomRequestRejectAction` | 端点 -> 入房请求者 | `RoomRequestRejectReason Reason` | 保持当前公域状态 |
+| `LeaveRoomAction` | 客户端 -> 端点 | 无 | Relay：Room -> Public；Direct 不支持；不可拒绝 |
+| `LeaveServerAction` | 客户端 -> 端点 | 无 | 主动关闭连接；不可拒绝 |
+| `RoomKickAction` | 房主 -> 端点 -> 目标 | `TargetUid`、`RoomId`、`RoomKickReason Reason` | Relay：Room -> Public；Direct：断开连接 |
+| `ServerKickAction` | 端点 -> 目标 | `TargetUid`、`ServerKickReason Reason` | 断开连接 |
+| `ServerShutdownAction` | 端点 -> 全部客户端 | 无 | 全部断开连接 |
+| `RoomMemberLeaveAction` | 端点 -> 房间其他成员 | `Uid`、`RoomId`、`RoomLeaveReason Reason` | 移除房间成员投影 |
+| `PeerLeaveAction` | DirectHost -> 其他客机 | `PeerUid`、`RoomLeaveReason Reason` | 移除直连成员投影 |
+
+`RoomKickAction` 在 Relay 中由房主发往端点，端点校验权限、目标和房间归属后，向目标转发同一个 Action；DirectHost 直接向目标发送同一个 Action。目标不发送 ACK，端点另向其他成员发送 `RoomMemberLeaveAction` 或 `PeerLeaveAction`。
+
+`LeaveRoomAction`、`LeaveServerAction` 没有拒绝路径。异常断线由连接层处理，并按 `Disconnected` 原因更新成员投影。
+
+握手拒绝原因只描述握手失败，例如服务器满、版本不匹配或 ID 非法；入房失败使用独立的 `RoomRequestRejectAction`。
+
+同一连接最多有一个未完成的 `CreateRoomRequestAction` 或 `JoinRoomRequestAction`。客户端等待 `RoomAssignAction`、`RoomRequestRejectAction`、断线或超时；超时关闭当前连接，不携带 `RequestId`，也不得复用连接发送下一次入房请求。
 
 ## 收发链路
 
@@ -106,16 +130,8 @@ DirectTcp
 
 控制面 Action 不应添加 Relay 标记。修改端点专用 Action 时，还需检查 `MpWire.IsEndpointOnly()` 的防御性排除列表。
 
-## 协议兼容性
+## 协议变更
 
-当前没有独立协议版本。握手要求游戏版本和 Mod 版本匹配，但这不能代替序列化兼容性审查。
-
-修改共享协议时必须同时检查所有消费者，并遵循以下规则：
-
-- `ActionType` 只能追加，不能插入、重排或复用已有数值。
-- `MemoryPackUnion` 标签必须与 `ActionType` 一一对应。
-- 修改已有字段的类型、顺序或含义前，必须评估旧客户端、服务端和测试客户端的行为。
-- 协议变更必须同步更新发送方、接收方、DTO 转换和对应 Behavior。
-- 需要不兼容变更时，应同步发布所有消费者并更新 Mod 版本。
+当前协议尚未发布，不保留旧 Action、枚举值或兼容适配层。删除、重命名、重排或修改字段时，直接同步所有协议消费者、Behavior、Union 注册和测试。
 
 具体新增流程见 [`network-action-style.md`](network-action-style.md)。

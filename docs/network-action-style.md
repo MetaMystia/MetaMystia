@@ -85,7 +85,7 @@ public static void Register(NetActionDispatcher dispatcher)
 
 `BehaviorRegistryGenerator` 自动生成注册调用，不得手工维护 Behavior 清单。缺少合法 `Register()` 会触发 `MMNET001` 编译错误。
 
-不得插入、重排或复用已有 `ActionType` 数值。修改已有序列化成员的类型、顺序或含义前，必须评估协议兼容性并同步所有协议消费者。
+当前协议尚未发布，`ActionType` 和序列化成员可直接删除、重排或修改；必须同步所有协议消费者、Union 注册、Behavior 和测试，不保留兼容适配层。
 
 ## 发送
 
@@ -104,8 +104,24 @@ public static void Register(NetActionDispatcher dispatcher)
 - `WireTargetUid` 表示端点仅向指定 UID 下发。
 - `WireExceptUid` 表示端点广播时排除指定 UID。
 - `WireTargetUid` 和 `WireExceptUid` 不参与序列化，普通 Mod 客户端不能用它们绕过上行端点直接寻址其他客户端。
+- 控制面 Action 不使用 Relay 标记。`RoomKickAction` 由房主发往端点，端点校验后向 `TargetUid` 转发同一个 Action；`ServerKickAction` 和 `ServerShutdownAction` 由端点定向或广播。
 
 是否转发必须依据明确的消息方向和作用域决定。不得因为其他客户端可能需要而默认广播，也不得把 Relay 标记当作接收权限。
+
+## 控制面 Action
+
+Action 类型决定控制流，`Reason` 只描述原因。
+
+- `HandshakeRejectAction` 仅用于握手阶段。字段为 `HandshakeRejectReason Reason`；原因可描述服务器满、版本不匹配或 ID 非法，客户端收到后必须断开连接。
+- `RoomRequestRejectAction` 仅用于 `CreateRoomRequestAction` 和 `JoinRoomRequestAction` 失败。字段为 `RoomRequestRejectReason Reason`；客户端保持当前公域状态。
+- `LeaveRoomAction` 和 `LeaveServerAction` 无字段、无拒绝路径。前者仅在 Relay 中回到 Public，Direct 使用后者主动关闭连接。
+- `RoomKickAction` 携带 `TargetUid`、`RoomId` 和 `RoomKickReason Reason`。Relay 房主发送后，端点校验房主权限、目标和房间归属，再向目标转发同一个 Action；DirectHost 直接发送。目标不发送 ACK。
+- `ServerKickAction` 携带 `TargetUid` 和 `ServerKickReason Reason`，收到后关闭目标连接；`ServerShutdownAction` 无字段，收到后关闭所有连接。
+- `RoomMemberLeaveAction` 携带 `Uid`、`RoomId` 和 `RoomLeaveReason Reason`，供房间其他成员更新投影；`PeerLeaveAction` 携带 `PeerUid` 和 `RoomLeaveReason Reason`，仅用于 Direct。
+
+异常断线使用 `RoomLeaveReason.Disconnected` 更新成员投影，不伪造 Leave Action。
+
+同一连接最多一个未完成的 Create/Join 请求。客户端在收到 `RoomAssignAction`、`RoomRequestRejectAction` 或断线前禁止再次请求；超时关闭当前连接，后续重连再握手，不使用 `RequestId`。
 
 ## 发送者身份
 
@@ -135,7 +151,7 @@ public static void Register(NetActionDispatcher dispatcher)
 - 目标 UID、房间 ID、资源 ID 和运行时对象是否存在且匹配。
 - 状态迁移是否允许、消息是否重复、回声是否需要忽略。
 
-请求、房主裁定、权威结果和成员增量是不同语义，应使用不同 Action 或明确的 Behavior 路径表达。
+请求、拒绝、踢出和成员增量是不同语义，应使用不同 Action 表达；不得用 `Reason` 在同一 Action 内隐式切换控制流。
 
 ## 线程与时序
 
@@ -164,5 +180,7 @@ Action 收发日志由 `NetActionRuntime` 统一记录。Behavior 不得在每�
 - 消息方向、权威方、作用域和端点是否明确。
 - 接收范围与业务权限是否分别处理。
 - 是否正确选择 Relay、定向、排除或低优先级策略。
+- 握手拒绝、入房拒绝、离房、离服、房间踢出和服务器踢出是否使用正确的 Action。
+- 房间请求是否保持单飞、无 `RequestId`，并在超时后关闭连接。
 - 是否处理伪造发送者、回声、重复消息和对象不存在。
 - `Send()` 的调用线程是否安全，`Handle()` 是否保持主线程非阻塞。
