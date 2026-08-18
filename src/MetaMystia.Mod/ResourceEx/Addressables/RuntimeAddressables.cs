@@ -119,6 +119,10 @@ public static class RuntimeAddressables
 
         var guid = KeyToGuid(key);
 
+        // 重复注册通常是加载流程 bug（同一 key 注册两次）：旧资产会被静默替换，显式报错便于排查。
+        if (_knownGuids.Contains(guid))
+            _log.LogError($"Duplicate registration: key '{key}' (type {typeof(T).Name}) already registered; the previous asset will be replaced.");
+
         // Defensive: prevent unintended unload by Addressables / scene change.
         asset.hideFlags |= HideFlags.HideAndDontSave;
 
