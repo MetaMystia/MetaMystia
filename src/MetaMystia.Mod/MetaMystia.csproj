@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="MetaMystia.local.props" />
+  <Import Project="../../MetaMystia.local.props" />
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
@@ -44,48 +44,11 @@
     <EmbeddedResource Include="ResourceEx\AssetManagement\public.pem" />
     <EmbeddedResource Include="UI\Locales\en.json" />
     <EmbeddedResource Include="UI\Locales\zh-CN.json" />
-    <EmbeddedResource Remove="LogGenerator\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="MetaMystia.Generators\MetaMystia.Generators.csproj"
+    <ProjectReference Include="../MetaMystia.Generators\MetaMystia.Generators.csproj"
       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="Network\Protocol\**" />
-    <EmbeddedResource Remove="Network\Protocol\**" />
-    <None Remove="Network\Protocol\**" />
-    <Compile Remove="MetaMystia.Protocol\**" />
-    <EmbeddedResource Remove="MetaMystia.Protocol\**" />
-    <None Remove="MetaMystia.Protocol\**" />
-    <Compile Remove="MetaMystia.Generators\**" />
-    <EmbeddedResource Remove="MetaMystia.Generators\**" />
-    <None Remove="MetaMystia.Generators\**" />
-    <Compile Remove="LogGenerator\**" />
-    <None Remove="LogGenerator\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="MystiaReverse\**" />
-    <EmbeddedResource Remove="MystiaReverse\**" />
-    <None Remove="MystiaReverse\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="MetaMystia.Generators\**" />
-    <EmbeddedResource Remove="MetaMystia.Generators\**" />
-    <None Remove="MetaMystia.Generators\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="DebugImpl\**" />
-    <EmbeddedResource Remove="DebugImpl\**" />
-    <None Remove="DebugImpl\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="meta-mystia-network\**" />
-    <EmbeddedResource Remove="meta-mystia-network\**" />
-    <None Remove="meta-mystia-network\**" />
   </ItemGroup>
 
   <ItemGroup>
