@@ -205,13 +205,16 @@ public static partial class PlayerManager
             peer.ResetMotion();
             peer.SpawnForScene();
         }
-        // 为本地玩家也添加头顶标签（等 Local unit 初始化后）
-        SgrYuki.CommandScheduler.Enqueue(
-            executeWhen: () => Local.unit != null,
-            execute: () => UI.FloatingTextHelper.SetPlayerLabel(
-                Local.Uid, LiveModeManager.GetDisplayName(Local.Uid), Local.unit.transform),
-            timeoutSeconds: 30
-        );
+        // 为本地玩家也添加头顶标签（等 Local unit 初始化后；仅在联机时创建）
+        if (MpManager.CanSeeOnlinePlayers)
+        {
+            SgrYuki.CommandScheduler.Enqueue(
+                executeWhen: () => Local.unit != null,
+                execute: () => UI.FloatingTextHelper.SetPlayerLabel(
+                    Local.Uid, LiveModeManager.GetDisplayName(Local.Uid), Local.unit.transform),
+                timeoutSeconds: 30
+            );
+        }
         Log.LogInfo($"PlayerManager peers spawned (peers: {Peers.Count})");
     }
 

@@ -119,7 +119,7 @@ public static partial class FloatingTextHelper
         tmp.text = displayName;
         ApplyStyle(tmp, 3.5f, new Color(1f, 1f, 0.7f, 0.85f));
 
-        go.SetActive(PluginManager.IsStatusVisible);
+        go.SetActive(PluginManager.IsStatusVisible && MpManager.CanSeeOnlinePlayers);
         playerLabels[uid] = go;
     }
 
