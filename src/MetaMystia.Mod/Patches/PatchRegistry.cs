@@ -7,6 +7,9 @@ namespace MetaMystia.Patch;
 public static partial class PatchRegistry
 {
     public static readonly Type[] Patches = [
+        // Launch
+        typeof(SteamPlatformProfilePatch),
+
         // SceneManager Patches
         typeof(MainSceneManagerPatch),
         typeof(DaySceneManagerPatch),
