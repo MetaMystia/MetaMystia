@@ -24,6 +24,9 @@ public class Plugin : BasePlugin
 
     public static bool AllPatched => PatchRegistry.AllPatched;
 
+    /// <summary>当前激活的 DLC（Core 恒激活），由 SteamPlatformProfile.GetActiveKeys 记录。</summary>
+    public static DlcPack DlcFlags { get; internal set; } = DlcPack.Core;
+
     public Plugin()
     {
         Instance = this;
@@ -39,6 +42,14 @@ public class Plugin : BasePlugin
         {
             Log.LogWarning("MetaMystia Debug mode is enabled.");
             InGameConsole.LogToConsole("<color=#FFAA44>MetaMystia 调试模式已启用</color>");
+        }
+
+        if (ConfigManager.IgnoreDlcDependencyCheck.Value)
+        {
+            Log.LogWarning("DLC and resource pack dependency checks are DISABLED by config. Unknown issues may occur.");
+            InGameConsole.LogDeferred(() => TextId.IgnoreDlcDependencyCheckWarning.Get());
+            Log.LogWarning(TextId.DlcCheckDisabledSupportNotice.Get());
+            InGameConsole.LogDeferred(() => TextId.DlcCheckDisabledSupportNotice.Get());
         }
 
         try

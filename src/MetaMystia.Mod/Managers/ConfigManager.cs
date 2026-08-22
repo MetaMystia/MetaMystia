@@ -33,6 +33,7 @@ public static partial class ConfigManager
     public static ConfigEntry<bool> Debug;
     public static ConfigEntry<string> PlayerId;
     public static ConfigEntry<bool> SignatureCheck;
+    public static ConfigEntry<bool> IgnoreDlcDependencyCheck;
     public static ConfigEntry<RequestEnableMode> FoodRequestMode;
     public static ConfigEntry<RequestEnableMode> BevRequestMode;
     public static ConfigEntry<int> ConsoleHistorySize;
@@ -74,6 +75,10 @@ public static partial class ConfigManager
 
         SignatureCheck = Config.Bind("General", "SignatureCheck", true,
             "Enable RSA signature verification for resource pack ID ranges\n启用资源包 ID 段 RSA 签名校验");
+
+        IgnoreDlcDependencyCheck = Config.Bind("General", "IgnoreDlcDependencyCheck", false,
+            "Ignore DLC activation and resource pack dependency checks. May cause unknown issues.\n" +
+            "忽略 DLC 激活与资源包依赖检测。可能导致未知问题。");
 
         FoodRequestMode = Config.Bind("General", "FoodRequestMode", RequestEnableMode.FollowPackage,
             "Food request enable mode (FollowPackage by default)\n料理点单启用模式(默认跟随资源包)\n" +

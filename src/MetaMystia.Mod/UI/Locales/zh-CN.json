@@ -1,4 +1,4 @@
-﻿{
+{
     "ConnectCommand": "用法：/mp connect <IP:端口>",
     "ConnectCommandConnected": "成功连接到 {0}",
     "ConnectCommandFail": "连接到 {0} 失败！",
@@ -64,6 +64,11 @@
     "ModVersionOutdated": "您的 Mod 版本为 {0}，最新版为 {1}，建议更新到最新版！",
     "SignatureVerificationDisabled": "<color=yellow>资源包签名校验已关闭，ID 段签名将不会被验证。</color>",
     "ResourcePackageValidationFailed": "<color=red>资源包 {0} 未通过 ID 范围验证，已拒绝加载。</color>",
+    "ResourcePackageDependencyMissing": "<color=red>资源包 {0} 缺少依赖的 DLC（未激活）：{1}，已拒绝加载。</color>",
+    "ResourcePackageDependencyMissingReason": "缺少依赖的 DLC：{0}",
+    "IgnoreDlcDependencyCheckWarning": "<color=#FFAA44>已启用忽略 DLC 与依赖检测，加载的资源包可能缺少其依赖内容，可能出现未知问题。</color>",
+    "DlcMissingDependencyNotice": "请支持正版《东方夜雀食堂～Touhou Mystia Izakaya》，或在配置文件（游戏目录/BepInEx/config/MetaMystia.cfg）中将 {0} 设置为 {1} 以禁用资源包依赖检查",
+    "DlcCheckDisabledSupportNotice": "请支持正版《东方夜雀食堂～Touhou Mystia Izakaya》哦！",
     "ResourcePackageLoaded": "已加载资源包 {0} [{1}] v{2}",
     "PeerMessagePrefix": "[{0}] {1}",
     "CommandPrompt": "> {0}",

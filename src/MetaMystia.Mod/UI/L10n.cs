@@ -93,7 +93,12 @@ public enum TextId
     // Resource Management
     SignatureVerificationDisabled,
     ResourcePackageValidationFailed,
+    ResourcePackageDependencyMissing,
+    ResourcePackageDependencyMissingReason,
     ResourcePackageLoaded,
+    IgnoreDlcDependencyCheckWarning,
+    DlcMissingDependencyNotice,
+    DlcCheckDisabledSupportNotice,
 
     // DLC Availability Checks
     DLCPeerRecipeNotAvailable,

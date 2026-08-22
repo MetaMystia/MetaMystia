@@ -1,4 +1,4 @@
-﻿{
+{
     "ConnectCommand": "Usage: /mp connect <IP:Port>",
     "ConnectCommandConnected": "Successfully connected to {0}",
     "ConnectCommandFail": "Failed to connect to {0}",
@@ -64,6 +64,11 @@
     "ModVersionOutdated": "Your Mod version is {0}, latest version is {1}, recommend updating to the latest version!",
     "SignatureVerificationDisabled": "<color=yellow>Resource package signature verification disabled, ID range signatures will not be verified.</color>",
     "ResourcePackageValidationFailed": "<color=red>Resource package {0} failed ID range validation, loading rejected.</color>",
+    "ResourcePackageDependencyMissing": "<color=red>Resource package {0} is missing required DLC (not activated): {1}, loading rejected.</color>",
+    "ResourcePackageDependencyMissingReason": "missing required DLC: {0}",
+    "IgnoreDlcDependencyCheckWarning": "<color=#FFAA44>DLC and dependency checks are ignored. Loaded resource packages may lack their required content and cause unknown issues.</color>",
+    "DlcMissingDependencyNotice": "Please support the official Touhou Mystia Izakaya, or set {0} to {1} in the config file (GameDir/BepInEx/config/MetaMystia.cfg) to disable resource pack dependency checks",
+    "DlcCheckDisabledSupportNotice": "Please support the official Touhou Mystia Izakaya!",
     "ResourcePackageLoaded": "Loaded resource package {0} [{1}] v{2}",
     "PeerMessagePrefix": "[{0}] {1}",
     "CommandPrompt": "> {0}",

@@ -158,6 +158,11 @@ public class PackInfoConfig
     public int? idRangeStart { get; set; }
     public int? idRangeEnd { get; set; }
     public string idSignature { get; set; }
+
+    /// <summary>
+    /// 依赖的 DLC/包标签（如 "CORE"、"DLC1"、"DLC2"），加载前必须全部处于激活状态
+    /// </summary>
+    public List<string> dependencies { get; set; }
 }
 
 public class ResourceConfig

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using GameData.RunTime.Common;
+
 namespace MetaMystia;
 
 /// <summary>
@@ -49,6 +51,21 @@ public static class DlcStandardTable
         < 5000 => DlcPack.Dlc4,
         < 6000 => DlcPack.Dlc5,
         _ => DlcPack.None, // ResourceEx
+    };
+
+    /// <summary>
+    /// 根据 DLC Key（如 "DLC1"）判断所属 DLC
+    /// </summary>
+    public static DlcPack KeyToDlc(string key) => key switch
+    {
+        _ when key == PlayerSaveFile.CORE_DATA_DLC_KEY => DlcPack.Core,
+        _ when key == PlayerSaveFile.DLC1_DATA_DLC_KEY => DlcPack.Dlc1,
+        _ when key == PlayerSaveFile.DLC2_DATA_DLC_KEY => DlcPack.Dlc2,
+        _ when key == PlayerSaveFile.DLCMUSIC_DATA_DLC_KEY => DlcPack.DlcMusic,
+        _ when key == PlayerSaveFile.DLC3_DATA_DLC_KEY => DlcPack.Dlc3,
+        _ when key == PlayerSaveFile.DLC4_DATA_DLC_KEY => DlcPack.Dlc4,
+        _ when key == PlayerSaveFile.DLC5_DATA_DLC_KEY => DlcPack.Dlc5,
+        _ => DlcPack.None,
     };
 
     public static readonly DlcPack[] AllDlcs =

@@ -19,9 +19,19 @@ ZIP 文件名形成 `PackageName`。`packInfo.label` 有效时形成 `PackageLab
 - `name`：显示名称；
 - `label`：稳定包标识，也是版本冲突和 `rex://` URI 的主要键；
 - `authors`、`description`、`version`、`license`：包元数据；
-- `idRangeStart`、`idRangeEnd`、`idSignature`：托管 ID 段声明与签名。
+- `idRangeStart`、`idRangeEnd`、`idSignature`：托管 ID 段声明与签名；
+- `dependencies`：依赖的 DLC / 包标签数组（如 `["CORE", "DLC2", "DLC5"]`），加载前必须全部处于激活状态。
 
 需要稳定引用或发布多个版本的包必须提供稳定且唯一的 `label`。不得通过更改 `label` 绕过版本冲突或 ID 段管理。
+
+## DLC 依赖
+
+- 资源包通过 `packInfo.dependencies` 声明所需 DLC，值为 DLC 标签（如 `"CORE"`、`"DLC1"`、`"DLCMUSIC"`）。
+- 资源包在 DLC 激活状态确定后（`SteamPlatformProfile.GetActiveKeys`）才加载，此时才做依赖检查。
+- 依赖项必须全部位于 `ResourceExManager.ActivePackTags`（激活 DLC + 已加载包标签）中，否则拒绝加载并记录日志。
+- 未声明 `dependencies` 的包视为仅依赖 `CORE`，始终可加载。
+- `CORE` 恒激活，无需实际声明。
+- 配置项 `IgnoreDlcDependencyCheck`（`General` 分区，默认 `false`）可跳过依赖检查并放行所有包；启用时启动阶段会输出警告。
 
 ## 加载顺序
 
