@@ -48,8 +48,6 @@ public class Plugin : BasePlugin
         {
             Log.LogWarning("DLC and resource pack dependency checks are DISABLED by config. Unknown issues may occur.");
             InGameConsole.LogDeferred(() => TextId.IgnoreDlcDependencyCheckWarning.Get());
-            Log.LogWarning(TextId.DlcCheckDisabledSupportNotice.Get());
-            InGameConsole.LogDeferred(() => TextId.DlcCheckDisabledSupportNotice.Get());
         }
 
         try

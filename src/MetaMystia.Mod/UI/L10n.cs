@@ -98,7 +98,6 @@ public enum TextId
     ResourcePackageLoaded,
     IgnoreDlcDependencyCheckWarning,
     DlcMissingDependencyNotice,
-    DlcCheckDisabledSupportNotice,
 
     // DLC Availability Checks
     DLCPeerRecipeNotAvailable,
