@@ -7,6 +7,7 @@ using GameData.RunTime.DaySceneUtility;
 
 using static GameData.Core.Collections.DaySceneUtility.Collections.Product;
 
+using MetaMystia.ResourceEx.Registries;
 using SgrYuki.Utils;
 
 namespace MetaMystia.Patch;
@@ -21,7 +22,7 @@ public partial class RunTimeDayScenePatch
     public static void GetMerchantData_Postfix(ref GameData.RunTime.DaySceneUtility.Collection.TrackedMerchant __result, string characterKey)
     {
         Log.Info($"DataBaseDay.GetMerchantData Postfix called with key: {characterKey}");
-        if (!ResourceExManager.TryGetExMerchantData(characterKey, out Merchant merchant))
+        if (!MerchantRegistry.TryGetExMerchantData(characterKey, out Merchant merchant))
         {
             return;
         }

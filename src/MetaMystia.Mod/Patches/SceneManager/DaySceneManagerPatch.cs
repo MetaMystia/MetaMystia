@@ -4,6 +4,7 @@ using Common.UI;
 using DayScene;
 
 using MetaMystia.Network;
+using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 using SgrYuki.Utils;
 
@@ -98,7 +99,7 @@ public partial class DaySceneManagerPatch
     {
         Log.InfoCaller($"targetMapLabel {targetMapLabel}, targetMarkerName {targetMarkerName}");
 
-        var refreshAllDayNpcs = ResourceExManager.RefreshAllDayNpcs; // TODO: 以更优雅的方式实现 Day NPC 刷新
+        var refreshAllDayNpcs = SpecialGuestRegistry.RefreshAllDayNpcs; // TODO: 以更优雅的方式实现 Day NPC 刷新
         onSwapFinish += refreshAllDayNpcs;
 
         return RunOriginal;

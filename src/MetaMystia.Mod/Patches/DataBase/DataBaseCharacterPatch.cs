@@ -4,6 +4,8 @@ using UnityEngine.UI;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Profile;
 
+using MetaMystia.ResourceEx.Registries;
+
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
@@ -28,7 +30,7 @@ public partial class DataBaseCharacterPatch
     {
         // Log.LogWarning($"GetNPCLabel_Prefix called for identity: {identity} result: {__result}");
 
-        var config = ResourceExManager.GetCharacterConfig(identity.characterId, identity.characterIdentity.ToString());
+        var config = SpecialGuestRegistry.GetCharacterConfig(identity.characterId, identity.characterIdentity.ToString());
         if (config != null)
         {
             __result = config.label;
@@ -58,9 +60,9 @@ public partial class DataBaseCharacterPatch
 
         // ResourceEx 服装立绘覆盖
         var currentSkin = GameData.RunTime.Common.RunTimeAlbum.CurrentPlayerSkin;
-        if (ResourceExManager.IsResourceExCloth(currentSkin))
+        if (ClothRegistry.IsResourceExCloth(currentSkin))
         {
-            if (ResourceExManager.TryGetClothPortrait(currentSkin, out var sprite))
+            if (ClothRegistry.TryGetClothPortrait(currentSkin, out var sprite))
             {
                 imageComponent.overrideSprite = sprite;
                 Log.Info($"Applied ResourceEx cloth portrait for skin ID {currentSkin}");

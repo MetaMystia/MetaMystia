@@ -3,31 +3,24 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using UnityEngine;
-
-using GameData.Core.Collections.DaySceneUtility.Collections;
-using GameData.Core.Collections.CharacterUtility;
-using GameData.Profile;
 
 using MetaMystia.ConsoleSystem;
 using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.Models;
+using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 
 namespace MetaMystia;
 
-
+/// <summary>
+/// ResourceEx 资源包加载与生命周期编排入口：包加载、DLC 依赖检查、游戏数据库初始化钩子。
+/// 各内容领域的配置持有与注册逻辑见对应的 *Registry 类。
+/// </summary>
 [AutoLog]
 public static partial class ResourceExManager
 {
     // Abstracted resource root path
     public static string ResourceRoot { get; set; } = Path.Combine(Paths.GameRootPath, "ResourceEx");
-
-    private static Dictionary<(int id, string type), CharacterConfig> _characterConfigs = new Dictionary<(int id, string type), CharacterConfig>();
-    private static Dictionary<string, CharacterSpriteSetCompact> _characterSpriteSets = new Dictionary<string, CharacterSpriteSetCompact>();
-    private static Dictionary<string, DialogPackageConfig> _dialogPackageConfigs = new Dictionary<string, DialogPackageConfig>();
-    private static Dictionary<string, BuiltDialogPackage> _builtDialogPackages = new Dictionary<string, BuiltDialogPackage>();
-    private static Dictionary<string, Merchant> _builtMerchants = new Dictionary<string, Merchant>();
 
     // Loaded package metadata for console queries
     private static readonly List<LoadedResourcePackage> _loadedPackages = new List<LoadedResourcePackage>();
@@ -73,27 +66,6 @@ public static partial class ResourceExManager
         _pendingConsoleLogs.Clear();
     }
 
-    private static Dictionary<int, IngredientConfig> IngredientConfigs = new Dictionary<int, IngredientConfig>();
-    private static Dictionary<int, FoodConfig> FoodConfigs = new Dictionary<int, FoodConfig>();
-    private static Dictionary<int, BeverageConfig> BeverageConfigs = new Dictionary<int, BeverageConfig>();
-    private static Dictionary<int, RecipeConfig> RecipeConfigs = new Dictionary<int, RecipeConfig>();
-    private static List<MissionNodeConfig> MissionNodeConfigs = new List<MissionNodeConfig>();
-    private static List<EventNodeConfig> EventNodeConfigs = new List<EventNodeConfig>();
-    private static Dictionary<string, MerchantConfig> MerchantConfigs = new Dictionary<string, MerchantConfig>();
-    private static Dictionary<int, ClothConfig> ClothConfigs = new Dictionary<int, ClothConfig>();
-
-    // Public ID set accessors for ResourceDataBase rEx integration
-    public static HashSet<int> LoadedRecipeIds => [.. RecipeConfigs.Keys];
-    public static HashSet<int> LoadedFoodIds => [.. FoodConfigs.Keys];
-    public static HashSet<int> LoadedBeverageIds => [.. BeverageConfigs.Keys];
-    public static HashSet<int> LoadedIngredientIds => [.. IngredientConfigs.Keys];
-    public static HashSet<int> LoadedSpecialGuestIds => [.. _characterConfigs.Where(kv => kv.Key.type == "Special").Select(kv => kv.Key.id)];
-
-    // Cloth portrait cache: clothId -> Sprite (loaded lazily or during preload)
-    private static Dictionary<int, Sprite> _clothPortraitCache = new Dictionary<int, Sprite>();
-    // Cloth pixel full cache: skinIndex -> CharacterSpriteSetFull (built during character init)
-    private static Dictionary<int, CharacterSpriteSetFull> _clothPixelFullCache = new Dictionary<int, CharacterSpriteSetFull>();
-
     public static void Initialize()
     {
         // 目录准备；包加载延迟到 DLC flags 确定后（见 OnDlcFlagsDetermined）
@@ -121,44 +93,44 @@ public static partial class ResourceExManager
         // 兜底：若 GetActiveKeys Hook 未触发（如非 Steam 平台），此时 DLC 状态已确定，补做加载
         OnDlcFlagsDetermined();
 
-        RegisterAllSpawnConfigs();
-        RegisterAllIngredients();
-        RegisterAllBeverages();
-        RegisterAllRecipes();
-        RegisterAllFoods();
-        RegisterAllClothItems();
-        RegisterAllClothProfiles();
+        SpecialGuestRegistry.RegisterAllSpawnConfigs();
+        IngredientRegistry.RegisterAllIngredients();
+        BeverageRegistry.RegisterAllBeverages();
+        RecipeRegistry.RegisterAllRecipes();
+        FoodRegistry.RegisterAllFoods();
+        ClothRegistry.RegisterAllClothItems();
+        ClothRegistry.RegisterAllClothProfiles();
     }
     public static void OnDataBaseDayInitialized()
     {
-        RegisterAllDialogPackages();
+        DialogRegistry.RegisterAllDialogPackages();
 
-        RegisterNPCs();
+        SpecialGuestRegistry.RegisterNPCs();
         // RegisterAllSpawnMarkers(); // DO NOT DELETE
-        BuildAllMerchants();
+        MerchantRegistry.BuildAllMerchants();
     }
     public static void OnDataBaseLanguageInitialized()
     {
-        RegisterAllFoodRequests();
-        RegisterAllBevRequests();
-        RegisterSpecialPortraits();
-        RegisterAllIngredientLanguages();
-        RegisterAllBeverageLanguages();
-        RegisterAllFoodLanguages();
-        RegisterAllMissionNodeLanguages();
-        RegisterAllClothLanguages();
+        SpecialGuestRegistry.RegisterAllFoodRequests();
+        SpecialGuestRegistry.RegisterAllBevRequests();
+        SpecialGuestRegistry.RegisterSpecialPortraits();
+        IngredientRegistry.RegisterAllIngredientLanguages();
+        BeverageRegistry.RegisterAllBeverageLanguages();
+        FoodRegistry.RegisterAllFoodLanguages();
+        MissionNodeRegistry.RegisterAllMissionNodeLanguages();
+        ClothRegistry.RegisterAllClothLanguages();
     }
 
     public static void OnDataBaseCharacterInitialized()
     {
-        BuildAllDialogPackages();
-        RegisterAllSpecialGuestPairs();
-        RegisterAllSpecialGuests(); // 依赖 Dialog
+        DialogRegistry.BuildAllDialogPackages();
+        SpecialGuestRegistry.RegisterAllSpecialGuestPairs();
+        SpecialGuestRegistry.RegisterAllSpecialGuests(); // 依赖 Dialog
 
-        RegisterAllMissionNodes(); // 依赖 Dialog
-        RegisterAllEventNodes(); // 依赖 Dialog
+        MissionNodeRegistry.RegisterAllMissionNodes(); // 依赖 Dialog
+        EventNodeRegistry.RegisterAllEventNodes(); // 依赖 Dialog
 
-        RegisterAllClothPixelSprites(); // 依赖 DataBaseCharacter
+        ClothRegistry.RegisterAllClothPixelSprites(); // 依赖 DataBaseCharacter
     }
 
     public static void OnDataBaseAchievementInitialized()
@@ -169,13 +141,13 @@ public static partial class ResourceExManager
     {
         // RegisterAllMissionNodes(); // 依赖 Dialog
         // RegisterAllEventNodes(); // 依赖 Dialog
-        RegisterAllMissionNodesMapping();
-        RegisterAllEventNodesMapping();
+        MissionNodeRegistry.RegisterAllMissionNodesMapping();
+        EventNodeRegistry.RegisterAllEventNodesMapping();
     }
     public static void OnNightSceneLanguageInitialized()
     {
-        RegisterAllConversations();
-        RegisterAllEvaluations();
+        SpecialGuestRegistry.RegisterAllConversations();
+        SpecialGuestRegistry.RegisterAllEvaluations();
     }
 
     public static void OnDaySceneLanguageInitialized()
@@ -185,12 +157,12 @@ public static partial class ResourceExManager
 
     public static void OnDaySceneAwake()
     {
-        RefreshAllDayNpcs();
-        CheckAndReloadSchedulerData();
-        ActivateAllKizunaEventNodes(); // 依赖 CheckAndReloadSchedulerData
-        ResetTrackedNpcDialog();
-        CheckAndCleanOrphanedMerchants(); // 清理孤儿商人数据，防止 RefMerchant KeyNotFoundException
-        RegisterAllTrackedMerchant();
+        SpecialGuestRegistry.RefreshAllDayNpcs();
+        SchedulerDataRecovery.CheckAndReloadSchedulerData();
+        EventNodeRegistry.ActivateAllKizunaEventNodes(); // 依赖 CheckAndReloadSchedulerData
+        SpecialGuestRegistry.ResetTrackedNpcDialog();
+        MerchantRegistry.CheckAndCleanOrphanedMerchants(); // 清理孤儿商人数据，防止 RefMerchant KeyNotFoundException
+        MerchantRegistry.RegisterAllTrackedMerchant();
     }
 
     /// <summary>
@@ -281,7 +253,7 @@ public static partial class ResourceExManager
     }
 
     /// <summary>
-    /// Merges a loaded resource package into the manager's internal data structures
+    /// Merges a loaded resource package into the per-domain registries
     /// </summary>
     private static void MergeResourcePackage(LoadedResourcePackage package)
     {
@@ -291,94 +263,16 @@ public static partial class ResourceExManager
 
         NormalizePackageResourceUris(config, packageLabel);
 
-        if (config?.characters != null)
-        {
-            foreach (var charConfig in config.characters)
-            {
-                _characterConfigs[(charConfig.id, charConfig.type)] = charConfig;
-                Log.LogInfo($"[{packageName}] Loaded config for character {charConfig.name} ({charConfig.id}, {charConfig.type})");
-            }
-        }
-
-        if (config?.dialogPackages != null)
-        {
-            foreach (var pkgConfig in config.dialogPackages)
-            {
-                _dialogPackageConfigs[pkgConfig.name] = pkgConfig;
-                Log.LogInfo($"[{packageName}] Loaded dialog package: {pkgConfig.name}");
-            }
-        }
-
-        if (config?.ingredients != null)
-        {
-            foreach (var ingredientConfig in config.ingredients)
-            {
-                IngredientConfigs[ingredientConfig.id] = ingredientConfig;
-                Log.LogInfo($"[{packageName}] Loaded config for ingredient {ingredientConfig.id}");
-            }
-        }
-
-        if (config?.foods != null)
-        {
-            foreach (var foodConfig in config.foods)
-            {
-                FoodConfigs[foodConfig.id] = foodConfig;
-                Log.LogInfo($"[{packageName}] Loaded config for food {foodConfig.name} ({foodConfig.id})");
-            }
-        }
-
-        if (config?.beverages != null)
-        {
-            foreach (var beverageConfig in config.beverages)
-            {
-                BeverageConfigs[beverageConfig.id] = beverageConfig;
-                Log.LogInfo($"[{packageName}] Loaded config for beverage {beverageConfig.name} ({beverageConfig.id})");
-            }
-        }
-        if (config?.recipes != null)
-        {
-            foreach (var recipeConfig in config.recipes)
-            {
-                RecipeConfigs[recipeConfig.id] = recipeConfig;
-                Log.LogInfo($"[{packageName}] Loaded config for recipe {recipeConfig.id}");
-            }
-        }
-
-        if (config?.missionNodes != null)
-        {
-            foreach (var missionNodeConfig in config.missionNodes)
-            {
-                MissionNodeConfigs.Add(missionNodeConfig);
-                Log.LogInfo($"[{packageName}] Loaded config for mission node {missionNodeConfig.title}");
-            }
-        }
-
-        if (config?.eventNodes != null)
-        {
-            foreach (var eventNodeConfig in config.eventNodes)
-            {
-                EventNodeConfigs.Add(eventNodeConfig);
-                Log.LogInfo($"[{packageName}] Loaded config for event node {eventNodeConfig.debugLabel}");
-            }
-        }
-
-        if (config?.merchants != null)
-        {
-            foreach (var merchantConfig in config.merchants)
-            {
-                MerchantConfigs[merchantConfig.key] = merchantConfig;
-                Log.LogInfo($"[{packageName}] Loaded config for merchant {merchantConfig.key}");
-            }
-        }
-
-        if (config?.clothes != null)
-        {
-            foreach (var clothConfig in config.clothes)
-            {
-                ClothConfigs[clothConfig.id] = clothConfig;
-                Log.LogInfo($"[{packageName}] Loaded config for cloth {clothConfig.name} ({clothConfig.id})");
-            }
-        }
+        SpecialGuestRegistry.Merge(config, packageName);
+        DialogRegistry.Merge(config, packageName);
+        IngredientRegistry.Merge(config, packageName);
+        FoodRegistry.Merge(config, packageName);
+        BeverageRegistry.Merge(config, packageName);
+        RecipeRegistry.Merge(config, packageName);
+        MissionNodeRegistry.Merge(config, packageName);
+        EventNodeRegistry.Merge(config, packageName);
+        MerchantRegistry.Merge(config, packageName);
+        ClothRegistry.Merge(config, packageName);
     }
 
     private static void NormalizePackageResourceUris(ResourceConfig config, string packageLabel)
@@ -475,6 +369,6 @@ public static partial class ResourceExManager
         if (string.IsNullOrWhiteSpace(path))
             return path;
 
-        return ResolveAssetUri(path, packageLabel) ?? path;
+        return RexAssetRegistry.TryResolveUri(path, packageLabel, out var uri) ? uri : path;
     }
 }

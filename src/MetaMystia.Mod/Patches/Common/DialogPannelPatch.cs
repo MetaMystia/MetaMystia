@@ -3,6 +3,8 @@ using HarmonyLib;
 using Common.DialogUtility;
 using GameData.RunTime.Common;
 
+using MetaMystia.ResourceEx.Registries;
+
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
@@ -21,7 +23,7 @@ public partial class DialogPannelPatch
         var pid = meta.speakerIdentity.speakerPortrayalVariationId;
 
         if (type != SpeakerIdentity.Identity.Special ||
-            !ResourceExManager.TryGetSpecialGuestCustomPortrayal(id.RefSpecialPortrayal(), out var customPortrayal))
+            !SpecialGuestRegistry.TryGetSpecialGuestCustomPortrayal(id.RefSpecialPortrayal(), out var customPortrayal))
             return RunOriginal;
 
         if (pid >= 0 && pid < customPortrayal.Length)

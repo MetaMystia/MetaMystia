@@ -8,14 +8,22 @@ using Common.UI;
 using GameData.Core.Collections.DaySceneUtility;
 using GameData.Profile;
 
+using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.Models;
 
 using UnityEngine.AddressableAssets;
 
-namespace MetaMystia;
+namespace MetaMystia.ResourceEx.Registries;
 
-public static partial class ResourceExManager
+/// <summary>
+/// 对话包领域注册器：持有对话包配置与构建产物，负责构建与注册。
+/// </summary>
+[AutoLog]
+public static partial class DialogRegistry
 {
+    private static readonly Dictionary<string, DialogPackageConfig> _dialogPackageConfigs = new();
+    private static readonly Dictionary<string, BuiltDialogPackage> _builtDialogPackages = new();
+
     public static DialogPackage ExampleDialog { get; private set; }
 
     private sealed class BuiltDialogPackage
@@ -33,6 +41,17 @@ public static partial class ResourceExManager
                 foreach (var kvp in OverrideTexts)
                     replaceDict[kvp.Key] = kvp.Value;
             };
+        }
+    }
+
+    internal static void Merge(ResourceConfig config, string packageName)
+    {
+        if (config?.dialogPackages == null) return;
+
+        foreach (var pkgConfig in config.dialogPackages)
+        {
+            _dialogPackageConfigs[pkgConfig.name] = pkgConfig;
+            Log.LogInfo($"[{packageName}] Loaded dialog package: {pkgConfig.name}");
         }
     }
 
@@ -215,7 +234,7 @@ public static partial class ResourceExManager
         if (actionConfig == null || string.IsNullOrEmpty(actionConfig.sprite))
             return new AssetReferenceSprite("");
 
-        if (!TryGetSpriteReference(actionConfig.sprite, out var reference))
+        if (!RexAssetRegistry.TryGetSpriteReference(actionConfig.sprite, out var reference))
         {
             Log.LogWarning($"Dialog sprite URI is not registered in Addressables: {actionConfig.sprite}");
             return new AssetReferenceSprite("");
@@ -229,7 +248,7 @@ public static partial class ResourceExManager
         if (actionConfig == null || string.IsNullOrEmpty(actionConfig.sound))
             return new AssetReferenceT<UnityEngine.AudioClip>("");
 
-        if (!TryGetAudioReference(actionConfig.sound, out var reference))
+        if (!RexAssetRegistry.TryGetAudioReference(actionConfig.sound, out var reference))
         {
             Log.LogWarning($"Dialog sound URI is not registered in Addressables: {actionConfig.sound}");
             return new AssetReferenceT<UnityEngine.AudioClip>("");
@@ -259,7 +278,7 @@ public static partial class ResourceExManager
         );
     }
 
-    private static void BuildAllDialogPackages()
+    internal static void BuildAllDialogPackages()
     {
         foreach (var kvp in _dialogPackageConfigs)
         {
@@ -268,7 +287,7 @@ public static partial class ResourceExManager
         }
     }
 
-    private static void RegisterAllDialogPackages()
+    internal static void RegisterAllDialogPackages()
     {
         foreach (var kvp in _builtDialogPackages)
         {

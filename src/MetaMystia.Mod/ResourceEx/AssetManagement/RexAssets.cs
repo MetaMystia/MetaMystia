@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using MetaMystia.ResourceEx.Addressables;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 
 namespace MetaMystia.ResourceEx.AssetManagement;
 
@@ -256,6 +257,24 @@ public static partial class RexAssetRegistry
 
         uri = parsed.Value;
         return true;
+    }
+
+    public static bool TryGetSprite(string uri, out Sprite sprite)
+    {
+        sprite = null;
+        return RexUri.IsRexUri(uri) && RuntimeAddressables.TryGetAsset(uri, out sprite);
+    }
+
+    public static bool TryGetSpriteReference(string uri, out AssetReferenceSprite reference)
+    {
+        reference = null;
+        return RexUri.IsRexUri(uri) && RuntimeAddressables.TryGetSpriteReference(uri, out reference);
+    }
+
+    public static bool TryGetAudioReference(string uri, out AssetReferenceT<AudioClip> reference)
+    {
+        reference = null;
+        return RexUri.IsRexUri(uri) && RuntimeAddressables.TryGetReference(uri, out reference);
     }
 
     private static RexAsset CreateAsset(RexUri uri, byte[] bytes)

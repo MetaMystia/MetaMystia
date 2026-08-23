@@ -1,27 +1,48 @@
+using System.Collections.Generic;
 using System.Linq;
+
 using GameData.Core.Collections;
 using GameData.CoreLanguage.Collections;
+
+using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.Mappers;
 using MetaMystia.ResourceEx.Models;
 
-namespace MetaMystia;
+namespace MetaMystia.ResourceEx.Registries;
 
-public static partial class ResourceExManager
+/// <summary>
+/// 食材领域注册器：持有食材配置，负责注册与语言注册。
+/// </summary>
+[AutoLog]
+public static partial class IngredientRegistry
 {
-    private static void RegisterAllIngredientLanguages()
+    private static readonly Dictionary<int, IngredientConfig> IngredientConfigs = new();
+
+    internal static void Merge(ResourceConfig config, string packageName)
+    {
+        if (config?.ingredients == null) return;
+
+        foreach (var ingredientConfig in config.ingredients)
+        {
+            IngredientConfigs[ingredientConfig.id] = ingredientConfig;
+            Log.LogInfo($"[{packageName}] Loaded config for ingredient {ingredientConfig.id}");
+        }
+    }
+
+    internal static void RegisterAllIngredientLanguages()
     {
         IngredientConfigs.Values.ToList().ForEach(RegisterIngredientLanguage);
     }
 
     private static void RegisterIngredientLanguage(IngredientConfig config)
     {
-        TryGetSprite(config.spritePath, out var sprite);
+        RexAssetRegistry.TryGetSprite(config.spritePath, out var sprite);
         var lang = config.ToIngredientLanguage(sprite);
         DataBaseLanguage.Ingredients[config.id] = lang; // Ingredients 是 private 的，不能用 TryAdd
         Log.Info($"Registered language for ingredient {config.id}: {config.name}");
     }
 
-    private static void RegisterAllIngredients()
+    internal static void RegisterAllIngredients()
     {
         IngredientConfigs.Values.ToList().ForEach(RegisterIngredient);
     }

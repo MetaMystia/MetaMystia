@@ -18,6 +18,7 @@ using static GameData.Profile.SchedulerNodeCollection.MissionNode;
 using static GameData.Profile.SchedulerNodeCollection.MissionNode.Reward;
 
 using MetaMystia.ResourceEx.Models;
+using MetaMystia.ResourceEx.Registries;
 using SgrYuki.Utils;
 
 namespace MetaMystia.ResourceEx.Mappers;
@@ -331,7 +332,7 @@ public static partial class Mappers
                 return new SchedulerNode.Event()
                 {
                     eventType = config.eventType,
-                    runtimeDialogPackage = ResourceExManager.GetBuiltDialogPackage(config.dialogPackageName)
+                    runtimeDialogPackage = DialogRegistry.GetBuiltDialogPackage(config.dialogPackageName)
                 };
             default:
                 Log.Error($"Unsupported event type {config.eventType} in EventNode {debugLabel}");
@@ -393,7 +394,7 @@ public static partial class Mappers
             return new System.Collections.Generic.List<DialogPackage>();
 
         return packageNames
-            .Select(name => ResourceExManager.GetBuiltDialogPackage(name))
+            .Select(name => DialogRegistry.GetBuiltDialogPackage(name))
             .Where(package => package != null)
             .ToList();
     }

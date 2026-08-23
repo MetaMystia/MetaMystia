@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 using Common.UI;
 using GameData.Core.Collections.DaySceneUtility;
+using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -26,22 +27,22 @@ public partial class UniversalGameManagerPatch
 
         if (dialogPackage.dialogContext == null)
         {
-            if (ResourceExManager.ExampleDialog == null)
+            if (DialogRegistry.ExampleDialog == null)
             {
-                ResourceExManager.DumpExampleDialog();
+                DialogRegistry.DumpExampleDialog();
             }
-            dialogPackage.dialogContext = ResourceExManager.ExampleDialog.dialogContext;
+            dialogPackage.dialogContext = DialogRegistry.ExampleDialog.dialogContext;
             Log.Info($"Replaced dialogPackage.dialogContext with ExampleDialog.dialogContext");
         }
         
         StoryReplayRecentHistory.Record(dialogPackage);
         
-        if (ResourceExManager.ExistsDialogPackage(dialogPackage.name) && overrideReplaceTextCallback == null)
+        if (DialogRegistry.ExistsDialogPackage(dialogPackage.name) && overrideReplaceTextCallback == null)
         {
             UniversalGameManager.OpenDialogMenu(
                 dialogPackage,
                 onFinishCallback: onFinishCallback,
-                overrideReplaceTextCallback: ResourceExManager.GetOverrideReplaceTextCallback(dialogPackage),
+                overrideReplaceTextCallback: DialogRegistry.GetOverrideReplaceTextCallback(dialogPackage),
                 previousPanelVisualMode: previousPanelVisualMode
             );
             return SkipOriginal;

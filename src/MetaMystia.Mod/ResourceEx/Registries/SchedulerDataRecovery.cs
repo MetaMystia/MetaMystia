@@ -1,50 +1,21 @@
-using System.Linq;
-using Newtonsoft.Json.Utilities;
-using SgrYuki.Utils;
+using System.Collections.Generic;
+
 using GameData.RunTime.Common;
 
+namespace MetaMystia.ResourceEx.Registries;
 
-namespace MetaMystia;
-
-public static partial class ResourceExManager
+/// <summary>
+/// 存档 Scheduler 数据恢复：清理或重载旧版本 mod 遗留的 UNDEFINED / ResourceEx 未加载数据。
+/// </summary>
+[AutoLog]
+public static partial class SchedulerDataRecovery
 {
-
-    public static void LogNotLoadedSchedulerData()
-    {
-        var notLoadedDLCSchedulerSaveData = RunTimePlayerData.NotLoadedDLCSchedulerSaveData;
-        foreach (var kvp in notLoadedDLCSchedulerSaveData)
-        {
-            var dlcLabel = kvp.Key;
-            var dlcData = kvp.Value;
-            Log.Warning($"DLC: {dlcLabel}");
-            Log.Warning($"finishedEvents count: {dlcData.finishedEvents.Count}");
-            foreach (var finishedEvent in dlcData.finishedEvents)
-            {
-                Log.Warning($"  - {finishedEvent}");
-            }
-            Log.Warning($"finishedMissions count: {dlcData.finishedMissions.Count}");
-            foreach (var finishedMission in dlcData.finishedMissions)
-            {
-                Log.Warning($"  - {finishedMission}");
-            }
-            Log.Warning($"scheduledEvents count: {dlcData.scheduledEvents.Count}");
-            foreach (var scheduledEvent in dlcData.scheduledEvents)
-            {
-                Log.Warning($"  - {scheduledEvent}");
-            }
-            Log.Warning($"allTrackingMissions count: {dlcData.allTrackingMissions.Count}");
-            foreach (var allTrackingMission in dlcData.allTrackingMissions)
-            {
-                Log.Warning($"  - {allTrackingMission}");
-            }
-        }
-    }
-    private static void CheckAndReloadSchedulerData()
+    internal static void CheckAndReloadSchedulerData()
     {
         // 检查是否有大量的 UNDEFINED 或 ResourceEx 标识的 Scheduler 数据未加载，这可能是由于使用旧版本 mod 时反复触发任务并 Save/Load 导致的
         var notLoadedDLCSchedulerSaveData = RunTimePlayerData.NotLoadedDLCSchedulerSaveData;
 
-        var targetKeys = new System.Collections.Generic.List<string>();
+        var targetKeys = new List<string>();
         foreach (var key in notLoadedDLCSchedulerSaveData.Keys)
         {
             if (key.StartsWith("UNDEFINED") || key.StartsWith("ResourceEx"))
@@ -80,7 +51,7 @@ public static partial class ResourceExManager
         // reload finishedEvents
         foreach (var finishedEvent in resourceExData.finishedEvents)
         {
-            if (!RunTimeScheduler.finishedEvents.Contains(finishedEvent) && GetAllEventNodeLabels().Contains(finishedEvent))
+            if (!RunTimeScheduler.finishedEvents.Contains(finishedEvent) && EventNodeRegistry.GetAllEventNodeLabels().Contains(finishedEvent))
             {
                 RunTimeScheduler.finishedEvents.Add(finishedEvent);
                 Log.Info($"Reloaded finishedEvent: {finishedEvent}");
@@ -90,7 +61,7 @@ public static partial class ResourceExManager
         // reload finishedMissions
         foreach (var finishedMission in resourceExData.finishedMissions)
         {
-            if (!RunTimeScheduler.finishedMissions.Contains(finishedMission) && GetAllMissionNodeLabels().Contains(finishedMission))
+            if (!RunTimeScheduler.finishedMissions.Contains(finishedMission) && MissionNodeRegistry.GetAllMissionNodeLabels().Contains(finishedMission))
             {
                 RunTimeScheduler.finishedMissions.Add(finishedMission);
                 Log.Info($"Reloaded finishedMission: {finishedMission}");
@@ -109,7 +80,7 @@ public static partial class ResourceExManager
             var targetList = RunTimeScheduler.scheduledEvents[scheduledEvent.Key];
             foreach (var eventLabel in scheduledEvent.Value)
             {
-                if (!targetList.Contains(eventLabel) && GetAllEventNodeLabels().Contains(eventLabel))
+                if (!targetList.Contains(eventLabel) && EventNodeRegistry.GetAllEventNodeLabels().Contains(eventLabel))
                 {
                     targetList.Add(eventLabel);
                     Log.Info($"Reloaded scheduledEvent: {eventLabel} under key: {scheduledEvent.Key}");
@@ -129,7 +100,7 @@ public static partial class ResourceExManager
             var targetList = RunTimeScheduler.trackingMissions[trackingMission.Key];
             foreach (var missionData in trackingMission.Value)
             {
-                if (!targetList.Contains(missionData) && GetAllMissionNodeLabels().Contains(missionData.missionLabel))
+                if (!targetList.Contains(missionData) && MissionNodeRegistry.GetAllMissionNodeLabels().Contains(missionData.missionLabel))
                 {
                     targetList.Add(missionData);
                     Log.Info($"Reloaded trackingMission: {missionData.missionLabel} under key: {trackingMission.Key}");

@@ -2,9 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Common.DialogUtility;
-using GameData.CoreLanguage.Collections;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Core.Collections.DaySceneUtility;
+using GameData.CoreLanguage.Collections;
 using GameData.Profile;
 using GameData.RunTime.DaySceneUtility;
 using GameData.RunTime.Common;
@@ -19,8 +19,7 @@ using MetaMystia.ResourceEx.Mappers;
 using MetaMystia.ResourceEx.Models;
 using SgrYuki.Utils;
 
-namespace MetaMystia;
-
+namespace MetaMystia.ResourceEx.Registries;
 
 /*
 Register or Injection:
@@ -47,8 +46,25 @@ TODO:
     implement GuestProfilePair totally from ResourceEx, currently only partial implementation.
 */
 
-public static partial class ResourceExManager
+/// <summary>
+/// 特典角色（SpecialGuest）领域注册器：持有角色配置、立绘映射与注册逻辑。
+/// </summary>
+[AutoLog]
+public static partial class SpecialGuestRegistry
 {
+    private static readonly Dictionary<(int id, string type), CharacterConfig> _characterConfigs = new();
+
+    internal static void Merge(ResourceConfig config, string packageName)
+    {
+        if (config?.characters == null) return;
+
+        foreach (var charConfig in config.characters)
+        {
+            _characterConfigs[(charConfig.id, charConfig.type)] = charConfig;
+            Log.LogInfo($"[{packageName}] Loaded config for character {charConfig.name} ({charConfig.id}, {charConfig.type})");
+        }
+    }
+
     public static IEnumerable<CharacterConfig> GetAllCharacterConfigs()
     {
         return _characterConfigs.Values;
@@ -70,7 +86,7 @@ public static partial class ResourceExManager
         return _characterConfigs.Values.FirstOrDefault(c => c.label == stringId && c.type == type);
     }
 
-    private static void RegisterSpecialPortraits()
+    internal static void RegisterSpecialPortraits()
     {
         Log.Info($"Registering Special Portraits from ResourceEx...");
 
@@ -112,7 +128,7 @@ public static partial class ResourceExManager
         }
     }
 
-    private static void RegisterAllSpecialGuests()
+    internal static void RegisterAllSpecialGuests()
     {
         Log.Info($"Registering Special Guests from ResourceEx...");
         GetAllCharacterConfigs()
@@ -142,7 +158,7 @@ public static partial class ResourceExManager
         }
     }
 
-    private static void RegisterAllEvaluations()
+    internal static void RegisterAllEvaluations()
     {
         Log.Info($"Registering Special Guest Evaluations from ResourceEx...");
         GetAllCharacterConfigs()
@@ -157,7 +173,7 @@ public static partial class ResourceExManager
         Log.Info($"Registered Special Guest Evaluation: {config.name} ({config.id})");
     }
 
-    private static void RegisterAllConversations()
+    internal static void RegisterAllConversations()
     {
         Log.Info($"Registering Special Guest Evaluations and Conversations from ResourceEx...");
         GetAllCharacterConfigs()
@@ -176,7 +192,7 @@ public static partial class ResourceExManager
     }
 
 
-    private static void RegisterAllFoodRequests()
+    internal static void RegisterAllFoodRequests()
     {
         if (ConfigManager.FoodRequestMode.Value == RequestEnableMode.ForceDisable)
         {
@@ -202,7 +218,7 @@ public static partial class ResourceExManager
         Log.Info($"Registered Food Requests for Special Guest: {config.name} ({config.id})");
     }
 
-    private static void RegisterAllBevRequests()
+    internal static void RegisterAllBevRequests()
     {
         if (ConfigManager.BevRequestMode.Value == RequestEnableMode.ForceDisable)
         {
@@ -227,7 +243,7 @@ public static partial class ResourceExManager
         Log.Info($"Registered Beverage Requests for Special Guest: {config.name} ({config.id})");
     }
 
-    private static void RegisterAllSpecialGuestPairs()
+    internal static void RegisterAllSpecialGuestPairs()
     {
         Log.Info($"Registering Special Guest Pairs from ResourceEx...");
         GetAllCharacterConfigs()
@@ -244,7 +260,7 @@ public static partial class ResourceExManager
         RegisterSpecialGuestPortrayal(dummyPortrayal, config);
 
         var pixelSet = ScriptableObject.CreateInstance<CharacterSkinSets>();
-        pixelSet.defaultSkin = MakePixel(config.characterSpriteSetCompact);
+        pixelSet.defaultSkin = PixelSpriteFactory.MakePixel(config.characterSpriteSetCompact);
 
         dummyPortrayal.name = $"_ResourceEx_{config.name}";
         pixelSet.name = $"_ResourceEx_{config.name}";
@@ -266,7 +282,7 @@ public static partial class ResourceExManager
         }
     }
 
-    private static void RegisterNPCs()
+    internal static void RegisterNPCs()
     {
         Log.Info($"Registering NPCs from ResourceEx...");
         GetAllCharacterConfigs()
@@ -353,7 +369,7 @@ public static partial class ResourceExManager
     }
 
 
-    private static void RegisterAllSpawnConfigs()
+    internal static void RegisterAllSpawnConfigs()
     {
         Log.Info($"Registering Spawn Configs from ResourceEx...");
 
@@ -395,7 +411,7 @@ public static partial class ResourceExManager
     // 这里手动重置所有已追踪的扩展的 NPC 的对话内容，以确保对话正确
     // 不过当游戏触发羁绊升级时，也会正确更新对话内容
     // 未来也许可以考虑直接删除此逻辑（？）
-    private static void ResetTrackedNpcDialog()
+    internal static void ResetTrackedNpcDialog()
     {
         foreach (var trackedNPCsDict in RunTimeDayScene.trackedNPCs.Values)
         {

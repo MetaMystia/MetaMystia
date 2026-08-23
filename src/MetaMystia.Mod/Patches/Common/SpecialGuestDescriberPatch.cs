@@ -5,6 +5,8 @@ using Il2CppSystem.Threading;
 using Common.UI;
 using GameData.Core.Collections.NightSceneUtility;
 
+using MetaMystia.ResourceEx.Registries;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.UI.SpecialGuestDescriber))]
@@ -26,7 +28,7 @@ public partial class SpecialGuestDescriberPatch
     public static void Describe_Postfix(SpecialGuestDescriber __instance, SpecialGuest detail, CancellationToken cancellationToken)
     {
         var portrayal = detail.CharacterDefaultPortrayal;
-        if (ResourceExManager.TryGetSpecialGuestCustomPortrayal(portrayal, out var portrayalSprites, out var faceInNoteBook))
+        if (SpecialGuestRegistry.TryGetSpecialGuestCustomPortrayal(portrayal, out var portrayalSprites, out var faceInNoteBook))
         {
             portrayal.faceInNoteBook = faceInNoteBook;
             if (portrayal.faceInNoteBook >= 0 && portrayal.faceInNoteBook < portrayalSprites.Length)

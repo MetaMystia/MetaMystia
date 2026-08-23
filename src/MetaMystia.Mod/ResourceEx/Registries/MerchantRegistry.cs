@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 
 using GameData.Core.Collections.DaySceneUtility;
@@ -9,16 +10,32 @@ using GameData.RunTime.DaySceneUtility;
 
 using static GameData.Core.Collections.DaySceneUtility.Collections.Merchant;
 
-
-using SgrYuki.Utils;
-using MetaMystia.ResourceEx.Models;
 using MetaMystia.ResourceEx.Mappers;
+using MetaMystia.ResourceEx.Models;
+using SgrYuki.Utils;
 
-namespace MetaMystia;
+namespace MetaMystia.ResourceEx.Registries;
 
-
-public static partial class ResourceExManager
+/// <summary>
+/// 商人领域注册器：持有商人配置与构建产物，负责构建、追踪与清理。
+/// </summary>
+[AutoLog]
+public static partial class MerchantRegistry
 {
+    private static readonly Dictionary<string, MerchantConfig> MerchantConfigs = new();
+    private static readonly Dictionary<string, Merchant> _builtMerchants = new();
+
+    internal static void Merge(ResourceConfig config, string packageName)
+    {
+        if (config?.merchants == null) return;
+
+        foreach (var merchantConfig in config.merchants)
+        {
+            MerchantConfigs[merchantConfig.key] = merchantConfig;
+            Log.LogInfo($"[{packageName}] Loaded config for merchant {merchantConfig.key}");
+        }
+    }
+
     public static bool IsResourceExSpecialMerchant(this string stringId, string type = "Special") =>
         stringId.IsResourceExSpecialGuest() && _builtMerchants.ContainsKey(stringId);
 
@@ -29,7 +46,7 @@ public static partial class ResourceExManager
     /// This prevents KeyNotFoundException when the game calls DataBaseDay.RefMerchant
     /// for a merchant whose resource pack has been removed.
     /// </summary>
-    private static void CheckAndCleanOrphanedMerchants()
+    internal static void CheckAndCleanOrphanedMerchants()
     {
         var trackedMerchants = RunTimeDayScene.trackedMerchants;
         if (trackedMerchants == null) return;
@@ -55,7 +72,7 @@ public static partial class ResourceExManager
             Log.Info($"Cleaned up {orphanedKeys.Count} orphaned tracked merchant(s).");
     }
 
-    private static void RegisterAllTrackedMerchant()
+    internal static void RegisterAllTrackedMerchant()
     {
         Log.Info("Registering all tracked merchants...");
         MerchantConfigs.Values.ToList().ForEach(RegisterTrackedMerchant);
@@ -75,8 +92,8 @@ public static partial class ResourceExManager
 
         newMerchant.key = config.key;
 
-        newMerchant.welcomeDialogPackage = config.welcomeDialogPackageNames.Select(GetBuiltDialogPackage).ToIl2CppReferenceArray();
-        newMerchant.nullDialogPackage = config.nullDialogPackageNames.Select(GetBuiltDialogPackage).ToIl2CppReferenceArray();
+        newMerchant.welcomeDialogPackage = config.welcomeDialogPackageNames.Select(DialogRegistry.GetBuiltDialogPackage).ToIl2CppReferenceArray();
+        newMerchant.nullDialogPackage = config.nullDialogPackageNames.Select(DialogRegistry.GetBuiltDialogPackage).ToIl2CppReferenceArray();
         newMerchant.priceMultiplierRange = new UnityEngine.Vector2(config.priceMultiplierMin, config.priceMultiplierMax);
         newMerchant.leastSellNum = config.leastSellNum;
 

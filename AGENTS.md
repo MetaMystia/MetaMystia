@@ -24,6 +24,7 @@
 - Il2CppInterop 缺陷：[`docs/il2cppinterop-defects.md`](docs/il2cppinterop-defects.md)
 - 日志与调用追踪：[`docs/logging-and-tracing.md`](docs/logging-and-tracing.md)
 - ResourceEx 资源包：[`docs/resourceex-package-contract.md`](docs/resourceex-package-contract.md)
+- ResourceEx 模块结构：[`docs/resourceex-module-structure.md`](docs/resourceex-module-structure.md)
 - 本地化：[`docs/localization-rules.md`](docs/localization-rules.md)
 - 控制台命令：[`docs/console-command-style.md`](docs/console-command-style.md)
 

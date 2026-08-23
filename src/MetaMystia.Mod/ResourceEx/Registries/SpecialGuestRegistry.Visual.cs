@@ -1,12 +1,15 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+
 using GameData.Profile;
-using MetaMystia.ResourceEx.Models;
 using UnityEngine;
 
-namespace MetaMystia;
+using MetaMystia.ResourceEx.AssetManagement;
+using MetaMystia.ResourceEx.Models;
 
-public static partial class ResourceExManager
+namespace MetaMystia.ResourceEx.Registries;
+
+public static partial class SpecialGuestRegistry
 {
     // TODO: 目前只能支持单套自定义立绘
     private static readonly Dictionary<CharacterPortrayal, CharacterConfig> CustomSpecialGuestPortrayalToConfig = [];
@@ -71,7 +74,7 @@ public static partial class ResourceExManager
 
             Log.LogInfo(
                 $"Getting portrait sprite for characterId {config.id}, pid {portraitConfig.pid} from path {portraitConfig.path}");
-            if (ResourceExManager.TryGetSprite(portraitConfig.path, out var sprite))
+            if (RexAssetRegistry.TryGetSprite(portraitConfig.path, out var sprite))
             {
                 portraits[index] = sprite;
             }

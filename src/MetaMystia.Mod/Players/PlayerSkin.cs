@@ -9,6 +9,7 @@ using GameData.Core.Collections;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Profile;
 
+using MetaMystia.ResourceEx.Registries;
 using SgrYuki.Utils;
 
 namespace MetaMystia;
@@ -150,7 +151,7 @@ public partial class PlayerSkin
         if (portrayal == null) return null;
 
         // 优先：ResourceEx 自定义立绘
-        if (ResourceExManager.TryGetSpecialGuestCustomPortrayal(portrayal, out var customSprites, out var faceInNoteBook))
+        if (SpecialGuestRegistry.TryGetSpecialGuestCustomPortrayal(portrayal, out var customSprites, out var faceInNoteBook))
         {
             var index = (faceInNoteBook >= 0 && faceInNoteBook < customSprites.Length) ? faceInNoteBook : 0;
             return customSprites[index];

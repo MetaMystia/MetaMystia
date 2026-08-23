@@ -6,6 +6,8 @@ using GameData.Core.Collections.DaySceneUtility;
 using GameData.RunTime.Common;
 using GameData.RunTime.DaySceneUtility;
 
+using MetaMystia.ResourceEx.Registries;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.UI.DaySceneChatSelectionPannel.__c__DisplayClass17_0))]

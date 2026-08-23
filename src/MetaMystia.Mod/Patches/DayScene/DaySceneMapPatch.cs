@@ -5,6 +5,8 @@ using DayScene;
 using DayScene.Interactables.Collections.ConditionComponents;
 using GameData.RunTime.DaySceneUtility.Collection;
 
+using MetaMystia.ResourceEx.Registries;
+
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 // using System.Linq;

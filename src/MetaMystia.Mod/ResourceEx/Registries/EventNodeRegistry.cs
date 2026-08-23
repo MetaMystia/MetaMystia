@@ -1,19 +1,37 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using GameData.Core.Collections;
 using GameData.RunTime.Common;
+
 using MetaMystia.ResourceEx.Mappers;
 using MetaMystia.ResourceEx.Models;
 
-namespace MetaMystia;
+namespace MetaMystia.ResourceEx.Registries;
 
-
-public static partial class ResourceExManager
+/// <summary>
+/// 事件节点领域注册器：持有事件节点配置，负责注册与羁绊事件激活。
+/// </summary>
+[AutoLog]
+public static partial class EventNodeRegistry
 {
-    private static void ActivateAllKizunaEventNodes()
+    private static readonly List<EventNodeConfig> EventNodeConfigs = new();
+
+    internal static void Merge(ResourceConfig config, string packageName)
     {
-        _characterConfigs.Values
+        if (config?.eventNodes == null) return;
+
+        foreach (var eventNodeConfig in config.eventNodes)
+        {
+            EventNodeConfigs.Add(eventNodeConfig);
+            Log.LogInfo($"[{packageName}] Loaded config for event node {eventNodeConfig.debugLabel}");
+        }
+    }
+
+    internal static void ActivateAllKizunaEventNodes()
+    {
+        SpecialGuestRegistry.GetAllCharacterConfigs()
             .Where(c => c.kizuna != null)
             .ToList()
             .ForEach(CheckAndActivateKizunaEventNode);
@@ -73,7 +91,7 @@ public static partial class ResourceExManager
         return prerequisiteEvent != null;
     }
 
-    private static void RegisterAllEventNodes() => EventNodeConfigs.ToList().ForEach(RegisterEventNode);
+    internal static void RegisterAllEventNodes() => EventNodeConfigs.ToList().ForEach(RegisterEventNode);
     private static void RegisterEventNode(EventNodeConfig config)
     {
         var eventNode = config.ToEventNode();
@@ -82,7 +100,7 @@ public static partial class ResourceExManager
     }
 
 
-    private static void RegisterAllEventNodesMapping() => EventNodeConfigs.ToList().ForEach(RegisterEventNodeMapping);
+    internal static void RegisterAllEventNodesMapping() => EventNodeConfigs.ToList().ForEach(RegisterEventNodeMapping);
     private static void RegisterEventNodeMapping(EventNodeConfig config)
     {
         try

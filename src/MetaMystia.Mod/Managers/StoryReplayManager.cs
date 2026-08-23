@@ -7,6 +7,7 @@ using GameData;
 using GameData.Core.Collections.DaySceneUtility;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using MetaMystia.ResourceEx.Registries;
 using SgrYuki.Utils;
 
 namespace MetaMystia;
@@ -255,7 +256,7 @@ public static partial class StoryReplayManager
         UniversalGameManager.OpenDialogMenu(
             package,
             onFinishCallback: null,
-            overrideReplaceTextCallback: ResourceExManager.GetOverrideReplaceTextCallback(package));
+            overrideReplaceTextCallback: DialogRegistry.GetOverrideReplaceTextCallback(package));
     }
 
     private static void OpenSelectionMenu(
