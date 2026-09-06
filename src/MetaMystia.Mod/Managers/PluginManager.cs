@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Concurrent;
+using GameData.Profile;
+using MetaMystia.Patch;
 using UnityEngine;
 
 using MetaMystia.UI;
@@ -78,7 +80,8 @@ public static partial class PluginManager
 
             if (Input.GetKeyDown(KeyCode.F3))
             {
-                StoryReplayManager.Test();
+                MystiaQTEBuffRewardPatch.Player_Fever_Infinite_Reverse(NightScene.CookingUtility.QTERewardManager.Instance?.CurrentBuffReward?.TryCast<MystiaQTEBuffReward>());
+                InGameConsole.ShowPassive("触发永续热火朝天");
             }
             if (Input.GetKeyDown(KeyCode.F11))
             {

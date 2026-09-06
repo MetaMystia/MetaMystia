@@ -311,6 +311,14 @@ public enum TextId
     MpIpv6RejectConnected,
     MpDescIpv6,
 
+    // Cheat commands
+    CmdDescCheat,
+    CheatDescFever,
+    CheatInvalidMode,
+    CheatFeverApplied,
+    CheatFeverPending,
+    CheatFeverDisabled,
+
     // Live streaming mode
     CmdDescLive,
     LiveUsage,

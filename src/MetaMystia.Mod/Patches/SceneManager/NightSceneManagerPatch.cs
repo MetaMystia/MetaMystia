@@ -22,6 +22,7 @@ public static partial class NightSceneManagerPatch
         // GuestsManagerPatch.ReimuSpellCard = false;
 
         MpManager.OnSceneTransit(Scene.WorkScene);
+        CheatManager.TryApplyFever();
         PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
 

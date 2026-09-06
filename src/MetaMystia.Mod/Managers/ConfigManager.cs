@@ -1,5 +1,6 @@
-using BepInEx.Configuration;
 using System;
+
+using BepInEx.Configuration;
 using UnityEngine;
 
 namespace MetaMystia;
@@ -31,6 +32,7 @@ public static partial class ConfigManager
 {
     public static ConfigFile Config => Plugin.Instance?.Config;
     public static ConfigEntry<bool> Debug;
+    public static ConfigEntry<bool> CheatFever;
     public static ConfigEntry<string> PlayerId;
     public static ConfigEntry<bool> SignatureCheck;
     public static ConfigEntry<bool> IgnoreDlcDependencyCheck;
@@ -70,6 +72,10 @@ public static partial class ConfigManager
     public static void InitConfigs()
     {
         Debug = Config.Bind("General", "Debug", false, "Enable debug features and hotkeys\n启用调试功能和热键");
+
+        CheatFever = Config.Bind("Cheat", "CheatFever", false,
+            "Automatically enable Infinite Fever each night. May affect multiplayer gameplay.\n" +
+            "每次营业自动启用永续热火朝天，可能影响联机。");
 
         PlayerId = Config.Bind("General", "PlayerId", "", "Player ID for multiplayer, empty to device name\n联机用玩家 ID，为空则默认为设备名称");
 

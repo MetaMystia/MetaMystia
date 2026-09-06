@@ -66,4 +66,7 @@ public partial class MystiaQTEBuffRewardPatch
         }
     }
 
+    [HarmonyPatch(nameof(MystiaQTEBuffReward.Player_Fever_Infinite))]
+    [HarmonyReversePatch]
+    public static void Player_Fever_Infinite_Reverse(MystiaQTEBuffReward __instance) { }
 }
