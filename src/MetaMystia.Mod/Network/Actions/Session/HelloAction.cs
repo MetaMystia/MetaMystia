@@ -28,6 +28,12 @@ public partial class HelloAction : Action
     [HostOnlyReceive]
     public override void OnReceivedDerived()
     {
+        if (!MpWire.CanAcceptHello(SenderUid))
+        {
+            Log.Warning($"Ignoring Hello before version verification or after admission: uid={SenderUid}");
+            return;
+        }
+
         // --- 版本校验 ---
         if (Version != Plugin.ModVersion)
         {

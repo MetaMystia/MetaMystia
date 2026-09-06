@@ -151,7 +151,6 @@ public static class MpCommands
                 return;
             }
 
-            // Fire-and-forget: resolve address then connect on background thread
             string host = address;
             int resolvedPort = port ?? -1;
 
@@ -169,14 +168,8 @@ public static class MpCommands
                 }
             }
 
-            _ = Task.Run(async () =>
-            {
-                bool result = await MpManager.ConnectToPeerAsync(host, resolvedPort);
-                if (result)
-                    InGameConsole.ShowPassiveFromAnyThread(TextId.ConnectCommandConnected.Get(address));
-                else
-                    InGameConsole.ShowPassiveFromAnyThread(TextId.ConnectCommandFail.Get(address));
-            });
+            ctx.Log(TextId.MpConnecting.Get(host, resolvedPort < 0 ? MpManager.ConfigPort : resolvedPort));
+            _ = ConnectAsync(host, resolvedPort, address);
         });
         mpCmd.AddCommand(connectCmd);
 
@@ -355,5 +348,11 @@ public static class MpCommands
         CommandRegistry.RegisterHint("mp id", 0, "<player ID>");
         CommandRegistry.RegisterHint("mp connect", 0, "<IP address or IP:port>");
         CommandRegistry.RegisterHint("mp connect", 1, "<port>");
+    }
+
+    private static async Task ConnectAsync(string host, int port, string address)
+    {
+        if (!await MpManager.ConnectToPeerAsync(host, port))
+            PluginManager.RunOnMainThread(() => InGameConsole.LogError(TextId.ConnectCommandFail.Get(address)));
     }
 }

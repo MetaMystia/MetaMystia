@@ -1,13 +1,16 @@
 using System;
 using System.Reflection;
+
 using BepInEx.Logging;
 using MemoryPack;
+
 using SgrYuki;
 
 namespace MetaMystia.Network;
 
 public enum ActionType : ushort
 {
+    ConnectionInfo = 0,
     Ping,
     Pong,
 
@@ -64,6 +67,7 @@ public enum ActionType : ushort
 }
 
 [MemoryPackable]
+[MemoryPackUnion((ushort)ActionType.ConnectionInfo, typeof(ConnectionInfoAction))]
 [MemoryPackUnion((ushort)ActionType.Ping, typeof(PingAction))]
 [MemoryPackUnion((ushort)ActionType.Pong, typeof(PongAction))]
 [MemoryPackUnion((ushort)ActionType.Hello, typeof(HelloAction))]
@@ -263,7 +267,7 @@ public abstract partial class Action
 
     protected void Enqueue(bool lowPriority = false)
     {
-        if (!MpWire.CanSend) return;
+        if (!MpWire.CanSendAction(this)) return;
         if (ShouldDiscardOnStory())
         {
             Log.Info($"{MpManager.RoleTag} Will not send (in story): {ActionName}");

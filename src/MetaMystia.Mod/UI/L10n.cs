@@ -328,6 +328,10 @@ public enum TextId
     LiveModePartial,
     LiveModeFull,
     LivePartialReminder,
+
+    ConnectionVersionMismatch,
+    ConnectionHandshakeTimeout,
+    ConnectionHandshakeFailed,
 }
 
 public static class L10n

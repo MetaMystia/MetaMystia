@@ -30,9 +30,7 @@ public partial class RejectAction : Action
     /// </summary>
     public static void SendAndDisconnect(int uid, TextId reasonId, params string[] args)
     {
-        // 先断开再发 Reject 会导致 DirectTcp 找不到 targetUid；Reject 应在断开前入队，
-        // 且 DirectTcp 对找不到的 targetUid 不得广播（否则会误伤所有在线客机）。
+        // IO 线程写出拒绝包后关闭连接，不能在此处入队后立即断开。
         new RejectAction { ReasonId = reasonId, ReasonArgs = args, WireTargetUid = uid }.Enqueue();
-        MpWire.DisconnectClient(uid);
     }
 }

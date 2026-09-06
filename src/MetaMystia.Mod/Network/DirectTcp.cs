@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+
 using MemoryPack;
 
 namespace MetaMystia.Network;
@@ -85,6 +86,8 @@ internal sealed class DirectTcp
         public NetworkStream Stream;
         public PacketBuffer Buffer = new();
         public readonly Queue<byte[]> Pending = new();
+        public bool HandshakeComplete;
+        public bool CloseAfterSend;
     }
 
     private readonly Action<int, NetPacket> _onPacket;
@@ -147,20 +150,31 @@ internal sealed class DirectTcp
         _uplink = new Link { Tcp = tcp, Stream = tcp.GetStream() };
     }
 
-    public void Enqueue(int? targetUid, int? exceptUid, byte[] framed, bool dropIfCongested)
+    public void Enqueue(int? targetUid, int? exceptUid, byte[] framed, bool dropIfCongested, bool completesHandshake = false, bool closeAfterSend = false)
     {
         if (_isHost)
         {
             // 指定 targetUid 时只发给该连接；找不到则丢弃，不能退化为广播
-            // （RejectAction 等会在入队后立即 DisconnectClient，目标可能已离线）。
             if (targetUid is int uid)
             {
-                if (_clients.TryGetValue(uid, out var one))
-                    TryEnqueue(one, framed, dropIfCongested);
+                if (_clients.TryGetValue(uid, out var one) && !one.CloseAfterSend)
+                {
+                    if (closeAfterSend)
+                    {
+                        // 最后一包不能因拥塞被丢弃，之后不再接受该连接的新出站包。
+                        one.Pending.Enqueue(framed);
+                        one.CloseAfterSend = true;
+                    }
+                    else if (TryEnqueue(one, framed, dropIfCongested) && completesHandshake)
+                    {
+                        one.HandshakeComplete = true;
+                    }
+                }
                 return;
             }
             foreach (var kvp in _clients)
             {
+                if (!kvp.Value.HandshakeComplete) continue;
                 if (exceptUid is int ex && kvp.Key == ex) continue;
                 TryEnqueue(kvp.Value, framed, dropIfCongested);
             }
@@ -233,6 +247,11 @@ internal sealed class DirectTcp
                 throw new IOException("Remote closed");
 
             FlushPending(link);
+            if (link.CloseAfterSend)
+            {
+                TeardownLink(uid, link);
+                return;
+            }
 
             var stream = link.Stream;
             if (stream == null || !stream.DataAvailable) return;
@@ -295,11 +314,13 @@ internal sealed class DirectTcp
         }
     }
 
-    private static void TryEnqueue(Link link, byte[] framed, bool dropIfCongested)
+    private static bool TryEnqueue(Link link, byte[] framed, bool dropIfCongested)
     {
-        if (dropIfCongested && link.Pending.Count > 32) return;
-        if (link.Pending.Count > 512) return;
+        if (link.CloseAfterSend) return false;
+        if (dropIfCongested && link.Pending.Count > 32) return false;
+        if (link.Pending.Count > 512) return false;
         link.Pending.Enqueue(framed);
+        return true;
     }
 
     private static void CloseLink(Link link)

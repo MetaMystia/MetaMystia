@@ -1,6 +1,7 @@
-using MemoryPack;
 using System.Linq;
-using Il2CppSystem.Net.Http.Headers;
+
+using MemoryPack;
+
 using MetaMystia.UI;
 
 namespace MetaMystia.Network;
@@ -45,6 +46,8 @@ public partial class HelloAckAction : Action
     [ClientOnlyReceive]
     public override void OnReceivedDerived()
     {
+        if (!MpWire.IsAwaitingHelloAck) return;
+
         // 设置本地 UID
         PlayerManager.Local.Uid = AssignedUid;
         Log.LogMessage($"Assigned UID: {AssignedUid}");

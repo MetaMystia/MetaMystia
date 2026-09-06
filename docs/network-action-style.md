@@ -38,6 +38,18 @@ public partial class ExampleAction : Action
 
 不得插入、重排或复用已有 `ActionType` 数值。修改已有序列化字段的类型、顺序或含义前，必须明确评估协议兼容性。
 
+本次版本预检按需求例外调整：`ConnectionInfo = 0`，原 `Ping`、`Pong` 及后续编号均顺延一位。此后仍只允许追加新编号。
+
+## 连接预检
+
+直连顺序：`ConnectionInfo` 请求 → `ConnectionInfo` 回复 → `Hello` → `HelloAck`。
+
+- `ConnectionInfo` 固定为 ID 0，交换游戏版本、模组版本、协议版本、房间上限和人数。人数包含本机，不计尚未完成握手的连接。
+- 协议版本暂取模组版本。客机要求三项版本全部一致，否则显示双方版本并断开，不发送 `Hello`。
+- 客机发现预检人数已达上限时提示满房并断开，不发送 `Hello`。预检人数只表示当时状态，主机仍在接收 `Hello` 时检查最终人数限制和其他入房条件。
+- 握手完成前不发送 `Ping`，也不发送、处理或转发业务同步。主机给待加入连接发送的首包为定向预检回复。
+- 旧版本没有预检协议，无法提供完整版本信息，只能显示握手失败或超时。跨版本识别依赖双方支持这一固定编号和字段布局。
+
 ## 发送与路由
 
 - 使用 `Enqueue()` 进入统一发送队列，不得直接操作 `DirectTcp`。
@@ -46,6 +58,8 @@ public partial class ExampleAction : Action
 - `WireExceptUid` 表示广播时排除指定 UID。
 - `WireTargetUid` 和 `WireExceptUid` 只属于线层，不参与序列化。
 - `SenderUid` 由线层根据实际连接写入或校正，不得信任远端自行声明的发送者身份。
+
+拒绝连接使用 `RejectAction.SendAndDisconnect()`：IO 线程写出拒绝包后再关闭连接，不得在消息入队后立即断开。入站消息和断开事件按同一队列处理，确保最后收到的拒绝原因先于断开提示。
 
 需要房间转发的 Action 使用 `[RoomRelay]`；需要公域转发的 Action 使用 `[PublicRelay]`。是否转发必须依据实际消息流决定，不得因“其他客户端可能需要”而默认广播。
 

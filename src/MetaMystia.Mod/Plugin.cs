@@ -1,9 +1,10 @@
+using System;
+
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 using Il2CppInterop.Runtime.Injection;
 using UnityEngine.UI;
-using System;
 
 using MetaMystia.Patch;
 using MetaMystia.ResourceEx.Addressables;
@@ -19,6 +20,7 @@ public class Plugin : BasePlugin
     public static string GameVersion => Common.LoadingSceneManager.VersionData;
     public static string TargetGameVersion => "RELEASE 4.4.0e";
     public readonly static string ModVersion = MyPluginInfo.PLUGIN_VERSION;
+    public static string ProtocolVersion => ModVersion;
 
     public static TraceLog tl = new TraceLog(); // for debug
 

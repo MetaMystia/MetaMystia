@@ -1,8 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+
 using MetaMystia.UI;
 using SgrYuki;
 
@@ -21,6 +24,10 @@ public static partial class MpWire
     private static volatile bool _ioRunning;
     private static volatile bool _running;
     private static volatile bool _connecting;
+    private enum ClientHandshakeStage { None, AwaitingInfo, AwaitingHelloAck, Complete }
+    private static volatile ClientHandshakeStage _clientHandshake;
+    private static readonly ConcurrentDictionary<int, PeerHandshake> _peerHandshakes = new();
+    private sealed record PeerHandshake(ConnectionInfoAction Info, bool Complete = false);
 
     private static readonly ConcurrentQueue<Outbound> _outbox = new();
     private static readonly ConcurrentQueue<Inbound> _inbox = new();
@@ -33,23 +40,30 @@ public static partial class MpWire
     private const int PingIntervalMs = 3000;
     private const int ConnectTimeoutMs = 10_000;
 
-    private readonly record struct Outbound(byte[] Framed, int? TargetUid, int? ExceptUid, bool LowPriority);
+    private readonly record struct Outbound(byte[] Framed, int? TargetUid, int? ExceptUid, bool LowPriority, bool CompletesHandshake = false, bool CloseAfterSend = false);
+    // Action 为 null 表示断开，与已收包共用队列以保持先后顺序。
     private readonly record struct Inbound(int FromUid, Action Action);
 
     public static int CurrentPort => _currentPort;
     public static bool IsRunning => _running;
-    public static bool IsConnecting => _connecting;
+    public static bool IsConnecting => _connecting || _clientHandshake is ClientHandshakeStage.AwaitingInfo or ClientHandshakeStage.AwaitingHelloAck;
+    public static bool IsAwaitingHelloAck => _clientHandshake == ClientHandshakeStage.AwaitingHelloAck;
+    public static ConnectionInfoAction RemoteConnectionInfo { get; private set; }
     public static long LatencyMs { get; private set; }
     public static long NowMs => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     public static long TimeOffsetMs { get; set; }
     public static long SyncedNowMs => NowMs - TimeOffsetMs;
 
-    public static bool IsRoomConnected => Session.TransportKind switch
+    private static bool HasTransportConnection => Session.TransportKind switch
     {
         TransportKind.DirectHost => _tcp?.HasClients == true,
         TransportKind.DirectClient => _tcp?.IsClientConnected == true,
         _ => false
     };
+
+    public static bool IsRoomConnected => HasTransportConnection && (Session.IsRoomHost
+        ? _peerHandshakes.Any(peer => peer.Value.Complete)
+        : _clientHandshake == ClientHandshakeStage.Complete);
 
     public static bool CanSend => Session.TransportKind switch
     {
@@ -58,6 +72,16 @@ public static partial class MpWire
         TransportKind.RelayClient => Session.IsInPublicScope || Session.IsInRoom,
         _ => false
     };
+
+    internal static bool CanSendAction(Action action)
+    {
+        if (CanSend) return true;
+        if (!HasTransportConnection) return false;
+        if (Session.IsRoomHost)
+            return action is ConnectionInfoAction or HelloAckAction or RejectAction;
+        return (_clientHandshake == ClientHandshakeStage.AwaitingInfo && action is ConnectionInfoAction)
+            || (_clientHandshake == ClientHandshakeStage.AwaitingHelloAck && action is HelloAction);
+    }
 
     public static void FlushInbox() => ProcessInboxOnMainThread();
 
@@ -116,12 +140,12 @@ public static partial class MpWire
     {
         if (port < 0) port = ConfigManager.DefaultPort?.Value ?? MpConstants.DefaultPort;
         if (!_running && !StartClientMode()) return false;
-        if (IsRoomConnected)
+        if (HasTransportConnection)
         {
             Log.LogWarning("[C] Already connected");
             return false;
         }
-        if (_connecting) return false;
+        if (IsConnecting) return false;
 
         try
         {
@@ -134,13 +158,22 @@ public static partial class MpWire
                 StartIoThread(null);
             }
             Session.EnterDirectClientRoom();
-            await Task.Run(() => _tcp.ConnectClient(host, port, ConnectTimeoutMs));
-            HelloAction.Send();
-            Log.LogMessage($"[C] Connected to {host}:{port}");
+            _clientHandshake = ClientHandshakeStage.AwaitingInfo;
+            RemoteConnectionInfo = null;
+            var connection = _tcp;
+            await Task.Run(() => connection.ConnectClient(host, port, ConnectTimeoutMs));
+            PluginManager.RunOnMainThread(() =>
+            {
+                if (_tcp != connection || !_running || _clientHandshake != ClientHandshakeStage.AwaitingInfo) return;
+                ConnectionInfoAction.Send();
+                PluginHost.Instance.StartManagedCoroutine(WaitForHandshake(connection));
+            });
+            Log.LogMessage($"[C] TCP connected to {host}:{port}; awaiting version verification");
             return true;
         }
         catch (Exception e)
         {
+            _clientHandshake = ClientHandshakeStage.None;
             Log.LogError($"[C] Connect failed: {e.Message}");
             return false;
         }
@@ -175,6 +208,7 @@ public static partial class MpWire
     public static void DisconnectClient(int uid)
     {
         if (!Session.IsRoomHost) return;
+        _peerHandshakes.TryRemove(uid, out _);
         _tcp?.DisconnectClient(uid);
         if (PlayerManager.Peers.ContainsKey(uid))
             OnHostClientLeft(uid);
@@ -184,14 +218,19 @@ public static partial class MpWire
 
     public static void EnqueueSend(Action action, bool lowPriority = false)
     {
-        if (!CanSend) return;
+        if (!CanSendAction(action)) return;
 
         var framed = NetPacket.FromAction(action).ToBytesWithLength();
         int? target = action.WireTargetUid;
         int? except = action.WireExceptUid;
 
         if (Session.IsRoomHost)
-            _outbox.Enqueue(new Outbound(framed, target, except, lowPriority));
+        {
+            _outbox.Enqueue(new Outbound(framed, target, except, lowPriority,
+                CompletesHandshake: action is HelloAckAction, CloseAfterSend: action is RejectAction));
+            if (action is RejectAction && target is int uid)
+                _peerHandshakes.TryRemove(uid, out _);
+        }
         else if (Session.IsRoomClient)
             _outbox.Enqueue(new Outbound(framed, null, null, lowPriority));
     }
@@ -217,8 +256,59 @@ public static partial class MpWire
 
     // --- session callbacks (from Actions / handshake) ---
 
+    public static void OnConnectionInfoReceived(ConnectionInfoAction info)
+    {
+        if (Session.IsRoomHost)
+        {
+            if (!_peerHandshakes.TryAdd(info.SenderUid, new PeerHandshake(info))) return;
+            ConnectionInfoAction.Send(info.SenderUid);
+            return;
+        }
+
+        if (!Session.IsRoomClient || _clientHandshake != ClientHandshakeStage.AwaitingInfo) return;
+        RemoteConnectionInfo = info;
+        if (!info.MatchesVersions(Plugin.GameVersion, Plugin.ModVersion, Plugin.ProtocolVersion))
+        {
+            InGameConsole.LogError(TextId.ConnectionVersionMismatch.Get(
+                Plugin.GameVersion, Plugin.ModVersion, Plugin.ProtocolVersion,
+                info.GameVersion, info.ModVersion, info.ProtocolVersion));
+            DisconnectPeer();
+            return;
+        }
+
+        if (info.PlayerCount >= info.MaxPlayers)
+        {
+            InGameConsole.LogError(TextId.RoomFull.Get(info.PlayerCount, info.MaxPlayers));
+            DisconnectPeer();
+            return;
+        }
+
+        _clientHandshake = ClientHandshakeStage.AwaitingHelloAck;
+        HelloAction.Send();
+    }
+
+    public static bool CanAcceptHello(int uid) =>
+        _peerHandshakes.TryGetValue(uid, out var peer) && !peer.Complete
+        && peer.Info.MatchesVersions(Plugin.GameVersion, Plugin.ModVersion, Plugin.ProtocolVersion);
+
+    private static IEnumerator WaitForHandshake(DirectTcp connection)
+    {
+        long deadline = NowMs + ConnectTimeoutMs;
+        while (_tcp == connection && _clientHandshake is ClientHandshakeStage.AwaitingInfo or ClientHandshakeStage.AwaitingHelloAck)
+        {
+            if (NowMs >= deadline)
+            {
+                InGameConsole.LogError(TextId.ConnectionHandshakeTimeout.Get());
+                DisconnectPeer();
+                yield break;
+            }
+            yield return null;
+        }
+    }
+
     public static void OnHandshakeComplete(string hostId)
     {
+        _clientHandshake = ClientHandshakeStage.Complete;
         // 客机端：握手完成后，让 DirectTcp 把上行链路的 fromUid 同步为真实 HostUid
         _tcp?.SetUplinkUid(Session.HostUid);
         SceneTransitAction.Send(MpManager.LocalScene);
@@ -226,8 +316,12 @@ public static partial class MpWire
         InGameConsole.ShowPassiveFromAnyThread(TextId.MultiplayerConnected.Get());
     }
 
-    public static void OnPeerHandshakeComplete(int uid) =>
+    public static void OnPeerHandshakeComplete(int uid)
+    {
+        if (_peerHandshakes.TryGetValue(uid, out var peer))
+            _peerHandshakes[uid] = peer with { Complete = true };
         CommandScheduler.EnqueueInterval(SyncActionCommandId, 2f, MoveSyncAction.Send);
+    }
 
     // --- IO thread ---
 
@@ -248,6 +342,13 @@ public static partial class MpWire
         _ioThread = null;
         _tcp?.Stop();
         _tcp = null;
+        _clientHandshake = ClientHandshakeStage.None;
+        RemoteConnectionInfo = null;
+        _peerHandshakes.Clear();
+        _pingSent.Clear();
+        _lastPingMs = 0;
+        LatencyMs = 0;
+        TimeOffsetMs = 0;
         while (_outbox.TryDequeue(out _)) { }
         while (_inbox.TryDequeue(out _)) { }
     }
@@ -265,12 +366,12 @@ public static partial class MpWire
             try
             {
                 while (_outbox.TryDequeue(out var msg))
-                    _tcp?.Enqueue(msg.TargetUid, msg.ExceptUid, msg.Framed, msg.LowPriority);
+                    _tcp?.Enqueue(msg.TargetUid, msg.ExceptUid, msg.Framed, msg.LowPriority, msg.CompletesHandshake, msg.CloseAfterSend);
 
                 _tcp?.Pump();
 
                 // 仅客机主动 Ping：主机是时间权威，无需估算时钟偏移或延迟。
-                if (_running && CanSend && Session.IsRoomClient)
+                if (_running && Session.IsRoomClient && CanSend)
                 {
                     long now = NowMs;
                     if (now - _lastPingMs >= PingIntervalMs)
@@ -302,6 +403,8 @@ public static partial class MpWire
         var action = packet.Action;
         if (action == null) return;
 
+        if (Session.IsRoomHost && action is not ConnectionInfoAction and not HelloAction
+            && (!_peerHandshakes.TryGetValue(fromUid, out var peer) || !peer.Complete)) return;
         if (Session.IsRoomHost && fromUid != Session.HostUid && ShouldRelay(action))
         {
             action.SenderUid = fromUid;
@@ -314,10 +417,7 @@ public static partial class MpWire
 
     private static void OnWirePeerLeft(int uid)
     {
-        if (Session.IsRoomHost && uid != Session.HostUid)
-            PluginManager.RunOnMainThread(() => OnHostClientLeft(uid));
-        else if (Session.IsRoomClient)
-            PluginManager.RunOnMainThread(OnClientDisconnected);
+        _inbox.Enqueue(new Inbound(uid, null));
     }
 
     // 仅执行已反序列化 Action 的 OnReceived（Unity / PlayerManager）；转发已在 OnWirePacket（IO 线程）完成。
@@ -325,6 +425,19 @@ public static partial class MpWire
     {
         while (_inbox.TryDequeue(out var item))
         {
+            if (item.Action == null)
+            {
+                if (Session.IsRoomHost && item.FromUid != Session.HostUid)
+                    OnHostClientLeft(item.FromUid);
+                else if (Session.IsRoomClient)
+                    OnClientDisconnected();
+                continue;
+            }
+
+            // HelloAck 和后续业务包可能在同次读取中到达，须按处理顺序判断握手状态。
+            if (Session.IsRoomClient && _clientHandshake != ClientHandshakeStage.Complete
+                && item.Action is not ConnectionInfoAction and not HelloAckAction and not RejectAction) continue;
+
             try
             {
                 // 主机：每条 TCP 连接对应真实 uid，可覆盖包体以防伪造。
@@ -350,6 +463,7 @@ public static partial class MpWire
 
     private static void OnHostClientLeft(int uid)
     {
+        _peerHandshakes.TryRemove(uid, out _);
         if (PlayerManager.Peers.TryGetValue(uid, out var peer))
         {
             var displayName = LiveModeManager.GetDisplayName(uid, peer.Id);
@@ -358,20 +472,20 @@ public static partial class MpWire
             PlayerManager.RemovePeer(uid);
             MpManager.CheckContinueAfterDisconnect(uid, displayName);
         }
-        else
-        {
-            MpManager.CheckContinueAfterDisconnect(uid, null);
-        }
         if (PlayerManager.Peers.IsEmpty) CancelSync();
     }
 
     private static void OnClientDisconnected()
     {
+        bool wasConnected = _clientHandshake == ClientHandshakeStage.Complete;
+        _clientHandshake = ClientHandshakeStage.None;
+        RemoteConnectionInfo = null;
         while (_outbox.TryDequeue(out _)) { }
         PlayerManager.ClearPeers();
         PlayerManager.Local.Uid = MpConstants.UnassignedUid;
         CancelSync();
-        InGameConsole.ShowPassiveFromAnyThread(TextId.MultiplayerDisconnected.Get());
+        InGameConsole.ShowPassiveFromAnyThread((wasConnected
+            ? TextId.MultiplayerDisconnected : TextId.ConnectionHandshakeFailed).Get());
     }
 
     private static void CancelSync()
