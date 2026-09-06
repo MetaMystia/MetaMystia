@@ -1,23 +1,21 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
+
+using Il2CppInterop.Runtime;
+
 using Common.UI;
 using DayScene.UI;
 using GameData;
-using GameData.Core.Collections.DaySceneUtility;
-using Il2CppInterop.Runtime;
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
+
 using MetaMystia.ResourceEx.Registries;
 using SgrYuki.Utils;
+
+using static MetaMystia.UI.DaySceneSelectionMenu;
 
 namespace MetaMystia;
 
 [AutoLog]
 public static partial class StoryReplayManager
 {
-    private const string BackButtonKey = "DLC5_LUNARCAPITALCONSOLE_REPEATCHALLENGE_BACK";
-    private const string CloseButtonKey = "KIZUNA_REQUEST_END";
-
     private static MultiLanguageTextMesh.LoadLanguageType CurrentLanguage =>
         Common.UI.EscapeUtility.EscConfigPannel.CurrentSettings.CurrentLanguage;
 
@@ -74,7 +72,6 @@ public static partial class StoryReplayManager
                 StoryReplayIndex.Packs,
                 GetPackTitle,
                 IsPackAvailable,
-                (_, data) => data.closeChatSelectionPannelCallback?.Invoke(),
                 OpenPackContent),
             CloseEndButton);
     }
@@ -112,7 +109,6 @@ public static partial class StoryReplayManager
                 dialogs,
                 StoryReplayIndex.GetDialogDisplayTitle,
                 _ => true,
-                (dialog, data) => data.closeChatSelectionPannelCallback?.Invoke(),
                 PlayDialog),
             BackTo(() => OpenPackMenu()));
     }
@@ -137,7 +133,6 @@ public static partial class StoryReplayManager
                 categories,
                 title => title,
                 _ => true,
-                (_, data) => data.closeChatSelectionPannelCallback?.Invoke(),
                 category => OpenGroupMenu(pack, category)),
             BackTo(() => OpenPackMenu()));
     }
@@ -156,7 +151,6 @@ public static partial class StoryReplayManager
                 packages,
                 title => title,
                 pkg => StoryReplayIndex.GetDialogs("ResourceEx", pkg).Any(StoryReplayIndex.IsDialogAvailable),
-                (_, data) => data.closeChatSelectionPannelCallback?.Invoke(),
                 pkg => OpenResourceExDialogMenu(pkg)),
             BackTo(() => OpenPackMenu()));
     }
@@ -175,7 +169,6 @@ public static partial class StoryReplayManager
                 dialogs,
                 StoryReplayIndex.GetDialogDisplayTitle,
                 StoryReplayIndex.IsDialogAvailable,
-                (dialog, data) => data.closeChatSelectionPannelCallback?.Invoke(),
                 PlayDialog),
             BackTo(() => OpenResourceExPackageMenu()));
     }
@@ -194,7 +187,6 @@ public static partial class StoryReplayManager
                 groups,
                 title => title,
                 group => StoryReplayIndex.GetDialogs(pack, category, group).Any(StoryReplayIndex.IsDialogAvailable),
-                (_, data) => data.closeChatSelectionPannelCallback?.Invoke(),
                 group => OpenDialogMenu(pack, category, group)),
             BackTo(() => OpenCategoryMenu(pack)));
     }
@@ -213,35 +205,8 @@ public static partial class StoryReplayManager
                 dialogs,
                 title => title,
                 StoryReplayIndex.IsDialogAvailable,
-                (dialog, data) => data.closeChatSelectionPannelCallback?.Invoke(),
                 PlayDialog),
             BackTo(() => OpenGroupMenu(pack, category)));
-    }
-
-    private static List<DaySceneChatSelectionPannel.GetSelectionConfigurationCallback> BuildSelectionItems<T>(
-        IEnumerable<T> items,
-        Func<T, string> getTitle,
-        Func<T, bool> isAvailable,
-        Action<T, DaySceneChatSelectionPannel.BaseInteractData> onBeforeAction,
-        Action<T> onSelected)
-    {
-        var callbacks = new List<DaySceneChatSelectionPannel.GetSelectionConfigurationCallback>();
-        foreach (var item in items)
-        {
-            var captured = item;
-            callbacks.Add(Il2CppOutDelegate.CreateGetSelectionConfigurationCallback(
-                (data, out title, out availability, out onInteract) =>
-                {
-                    title = getTitle(captured);
-                    availability = isAvailable(captured);
-                    onInteract = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
-                    {
-                        onBeforeAction(captured, data);
-                        onSelected(captured);
-                    });
-                }));
-        }
-        return callbacks;
     }
 
     private static void PlayDialog(string dialogName)
@@ -258,30 +223,4 @@ public static partial class StoryReplayManager
             onFinishCallback: null,
             overrideReplaceTextCallback: DialogRegistry.GetOverrideReplaceTextCallback(package));
     }
-
-    private static void OpenSelectionMenu(
-        List<DaySceneChatSelectionPannel.GetSelectionConfigurationCallback> callbacks,
-        Action<Il2CppSystem.Action> endButton,
-        string endButtonTitleKey = CloseButtonKey)
-    {
-        if (callbacks.Count == 0)
-        {
-            Log.Warning("选项列表为空");
-            return;
-        }
-
-        DayScene.UI.UIManager.Instance.OpenAfterChatMenu(
-            callbacks.ToIl2CppReferenceArray(),
-            endButtonTitleKey,
-            endButton,
-            null);
-    }
-
-    private static Action<Il2CppSystem.Action> BackTo(Action reopen) => closeCallback =>
-    {
-        closeCallback.Invoke();
-        reopen();
-    };
-
-    private static void CloseEndButton(Il2CppSystem.Action closeCallback) => closeCallback.Invoke();
 }

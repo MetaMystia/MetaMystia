@@ -104,6 +104,7 @@ public static partial class ResourceExManager
     public static void OnDataBaseDayInitialized()
     {
         DialogRegistry.RegisterAllDialogPackages();
+        GiftRegistry.ValidateAllGifts();
 
         SpecialGuestRegistry.RegisterNPCs();
         // RegisterAllSpawnMarkers(); // DO NOT DELETE
@@ -265,6 +266,7 @@ public static partial class ResourceExManager
 
         SpecialGuestRegistry.Merge(config, packageName);
         DialogRegistry.Merge(config, packageName);
+        GiftRegistry.Merge(package);
         IngredientRegistry.Merge(config, packageName);
         FoodRegistry.Merge(config, packageName);
         BeverageRegistry.Merge(config, packageName);

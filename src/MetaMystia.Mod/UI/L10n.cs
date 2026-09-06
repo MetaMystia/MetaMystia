@@ -15,6 +15,10 @@ public enum Language
 
 public enum TextId
 {
+    // 资源包礼物邮箱
+    GiftMailboxTitle,
+    GiftMailboxInvalidGift,
+
     // Multiplayer Connection & Commands
     ConnectCommand,
     ConnectCommandConnected,

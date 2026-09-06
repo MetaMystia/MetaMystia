@@ -1,4 +1,6 @@
 {
+    "GiftMailboxTitle": "Resource Pack Gift Mailbox",
+    "GiftMailboxInvalidGift": "Invalid gift",
     "ConnectCommand": "Usage: /mp connect <IP:Port>",
     "ConnectCommandConnected": "Successfully connected to {0}",
     "ConnectCommandFail": "Failed to connect to {0}",

@@ -5,7 +5,7 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 | 目录 | 命名空间 | 职责 |
 |---|---|---|
 | `ResourceEx/Core.cs` | `MetaMystia` | `ResourceExManager`：包加载、DLC 依赖检查、生命周期钩子、包查询 |
-| `ResourceEx/Registries/` | `MetaMystia.ResourceEx.Registries` | 各内容领域注册器：SpecialGuest、Dialog、Ingredient、Food、Beverage、Recipe、Cloth、MissionNode、EventNode、Merchant；以及 `PixelSpriteFactory`、`SchedulerDataRecovery` |
+| `ResourceEx/Registries/` | `MetaMystia.ResourceEx.Registries` | 各内容领域注册器：SpecialGuest、Dialog、Gift、Ingredient、Food、Beverage、Recipe、Cloth、MissionNode、EventNode、Merchant；以及 `PixelSpriteFactory`、`SchedulerDataRecovery` |
 | `ResourceEx/Mappers/` | `MetaMystia.ResourceEx.Mappers` | config DTO → 游戏对象转换 |
 | `ResourceEx/Models/` | `MetaMystia.ResourceEx.Models` | ResourceEx.json 配置 DTO |
 | `ResourceEx/AssetManagement/` | `MetaMystia.ResourceEx.AssetManagement` | ZIP 加载、ID 范围与签名校验、rex:// 资产注册表与资产查询 |
@@ -18,6 +18,8 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 ## 生命周期钩子
 
 游戏数据库初始化由 Patch 调用 `ResourceExManager.OnDataBaseXxxInitialized()` 等钩子驱动，钩子内按固定顺序调用各注册器。注册顺序即依赖顺序：Dialog 先于 MissionNode、EventNode、Merchant、SpecialGuest 构建。
+
+`GiftRegistry` 按加载的包保留礼物列表，在 `OnDataBaseDayInitialized()` 注册对话后校验 Item 与对话引用。`GiftMailboxManager` 负责菜单和对话结束后的入库；与 `StoryReplayManager` 共用 `UI/DaySceneSelectionMenu`，不持有领取存档。
 
 ## 约定
 

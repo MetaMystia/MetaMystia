@@ -1,4 +1,6 @@
 {
+    "GiftMailboxTitle": "资源包礼物邮箱",
+    "GiftMailboxInvalidGift": "无效礼物",
     "ConnectCommand": "用法：/mp connect <IP:端口>",
     "ConnectCommandConnected": "成功连接到 {0}",
     "ConnectCommandFail": "连接到 {0} 失败！",

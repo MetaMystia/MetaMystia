@@ -1,4 +1,5 @@
 using System.Linq;
+
 using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Il2CppSystem.Dynamic.Utils;
@@ -33,6 +34,7 @@ public partial class DaySceneUIManagerPatch
         configurationCallbacks = configurationCallbacks
             .ToIl2CppReferenceArray()
             .AddLast(StoryReplayManager.CreateCollabMenuSelection())
+            .AddLast(GiftMailboxManager.CreateCollabMenuSelection())
             .ToIl2CppReferenceArray();
     }
 }
