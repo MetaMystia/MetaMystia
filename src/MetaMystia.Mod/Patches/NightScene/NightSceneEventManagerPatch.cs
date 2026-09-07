@@ -28,6 +28,20 @@ public static partial class NightSceneEventManagerPatch
     }
 
     [HarmonyPatch(nameof(EventManager.StartGuestInstantiateLoop))]
+    [HarmonyPrefix]
+    public static bool StartGuestInstantiateLoop_Prefix() => ShouldSkipGuestLoopWhenFlowRateZero();
+
+    [HarmonyPatch(nameof(EventManager.StartChallengeGuestInstantiateLoop))]
+    [HarmonyPrefix]
+    public static bool StartChallengeGuestInstantiateLoop_Prefix() => ShouldSkipGuestLoopWhenFlowRateZero();
+
+    private static bool ShouldSkipGuestLoopWhenFlowRateZero()
+    {
+        if (MpManager.IsRoomClient) return RunOriginal;
+        return ConfigManager.CheatFlowRate.Value == 0f ? SkipOriginal : RunOriginal;
+    }
+
+    [HarmonyPatch(nameof(EventManager.StartGuestInstantiateLoop))]
     [HarmonyPostfix]
     public static void StartGuestInstantiateLoop_Postfix(EventManager __instance)
     {

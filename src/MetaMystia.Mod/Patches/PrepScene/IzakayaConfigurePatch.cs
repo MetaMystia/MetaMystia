@@ -1,4 +1,7 @@
+using System.Globalization;
+
 using HarmonyLib;
+using UnityEngine;
 
 using GameData.Core.Collections;
 using GameData.RunTime.NightSceneUtility;
@@ -14,6 +17,32 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class IzakayaConfigurePatch
 {
+    [HarmonyPatch(nameof(IzakayaConfigure.Initialize))]
+    [HarmonyPostfix]
+    public static void Initialize_Postfix() => ApplyConfiguredFlowRate();
+
+    [HarmonyPatch(nameof(IzakayaConfigure.UpdateValue))]
+    [HarmonyPostfix]
+    public static void UpdateValue_Postfix() => ApplyConfiguredFlowRate();
+
+    private static void ApplyConfiguredFlowRate()
+    {
+        if (MpManager.IsRoomClient) return;
+
+        float rate = ConfigManager.CheatFlowRate.Value;
+        if (rate == 0f || rate == 1f || float.IsNaN(rate) || rate < 0f || rate >= 16f) return;
+
+        var configure = IzakayaConfigure.Instance;
+        if (configure == null) return;
+
+        var normalInterval = configure.NormalGuestInterval;
+        configure.NormalGuestInterval = new Vector2(normalInterval.x / rate, normalInterval.y / rate);
+        configure.SpecialGuestGachaInterval /= rate;
+        string rateText = rate.ToString("0.###", CultureInfo.InvariantCulture);
+        Log.LogInfo($"Guest flow rate {rate}x applied to izakaya configuration.");
+        InGameConsole.ShowPassiveFromAnyThread(TextId.CheatFlowRateActive.Get(rateText));
+    }
+
     // MetaMiku 注:
     //     下面分别是 IzakayaConfigure 中 菜单/酒水/厨具 注册与注销 的 hook
     //     但是其中对于 厨具，厨具无论是注册还是注销，都会触发 RegisterToCookers，而只有在注销时才会触发 LogOffFromCookers

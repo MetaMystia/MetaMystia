@@ -318,6 +318,10 @@ public enum TextId
     CheatFeverApplied,
     CheatFeverPending,
     CheatFeverDisabled,
+    CheatDescFlowRate,
+    CheatFlowRateInvalid,
+    CheatFlowRateApplied,
+    CheatFlowRateActive,
 
     // Live streaming mode
     CmdDescLive,
