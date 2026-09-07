@@ -23,7 +23,6 @@ public static partial class PluginManager
             return $"{MyPluginInfo.PLUGIN_NAME} v{MyPluginInfo.PLUGIN_VERSION} loaded with {packCount} rex {packLabel}";
         }
     }
-    public static Debugger.WebDebugger Debugger;
     public static bool IsStatusVisible { get; private set; } = true;
     private static readonly ConcurrentQueue<Action> _mainThreadQueue = new();
     public static bool DEBUG => ConfigManager.Debug.Value;
@@ -82,11 +81,6 @@ public static partial class PluginManager
             {
                 MystiaQTEBuffRewardPatch.Player_Fever_Infinite_Reverse(NightScene.CookingUtility.QTERewardManager.Instance?.CurrentBuffReward?.TryCast<MystiaQTEBuffReward>());
                 InGameConsole.ShowPassive("触发永续热火朝天");
-            }
-            if (Input.GetKeyDown(KeyCode.F11))
-            {
-                Debugger ??= new Debugger.WebDebugger();
-                Debugger?.Start();
             }
         }
     }

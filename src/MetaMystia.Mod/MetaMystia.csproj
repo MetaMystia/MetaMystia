@@ -39,8 +39,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll" />
-    <EmbeddedResource Include="Debugger\login.html" />
-    <EmbeddedResource Include="Debugger\index.html" />
     <EmbeddedResource Include="ResourceEx\AssetManagement\public.pem" />
     <EmbeddedResource Include="UI\Locales\en.json" />
     <EmbeddedResource Include="UI\Locales\zh-CN.json" />
@@ -64,22 +62,9 @@
     <PackageReference Include="MemoryPack" Version="1.21.4">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="NLua" Version="1.7.8">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="KeraLua" Version="1.4.9" GeneratePathProperty="true">
-      <PrivateAssets>all</PrivateAssets>
-      <ExcludeAssets>native</ExcludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="$(PkgKeraLua)\runtimes\win-x64\native\lua54.dll">
-      <Link>costura-win-x64\lua54.dll</Link>
-    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

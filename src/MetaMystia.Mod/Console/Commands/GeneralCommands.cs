@@ -59,7 +59,6 @@ public static class GeneralCommands
         ["call"] = TextId.CmdDescCall,
         ["skin"] = TextId.CmdDescSkin,
         ["debug"] = TextId.CmdDescDebug,
-        ["webdebug"] = TextId.CmdDescWebdebug,
         ["whereami"] = TextId.CmdDescWhereami,
         ["enable_bepin_console"] = TextId.CmdDescEnableBepinConsole,
         ["link"] = TextId.CmdDescLink,

@@ -126,7 +126,6 @@ public enum TextId
     AvailableMethods,
     MoveCharacterUsage,
     SceneMoveUsage,
-    WebDebuggerUsage,
 
     // Console Status & Queries
     NotInDayScene,
@@ -174,7 +173,6 @@ public enum TextId
     ErrorGetMapsnpcs,
     ErrorMovecharacter,
     ErrorSceneMove,
-    InvalidWebDebuggerKey,
 
     // Console Results & Feedback
     MessageSent,
@@ -183,7 +181,6 @@ public enum TextId
     CharacterMoved,
     CharacterMovedScene,
     CalledTryCloseIzakaya,
-    WebDebuggerStarted,
 
     // Skin Commands
     SkinUsage,
@@ -210,7 +207,6 @@ public enum TextId
     CmdDescCall,
     CmdDescSkin,
     CmdDescDebug,
-    CmdDescWebdebug,
     CmdDescWhereami,
     CmdDescEnableBepinConsole,
 

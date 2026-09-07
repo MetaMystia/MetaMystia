@@ -47,7 +47,6 @@
 | [Il2CppInterop](https://github.com/BepInEx/Il2CppInterop) | IL2CPP 与 .NET 互操作 | LGPL-3.0-only |
 | [HarmonyX](https://github.com/BepInEx/HarmonyX) | 运行时方法补丁 | MIT |
 | [MemoryPack](https://github.com/Cysharp/MemoryPack) | 网络数据序列化 | MIT |
-| [NLua](https://github.com/nlua/NLua)、[KeraLua](https://github.com/nlua/KeraLua) 与 [Lua](https://www.lua.org/) | Lua 脚本运行支持 | MIT |
 | [System.CommandLine](https://github.com/dotnet/command-line-api) | 控制台命令解析 | MIT |
 | [Fody](https://github.com/Fody/Fody) / [Costura.Fody](https://github.com/Fody/Costura) | 构建期程序集处理 | MIT |
 | [Roslyn](https://github.com/dotnet/roslyn) | 源代码生成器编译支持 | MIT |

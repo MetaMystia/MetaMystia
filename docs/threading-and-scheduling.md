@@ -6,7 +6,7 @@
 
 - Unity 主线程：生命周期、场景、UI 和绝大多数游戏对象访问。
 - `MpWire` IO 线程：TCP 接收、发送和连接维护。
-- `Task` 或异步 IO：HTTP、文件及 WebDebugger 等外部操作。
+- `Task` 或异步 IO：HTTP、文件等外部操作。
 - 协程：由 Unity 主线程推进的延迟、等待和周期逻辑。
 - `CommandScheduler`：计划弃用的旧条件调度。
 
