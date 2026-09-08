@@ -13,6 +13,10 @@ public static class AITestGather
             rows.Add($"PRIMARY {p.GetText().Name} configured={p.productAmount} storage={RunTimeStorage.GetAmountInStorage(p)}");
         foreach (var p in data.secondaryProduct)
             rows.Add($"SECONDARY {p.product.GetText().Name} probability={p.probability} configured={p.product.productAmount} storage={RunTimeStorage.GetAmountInStorage(p.product)}");
+        var parts = new List<string>();
+        foreach (var kv in RunTimeStorage.Ingredients)
+            parts.Add($"{kv.Key}:{kv.Value}");
+        rows.Add("INGREDIENTS " + string.Join(",", parts));
         return string.Join("\n", rows);
     }
 }
