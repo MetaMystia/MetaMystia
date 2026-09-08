@@ -4,13 +4,12 @@ namespace MetaMystia.Network;
 
 [MemoryPackable]
 [AutoLog]
-[RoomRelay]
 public partial class PlayerRepellAction : Action
 {
 
     public int RuntimeId { get; set; }
 
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

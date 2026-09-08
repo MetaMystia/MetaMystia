@@ -10,13 +10,12 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[RoomRelay]
 public partial class QTEAction : Action
 {
     public int GridIndex { get; set; }
     public float QTEScore { get; set; }
 
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

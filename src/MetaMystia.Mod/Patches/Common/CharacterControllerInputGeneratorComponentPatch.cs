@@ -4,8 +4,6 @@ using UnityEngine;
 using Common.CharacterUtility;
 using Common.UI;
 
-using MetaMystia.Network;
-
 
 namespace MetaMystia.Patch;
 
@@ -27,23 +25,10 @@ public partial class CharacterControllerInputGeneratorComponentPatch
             return;
         }
 
-        try
+        var self = PlayerManager.Local.unit;
+        if (self != null && __instance.Character == self)
         {
-            var characterCollection = Common.SceneDirector.Instance.characterCollection;
-            if (!characterCollection.ContainsKey("Self"))
-            {
-                Log.LogWarning($"characterCollection does not contain 'Self' key");
-                return;
-            }
-            if (__instance.name == characterCollection["Self"].name)
-            {
-                PlayerManager.LocalInputDirection = inputDirection;
-                MoveSyncAction.Send();
-            }
-        }
-        catch (System.Exception e)
-        {
-            Log.LogError($"Error in UpdateInputDirection_Prefix: {e.Message}");
+            PlayerManager.LocalInputDirection = inputDirection;
         }
     }
 }

@@ -9,7 +9,6 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[PublicRelay]
 public partial class MoveSyncAction : Action
 {
     public float Vx { get; set; }
@@ -19,22 +18,20 @@ public partial class MoveSyncAction : Action
     public bool IsSprinting { get; set; }
     public float Speed { get; set; }
     public MapLabel MapLabel { get; set; }
+    public long SceneEpoch { get; set; }
 
     protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Debug;
     protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Debug;
 
-    [CheckScene(Common.UI.Scene.DayScene)]
     public override void OnReceivedDerived()
     {
-        if (PlayerManager.TryGetVisiblePeer(SenderUid, out var peer))
-            peer.SyncFromPeer(MapLabel, IsSprinting, Speed,
-                new UnityEngine.Vector2(Vx, Vy), new UnityEngine.Vector2(Px, Py));
+        ModPlayerStore.ApplyDayMotion(SenderUid, SceneEpoch, MapLabel, new(Px, Py, Vx, Vy, Speed, IsSprinting));
     }
 
     // Also send nightsync
     public static void Send()
     {
-        if (!MpManager.CanSeeOnlinePlayers || !MpManager.IsConnected)
+        if (!MpManager.CanSeeOnlinePlayers)
         {
             return;
         }
@@ -68,10 +65,11 @@ public partial class MoveSyncAction : Action
                 Vx = inputDirection.x,
                 Vy = inputDirection.y,
                 MapLabel = mapLabel,
+                SceneEpoch = GameContext.SceneEpoch,
                 Px = position.x,
                 Py = position.y
             };
-            action.Enqueue(lowPriority: true);
+            action.Enqueue();
         }
     }
 }

@@ -3,6 +3,8 @@
   xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
   <Costura>
     <IncludeAssemblies>
+      MetaMystia.Protocol
+      MetaMystia.Network
       MemoryPack.Core
       System.CommandLine
     </IncludeAssemblies>

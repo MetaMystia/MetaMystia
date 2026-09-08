@@ -22,7 +22,6 @@ public partial class DaySceneManagerPatch
     public static void Awake_Postfix()
     {
         MpManager.OnSceneTransit(Scene.DayScene);
-        PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
         PlayerManager.SpawnPeers();
         ResourceExManager.OnDaySceneAwake();
@@ -61,6 +60,7 @@ public partial class DaySceneManagerPatch
 
     public static void OnDayOver()
     {
+        GameContext.EndingDay = true;
         if (MpManager.IsRoomClient)
         {
             GuestInviteAction.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
@@ -75,16 +75,12 @@ public partial class DaySceneManagerPatch
     {
         Log.InfoCaller($"called");
 
-        PlayerManager.LocalIsDayOver = true;
-
-        if (!MpManager.IsConnected)
+        if (!MpManager.IsInRoom)
         {
+            GameContext.EndingDay = true;
             return RunOriginal;
         }
-
-        InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
-        DayReadyAction.Send();
-        MpManager.DayOver();
+        RoomGameplay.SubmitReady(GameplayPhase.Day);
         return SkipOriginal;
     }
 

@@ -39,8 +39,11 @@ public partial class IzakayaConfigPannelPatch
         //     但是还会附带检查除去不合法的 厨具 选项
         //     如果在联机中直接调用该方法，可能会导致 厨具 选项出现不同步的问题
         //     因此这里做了一个补丁，强制在调用 GoToSpecific 之后再重新更新厨具选项
+        var binding = MpWire.Session.Binding;
+        long phase = RoomGameplay.PhaseId;
         PluginManager.RunOnMainThread(() =>
         {
+            if (!RoomGameplay.Matches(binding, phase)) return;
             PrepSceneManager.UpdateCookers();
             PrepSceneManager.UpdateUI();
         });
@@ -51,18 +54,12 @@ public partial class IzakayaConfigPannelPatch
     [HarmonyPrefix]
     public static bool _SolveDailyCompletion_b__64_7_Prefix()
     {
-        if (!MpManager.IsConnected)
+        if (!MpManager.IsInRoom)
         {
             Log.LogDebug($"Not in multiplayer session, skipping patch");
             return RunOriginal;
         }
-        PlayerManager.LocalIsPrepOver = true;
-        InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
-        PrepReadyAction.Send();
-        if (MpManager.IsRoomHost)
-        {
-            MpManager.PrepOver();
-        }
+        RoomGameplay.SubmitReady(GameplayPhase.Prep);
         return SkipOriginal;
     }
 
@@ -74,7 +71,6 @@ public partial class IzakayaConfigPannelPatch
     public static void PrepOver()
     {
         Log.Info("PrepOver called");
-        PlayerManager.ResetState();
         string[] ExceptPanels = ["WorkSceneTrayPannel(Clone)", "WorkSceneSustainedPannel(Clone)"];  // 白玉楼测验
         Panel.ClosePanelUntil("IzakayaConfigPannelNew(Clone)", ExceptPanels);
         _SolveDailyCompletion_b__64_7_ReversePatch(instanceRef);

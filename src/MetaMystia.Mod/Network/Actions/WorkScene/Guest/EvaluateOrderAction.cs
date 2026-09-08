@@ -16,8 +16,7 @@ public partial class EvaluateOrderAction : Action
     public SellableFood Beverage { get; set; }
     public GuestGroupController.EvaluationResult EvalResult { get; set; }
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

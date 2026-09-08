@@ -11,14 +11,13 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[RoomRelay]
 public partial class NightCookAction : Action
 {
     public int GridIndex { get; set; }
     public int RecipeId { get; set; }
     public SellableFood Food { get; set; }
 
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

@@ -870,7 +870,7 @@ public static partial class InGameConsole
             string displayMsg = LiveModeManager.MaskMessage(cmd);
             LogToConsole($"{localName}: {displayMsg}");
 
-            if (MpManager.IsConnected)
+            if (MpManager.IsOnline)
                 MessageAction.Send(cmd);
 
             closeConsole = true;

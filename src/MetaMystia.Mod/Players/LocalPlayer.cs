@@ -1,70 +1,65 @@
+using System.Collections.Generic;
+using System.Linq;
+
 using UnityEngine;
 
 using Common.CharacterUtility;
+using GameData.Core.Collections;
+using GameData.Core.Collections.CharacterUtility;
 using GameData.RunTime.Common;
-using JetBrains.Annotations;
+
+using MetaMystia.Network;
+using SgrYuki.Utils;
 
 namespace MetaMystia;
 
-/// <summary>
-/// 本地玩家，管理与本地操控角色相关的状态
-/// </summary>
-[AutoLog]
-public partial class LocalPlayer : NetPlayer
+// 本地输入与皮肤驱动；网络身份由 ClientSession 提供。
+public sealed class LocalPlayer : NetPlayer
 {
-    public bool CharacterSpawnedAndInitialized => GetCharacterUnit() != null;
+    public override int Uid => MpWire.Session.SelfUid;
+    public override PlayerSkin Skin { get; } = new();
+    private ResourceDataBase _resources = ResourceDataBase.Empty;
+    public override ResourceDataBase DataBase => _resources;
+    public override MapLabel MapLabel => CurrentMapLabel;
+    public bool Sprinting { get; set; }
+    public Vector2 Direction { get; set; }
+    public override bool IsSprinting => Sprinting;
+    public override Vector2 InputDirection => Direction;
+    public override float Speed => unit?.MoveSpeedMultiplier ?? 1f;
+    public bool CharacterSpawnedAndInitialized => unit != null && rb2d != null && cl2d != null;
+    public bool IsCustomSkinOverride { get; set; }
 
     public override CharacterControllerUnit GetCharacterUnit()
     {
-        if (Common.SceneDirector.instance == null)
-        {
-            Log.LogWarning($"SceneDirector instance is null");
-            return null;
-        }
-        if (Common.SceneDirector.Instance.characterCollection.TryGetValue("Self", out var characterUnit))
-        {
-            return characterUnit;
-        }
-        Log.LogWarning($"Cannot find character unit for 'Self'");
-        return null;
+        var director = Common.SceneDirector.instance;
+        return director != null && director.characterCollection.TryGetValue("Self", out var character) ? character : null;
     }
 
-    /// <summary>
-    /// 本地玩家速度直接读取 unit.MoveSpeedMultiplier
-    /// </summary>
-    public override float Speed
-    {
-        get => unit?.MoveSpeedMultiplier ?? 1f;
-        set { if (unit != null) unit.MoveSpeedMultiplier = value; }
-    }
-
-    public override void ResetState()
-    {
-        base.ResetState();
-        Log.LogInfo($"LocalPlayer state reset");
-    }
-
-    /// <summary>
-    /// 当前地图，从 SceneDirector 读取。
-    /// </summary>
     public static MapLabel CurrentMapLabel
     {
         get
         {
-            var key = Common.SceneDirector.Instance?.currentActiveScene?.Key;
-            MapLabelExtensions.TryFromMapKey(key, out var label);
+            MapLabelExtensions.TryFromMapKey(Common.SceneDirector.Instance?.currentActiveScene?.Key, out var label);
             return label;
         }
     }
 
-    /// <summary>
-    /// 是否通过 /skin set 手动设置了自定义皮肤覆盖
-    /// </summary>
-    public bool IsCustomSkinOverride { get; set; } = false;
-
-    /// <summary>
-    /// 从游戏中获取实际皮肤数据（仅在未手动覆盖时执行）
-    /// </summary>
+    public void ReloadResourceTable()
+    {
+        _resources = ResourceDataBase.FromLocal(new IEnumerable<int>[]
+        {
+            DataBaseCore.Foods.ToList().Select(p => p.Key),
+            DataBaseCore.Recipes.ToList().Select(p => p.Key),
+            DataBaseCore.Beverages.ToList().Select(p => p.Key),
+            DataBaseCore.Ingredients.ToList().Select(p => p.Key),
+            DataBaseCore.Cookers.ToList().Select(p => p.Key),
+            DataBaseCore.Items.ToList().Select(p => p.Key),
+            DataBaseCore.Izakayas.ToList().Select(p => p.Key),
+            DataBaseCharacter.SpecialGuest.ToList().Select(p => p.Key),
+            DataBaseCharacter.NormalGuest.ToList().Select(p => p.Key)
+        });
+        ResourceSnapshotAction.Send();
+    }
     public void InitSkin()
     {
         if (IsCustomSkinOverride) return;

@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using Common.UI;
 
@@ -152,27 +153,27 @@ public static partial class PlayerListPanel
         lines.Add((localLine, local.Uid));
 
         // Peers sorted by UID
-        var sorted = new System.Collections.Generic.SortedDictionary<int, PeerPlayer>(PlayerManager.Peers);
+        var sorted = PlayerManager.Peers.OrderBy(pair => pair.Key);
         foreach (var kvp in sorted)
         {
             var peer = kvp.Value;
             string line = FormatPlayer(
-                peer.Uid, peer.Id, scene,
+                peer.Uid, peer.Id, ModPlayerStore.Get(peer.Uid)?.Presence.Scene ?? Scene.EmptyScene,
                 needsGameplayData ? peer.MapLabel : MapLabel.Unknown,
                 needsGameplayData ? peer.Position : Vector2.zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
-                isSelf: false, isHost: kvp.Key == MpManager.HOST_UID);
+                isSelf: false, isHost: kvp.Key == MpManager.Session.HostUid);
             lines.Add((line, kvp.Key));
         }
 
-        var publicSorted = new System.Collections.Generic.SortedDictionary<int, PeerPlayer>(PlayerManager.PublicPeers);
+        var publicSorted = PlayerManager.PublicPeers.OrderBy(pair => pair.Key);
         foreach (var kvp in publicSorted)
         {
             if (PlayerManager.Peers.ContainsKey(kvp.Key)) continue;
             var peer = kvp.Value;
             string line = FormatPlayer(
-                peer.Uid, peer.Id, scene,
+                peer.Uid, peer.Id, ModPlayerStore.Get(peer.Uid)?.Presence.Scene ?? Scene.EmptyScene,
                 needsGameplayData ? peer.MapLabel : MapLabel.Unknown,
                 needsGameplayData ? peer.Position : Vector2.zero,
                 peer.IsDayOver, peer.IsPrepOver,

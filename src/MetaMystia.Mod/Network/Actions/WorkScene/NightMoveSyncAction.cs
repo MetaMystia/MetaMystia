@@ -7,7 +7,6 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[PublicRelay]
 public partial class NightMoveSyncAction : Action
 {
     public float Vx { get; set; }
@@ -19,11 +18,9 @@ public partial class NightMoveSyncAction : Action
     protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Debug;
     protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Debug;
 
-    [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        if (PlayerManager.TryGetVisiblePeer(SenderUid, out var peer))
-            peer.NightSyncFromPeer(Speed, new UnityEngine.Vector2(Vx, Vy), new UnityEngine.Vector2(Px, Py));
+        ModPlayerStore.ApplyNightMotion(SenderUid, new(Px, Py, Vx, Vy, Speed, false));
     }
 
     public static void Send()
@@ -39,6 +36,6 @@ public partial class NightMoveSyncAction : Action
             Px = position.x,
             Py = position.y,
             Speed = PlayerManager.Local.Speed
-        }.Enqueue(lowPriority: true);
+        }.Enqueue();
     }
 }

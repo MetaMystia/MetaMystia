@@ -8,7 +8,6 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[RoomRelay]
 public partial class UpdatePrepAction : Action
 {
 
@@ -43,25 +42,9 @@ public partial class UpdatePrepAction : Action
 
     public Table PrepTable { get; set; } = new Table();
 
-    protected override bool OnSendLogOnlyAction => true;
-    protected override bool OnReceiveLogOnlyAction => true;
 
-    public override void OnReceivedDerived()
-    {
-        switch (MpManager.LocalScene)
-        {
-            case Common.UI.Scene.IzakayaPrepScene:
-                PrepSceneManager.MergeFromPeer(PrepTable);
-                break;
-            case Common.UI.Scene.DayScene:
-                // Day→Prep 转场窗口期缓存，进入 PrepScene 后由 PrepSceneManager.FlushBufferedTables 重放
-                PrepSceneManager.BufferPrepTable(PrepTable);
-                break;
-            default:
-                Log.LogInfo($"Discarded UpdatePrepAction in {MpManager.LocalScene}");
-                break;
-        }
-    }
+    [CheckScene(Common.UI.Scene.IzakayaPrepScene)]
+    public override void OnReceivedDerived() => PrepSceneManager.MergeFromPeer(PrepTable);
 
     public static void Send(Table prepTable) =>
         new UpdatePrepAction { PrepTable = prepTable }.Enqueue();

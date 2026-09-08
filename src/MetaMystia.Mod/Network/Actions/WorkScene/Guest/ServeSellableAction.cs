@@ -5,7 +5,7 @@ namespace MetaMystia.Network;
 
 /// <summary>
 /// 上菜/撤回 Action。设计参考 docs/GuestFSM-Model.md §2.8。
-/// 不再 <c>[RoomRelay]</c>：主机收到客机请求后做冲突仲裁，决定是否接受并广播。
+/// 主机收到客机请求后做冲突仲裁，决定是否接受并广播。
 /// 拒绝时不广播——根本原因（host 当前权威值）必然来自先前某次 host 状态变更，
 /// 那次变更的广播已在主机→sender 的 TCP 流中（队列或在途），sender 早晚会处理并自然回滚。
 /// </summary>
@@ -14,17 +14,18 @@ namespace MetaMystia.Network;
 public partial class ServeSellableAction : Action
 {
     public int RuntimeId { get; set; }
+    public int ActorUid { get; set; }
     public int OrderSeq { get; set; }
     public SellableFood Requested { get; set; }
     public SellableFood BasedOn { get; set; }
     public Sellable.SellableType SellableType { get; set; }
 
 
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        if (SenderUid == PlayerManager.Local.Uid)
+        if (ActorUid == PlayerManager.Local.Uid)
         {
             // 本地玩家发出的请求返回的回声，直接忽略
             return;
@@ -36,7 +37,7 @@ public partial class ServeSellableAction : Action
 
         var requested = Requested?.ToSellable();
         var basedOn = BasedOn?.ToSellable();
-        var senderUid = SenderUid;
+        var senderUid = ActorUid;
         var fsm = GuestsMap.GetGuestFsm(rid);
         if (fsm == null) return;
         fsm.Enqueue(nameof(GuestFSM.DoServe),
@@ -51,6 +52,6 @@ public partial class ServeSellableAction : Action
             Requested = SellableFood.FromSellable(requested),
             BasedOn = SellableFood.FromSellable(basedOn),
             SellableType = sellableType,
-            SenderUid = senderUid == -1 ? PlayerManager.Local.Uid : senderUid
+            ActorUid = senderUid == -1 ? PlayerManager.Local.Uid : senderUid
         }.Enqueue();
 }

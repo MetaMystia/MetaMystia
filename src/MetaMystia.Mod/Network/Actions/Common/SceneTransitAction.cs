@@ -19,18 +19,17 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[PublicRelay]
 public partial class SceneTransitAction : Action
 {
 
     [MemoryPackAllowSerialize]
     public Common.UI.Scene Scene { get; set; }
+    public long SceneEpoch { get; set; }
     public override void OnReceivedDerived()
     {
-        MpManager.PeerScene = Scene;
-        return;
+        ModPlayerStore.ApplyScene(SenderUid, Scene, SceneEpoch);
     }
 
     public static void Send(Common.UI.Scene scene) =>
-        new SceneTransitAction { Scene = scene }.Enqueue();
+        new SceneTransitAction { Scene = scene, SceneEpoch = GameContext.SceneEpoch }.Enqueue();
 }

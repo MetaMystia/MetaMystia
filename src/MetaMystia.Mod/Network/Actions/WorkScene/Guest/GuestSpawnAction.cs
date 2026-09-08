@@ -12,7 +12,7 @@ public partial class GuestSpawnAction : Action
     public int RuntimeId { get; set; }
     public GuestSpawnInfo SpawnInfo { get; set; }
 
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

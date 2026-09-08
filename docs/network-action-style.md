@@ -1,8 +1,12 @@
 # 网络 Action 规范
 
-## 基本结构
+## 边界
 
-每个网络 Action 应放在 `Network/Actions/` 对应场景目录中，并保持以下结构：
+控制协议放在 `MetaMystia.Protocol`，只包含连接、房间、身份、路由和字节载荷。游戏 Action 留在 `MetaMystia.Mod/Network/Actions/`，可以直接使用游戏枚举，不能保存 Unity 对象。
+
+服务器不解析游戏载荷。新增游戏 Action 不需要修改服务器、控制协议 Union 或建立 Wire 枚举镜像。
+
+## 注册和发送
 
 ```csharp
 [MemoryPackable]
@@ -11,9 +15,10 @@ public partial class ExampleAction : Action
 {
     public int Value { get; set; }
 
+    [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        // 应用收到的数据
+        // 应用业务操作
     }
 
     public static void Send(int value) =>
@@ -21,85 +26,54 @@ public partial class ExampleAction : Action
 }
 ```
 
-- Action 必须使用 `[MemoryPackable]`、`[AutoLog]` 和 `partial`。
-- 序列化数据使用属性表达；只在线层生效的状态使用 `[MemoryPackIgnore]`。
-- 接收逻辑写在 `OnReceivedDerived()` 中，不得绕过 `Action.OnReceived()` 直接处理入站 Action。
-- 对外发送入口命名为 `Send()`，负责构造完整 Action 并调用 `Enqueue()`。
-- 不得在 Action 中保存 Unity 对象引用。网络数据必须由可序列化的标量、DTO 或稳定标识组成。
+在 `GameMessages` 中登记一次类型、稳定编号、Route 和玩法阶段。默认阶段是 Night，公共消息及初始数据明确标记为阶段无关。
 
-## 类型注册与兼容性
+编号只追加，不重用已有编号。修改序列化字段或语义时更新 `GameMessages.Version`；控制消息格式变化更新 `ProtocolVersion.Current`。游戏载荷版本和核心协议版本不是同一个版本。
 
-新增 Action 时必须同时完成：
+使用 `Enqueue()` 进入统一入口。不要直接操作套接字，也不要在 Action 内判断直连或专服。`WireTargetUid` 只用于需要定向发送的事件；状态块必须广播，才能一致缓存与重放。
 
-1. 在 `ActionType` 末尾增加枚举值。
-2. 在 `Action` 上增加对应的 `[MemoryPackUnion]`。
-3. 新增具体 Action 类型。
-4. 确认 `ActionType`、`MemoryPackUnion` 和具体类型一一对应。
+## 选择消息类别
 
-不得插入、重排或复用已有 `ActionType` 数值。修改已有序列化字段的类型、顺序或含义前，必须明确评估协议兼容性。
+| Route | 来源与接收方 | 缓存 |
+| --- | --- | --- |
+| PublicState | 玩家更新自身公共数据 | 最新完整块 |
+| PublicEvent | 玩家向公共域发送事件 | 不缓存 |
+| MemberState | 成员更新自身房间数据 | 当前绑定最新块 |
+| MemberEvent | 成员向同房成员发送事件 | 不缓存 |
+| HostRequest | 成员向当前房主提交请求 | 不缓存 |
+| HostEvent | 房主向成员发布结果 | 不缓存 |
+| HostState | 房主发布协调状态 | 当前房间最新块 |
 
-本次版本预检按需求例外调整：`ConnectionInfo = 0`，原 `Ping`、`Pong` 及后续编号均顺延一位。此后仍只允许追加新编号。
+`Endpoint` 校验真实连接、发送者加入实例、房主权限，并填写实际 SenderUid 与接收者加入实例。`ClientSession` 再检查成员、实例和序号。`GameMessages` 检查类型与 Route 是否匹配，以及玩法阶段。
 
-## 连接预检
+不要手动填写 SenderUid 代替另一个玩家。结果如果需要保留原请求者，另设 ActorUid；例如上菜请求由房主核对真实来源，房主结果携带 ActorUid 供回声处理。
 
-直连顺序：`ConnectionInfo` 请求 → `ConnectionInfo` 回复 → `Hello` → `HelloAck`。
+`requestAndResult` 只用于载荷相同而方向明确的既有请求/结果。不要把所有操作默认设为成员广播；需要裁定的操作先交房主。
 
-- `ConnectionInfo` 固定为 ID 0，交换游戏版本、模组版本、协议版本、房间上限和人数。人数包含本机，不计尚未完成握手的连接。
-- 协议版本暂取模组版本。客机要求三项版本全部一致，否则显示双方版本并断开，不发送 `Hello`。
-- 客机发现预检人数已达上限时提示满房并断开，不发送 `Hello`。预检人数只表示当时状态，主机仍在接收 `Hello` 时检查最终人数限制和其他入房条件。
-- 握手完成前不发送 `Ping`，也不发送、处理或转发业务同步。主机给待加入连接发送的首包为定向预检回复。
-- 旧版本没有预检协议，无法提供完整版本信息，只能显示握手失败或超时。跨版本识别依赖双方支持这一固定编号和字段布局。
+## 数据与游戏效果
 
-## 发送与路由
+- 外观、场景、位置、资源先更新 `ModPlayerStore`；Handler 不生成或销毁角色。
+- 同类状态用完整块替换，未发送的块不变，空表明确表示清空。
+- 公共与成员状态发送时也更新本机 Store；房主阶段结果在 `RoomGameplay` 中应用。
+- `CheckScene` 表示等待指定场景；`WaitUntilStoryEnds` 表示等待剧情结束，不再丢弃剧情中的重要操作。
+- 修改游戏世界的消息由 `RoomGameplay` 在当前绑定内按序处理；等待队列有容量和期限。
+- 需要等待的协程使用 `RoomGameplay.Run()`，阶段或绑定结束时统一停止。其他延后回调必须检查捕获的绑定与阶段。
+- 不要另建无界队列，也不要只检查“现在仍在联机”后执行旧回调。
 
-- 使用 `Enqueue()` 进入统一发送队列，不得直接操作 `DirectTcp`。
-- 仅高频且允许拥塞时丢弃的数据使用 `Enqueue(lowPriority: true)`。
-- `WireTargetUid` 表示仅发送给指定 UID。
-- `WireExceptUid` 表示广播时排除指定 UID。
-- `WireTargetUid` 和 `WireExceptUid` 只属于线层，不参与序列化。
-- `SenderUid` 由线层根据实际连接写入或校正，不得信任远端自行声明的发送者身份。
+准备、选择请求由房主修改阶段快照。不要在 Action、LocalPlayer、PeerPlayer 各保存一份准备标志。
 
-拒绝连接使用 `RejectAction.SendAndDisconnect()`：IO 线程写出拒绝包后再关闭连接，不得在消息入队后立即断开。入站消息和断开事件按同一队列处理，确保最后收到的拒绝原因先于断开提示。
+## 握手、线程与诊断
 
-需要房间转发的 Action 使用 `[RoomRelay]`；需要公域转发的 Action 使用 `[PublicRelay]`。是否转发必须依据实际消息流决定，不得因“其他客户端可能需要”而默认广播。
+握手为 Hello → Welcome。握手前不能发业务消息，Online 只表示公共连接就绪；入房与玩法同步分别确认。服务器收到控制请求后先提交一致状态，再发送快照。
 
-## 接收约束
+网络 IO 只读写帧；Mod 主线程通过 `MpWire.FlushInbox()` 处理控制确认和 Action。拒绝连接先写出 Rejected 再关闭。队列溢出明确断连，不静默丢弃玩法事件。
 
-接收约束应使用 `Action` 提供的属性声明：
+基类记录消息类型、来源和阶段，高频消息可降低 `OnSendLogLevel / OnReceiveLogLevel`。日志保留内部原因；面向玩家的提示通过 TextId 和中英文语言文件提供。
 
-- `[CheckScene(...)]`：仅在指定场景处理。
-- `[DiscardOnStory]`：剧情期间丢弃。
-- `[RequireHostSender]`：仅接受主机发送的权威结果。
-- `[ClientOnlyReceive]`：仅客机处理。
-- `[HostOnlyReceive]`：仅主机处理。
+## 新增消息时核对
 
-这些属性写在 `OnReceivedDerived()` 上。不得在每个 Action 内重复实现已有的通用接收检查。
-
-使用约束前必须先明确消息方向、权威方、转发路径和回声处理。请求、主机裁定和权威广播是不同语义，不应合并为含义模糊的 Action。
-
-## 线程与时序
-
-`MpWire` 在 IO 线程收包后将 Action 放入 `_inbox`，再由主线程调用 `OnReceived()`。因此，普通 `OnReceivedDerived()` 可以访问游戏对象，但延迟回调和自行创建的后台任务仍必须遵循主线程规则。
-
-需要等待游戏状态时，使用项目已有的队列或 FSM 调度方式。不得在接收函数中阻塞线程、轮询等待或使用 `Thread.Sleep`。
-
-## 日志
-
-Action 基类统一记录发送和接收日志。仅在必要时覆盖：
-
-- `OnSendLogLevel`、`OnReceiveLogLevel`；
-- `OnSendLogOnlyAction`、`OnReceiveLogOnlyAction`；
-- `ToLogString()`。
-
-高频 Action 应降低日志级别或只记录 Action 名称。不得在日志中输出密钥、Token 或大块二进制数据。
-
-## 新增检查表
-
-- Action 编号是否只追加且未重复。
-- MemoryPack Union 是否同步注册。
-- 字段是否均可稳定序列化。
-- 消息方向和权威方是否明确。
-- 场景、剧情和接收端约束是否完整。
-- 是否需要转发、定向发送、排除发送或低优先级。
-- 是否正确处理本地回声、重复消息和对象不存在的情况。
-- 接收逻辑是否在主线程执行且没有阻塞。
+1. 数据属于哪个拥有者，何时失效。
+2. 是完整状态还是一次性事件，是否需要房主裁定。
+3. 注册编号、Route、阶段是否正确。
+4. 对象尚未生成、转场、退房及旧消息到达时如何处理。
+5. 完成相关游戏源码审计、完整构建和必要回归。

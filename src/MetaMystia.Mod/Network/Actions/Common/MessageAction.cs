@@ -10,7 +10,6 @@ namespace MetaMystia.Network;
 /// 任何玩家 → 所有玩家：发送聊天消息
 /// </summary>
 [MemoryPackable]
-[PublicRelay]
 public partial class MessageAction : Action
 {
 

@@ -11,7 +11,7 @@ public partial class MoveToDeskAction : Action
     public int DeskCode { get; set; }
 
 
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

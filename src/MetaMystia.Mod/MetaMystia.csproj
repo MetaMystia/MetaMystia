@@ -29,7 +29,7 @@
     <Message Text="Renamed $(TargetPath) to $(RenamedAssemblyPath)$(TargetExt)" Importance="High" />
   </Target>
 
-  <Target Name="PatchIl2CppInteropHarmonySupport" AfterTargets="Build">
+  <Target Name="PatchIl2CppInteropHarmonySupport" AfterTargets="Build" Condition="'$(DeployRuntimePatch)' != 'false'">
     <Copy SourceFiles="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll"
       DestinationFolder="$(BepInExPath)\core"
       SkipUnchangedFiles="true" />
@@ -45,6 +45,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
     <ProjectReference Include="../MetaMystia.Generators\MetaMystia.Generators.csproj"
       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

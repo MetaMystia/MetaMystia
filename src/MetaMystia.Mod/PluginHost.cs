@@ -55,8 +55,8 @@ public partial class PluginHost : MonoBehaviour
     private void Update()
     {
         PluginManager.TickMainThreadQueue();
-        Network.MpWire.FlushInbox();
         MpManager.RefreshInStoryCache();
+        Network.MpWire.FlushInbox();
         GuestsMap.TickAllPending();
 
         InGameConsole.Update();

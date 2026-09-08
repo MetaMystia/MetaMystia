@@ -10,15 +10,16 @@ public partial class ConfirmServeAction : Action
 {
 
     public int RuntimeId { get; set; }
+    public int ActorUid { get; set; }
     public int OrderSeq { get; set; }
     public SellableFood Food { get; set; }
     public SellableFood Beverage { get; set; }
 
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        if (SenderUid == PlayerManager.Local.Uid)
+        if (ActorUid == PlayerManager.Local.Uid)
         {
             // 本地玩家发出的请求返回的回声，直接忽略
             return;
@@ -28,7 +29,7 @@ public partial class ConfirmServeAction : Action
         var seq = OrderSeq;
         var food = Food?.ToSellable();
         var bev = Beverage?.ToSellable();
-        var senderUid = SenderUid;
+        var senderUid = ActorUid;
         var fsm = GuestsMap.GetGuestFsm(rid);
         if (fsm == null) return;
         fsm.Enqueue(nameof(GuestFSM.DoConfirmServe),
@@ -42,6 +43,6 @@ public partial class ConfirmServeAction : Action
             OrderSeq = orderSeq,
             Food = SellableFood.FromSellable(food),
             Beverage = SellableFood.FromSellable(beverage),
-            SenderUid = senderUid == -1 ? PlayerManager.Local.Uid : senderUid
+            ActorUid = senderUid == -1 ? PlayerManager.Local.Uid : senderUid
         }.Enqueue();
 }

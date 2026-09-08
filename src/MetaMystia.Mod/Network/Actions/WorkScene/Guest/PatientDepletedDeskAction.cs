@@ -23,8 +23,7 @@ public partial class PatientDepletedDeskAction : Action
 
     public int RuntimeId { get; set; }
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
