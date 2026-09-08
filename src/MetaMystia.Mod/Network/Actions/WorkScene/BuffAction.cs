@@ -37,7 +37,6 @@ public static class QTEBuffExtension
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[RoomRelay]
 public partial class BuffAction : Action
 {
     public QTEBuff Buff;
@@ -47,18 +46,22 @@ public partial class BuffAction : Action
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        CommandScheduler.Enqueue(
-            executeWhen: () => !QTERewardManagerPatch.OnQTESucceededExecuting,
-            executeInfo: "BuffAction OnQTESucceededExecuting",
-            execute: () =>
-            {
-                QTERewardManagerPatch.BuffLocalTrigger = false; // 标记为非本地触发
-                QTERewardManagerPatch.OnQTESucceeded(NightScene.CookingUtility.QTERewardManager.Instance, Buff.ID, true);
-                QTERewardManagerPatch.BuffLocalTrigger = true;
-                Log.Message($"triggered buff {Buff}");
-            },
-            timeoutSeconds: 10f
-        );
+        RoomGameplay.Run(ApplyBuff());
+    }
+
+    private System.Collections.IEnumerator ApplyBuff()
+    {
+        long deadline = MpWire.NowMs + 10_000;
+        while (QTERewardManagerPatch.OnQTESucceededExecuting)
+        {
+            if (MpWire.NowMs >= deadline) { RoomGameplay.Abort("等待 QTE 奖励超时"); yield break; }
+            yield return null;
+        }
+        var manager = NightScene.CookingUtility.QTERewardManager.Instance;
+        if (manager == null) { RoomGameplay.Abort("QTE 奖励对象已失效"); yield break; }
+        QTERewardManagerPatch.BuffLocalTrigger = false;
+        QTERewardManagerPatch.OnQTESucceeded(manager, Buff.ID, true);
+        QTERewardManagerPatch.BuffLocalTrigger = true;
     }
 
     public static void Send(QTEBuff buff)

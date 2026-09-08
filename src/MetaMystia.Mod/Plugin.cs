@@ -77,8 +77,6 @@ public class Plugin : BasePlugin
 
         PatchRegistry.ApplyAll(harmony);
 
-        Network.Action.RegisterAllFormatter();
-
         try
         {
             RuntimeAddressables.Initialize();

@@ -18,8 +18,7 @@ public partial class PassionEditAction : Action
     public float Value { get; set; }
     public EventManager.MathOperation MathOp { get; set; }
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

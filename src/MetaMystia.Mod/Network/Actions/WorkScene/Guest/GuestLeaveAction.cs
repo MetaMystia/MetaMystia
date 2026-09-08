@@ -19,16 +19,15 @@ public partial class GuestLeaveAction : Action
 {
 
     public int RuntimeId { get; set; }
-    public byte LeaveType { get; set; }
+    public GuestGroupController.LeaveType LeaveType { get; set; }
     public bool TriggerLeaveBuff { get; set; }
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
         var rid = RuntimeId;
-        var leaveType = (GuestGroupController.LeaveType)LeaveType;
+        var leaveType = LeaveType;
         var triggerLeaveBuff = TriggerLeaveBuff;
         var fsm = GuestsMap.GetGuestFsm(rid);
         if (fsm == null) return;
@@ -40,7 +39,7 @@ public partial class GuestLeaveAction : Action
         new GuestLeaveAction
         {
             RuntimeId = runtimeId,
-            LeaveType = (byte)leaveType,
+            LeaveType = leaveType,
             TriggerLeaveBuff = triggerLeaveBuff
         }.Enqueue();
 }

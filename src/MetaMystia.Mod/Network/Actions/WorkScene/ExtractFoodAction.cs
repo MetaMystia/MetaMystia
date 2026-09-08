@@ -11,13 +11,10 @@ namespace MetaMystia.Network;
 /// </summary>
 [MemoryPackable]
 [AutoLog]
-[RoomRelay]
 public partial class ExtractFoodAction : Action
 {
     public SellableFood Food { get; set; }
 
-    protected override bool OnSendLogOnlyAction => true;
-    protected override bool OnReceiveLogOnlyAction => true;
 
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()

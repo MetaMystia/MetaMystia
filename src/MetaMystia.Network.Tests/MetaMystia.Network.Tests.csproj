@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net6.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
+    <Compile Include="../MetaMystia.Mod/Players/ResourceDataBase.cs" Link="Resources/ResourceDataBase.cs" />
+    <Compile Include="../MetaMystia.Mod/Players/ResourceManifest.cs" Link="Resources/ResourceManifest.cs" />
+  </ItemGroup>
+</Project>

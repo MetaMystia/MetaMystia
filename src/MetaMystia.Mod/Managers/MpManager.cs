@@ -4,315 +4,111 @@ using System.Text;
 using System.Threading.Tasks;
 
 using MetaMystia.Network;
-using MetaMystia.Patch;
+using MetaMystia.Network.Core;
+using MetaMystia.Protocol;
 using MetaMystia.UI;
-using SgrYuki;
 
 namespace MetaMystia;
 
-/// <summary>联机应用层：场景、阶段、剧情；线层见 <see cref="MpWire"/>。</summary>
-[AutoLog]
-public static partial class MpManager
+// 应用入口与只读便捷访问；连接、成员、玩法、表现分别由对应模块维护。
+public static class MpManager
 {
     public enum ROLE { Server, Client }
-
     public const int DEFAULT_PORT = MpConstants.DefaultPort;
-    public const int HOST_UID = MpConstants.HostUid;
-    public const int UNASSIGNED_UID = MpConstants.UnassignedUid;
-    public const string PeerGetCharacterUnitNotNullCommand = "PeerGetCharacterUnitNotNullCommand";
-
+    public const int UNASSIGNED_UID = -1;
     public static int ConfigPort => ConfigManager.DefaultPort?.Value ?? DEFAULT_PORT;
     public static int CurrentPort => MpWire.CurrentPort;
     public static bool EnableIPv6 => ConfigManager.EnableIPv6?.Value ?? false;
-
-    public static MpSession Session => MpWire.Session;
+    public static ClientSession Session => MpWire.Session;
     public static bool IsRunning => MpWire.IsRunning;
     public static bool IsConnecting => MpWire.IsConnecting;
     public static bool IsOnline => Session.IsOnline;
     public static bool IsInRoom => Session.IsInRoom;
-    public static bool IsInPublicScope => Session.IsInPublicScope;
+    public static bool IsInPublicScope => Session.IsOnline;
     public static bool IsRoomHost => Session.IsRoomHost;
     public static bool IsRoomClient => Session.IsRoomClient;
-    public static bool IsDirectHost => Session.TransportKind == TransportKind.DirectHost;
-    public static bool IsDirectClient => Session.TransportKind == TransportKind.DirectClient;
-    public static bool IsRelayClient => Session.IsRelay;
+    public static bool IsDirectHost => MpWire.IsEmbeddedHost;
+    public static bool IsDirectClient => !IsDirectHost && Session.DefaultRoom != Guid.Empty;
+    public static bool IsRelayClient => IsOnline && !IsDirectHost && !IsDirectClient;
     public static bool HasRoomConnection => MpWire.IsRoomConnected;
-    public static bool IsConnected => Session.IsInRoom && MpWire.IsRoomConnected;
+    public static bool IsConnected => HasRoomConnection && RoomGameplay.IsReady;
     public static bool IsConnectedClient => IsRoomClient && IsConnected;
     public static bool IsConnectedServer => IsRoomHost && IsConnected;
     public static bool IsServer => IsRoomHost;
     public static bool IsClient => IsRoomClient;
-    public static bool CanSeeOnlinePlayers => IsRunning && (Session.IsInRoom || Session.IsInPublicScope);
-
-    public static bool LocalIsDayOver => PlayerManager.LocalIsDayOver;
-    public static bool LocalIsPrepOver => PlayerManager.LocalIsPrepOver;
-
+    public static bool CanSeeOnlinePlayers => IsOnline;
+    public static bool LocalIsDayOver => RoomGameplay.LocalDayReady;
+    public static bool LocalIsPrepOver => RoomGameplay.LocalPrepReady;
     public static string PlayerId { get => ConfigManager.GetPlayerId(); set => ConfigManager.SetPlayerId(value); }
-    public static long Latency => MpWire.LatencyMs;
-
-    public static string LatencyDisplay => IsRoomHost ? "local" : $"{Latency}ms";
+    public static long Latency => Session.LatencyMs;
+    public static string LatencyDisplay => IsDirectHost ? "local" : $"{Latency}ms";
     public static long TimestampNow => MpWire.NowMs;
-    public static long TimeOffset { get => MpWire.TimeOffsetMs; set => MpWire.TimeOffsetMs = value; }
+    public static long TimeOffset => Session.TimeOffsetMs;
     public static long GetSynchronizedTimestampNow => MpWire.SyncedNowMs;
-
-    public static int ConnectedPlayersCount => PlayerManager.Peers.Count;
-    public static int AllPlayersCount => ConnectedPlayersCount + 1;
-
-    public static string RoleTag => IsRoomHost ? "[H]" : IsRoomClient ? "[C]" : "[N]";
-    public static string RoleName => IsRoomHost ? "Host" : IsRoomClient ? "Client" : "Offline";
-
-    public static Common.UI.Scene LocalScene { get; private set; } = Common.UI.Scene.EmptyScene;
-    public static Common.UI.Scene PeerScene = Common.UI.Scene.EmptyScene;
-
-    /// <summary>至少进入过一次主界面后，才允许开服或连接主机。</summary>
-    public static bool IsMultiplayerAvailable { get; private set; }
-
+    public static int ConnectedPlayersCount => Math.Max(0, (Session.Room?.Members.Count ?? 1) - 1);
+    public static int AllPlayersCount => Session.Room?.Members.Count ?? 1;
+    public static string RoleTag => IsRoomHost ? "[H]" : IsRoomClient ? "[C]" : "[P]";
+    public static string RoleName => IsRoomHost ? "Host" : IsRoomClient ? "Client" : IsOnline ? "Public" : "Offline";
+    public static Common.UI.Scene LocalScene => GameContext.Scene;
+    public static bool IsMultiplayerAvailable => GameContext.HasVisitedMain;
+    public static bool InStory => GameContext.InStory;
+    public static bool IsGameplaySyncActive => IsConnected && !InStory;
+    public static bool ShouldSkipAction => !IsGameplaySyncActive;
 #if DEBUG
     public static int WorkTimeSecondOverride = 30;
 #else
     public static int WorkTimeSecondOverride = 9 * 60;
 #endif
 
-    private static bool _inStory;
-    public static bool InStory => _inStory;
-    public static bool IsGameplaySyncActive => IsInRoom && HasRoomConnection && !InStory;
-    public static bool ShouldSkipAction => !IsGameplaySyncActive;
-
-    public static void RefreshInStoryCache()
-    {
-        var director = Common.SceneDirector.Instance?.playableDirector;
-        _inStory = director != null &&
-            (director.state == UnityEngine.Playables.PlayState.Playing
-             || director.state == UnityEngine.Playables.PlayState.Delayed);
-    }
-
-    public static bool IsValidPlayerId(string id)
-    {
-        if (string.IsNullOrWhiteSpace(id)) return false;
-        foreach (char c in id)
-        {
-            if (c == '<' || c == '>' || char.IsWhiteSpace(c) || char.IsControl(c))
-                return false;
-        }
-        return true;
-    }
-
+    public static void RefreshInStoryCache() => GameContext.RefreshStory();
+    public static bool IsValidPlayerId(string id) => Endpoint.ValidName(id);
     public static string SanitizePlayerId(string id, string fallback = null)
     {
-        if (string.IsNullOrWhiteSpace(id))
-            return fallback ?? Environment.MachineName;
-        var sb = new StringBuilder();
-        foreach (char c in id)
-        {
-            if (c != '<' && c != '>' && !char.IsWhiteSpace(c) && !char.IsControl(c))
-                sb.Append(c);
-        }
-        var result = sb.ToString();
-        return string.IsNullOrEmpty(result) ? (fallback ?? Environment.MachineName) : result;
+        var result = new string((id ?? "").Where(c => c != '<' && c != '>' && !char.IsWhiteSpace(c) && !char.IsControl(c)).Take(40).ToArray());
+        return result.Length == 0 ? fallback ?? Environment.MachineName : result;
     }
-
-    public static bool Start(ROLE r = ROLE.Server, int port = -1)
-    {
-        if (!EnsureMultiplayerAvailable()) return false;
-        return r == ROLE.Server ? MpWire.StartHost(port) : MpWire.StartClientMode();
-    }
-
+    public static bool Start(ROLE role = ROLE.Server, int port = -1) => EnsureAvailable()
+        && (role == ROLE.Server ? MpWire.StartHost(port) : MpWire.StartClientMode());
     public static void Stop() => MpWire.Stop();
-
     public static bool Restart()
     {
-        var port = CurrentPort;
+        int port = CurrentPort;
         Stop();
         return Start(ROLE.Server, port);
     }
-
-    public static Task<bool> ConnectToPeerAsync(string peerIp, int port = -1, bool stop_existed_server = true)
-    {
-        if (!EnsureMultiplayerAvailable()) return Task.FromResult(false);
-        return MpWire.ConnectAsync(peerIp, port, stop_existed_server);
-    }
-
+    public static Task<bool> ConnectToPeerAsync(string address, int port = -1, bool stop_existed_server = true) =>
+        EnsureAvailable() ? MpWire.ConnectAsync(address, port, stop_existed_server) : Task.FromResult(false);
     public static void DisconnectPeer() => MpWire.DisconnectPeer();
+    public static bool DisconnectClient(int uid) => MpWire.DisconnectClient(uid);
+    public static bool ContinueDay() => RoomGameplay.ForceContinue(GameplayPhase.Day);
+    public static bool ContinuePrep() => RoomGameplay.ForceContinue(GameplayPhase.Prep);
+    public static void OnSceneTransit(Common.UI.Scene scene) => GameContext.OnSceneChanged(scene);
 
-    public static void DisconnectClient(int uid) => MpWire.DisconnectClient(uid);
-
-    public static bool EnterRelayPublic()
+    private static bool EnsureAvailable()
     {
-        if (!EnsureMultiplayerAvailable()) return false;
-        MpWire.StartClientMode();
-        Session.EnterRelayPublic();
-        return true;
-    }
-
-    public static bool EnterRelayRoomAsHost(string roomId, int hostUid = HOST_UID)
-    {
-        if (!EnsureMultiplayerAvailable()) return false;
-        MpWire.StartHost();
-        PlayerManager.Local.Uid = hostUid;
-        Session.EnterRelayRoom(RoomRole.Host, roomId, hostUid);
-        return true;
-    }
-
-    public static bool EnterRelayRoomAsClient(string roomId, int localUid, int hostUid = HOST_UID)
-    {
-        if (!EnsureMultiplayerAvailable()) return false;
-        MpWire.StartClientMode();
-        PlayerManager.Local.Uid = localUid;
-        Session.EnterRelayRoom(RoomRole.Client, roomId, hostUid);
-        return true;
-    }
-
-    public static void CheckContinueAfterDisconnect(int disconnectedUid, string disconnectedName)
-    {
-        if (!IsRoomHost) return;
-        disconnectedName ??= $"uid={disconnectedUid}";
-        bool hasPeers = !PlayerManager.Peers.IsEmpty;
-        switch (LocalScene)
+        if (!IsMultiplayerAvailable)
         {
-            case Common.UI.Scene.DayScene when LocalIsDayOver:
-                InGameConsole.ShowPassiveFromAnyThread(
-                    hasPeers && !PlayerManager.AllPeersDayOver
-                        ? TextId.PeerDisconnectedWaiting.Get(disconnectedName)
-                        : TextId.PeerDisconnectedAllReady.Get(disconnectedName, "/mp continue day"));
-                break;
-            case Common.UI.Scene.IzakayaPrepScene when LocalIsPrepOver:
-                InGameConsole.ShowPassiveFromAnyThread(
-                    hasPeers && !PlayerManager.AllPeersPrepOver
-                        ? TextId.PeerDisconnectedWaiting.Get(disconnectedName)
-                        : TextId.PeerDisconnectedAllReady.Get(disconnectedName, "/mp continue prep"));
-                break;
+            InGameConsole.ShowPassive(TextId.MpMainSceneRequired.Get());
+            return false;
         }
+        PlayerManager.Local.ReloadResourceTable();
+        if (PlayerManager.Local.DataBase.IsLoaded) return true;
+        InGameConsole.ShowPassive(TextId.GameResourcesNotLoaded.Get());
+        return false;
     }
 
     public static string GetStatus()
     {
-        var status = new StringBuilder();
-        status.AppendLine($"Self: {RoleTag} {PlayerId} (uid={PlayerManager.Local.Uid})");
-        status.AppendLine($"Port: {CurrentPort} | Running: {(IsRunning ? "Yes" : "No")} | Connected: {(IsConnected ? "Yes" : "No")}");
-        if (IsConnected)
-        {
-            status.AppendLine($"Ping: {LatencyDisplay} | Players: {AllPlayersCount}");
-            foreach (var kvp in PlayerManager.Peers)
-                status.AppendLine($"  Peer: {(kvp.Key == HOST_UID ? "[S]" : "[C]")} {kvp.Value.Id} (uid={kvp.Key})");
-        }
-        return status.ToString();
+        var text = new StringBuilder();
+        text.AppendLine($"{RoleTag} {PlayerManager.Local.Id} uid={Session.SelfUid}; connection={Session.Stage}");
+        text.AppendLine($"Public: {Session.Players.Count}; room={Session.Room?.Name ?? "-"}; phase={RoomGameplay.Phase}/{RoomGameplay.PhaseId}");
+        text.AppendLine($"Binding: {Session.Binding}; pending={Session.Pending}; ping={LatencyDisplay}");
+        foreach (var player in Session.Players.Values)
+            text.AppendLine($"  {(Session.Room?.Members.ContainsKey(player.Uid) == true ? "[R]" : "[P]")} {player.Name} uid={player.Uid}");
+        return text.ToString();
     }
-
-    public static string BriefStatus
-    {
-        get
-        {
-            if (!Plugin.AllPatched)
-                return $"{TextId.ModPatchFailure.Get()} {BriefDebugText}";
-            if (!IsRunning) return "Multiplayer: Off";
-            if (IsConnected)
-            {
-                if (LiveModeManager.Mode == LiveMode.Partial)
-                    return $"MP: {RoleTag} | {AllPlayersCount}Players | ping {LatencyDisplay}";
-
-                var peerNames = string.Join(", ",
-                    PlayerManager.Peers.Values.Select(p => LiveModeManager.GetDisplayName(p.Uid)));
-                return $"MP: {RoleTag} uid={PlayerManager.Local.Uid} | {AllPlayersCount}Players | ping {LatencyDisplay} | {peerNames}";
-            }
-            return $"MP: {RoleName} (not connected)";
-        }
-    }
-
-    public static string DebugText => $"{BriefDebugText}\n{BriefStatus}";
-
-    private static string BriefDebugText =>
-        $"{Plugin.GameVersion}: {Plugin.ModVersion}, {System.Runtime.InteropServices.RuntimeInformation.OSDescription}, {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}, {DateTimeOffset.Now}";
-
-    public static void OnSceneTransit(Common.UI.Scene newScene)
-    {
-        Log.Message($"LocalScene transit from {LocalScene} -> {newScene}");
-        SceneTransitAction.Send(newScene);
-        LocalScene = newScene;
-        if (newScene != Common.UI.Scene.MainScene) return;
-
-        IsMultiplayerAvailable = true;
-
-        if (IsConnected)
-        {
-            Log.Message($"Transit to {newScene}, disconnecting peers");
-            DisconnectPeer();
-        }
-        else if (!PlayerManager.Peers.IsEmpty)
-        {
-            PlayerManager.ClearPeers();
-            CommandScheduler.RemoveKeyFromKeyQueue(PeerGetCharacterUnitNotNullCommand);
-            CommandScheduler.CancelInterval(MpWire.SyncActionCommandId);
-        }
-    }
-
-    private static bool EnsureMultiplayerAvailable()
-    {
-        if (!IsMultiplayerAvailable)
-        {
-            NotifyMpBlocked(TextId.MpMainSceneRequired);
-            return false;
-        }
-
-        PlayerManager.Local.ReloadResourceTable();
-        if (!PlayerManager.Local.IncrementalDataBase.IsIncrementalReady)
-        {
-            NotifyMpBlocked(TextId.GameResourcesNotLoaded);
-            return false;
-        }
-
-        return true;
-    }
-
-    private static void NotifyMpBlocked(TextId reason)
-    {
-        InGameConsole.ShowPassiveFromAnyThread(reason.Get());
-        Log.LogWarning($"Multiplayer blocked: {reason}");
-    }
-
-    public static void DayOver()
-    {
-        if (!IsConnectedServer) return;
-        if (PlayerManager.AllDayOver)
-        {
-            DayAllReadyAction.Send();
-            CommandScheduler.EnqueueWithNoCondition(() =>
-            {
-                InGameConsole.ShowPassive(TextId.AllReadyTransition.Get());
-                DaySceneManagerPatch.OnDayOver();
-            });
-        }
-    }
-
-    public static void PrepOver()
-    {
-        if (!IsConnectedServer) return;
-        if (PlayerManager.AllPrepOver)
-        {
-            PrepAllReadyAction.Send();
-            CommandScheduler.EnqueueWithNoCondition(IzakayaConfigPannelPatch.PrepOver);
-        }
-    }
-
-    public static bool ContinueDay()
-    {
-        if (!IsRoomHost || LocalScene != Common.UI.Scene.DayScene || !LocalIsDayOver) return false;
-        foreach (var peer in PlayerManager.Peers.Values) peer.IsDayOver = true;
-        DayAllReadyAction.Send();
-        CommandScheduler.EnqueueWithNoCondition(() =>
-        {
-            InGameConsole.ShowPassive(TextId.AllReadyTransition.Get());
-            DaySceneManagerPatch.OnDayOver();
-        });
-        return true;
-    }
-
-    public static bool ContinuePrep()
-    {
-        if (!IsRoomHost || (LocalScene != Common.UI.Scene.IzakayaPrepScene && LocalScene != Common.UI.Scene.WorkScene) || !LocalIsPrepOver)
-            return false;
-        foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;
-        PrepAllReadyAction.Send();
-        CommandScheduler.EnqueueWithNoCondition(IzakayaConfigPannelPatch.PrepOver);
-        return true;
-    }
+    public static string BriefStatus => !Plugin.AllPatched ? TextId.ModPatchFailure.Get()
+        : !IsRunning ? "Multiplayer: Off"
+        : $"MP: {RoleTag} {Session.Stage} | public {Session.Players.Count} | room {Session.Room?.Members.Count ?? 0} | {RoomGameplay.Phase} | {LatencyDisplay}";
+    public static string DebugText => $"{Plugin.GameVersion}: {Plugin.ModVersion}\n{BriefStatus}";
 }

@@ -11,7 +11,6 @@ namespace MetaMystia.Network;
 
 [MemoryPackable]
 [AutoLog]
-[RoomRelay]
 public partial class StoreSellableAction : Action
 {
 
@@ -26,8 +25,6 @@ public partial class StoreSellableAction : Action
     public int BeverageId { get; set; }
     public StoreType FoodType { get; set; }
 
-    protected override bool OnSendLogOnlyAction => true;
-    protected override bool OnReceiveLogOnlyAction => true;
 
     public override void OnReceivedDerived()
     {

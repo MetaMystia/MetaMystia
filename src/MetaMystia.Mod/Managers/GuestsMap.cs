@@ -15,6 +15,11 @@ public static partial class GuestsMap
     private static Dictionary<int, GuestFSM> _allGuests = new();
 
     private static int AllocateRuntimeId() => _nextRuntimeId++;
+    public static void ClearSession()
+    {
+        _allGuests.Clear();
+        _nextRuntimeId = 1;
+    }
     private static bool HasGuest(int runtimeId) => _allGuests.ContainsKey(runtimeId);
     private static bool HasGuest(GuestGroupController controller) => controller != null && _allGuests.Values.Any(g => g.Controller != null && g.Controller.Pointer == controller.Pointer);
 

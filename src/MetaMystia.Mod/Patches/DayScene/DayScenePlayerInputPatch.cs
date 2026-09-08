@@ -2,7 +2,6 @@ using HarmonyLib;
 
 using DayScene.Input;
 
-using MetaMystia.Network;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -22,7 +21,6 @@ public partial class DayScenePlayerInputPatch
             return SkipOriginal;
         }
         PlayerManager.LocalIsSprinting = true;
-        MoveSyncAction.Send();
         return RunOriginal;
     }
 
@@ -31,7 +29,6 @@ public partial class DayScenePlayerInputPatch
     public static void OnSprintCanceled_Prefix()
     {
         PlayerManager.LocalIsSprinting = false;
-        MoveSyncAction.Send();
     }
 
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.TryInteract))]

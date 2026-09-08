@@ -64,6 +64,8 @@ public partial class GuestFSM
 
     private const int PendingTtlMs = 30000;
     private readonly Queue<Pending> _pending = new();
+    private readonly MetaMystia.Network.Core.RoomBinding _roomBinding = MpWire.Session.Binding;
+    private readonly long _phaseId = RoomGameplay.PhaseId;
     private bool _draining; // 标记位，避免 Drain 嵌套
 
     private static void FlowLog(string message)
@@ -84,6 +86,7 @@ public partial class GuestFSM
 
     public void Enqueue(string tag, System.Func<bool> apply, int ttlMs = PendingTtlMs)
     {
+        if (!RoomGameplay.Matches(_roomBinding, _phaseId)) return;
         if (CurrentState == State.Dead || CurrentState == State.Left)
         {
             FlowLog($"Guest #{RuntimeId} Enqueue '{tag}' rejected: FSM={CurrentState}");
@@ -103,6 +106,7 @@ public partial class GuestFSM
     /// </summary>
     private void Drain()
     {
+        if (!RoomGameplay.Matches(_roomBinding, _phaseId)) { _pending.Clear(); return; }
         if (_draining) return;
         _draining = true;
         try

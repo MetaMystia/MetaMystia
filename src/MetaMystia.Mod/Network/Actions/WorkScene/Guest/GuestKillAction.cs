@@ -19,8 +19,7 @@ public partial class GuestKillAction : Action
     public GuestFSM.State HostStateBeforeKill { get; set; }   // 调试用：观测主客状态分歧
     public int DeskCode { get; set; } = -1;
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

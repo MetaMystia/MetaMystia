@@ -21,8 +21,7 @@ public partial class TipEditAction : Action
     public float MoodBuff { get; set; }
     public float ExtraBuff { get; set; }
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

@@ -4,53 +4,21 @@ using Common.UI;
 using NightScene;
 
 using MetaMystia.Network;
-using SgrYuki;
 
 namespace MetaMystia;
 
-
-[HarmonyPatch(typeof(NightScene.SceneManager))]
-[AutoLog]
-public static partial class NightSceneManagerPatch
+[HarmonyPatch(typeof(SceneManager))]
+public static class NightSceneManagerPatch
 {
-
     [HarmonyPatch(nameof(SceneManager.Start))]
     [HarmonyPostfix]
     public static void NightScene_Start_Postfix()
     {
-        // REFACTORING
-        // GuestsManagerPatch.ReimuSpellCard = false;
-
         MpManager.OnSceneTransit(Scene.WorkScene);
         CheatManager.TryApplyFever();
-        PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
-
-        if (!MpManager.CanSeeOnlinePlayers)
-        {
-            return;
-        }
-        PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
-
-        if (!MpManager.IsConnected)
-        {
-            PlayerManager.SpawnPeers();
-            return;
-        }
-
         PrepSceneManager.ClearPrepTable();
-
-        PlayerManager.ResetState();
+        if (MpManager.CanSeeOnlinePlayers) PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
         PlayerManager.SpawnPeers();
-
-        CommandScheduler.EnqueueKey(
-            key: MpManager.PeerGetCharacterUnitNotNullCommand,
-            executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,
-            execute: () =>
-            {
-                PlayerManager.EnablePeerCollision(true);
-            },
-            timeoutSeconds: 120
-        );
     }
 }

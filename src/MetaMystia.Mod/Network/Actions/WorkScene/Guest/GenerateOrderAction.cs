@@ -22,7 +22,7 @@ public partial class GenerateOrderAction : Action
     public bool NotShowInUI { get; set; }
     public bool FreeOrder { get; set; }
 
-    [DiscardOnStory]
+    [WaitUntilStoryEnds]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {

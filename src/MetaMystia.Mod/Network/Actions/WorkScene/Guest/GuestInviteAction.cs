@@ -18,7 +18,6 @@ public partial class GuestInviteAction : Action
 
     public List<int> InvitedGuestIds { get; set; } = [];
 
-    [HostOnlyReceive]
     public override void OnReceivedDerived()
     {
         var invitedGuestIds = InvitedGuestIds ?? [];
