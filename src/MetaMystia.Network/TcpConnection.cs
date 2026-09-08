@@ -80,7 +80,7 @@ public sealed class TcpConnection : IDisposable
             }
             Close("Remote disconnected");
         }
-        catch (Exception error) when (error is IOException or SocketException or OperationCanceledException or ObjectDisposedException or MemoryPackSerializationException)
+        catch (Exception error) when (error is IOException or InvalidDataException or SocketException or OperationCanceledException or ObjectDisposedException or MemoryPackSerializationException)
         { Close(error.Message); }
     }
 

@@ -7,7 +7,7 @@ dotnet run --project src/MetaMystia.Network.Tests -f net6.0 -- --tcp
 dotnet run --project src/MetaMystia.Network.Tests -f net10.0 -- --tcp
 ```
 
-每种运行时执行 34 项状态/资源检查及 6 项真实回环 TCP 检查。TCP 检查使用动态端口和进程内房主，监听地址限定为本机回环。
+每种运行时执行 34 项状态/资源检查及 9 项真实回环 TCP 检查。TCP 检查使用动态端口和进程内房主，监听地址限定为本机回环，覆盖零、负数和超限帧长度的断连通知。
 
 覆盖握手前隔离、连接代次、公共与房间关系、入房权限、容量、踢人、快照替换、旧绑定消息、确认超时后的查询恢复、房主掉线、心跳清理及资源 ID 边界。
 

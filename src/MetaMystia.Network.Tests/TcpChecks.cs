@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.Net;
+using System.Net.Sockets;
 
 using MetaMystia.Network.Core;
 using MetaMystia.Protocol;
@@ -53,5 +55,25 @@ static class TcpChecks
         Until(() => local.Room == null && remote.Room == null && remote.IsOnline, "host leave dissolves room while keeping public TCP session");
         remote.Send(Route.PublicEvent, 2, new byte[] { 9 });
         Until(() => localPayloads.Any(p => p.Kind == 2), "public messages work after room dissolution");
+
+        foreach (int length in new[] { 0, -1, ProtocolVersion.MaxFrameBytes + 1 })
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            using var sender = new TcpClient();
+            await sender.ConnectAsync(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port);
+            using var receiver = new TcpConnection(await listener.AcceptTcpClientAsync());
+            listener.Stop();
+            var header = new byte[4];
+            BinaryPrimitives.WriteInt32LittleEndian(header, length);
+            await sender.GetStream().WriteAsync(header);
+            TransportEvent? disconnected = null;
+            Until(() =>
+            {
+                if (receiver.TryDequeue(out var received)) disconnected = received;
+                return disconnected?.Message == null && disconnected?.Error == "Invalid frame length" && receiver.IsClosed;
+            },
+                $"invalid frame length {length} closes transport and reports disconnection");
+        }
     }
 }
