@@ -1,6 +1,10 @@
 using System.Linq;
+
 using UnityEngine;
+
 using Common.UI;
+
+using MetaMystia.Network;
 
 namespace MetaMystia.UI;
 
@@ -211,7 +215,7 @@ public static partial class PlayerListPanel
 
         return scene switch
         {
-            Scene.DayScene => FormatDayLine(name, dim, mapLabel, pos, isDayOver, izakayaMapLabel, izakayaLevel),
+            Scene.DayScene => FormatDayLine(uid, name, dim, mapLabel, pos, isDayOver, izakayaMapLabel, izakayaLevel),
             Scene.IzakayaPrepScene => $"{name}  <color={dim}>{ReadyTag(isPrepOver)}</color>",
             Scene.WorkScene => $"{name}  <color={dim}>({pos.x:F2}, {pos.y:F2})</color>",
             _ => name
@@ -219,18 +223,18 @@ public static partial class PlayerListPanel
     }
 
     /// <summary>
-    /// DayScene: 全员 DayOver 后显示选店信息，否则显示地图+坐标+状态
+    /// DayScene: 选店阶段的同房玩家显示选店信息，否则显示地图、坐标和状态。
     /// </summary>
-    private static string FormatDayLine(string name, string dim,
+    private static string FormatDayLine(int uid, string name, string dim,
         MapLabel mapLabel, Vector2 pos, bool isDayOver,
         MapLabel izakayaMapLabel, int izakayaLevel)
     {
-        if (!PlayerManager.AllDayOver)
+        if (RoomGameplay.Phase != GameplayPhase.Selection || MpManager.Session.Room?.Members.ContainsKey(uid) != true)
         {
             // 仍在白天探索
             return $"{name}  <color={dim}>{mapLabel.GetDisplayName()}  ({pos.x:F2}, {pos.y:F2})  {ReadyTag(isDayOver)}</color>";
         }
-        // 全员进入选店
+        // 同房玩家进入选店
         string map = izakayaMapLabel.IsSelected()
             ? izakayaMapLabel.GetDisplayName() : "…";
         string level = izakayaLevel > 0 ? $" Lv.{izakayaLevel}" : "";
