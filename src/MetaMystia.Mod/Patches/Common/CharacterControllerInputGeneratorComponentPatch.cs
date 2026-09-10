@@ -4,6 +4,7 @@ using UnityEngine;
 using Common.CharacterUtility;
 using Common.UI;
 
+using MetaMystia.Network;
 
 namespace MetaMystia.Patch;
 
@@ -29,6 +30,7 @@ public partial class CharacterControllerInputGeneratorComponentPatch
         if (self != null && __instance.Character == self)
         {
             PlayerManager.LocalInputDirection = inputDirection;
+            MpWire.SendMovement();
         }
     }
 }

@@ -112,6 +112,13 @@ public static partial class MpWire
     public static void DisconnectPeer() => Stop();
     public static bool DisconnectClient(int uid) => Request(RoomOperation.Kick, targetUid: uid);
 
+    public static void SendMovement()
+    {
+        if (!MpManager.CanSeeOnlinePlayers || !PlayerManager.CharacterSpawnedAndInitialized) return;
+        if (MpManager.LocalScene == Common.UI.Scene.WorkScene) NightMoveSyncAction.Send();
+        else if (MpManager.LocalScene == Common.UI.Scene.DayScene) MoveSyncAction.Send();
+    }
+
     public static void FlushInbox()
     {
         while (Connections.TryDequeue(out var result))
@@ -146,10 +153,10 @@ public static partial class MpWire
             }
         }
         RoomGameplay.Tick();
-        if (Session.IsOnline && NowMs >= _nextMovement)
+        if (NowMs >= _nextMovement)
         {
-            _nextMovement = NowMs + 50;
-            MoveSyncAction.Send();
+            _nextMovement = NowMs + 500;
+            SendMovement();
         }
         PlayerPresentation.Reconcile();
     }

@@ -1,14 +1,19 @@
+using System;
+
 using MemoryPack;
 
 namespace MetaMystia.Network;
 
 /// <summary>
-/// 任何玩家 → 全体玩家：夜间角色移动同步
+/// 任何玩家 → 同房成员：夜间角色移动同步
 /// </summary>
 [MemoryPackable]
 [AutoLog]
 public partial class NightMoveSyncAction : Action
 {
+    private const long KeepaliveMs = 500;
+    private static NightMoveSyncAction _lastSent;
+    private static long _lastSentAt;
     public float Vx { get; set; }
     public float Vy { get; set; }
     public float Px { get; set; }
@@ -25,17 +30,25 @@ public partial class NightMoveSyncAction : Action
 
     public static void Send()
     {
-        if (!MpManager.CanSeeOnlinePlayers || !MpManager.IsConnected || MpManager.LocalScene != Common.UI.Scene.WorkScene) return;
-        if (!PlayerManager.CharacterSpawnedAndInitialized) return;
+        if (!MpManager.IsConnected) return;
         var inputDirection = PlayerManager.LocalInputDirection;
         var position = PlayerManager.LocalPosition;
-        new NightMoveSyncAction
+        var action = new NightMoveSyncAction
         {
             Vx = inputDirection.x,
             Vy = inputDirection.y,
             Px = position.x,
             Py = position.y,
             Speed = PlayerManager.Local.Speed
-        }.Enqueue();
+        };
+        if (!Changed(action)) return;
+        action.Enqueue();
+        _lastSent = action;
+        _lastSentAt = MpWire.NowMs;
     }
+
+    private static bool Changed(NightMoveSyncAction action) =>
+        _lastSent == null || MpWire.NowMs - _lastSentAt >= KeepaliveMs
+        || action.Speed != _lastSent.Speed || action.Vx != _lastSent.Vx || action.Vy != _lastSent.Vy
+        || Math.Abs(action.Px - _lastSent.Px) > 0.001f || Math.Abs(action.Py - _lastSent.Py) > 0.001f;
 }
