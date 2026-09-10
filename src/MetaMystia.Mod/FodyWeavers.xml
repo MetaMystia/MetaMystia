@@ -5,6 +5,7 @@
     <IncludeAssemblies>
       MetaMystia.Protocol
       MetaMystia.Network
+      MetaMystia.Schema
       MemoryPack.Core
       System.CommandLine
     </IncludeAssemblies>

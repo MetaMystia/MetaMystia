@@ -70,6 +70,19 @@ public partial class ExampleAction : Action
 
 基类记录消息类型、来源和阶段，高频消息可降低 `OnSendLogLevel / OnReceiveLogLevel`。日志保留内部原因；面向玩家的提示通过 TextId 和中英文语言文件提供。
 
+## 游戏枚举镜像
+
+需要跨到协议或服务器侧的游戏枚举不要手写 int 映射，写进 `MetaMystia.Schema` 工程的 `GameSchemaTypes` 即可：
+
+```xml
+<GameSchemaTypes>Common.UI.Scene;GameData.Core.Collections.CharacterUtility.CharacterSkinSets.SelectedType</GameSchemaTypes>
+```
+
+- `GameSchemaGenerator` 在编译期从 interop 的 `Assembly-CSharp.dll` 读取成员名和数值，生成 `MetaMystia.Schema` 下的同名枚举。生成类型只含常量，产物不引用游戏程序集，服务器可以直接读写这些字段。
+- 镜像的生成需要 `MetaMystia.local.props` 里正确的 `BepInExPath`。解析失败、不是枚举、同名冲突分别报 MMS001/MMS002/MMS003，不会静默漏掉。
+- 枚举按底层整数序列化，镜像枚举与游戏枚举的字节一致；换类型不改变线格式，也不需要改 `GameMessages.Version`。
+- 游戏枚举和镜像枚举是两种类型，转换只在 Mod 边界做一次 `(Schema.X)(int)gameValue`。游戏改数值等于改协议，`Application` 版本串会挡住混版本。
+
 ## 新增消息时核对
 
 1. 数据属于哪个拥有者，何时失效。

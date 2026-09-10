@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../MetaMystia.local.props" Condition="Exists('../../MetaMystia.local.props')" />
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>MetaMystia.Schema</AssemblyName>
+    <RootNamespace>MetaMystia.Schema</RootNamespace>
+    <!-- 需要镜像到协议层的游戏枚举，分号分隔。 -->
+    <GameSchemaTypes>Common.UI.Scene</GameSchemaTypes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="GameSchemaTypes" />
+    <ProjectReference Include="../MetaMystia.Generators/MetaMystia.Generators.csproj"
+      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- 仅编译期读取枚举定义；生成的镜像类型不产生对游戏程序集的引用。 -->
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(BepInExPath)\interop\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateGameSchemaInput" BeforeTargets="CoreCompile" Condition="!Exists('$(BepInExPath)\interop\Assembly-CSharp.dll')">
+    <Error Text="MetaMystia.Schema 需要 $(BepInExPath)\interop\Assembly-CSharp.dll 才能从游戏枚举生成镜像，请检查 MetaMystia.local.props 里的 BepInExPath。" />
+  </Target>
+
+</Project>

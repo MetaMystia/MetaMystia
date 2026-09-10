@@ -100,10 +100,12 @@ flowchart LR
 ```text
 MetaMystia.Protocol  ← MetaMystia.Network ← MetaMystia.Server
                                          ← MetaMystia.Mod
+MetaMystia.Schema    ← MetaMystia.Server、MetaMystia.Mod
 ```
 
 - Protocol 只定义控制消息、会话快照、路由信封及协议自身枚举。
-- Mod 的游戏载荷直接使用游戏枚举，没有 Wire 枚举镜像或转换表。
+- Schema 由生成器从 interop 枚举生成镜像类型，只在编译期读取游戏程序集，产物不引用游戏程序集。
+- Mod 的游戏载荷默认直接用游戏枚举；需要跨到服务器侧的类型走 Schema 镜像，不建转换表。
 - Network 和服务器只处理载荷字节，按规定缓存最新状态块或转发事件。
 - `GameMessages` 是唯一的游戏消息注册表，集中指定编号、路由、阶段和编解码。端点检查成员与房主权限，Mod 再核对具体载荷与路由，不能换个信封绕过权限。
 - 公共/成员/房主状态会缓存；聊天、做菜、客人操作等事件不会在加入时重放。

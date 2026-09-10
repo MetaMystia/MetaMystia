@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Server", "src\Me
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Network.Tests", "src\MetaMystia.Network.Tests\MetaMystia.Network.Tests.csproj", "{95B519D4-3452-471E-9419-C7428DBC5923}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Schema", "src\MetaMystia.Schema\MetaMystia.Schema.csproj", "{A05A32C8-1D12-4D40-861D-A0CA26864F49}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -99,6 +101,18 @@ Global
 		{95B519D4-3452-471E-9419-C7428DBC5923}.Release|x64.Build.0 = Release|Any CPU
 		{95B519D4-3452-471E-9419-C7428DBC5923}.Release|x86.ActiveCfg = Release|Any CPU
 		{95B519D4-3452-471E-9419-C7428DBC5923}.Release|x86.Build.0 = Release|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Debug|x64.Build.0 = Debug|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Debug|x86.Build.0 = Debug|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Release|x64.ActiveCfg = Release|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Release|x64.Build.0 = Release|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Release|x86.ActiveCfg = Release|Any CPU
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -108,6 +122,7 @@ Global
 		{87E24BD0-2903-4E4C-9927-10B39AB775ED} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{940E92FE-8E12-48CE-B28C-00EDC61C245A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{95B519D4-3452-471E-9419-C7428DBC5923} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{A05A32C8-1D12-4D40-861D-A0CA26864F49} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C3E907FF-3702-47A9-B1C1-F415BF723E06}

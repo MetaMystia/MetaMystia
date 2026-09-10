@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
+    <ProjectReference Include="../MetaMystia.Schema/MetaMystia.Schema.csproj" />
   </ItemGroup>
 </Project>
