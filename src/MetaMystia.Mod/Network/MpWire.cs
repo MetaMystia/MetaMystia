@@ -15,6 +15,7 @@ namespace MetaMystia.Network;
 [AutoLog]
 public static partial class MpWire
 {
+    private const long MotionKeepaliveMs = 500;
     private sealed record ConnectResult(long Attempt, TcpConnection Connection, string Error);
     private static readonly ConcurrentQueue<ConnectResult> Connections = new();
     private static EndpointHost _host;
@@ -23,6 +24,10 @@ public static partial class MpWire
     private static TaskCompletionSource<bool> _connectCompletion;
     private static bool _enabled;
     private static bool _enteredRoom;
+    private static MoveSyncAction _lastDayMotion;
+    private static long _lastDayMotionAt;
+    private static NightMoveSyncAction _lastNightMotion;
+    private static long _lastNightMotionAt;
     private static long _nextMovement;
     public static ClientSession Session { get; } = new();
     public static bool IsRunning => _enabled;
@@ -89,6 +94,10 @@ public static partial class MpWire
     {
         _enabled = false;
         _enteredRoom = false;
+        _lastDayMotion = null;
+        _lastDayMotionAt = 0;
+        _lastNightMotion = null;
+        _lastNightMotionAt = 0;
         _connectCancellation?.Cancel();
         _connectCancellation?.Dispose();
         _connectCancellation = null;
@@ -115,9 +124,34 @@ public static partial class MpWire
     public static void SendMovement()
     {
         if (!MpManager.CanSeeOnlinePlayers || !PlayerManager.CharacterSpawnedAndInitialized) return;
-        if (MpManager.LocalScene == Common.UI.Scene.WorkScene) NightMoveSyncAction.Send();
-        else if (MpManager.LocalScene == Common.UI.Scene.DayScene) MoveSyncAction.Send();
+        long now = NowMs;
+        if (MpManager.LocalScene == Common.UI.Scene.DayScene)
+        {
+            var action = MoveSyncAction.Capture();
+            if (!Changed(action, _lastDayMotion) && now - _lastDayMotionAt < MotionKeepaliveMs) return;
+            action.Enqueue();
+            _lastDayMotion = action;
+            _lastDayMotionAt = now;
+        }
+        else if (MpManager.LocalScene == Common.UI.Scene.WorkScene && MpManager.IsConnected)
+        {
+            var action = NightMoveSyncAction.Capture();
+            if (!Changed(action, _lastNightMotion) && now - _lastNightMotionAt < MotionKeepaliveMs) return;
+            action.Enqueue();
+            _lastNightMotion = action;
+            _lastNightMotionAt = now;
+        }
     }
+
+    private static bool Changed(MoveSyncAction action, MoveSyncAction last) =>
+        last == null || action.IsSprinting != last.IsSprinting || action.Speed != last.Speed
+        || action.MapLabel != last.MapLabel || action.SceneEpoch != last.SceneEpoch
+        || action.Vx != last.Vx || action.Vy != last.Vy
+        || Math.Abs(action.Px - last.Px) > 0.001f || Math.Abs(action.Py - last.Py) > 0.001f;
+
+    private static bool Changed(NightMoveSyncAction action, NightMoveSyncAction last) =>
+        last == null || action.Speed != last.Speed || action.Vx != last.Vx || action.Vy != last.Vy
+        || Math.Abs(action.Px - last.Px) > 0.001f || Math.Abs(action.Py - last.Py) > 0.001f;
 
     public static void FlushInbox()
     {

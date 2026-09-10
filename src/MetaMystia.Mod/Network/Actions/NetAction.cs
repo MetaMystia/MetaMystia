@@ -26,7 +26,7 @@ public abstract partial class Action
         OnReceivedDerived();
     }
 
-    protected void Enqueue()
+    internal void Enqueue()
     {
         if (!GameMessages.CanSend(this)) return;
         Log._inner.Log(OnSendLogLevel, $"[Network] Send {GetType().Name}; phase={RoomGameplay.PhaseId}");
