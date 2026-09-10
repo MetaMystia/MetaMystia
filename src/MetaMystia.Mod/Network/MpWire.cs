@@ -22,10 +22,13 @@ public static partial class MpWire
     private static CancellationTokenSource _connectCancellation;
     private static TaskCompletionSource<bool> _connectCompletion;
     private static bool _enabled;
+    private static bool _enteredRoom;
     private static long _nextMovement;
     public static ClientSession Session { get; } = new();
     public static bool IsRunning => _enabled;
     public static bool IsEmbeddedHost => _host != null;
+    // 局域网会话里房间与连接是同一件事：退房即断线。
+    public static bool IsLanSession => _host != null || Session.DirectEndpoint;
     public static bool IsConnecting => Session.Stage is ConnectionStage.Connecting or ConnectionStage.Handshaking;
     public static bool IsRoomConnected => Session.CanPlay && Session.Room.Members.Count > 1;
     public static int CurrentPort { get; private set; } = MpConstants.DefaultPort;
@@ -85,6 +88,7 @@ public static partial class MpWire
     public static void Stop()
     {
         _enabled = false;
+        _enteredRoom = false;
         _connectCancellation?.Cancel();
         _connectCancellation?.Dispose();
         _connectCancellation = null;
@@ -101,6 +105,7 @@ public static partial class MpWire
     public static bool Request(RoomOperation operation, Guid roomId = default, string name = "", int targetUid = -1, bool admissionOpen = false)
     {
         if (operation is RoomOperation.Create or RoomOperation.Join && !GameContext.CanEnterRoom) return false;
+        if (operation == RoomOperation.Leave && IsLanSession) { Stop(); return true; }
         return Session.Request(operation, NowMs, roomId, name, Math.Clamp(ConfigManager.MaxPlayers.Value, 2, 64), targetUid, admissionOpen);
     }
 
@@ -161,12 +166,14 @@ public static partial class MpWire
                     _connectCompletion?.TrySetResult(true);
                     _connectCompletion = null;
                     if (_host != null) Request(RoomOperation.Create, name: MpManager.PlayerId);
-                    else if (Session.DefaultRoom != Guid.Empty) Request(RoomOperation.Join, Session.DefaultRoom);
                     InGameConsole.ShowPassive(TextId.MpPublicOnline.Get());
                     break;
                 case SessionEventKind.StateChanged:
                     ModPlayerStore.ReconcileSession();
                     RoomGameplay.OnSessionChanged();
+                    if (Session.IsInRoom) _enteredRoom = true;
+                    // 局域网会话被移出房间（被踢或房间解散）等同于断开。
+                    else if (IsLanSession && _enteredRoom) { Stop(); break; }
                     break;
                 case SessionEventKind.Payload:
                     GameMessages.Receive(change.Payload);
@@ -205,6 +212,7 @@ public static partial class MpWire
                         Log.Warning($"Connection ended: {change.Detail}; attempt={Session.Attempt}");
                         InGameConsole.ShowPassive(NetworkText.Error(change.Detail, TextId.MpConnectionClosed));
                     }
+                    _enteredRoom = false;
                     break;
             }
         }

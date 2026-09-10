@@ -64,7 +64,7 @@ public partial class ExampleAction : Action
 
 ## 握手、线程与诊断
 
-握手为 Hello → Welcome。握手前不能发业务消息，Online 只表示公共连接就绪；入房与玩法同步分别确认。服务器收到控制请求后先提交一致状态，再发送快照。
+握手为 Hello → Welcome。握手前不能发业务消息。直连端点在握手时直接分配默认房间，房间不可用时拒绝连接；独立服务器的 Online 只表示公共连接就绪，入房与玩法同步分别确认。服务器收到控制请求后先提交一致状态，再发送快照。
 
 网络 IO 只读写帧；Mod 主线程通过 `MpWire.FlushInbox()` 处理控制确认和 Action。拒绝连接先写出 Rejected 再关闭。队列溢出明确断连，不静默丢弃玩法事件。
 

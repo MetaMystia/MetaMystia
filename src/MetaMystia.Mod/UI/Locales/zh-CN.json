@@ -4,7 +4,7 @@
     "MpRoomEntryUnavailable": "只能在主界面或白天尚未结束时建立或加入房间。",
     "MpRoomIdInvalid": "房间 ID 无效，请使用 /mp room list 查看。",
     "MpRoomRequestSubmitted": "请求已提交，正在等待服务器确认。",
-    "MpRoomLeaving": "正在退房，公共连接会保留。",
+    "MpRoomLeaving": "正在退出房间，等待服务器确认。",
     "MpRoomCreated": "已建立房间：{0}。",
     "MpRoomJoined": "已加入房间：{0}，正在同步玩法数据。",
     "MpRoomLeft": "已退出房间，公共连接仍然可用。",

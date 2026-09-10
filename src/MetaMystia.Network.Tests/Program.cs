@@ -121,6 +121,23 @@ Check(activeGuest.IsOnline && !activeGuest.IsInRoom && timeout.Endpoint.OnlineCo
 activeGuest.Tick(60_000);
 Check(!activeGuest.IsOnline && activeGuest.Players.Count == 0, "Client heartbeat expiry clears confirmed state");
 
+var direct = new Harness();
+var lanHost = direct.Add(20, "lan-host");
+direct.Request(lanHost, RoomOperation.Create, name: "lan", capacity: 2);
+direct.Endpoint.DefaultRoom = lanHost.Room!.Id;
+lanHost.Send(Route.MemberState, 10, new byte[] { 7 });
+direct.Pump();
+var lanGuest = direct.Add(21, "lan-guest");
+var replayed = direct.Payloads(lanGuest);
+Check(lanGuest.IsInRoom && lanGuest.Room!.Members.Count == 2 && replayed.Any(p => p.Kind == 10 && p.Data.SequenceEqual(new byte[] { 7 })),
+    "Embedded default room is assigned at handshake and replays member state");
+Check(lanGuest.DirectEndpoint && !lanHost.DirectEndpoint, "Only clients of an embedded endpoint are marked as a direct session");
+var refusedByCapacity = direct.Add(22, "lan-full");
+Check(!refusedByCapacity.IsOnline && direct.Endpoint.OnlineCount == 2 && direct.Endpoint.RoomCount == 1,
+    "Full default room refuses the connection before creating a player");
+direct.Request(lanHost, RoomOperation.SetAdmission, admission: false);
+Check(!direct.Add(23, "lan-closed").IsOnline, "Closed default room refuses the connection");
+
 var resourceRows = Enumerable.Range(0, 9).Select(_ => new[] { 5999, 6000, 8999, 9000 }.AsEnumerable()).ToArray();
 var localResources = MetaMystia.ResourceDataBase.FromLocal(resourceRows);
 var manifest = MemoryPackSerializer.Deserialize<MetaMystia.ResourceManifest>(MemoryPackSerializer.Serialize(localResources.ToManifest()))!;

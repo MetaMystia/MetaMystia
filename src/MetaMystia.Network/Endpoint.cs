@@ -77,15 +77,18 @@ public sealed class Endpoint
             if (!ValidName(hello.Name) || string.IsNullOrWhiteSpace(hello.Application) || hello.Application.Length > 200)
             { Reject(connectionId, "Invalid identity"); return; }
             if (_players.Count >= MaxPlayers) { Reject(connectionId, "Server is full"); return; }
+            // 直连端点只有一个默认房间；进不去就不放行，避免玩家停在公共域却无法参与玩法。
+            if (DefaultRoom != Guid.Empty && _rooms.TryGetValue(DefaultRoom, out var defaultRoom)
+                && (!defaultRoom.AdmissionOpen || defaultRoom.Members.Count >= defaultRoom.Capacity))
+            { Reject(connectionId, defaultRoom.AdmissionOpen ? "Room is full" : "Room admission is closed"); return; }
             var player = new Player(_nextUid++, connectionId, hello.Name, hello.Application);
             connection.Player = player;
             _players.Add(player.Uid, player);
+            if (DefaultRoom != Guid.Empty) Join(player, _rooms[DefaultRoom]);
             _revision++;
             _outbox.Enqueue(new(connectionId, new Welcome { State = Snapshot(player), DefaultRoom = DefaultRoom }));
             BroadcastState(exceptUid: player.Uid);
-            foreach (var other in _players.Values)
-                foreach (var state in other.States.Values.Where(p => Payload.IsPublic(p.Route)))
-                    DeliverPayload(player, state);
+            ReplayStates(player);
             return;
         }
 
@@ -193,11 +196,17 @@ public sealed class Endpoint
         if (error.Length == 0)
         {
             BroadcastState(exceptUid: player.Uid);
-            if (joined)
-                foreach (var member in player.Room!.Members.Values)
-                    foreach (var state in member.States.Values.Where(p => !Payload.IsPublic(p.Route)))
-                        DeliverPayload(player, state);
+            if (joined) ReplayStates(player);
         }
+    }
+
+    // 公共状态对所有人重放，房间状态只对当前绑定重放；客户端按序号丢弃重复块。
+    private void ReplayStates(Player player)
+    {
+        foreach (var other in _players.Values)
+            foreach (var state in other.States.Values)
+                if (Payload.IsPublic(state.Route) || player.Room?.Members.ContainsKey(other.Uid) == true)
+                    DeliverPayload(player, state);
     }
 
     private void Join(Player player, Room room)

@@ -51,6 +51,8 @@ public sealed class ClientSession
     public ConnectionStage Stage { get; private set; }
     public int SelfUid { get; private set; } = -1;
     public Guid DefaultRoom { get; private set; }
+    // 直连端点会直接分配默认房间；该标记在整次连接中保持稳定，供调用方区分局域网会话。
+    public bool DirectEndpoint { get; private set; }
     public RoomView? Room { get; private set; }
     public PendingRequest? Pending { get; private set; }
     public IReadOnlyDictionary<int, PlayerProfile> Players { get; private set; } = new ReadOnlyDictionary<int, PlayerProfile>(new Dictionary<int, PlayerProfile>());
@@ -104,6 +106,7 @@ public sealed class ClientSession
             Stage = ConnectionStage.Online;
             SelfUid = welcome.State.SelfUid;
             DefaultRoom = welcome.DefaultRoom;
+            DirectEndpoint = welcome.DefaultRoom != Guid.Empty;
             Apply(welcome.State);
             _events.Enqueue(new(SessionEventKind.Online));
             _nextPing = now;
@@ -232,6 +235,7 @@ public sealed class ClientSession
         SelfUid = -1;
         Room = null;
         DefaultRoom = Guid.Empty;
+        DirectEndpoint = false;
         Pending = null;
         Players = new ReadOnlyDictionary<int, PlayerProfile>(new Dictionary<int, PlayerProfile>());
         Rooms = Array.Empty<RoomSummary>();

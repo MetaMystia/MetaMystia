@@ -379,8 +379,14 @@ public static class MpCommands
         });
         roomCmd.AddCommand(joinCmd);
 
-        var leaveCmd = new Command("leave", "Leave room and keep public connection");
-        leaveCmd.SetHandler(ctx => ctx.Log(RoomGameplay.Leave() ? TextId.MpRoomLeaving.Get() : TextId.MpRoomRequestUnavailable.Get()));
+        var leaveCmd = new Command("leave", "Leave room");
+        leaveCmd.SetHandler(ctx =>
+        {
+            bool lan = MpWire.IsLanSession;
+            if (!RoomGameplay.Leave()) { ctx.Log(TextId.MpRoomRequestUnavailable.Get()); return; }
+            // 局域网退房就是断线，已经生效；独立服务器要等快照确认成员表。
+            ctx.Log(lan ? TextId.MpDisconnected.Get() : TextId.MpRoomLeaving.Get());
+        });
         roomCmd.AddCommand(leaveCmd);
         roomCmd.SetHandler(ctx => ctx.Log("/mp room list | create [name] | join <id> | leave"));
         mpCmd.AddCommand(roomCmd);

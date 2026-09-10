@@ -47,7 +47,7 @@ public static partial class RoomGameplay
             bool roomEnded = _binding.RoomId != Guid.Empty && Session.Binding == default && Session.IsOnline;
             CancelPhase();
             _binding = Session.Binding;
-            if (roomEnded) InGameConsole.ShowPassive(TextId.MpRoomLeft.Get());
+            if (roomEnded) InGameConsole.ShowPassive(MpWire.IsLanSession ? TextId.MpDisconnected.Get() : TextId.MpRoomLeft.Get());
             _state = new();
             ReadyIntents.Clear();
             _localReadyIntent = GameplayPhase.None;

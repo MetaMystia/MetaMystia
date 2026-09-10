@@ -4,7 +4,7 @@
     "MpRoomEntryUnavailable": "Create or join a room from the title screen or before the day ends.",
     "MpRoomIdInvalid": "Invalid room ID. Use /mp room list.",
     "MpRoomRequestSubmitted": "Request submitted; waiting for server confirmation.",
-    "MpRoomLeaving": "Leaving the room; the public connection will remain.",
+    "MpRoomLeaving": "Leaving the room; waiting for the server to confirm.",
     "MpRoomCreated": "Room created: {0}.",
     "MpRoomJoined": "Joined room: {0}. Synchronizing gameplay data.",
     "MpRoomLeft": "Left the room. The public connection remains available.",
