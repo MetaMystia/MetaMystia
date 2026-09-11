@@ -16,7 +16,11 @@ public partial class YuyukoChallengeContextPatch
         if (!MpManager.IsConnected) return;
 
         int originalDuration = __instance.__4__this.singleRoundDuration;
+#if DEBUG
+        __instance.thisSingleRoundDuration = originalDuration * 64;
+#else
         __instance.thisSingleRoundDuration = originalDuration * 2;
+#endif
         Log.Info($"幽幽子试炼本阶段时长：{originalDuration}s → {__instance.thisSingleRoundDuration}s");
     }
 }
