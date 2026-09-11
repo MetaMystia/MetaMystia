@@ -42,6 +42,7 @@ public static partial class PatchRegistry
         typeof(WorkSceneStoragePannelPatch),
         typeof(QTERewardManagerPatch),
         typeof(NightSceneEventManagerPatch),
+        typeof(YuyukoTimedNegativeSpellPatch),
         typeof(WorkSceneSustainedPannelPatch),
         typeof(MystiaQTEBuffRewardPatch),
         typeof(GameTimeManagerPatch),
