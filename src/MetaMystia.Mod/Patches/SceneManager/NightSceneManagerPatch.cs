@@ -38,7 +38,7 @@ public static partial class NightSceneManagerPatch
             return;
         }
 
-        PrepSceneManager.ClearPrepTable();
+        if (!PrepSceneManager.IsYuyukoPrepActive) PrepSceneManager.ClearPrepTable();
 
         PlayerManager.ResetState();
         PlayerManager.SpawnPeers();

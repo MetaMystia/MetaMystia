@@ -225,6 +225,7 @@ public static partial class MpManager
 
     public static void OnSceneTransit(Common.UI.Scene newScene)
     {
+        if (newScene != Common.UI.Scene.WorkScene) PrepSceneManager.ResetYuyukoPrep();
         Log.Message($"LocalScene transit from {LocalScene} -> {newScene}");
         SceneTransitAction.Send(newScene);
         LocalScene = newScene;
@@ -285,6 +286,11 @@ public static partial class MpManager
 
     public static void PrepOver()
     {
+        if (PrepSceneManager.IsYuyukoChallenge)
+        {
+            PrepSceneManager.TryConfirmYuyukoPrep();
+            return;
+        }
         if (!IsConnectedServer) return;
         if (PlayerManager.AllPrepOver)
         {
@@ -308,6 +314,7 @@ public static partial class MpManager
 
     public static bool ContinuePrep()
     {
+        if (PrepSceneManager.IsYuyukoChallenge) return false;
         if (!IsRoomHost || (LocalScene != Common.UI.Scene.IzakayaPrepScene && LocalScene != Common.UI.Scene.WorkScene) || !LocalIsPrepOver)
             return false;
         foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;

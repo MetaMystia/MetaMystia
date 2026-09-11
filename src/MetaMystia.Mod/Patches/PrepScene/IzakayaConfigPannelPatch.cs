@@ -22,6 +22,7 @@ public partial class IzakayaConfigPannelPatch
     public static void IzakayaConfigPannel_OnPanelOpen_Postfix(IzakayaConfigPannel __instance)
     {
         instanceRef = __instance;
+        PrepSceneManager.BeginYuyukoPrep();
     }
 
     [HarmonyPatch(nameof(IzakayaConfigPannel.GoToSpecific))]
@@ -33,6 +34,8 @@ public partial class IzakayaConfigPannelPatch
             Log.LogDebug($"Not in multiplayer session, skipping patch");
             return;
         }
+
+        if (PrepSceneManager.IsYuyukoChallenge && !PrepSceneManager.IsYuyukoPrepActive) return;
 
         // MetaMiku 注:
         //     游戏原生的 GoToSpecific 会变更玩家的活跃选项面板，即 菜谱/酒水/厨具 三选一
@@ -56,6 +59,11 @@ public partial class IzakayaConfigPannelPatch
             Log.LogDebug($"Not in multiplayer session, skipping patch");
             return RunOriginal;
         }
+        if (PrepSceneManager.IsYuyukoChallenge)
+        {
+            if (!PrepSceneManager.IsYuyukoPrepActive) return RunOriginal;
+            if (PlayerManager.LocalIsPrepOver) return SkipOriginal;
+        }
         PlayerManager.LocalIsPrepOver = true;
         InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
         PrepReadyAction.Send();
@@ -74,7 +82,15 @@ public partial class IzakayaConfigPannelPatch
     public static void PrepOver()
     {
         Log.Info("PrepOver called");
-        PlayerManager.ResetState();
+        if (PrepSceneManager.IsYuyukoChallenge)
+        {
+            if (!PrepSceneManager.IsYuyukoPrepActive) return;
+            PrepSceneManager.EndYuyukoPrep();
+        }
+        else
+        {
+            PlayerManager.ResetState();
+        }
         string[] ExceptPanels = ["WorkSceneTrayPannel(Clone)", "WorkSceneSustainedPannel(Clone)"];  // 白玉楼测验
         Panel.ClosePanelUntil("IzakayaConfigPannelNew(Clone)", ExceptPanels);
         _SolveDailyCompletion_b__64_7_ReversePatch(instanceRef);
