@@ -99,6 +99,11 @@ public static partial class PrepSceneManager
         IsYuyukoChallenge && IsYuyukoPrepActive && round == YuyukoPrepRound
         && PlayerManager.LocalIsPrepOver;
 
+    public static bool IsYuyukoPrepReady(int uid) =>
+        IsYuyukoPrepActive && (uid == PlayerManager.Local.Uid
+            ? PlayerManager.LocalIsPrepOver
+            : yuyukoReadyRounds.TryGetValue(uid, out var round) && round == YuyukoPrepRound);
+
     public static void EndYuyukoPrep()
     {
         IsYuyukoPrepActive = false;

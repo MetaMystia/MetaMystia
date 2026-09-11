@@ -1,4 +1,5 @@
 using UnityEngine;
+
 using Common.UI;
 
 namespace MetaMystia.UI;
@@ -211,7 +212,10 @@ public static partial class PlayerListPanel
         return scene switch
         {
             Scene.DayScene => FormatDayLine(name, dim, mapLabel, pos, isDayOver, izakayaMapLabel, izakayaLevel),
-            Scene.IzakayaPrepScene => $"{name}  <color={dim}>{ReadyTag(isPrepOver)}</color>",
+            Scene.IzakayaPrepScene => scopeTag == null ? $"{name}  {ReadyTag(isPrepOver)}" : name,
+            Scene.WorkScene when scopeTag == null && MpManager.IsConnected
+                && PrepSceneManager.IsYuyukoChallenge && PrepSceneManager.IsYuyukoPrepActive =>
+                $"{name}  {ReadyTag(PrepSceneManager.IsYuyukoPrepReady(uid))}",
             Scene.WorkScene => $"{name}  <color={dim}>({pos.x:F2}, {pos.y:F2})</color>",
             _ => name
         };
