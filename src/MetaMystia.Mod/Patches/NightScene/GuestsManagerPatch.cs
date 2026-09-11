@@ -64,15 +64,17 @@ public partial class GuestsManagerPatch
     public static readonly PatchBypassToken SkipRepellInternalLeaveBroadcastPatch = new();
     public static readonly PatchBypassToken SkipLeaveFromDeskBroadcastPatch = new();
 
-    private static PendingNormalSpawnArgs? _pendingNormalSpawnArgs;
+    private static PendingSpawnArgs? _pendingNormalSpawnArgs;
+    private static PendingSpawnArgs? _pendingSpecialSpawnArgs;
 
-    public readonly struct PendingNormalSpawnArgs
+    public readonly struct PendingSpawnArgs
     {
         public bool HasOverrideSpawnPosition { get; init; }
         public Vector3 OverrideSpawnPosition { get; init; }
         public GuestGroupController.LeaveType LeaveType { get; init; }
         public int TargetDeskCode { get; init; }
         public bool ShouldFade { get; init; }
+        public SpecialGuestsController.GuestSpawnType GuestSpawnType { get; init; }
     }
 
     private static bool IsReimuProtectionGuest(int id)
@@ -228,7 +230,7 @@ public partial class GuestsManagerPatch
                 return SkipOriginal;
             }
 
-            _pendingNormalSpawnArgs = new PendingNormalSpawnArgs
+            _pendingNormalSpawnArgs = new PendingSpawnArgs
             {
                 HasOverrideSpawnPosition = overrideSpawnPosition.HasValue,
                 OverrideSpawnPosition = overrideSpawnPosition.GetValueOrDefault(),
@@ -257,7 +259,7 @@ public partial class GuestsManagerPatch
         _pendingNormalSpawnArgs = null;
     }
 
-    private static PendingNormalSpawnArgs? ConsumePendingNormalSpawnArgs()
+    private static PendingSpawnArgs? ConsumePendingNormalSpawnArgs()
     {
         var args = _pendingNormalSpawnArgs;
         _pendingNormalSpawnArgs = null;
@@ -272,7 +274,14 @@ public partial class GuestsManagerPatch
     /// <returns></returns>
     [HarmonyPatch(nameof(GuestsManager.SpawnSpecialGuestGroup))]
     [HarmonyPrefix]
-    public static bool SpawnSpecialGuestGroup_Prefix(ref int id, ref SpecialGuestsController __result)
+    public static bool SpawnSpecialGuestGroup_Prefix(
+        ref int id,
+        SpecialGuestsController.GuestSpawnType guestSpawnType,
+        Il2CppSystem.Nullable<Vector3> overrideSpawnPosition,
+        GuestGroupController.LeaveType leaveType,
+        int targetDeskCode,
+        bool shouldFade,
+        ref SpecialGuestsController __result)
     {
         if (IsReimuProtectionGuest(id)) return RunOriginal;
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
@@ -283,12 +292,39 @@ public partial class GuestsManagerPatch
         }
         if (MpManager.IsRoomHost)
         {
-            if (TryResolveAvailableSpecialGuest(ref id)) return RunOriginal;
+            if (TryResolveAvailableSpecialGuest(ref id))
+            {
+                _pendingSpecialSpawnArgs = new PendingSpawnArgs
+                {
+                    HasOverrideSpawnPosition = overrideSpawnPosition.HasValue,
+                    OverrideSpawnPosition = overrideSpawnPosition.GetValueOrDefault(),
+                    LeaveType = leaveType,
+                    TargetDeskCode = targetDeskCode,
+                    ShouldFade = shouldFade,
+                    GuestSpawnType = guestSpawnType,
+                };
+                return RunOriginal;
+            }
             __result = null;
             return SkipOriginal;
         }
 
         return RunOriginal;
+    }
+
+    [HarmonyPatch(nameof(GuestsManager.SpawnSpecialGuestGroup))]
+    [HarmonyPostfix]
+    public static void SpawnSpecialGuestGroup_Postfix()
+    {
+        // 游戏可能提前返回 null，清理未被消费的出生参数。
+        _pendingSpecialSpawnArgs = null;
+    }
+
+    private static PendingSpawnArgs? ConsumePendingSpecialSpawnArgs()
+    {
+        var args = _pendingSpecialSpawnArgs;
+        _pendingSpecialSpawnArgs = null;
+        return args;
     }
 
     /// <summary>
@@ -327,10 +363,13 @@ public partial class GuestsManagerPatch
         if (MpManager.IsRoomHost)
         {
             // 将主机生成的顾客信息广播给客机
-            var normalSpawnArgs = initializedController.ControllType == GuestsManager.GuestType.Normal
-                ? ConsumePendingNormalSpawnArgs()
-                : null;
-            GuestFSM.OnSpawn(initializedController, normalSpawnArgs);
+            var spawnArgs = initializedController.ControllType switch
+            {
+                GuestsManager.GuestType.Normal => ConsumePendingNormalSpawnArgs(),
+                GuestsManager.GuestType.Special => ConsumePendingSpecialSpawnArgs(),
+                _ => null,
+            };
+            GuestFSM.OnSpawn(initializedController, spawnArgs);
         }
     }
 

@@ -149,7 +149,7 @@ public partial class GuestFSM
     /// 主机 Hook 到顾客创建事件，获取顾客类型、ids、金钱等基本信息，注册顾客并广播 GuestSpawnAction
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnSpawn(GuestGroupController controller, GuestsManagerPatch.PendingNormalSpawnArgs? normalSpawnArgs = null)
+    public static void OnSpawn(GuestGroupController controller, GuestsManagerPatch.PendingSpawnArgs? spawnArgs = null)
     {
         var fsm = new GuestFSM();
         fsm.CurrentState = State.Constructed;
@@ -172,10 +172,12 @@ public partial class GuestFSM
             MaxFundCarry = fsm.MaxFundCarry,
         };
 
-        if (normalSpawnArgs.HasValue)
+        if (spawnArgs.HasValue)
         {
-            var args = normalSpawnArgs.Value;
-            spawnInfo.HasNormalSpawnArgs = true;
+            var args = spawnArgs.Value;
+            spawnInfo.HasNormalSpawnArgs = fsm.GuestType == GuestType.Normal;
+            spawnInfo.HasSpecialSpawnArgs = fsm.GuestType == GuestType.Special;
+            spawnInfo.GuestSpawnType = args.GuestSpawnType;
             spawnInfo.HasOverrideSpawnPosition = args.HasOverrideSpawnPosition;
             spawnInfo.OverrideSpawnX = args.OverrideSpawnPosition.x;
             spawnInfo.OverrideSpawnY = args.OverrideSpawnPosition.y;
@@ -212,7 +214,7 @@ public partial class GuestFSM
         }
         if (fsm.GuestType == GuestType.Special)
         {
-            GuestService.ReplaySpawnSpecialGuestGroup(ref fsm);
+            GuestService.ReplaySpawnSpecialGuestGroup(ref fsm, guestSpawnInfo);
             return;
         }
 
