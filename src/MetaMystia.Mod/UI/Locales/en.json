@@ -30,6 +30,7 @@
     "DLCPeerCookerNotAvailable": "One or more players have not installed the DLC or resource pack that contains the cooker item {0}.",
     "ReadyForWork": "{0} are ready to open for business.",
     "MystiaReadyForWork": "You are ready to open for business.",
+    "YuyukoTimedNegativeSpellDisabled": "Periodically triggered negative spell cards are disabled in multiplayer.",
     "AllReadyTransition": "All players are ready, transitioning...",
     "ModPatchFailure": "Patch failure! The Mod will not function normally! Maybe your game version is not supported, please consider removing the mod!",
     "ModVersionMismatch": "Mod version mismatch, connection disconnected!",

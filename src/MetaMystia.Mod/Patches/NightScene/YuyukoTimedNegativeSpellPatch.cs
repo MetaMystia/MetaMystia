@@ -1,4 +1,7 @@
 using HarmonyLib;
+using UnityEngine;
+
+using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 using TimedNegativeSpell = GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb2;
@@ -12,12 +15,17 @@ public partial class YuyukoTimedNegativeSpellPatch
 {
     [HarmonyPatch(nameof(TimedNegativeSpell.MoveNext))]
     [HarmonyPrefix]
-    public static bool MoveNext_Prefix(ref bool __result)
+    public static bool MoveNext_Prefix(TimedNegativeSpell __instance, ref bool __result)
     {
         if (!MpManager.IsConnected) return RunOriginal;
 
-        Log.Info("幽幽子最终试炼联机中，阶段二的定时惩罚符卡循环被禁用");
-        __result = false;
+        // 原版收尾无条件 StopCoroutine，不能立即结束，否则 StartCoroutine 会返回 null。
+        if (__instance.__2__current == null)
+        {
+            __instance.__2__current = new WaitForSeconds(1f);
+            InGameConsole.ShowPassive(TextId.YuyukoTimedNegativeSpellDisabled.Get());
+        }
+        __result = true;
         return SkipOriginal;
     }
 }

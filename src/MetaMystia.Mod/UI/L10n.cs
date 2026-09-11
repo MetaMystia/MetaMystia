@@ -82,6 +82,7 @@ public enum TextId
     PeerSelectedIzakaya,
     MystiaReadyForWork,
     ReadyForWork,
+    YuyukoTimedNegativeSpellDisabled,
     AllReadyTransition,
     PeerClosedIzakaya,
 
