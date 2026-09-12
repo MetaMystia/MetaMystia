@@ -1,7 +1,8 @@
-using HarmonyLib;
-using Il2CppSystem.Linq;
 using System;
 using System.Linq;
+
+using HarmonyLib;
+using Il2CppSystem.Linq;
 using UnityEngine;
 
 using GameData.Core.Collections.CharacterUtility;
@@ -58,11 +59,8 @@ public partial class GuestsManagerPatch
     private const int MaxNormalGuestRerollAttempts = 32;
     private const int ReimuProtectionGuestId = 7;
 
-    public static readonly PatchBypassToken SkipPlayerRepellPatch = new();
     public static readonly PatchBypassToken SkipRepellInternalPatch = new();
     public static readonly PatchBypassToken SkipLeaveFromDeskPatch = new();
-    public static readonly PatchBypassToken SkipRepellInternalLeaveBroadcastPatch = new();
-    public static readonly PatchBypassToken SkipLeaveFromDeskBroadcastPatch = new();
 
     private static PendingSpawnArgs? _pendingNormalSpawnArgs;
     private static PendingSpawnArgs? _pendingSpecialSpawnArgs;
@@ -383,39 +381,17 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool PlayerRepell_Prefix(int deskCode)
     {
-        if (SkipPlayerRepellPatch.TryConsume())
-        {
-            SkipRepellInternalPatch.Grant(); // TODO
-            if (MpManager.IsRoomHost) SkipRepellInternalLeaveBroadcastPatch.Grant();
-            return RunOriginal;
-        }
-
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-
-        if (MpManager.IsRoomHost)
-        {
-            SkipRepellInternalLeaveBroadcastPatch.Grant();
-            GuestFSM.OnPlayerRepell(deskCode);
-            return RunOriginal;
-        }
         if (MpManager.IsRoomClient)
         {
             GuestFSM.OnPlayerRepell(deskCode);
-            // 客机会阻止 RepellInternal LeaveFromDesk 等方法的调用，因此不仅需要 return RunOriginal
-            // 还需要逐级设置 Skip*Patch 以跳过客机 Prefix 中的跳过逻辑
-            SkipRepellInternalPatch.Grant();
-            return RunOriginal;
+            return SkipOriginal;
         }
 
-        throw new InvalidOperationException("Unexpected network state in PlayerRepell_Prefix");
-    }
-
-    [HarmonyPatch(nameof(GuestsManager.PlayerRepell))]
-    [HarmonyPostfix]
-    public static void PlayerRepell_Postfix()
-    {
-        SkipRepellInternalLeaveBroadcastPatch.Reset();
-        SkipLeaveFromDeskBroadcastPatch.Reset();
+        var manager = GuestsManager.Instance;
+        var guest = manager.GetInDeskGuest(deskCode);
+        return guest != null && guest.HaveNotLeft() && manager.CheckCanPlayerRepelGuest(deskCode)
+            ? RunOriginal : SkipOriginal;
     }
 
 
@@ -430,6 +406,7 @@ public partial class GuestsManagerPatch
     public static bool EvaluateOrder_Prefix(GuestGroupController toEvaluate)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (GuestsMap.GetGuestFsm(toEvaluate)?.IsRepelling == true) return SkipOriginal;
         if (MpManager.IsRoomHost)
         {
             return RunOriginal;
@@ -455,6 +432,7 @@ public partial class GuestsManagerPatch
     public static void EvaluateOrder_Postfix(GuestGroupController toEvaluate, bool isTriggerByPartner)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (GuestsMap.GetGuestFsm(toEvaluate)?.IsRepelling == true) return;
         if (MpManager.IsRoomHost)
         {
             // 主机端直接记录评价结束，推进 Evaluating -> EatingDelay
@@ -487,16 +465,15 @@ public partial class GuestsManagerPatch
     {
         if (IsReimuProtectionGuest(guestGroupController)) return RunOriginal;
 
-        var skipLeaveBroadcast = SkipRepellInternalLeaveBroadcastPatch.TryConsume();
         if (SkipRepellInternalPatch.TryConsume())
         {
-            // 如果 PlayerRepell 已经触发并设置了 SkipRepellInternalPatch
-            // 则同样设置 SkipLeaveFromDeskPatch 以正常执行 LeaveFromDesk
             SkipLeaveFromDeskPatch.Grant();
+            return RunOriginal;
         }
-        if (skipLeaveBroadcast && MpManager.IsRoomHost)
+        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.IsRoomHost && guestGroupController.DeskCode >= 0)
         {
-            SkipLeaveFromDeskBroadcastPatch.Grant();
+            GuestFSM.OnRepell(guestGroupController);
         }
 
         return RunOriginal;
@@ -706,8 +683,7 @@ public partial class GuestsManagerPatch
             GuestFSM.OnLeaveFromDesk(
                 toLeave,
                 leaveType,
-                triggerLeaveBuff,
-                broadcast: !SkipLeaveFromDeskBroadcastPatch.TryConsume());
+                triggerLeaveBuff);
             return RunOriginal;
         }
 

@@ -1,6 +1,7 @@
-using Il2CppSystem.Linq;
 using System.Collections.Generic;
 using System.Linq;
+
+using Il2CppSystem.Linq;
 using UnityEngine;
 
 using GameData.Core.Collections;
@@ -48,6 +49,7 @@ public partial class GuestFSM
     public int OrderSeq => Controller?.AllOrdersCount ?? -1;
 
     public bool IsFirstOrder { get; private set; } = true; // TODO: OrderSeq == 1 ?
+    public bool IsRepelling { get; private set; }
     public Sellable WillServeBeverage { get; set; }
     public Sellable WillServeFood { get; set; }
 
@@ -333,7 +335,7 @@ public partial class GuestFSM
     }
 
     /// <summary>
-    /// 主机或客机玩家赶客时
+    /// 客机提交玩家赶客请求，不推进状态。
     /// </summary>
     /// <param name="deskCode"></param>
     public static void OnPlayerRepell(int deskCode)
@@ -345,26 +347,72 @@ public partial class GuestFSM
         if (fsm == null) return;
 
         PlayerRepellAction.Send(fsm.RuntimeId);
-        fsm.To(State.Left);
     }
 
     /// <summary>
-    /// 主机和客机重放玩家赶客
+    /// 主机立即裁定赶客请求；过期请求不得等待下一次可赶客状态。
     /// </summary>
     /// <param name="runtimeId"></param>
-    public static bool DoPlayerRepell(int runtimeId)
+    public static void DoPlayerRepell(int runtimeId)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
-        if (fsm == null) return false;
-        if (fsm.CurrentState == State.Dead || fsm.CurrentState == State.Left) return true;
-        var deskCode = fsm.Controller.DeskCode;
+        if (!MpManager.IsRoomHost || fsm?.Controller == null) return;
+        var controller = fsm.Controller;
+        if (fsm.CurrentState is State.Leaving or State.Left or State.Dead || !controller.HaveNotLeft()) return;
+        var manager = GuestsManager.Instance;
+        var occupant = manager.GetInDeskGuest(controller.DeskCode);
+        if (occupant == null || occupant.Pointer != controller.Pointer) return;
+        if (!manager.CheckCanPlayerRepelGuest(controller.DeskCode)) return;
 
-        // 正常调用栈为: PlayerRepell -> RepellInternal -> LeaveFromDesk
-        // 然而本 Mod 默认会阻止 RepellInternal LeaveFromDesk 等方法的调用，因此需要逐级设置 Skip*Patch 以跳过客机 Prefix 中的跳过逻辑
-        GuestsManagerPatch.SkipPlayerRepellPatch.Grant();
-        GuestsManager.Instance.PlayerRepell(deskCode);
+        manager.PlayerRepell(controller.DeskCode);
+    }
+
+    /// <summary>原版已决定驱赶；离桌入口发送结果，不能在玩家请求入口宣布成功。</summary>
+    public static void OnRepell(GuestGroupController controller)
+    {
+        var fsm = GuestsMap.GetGuestFsm(controller);
+        if (fsm == null || fsm.CurrentState is State.Left or State.Dead) return;
+        fsm.IsRepelling = true;
+        fsm.To(State.Leaving);
+        TryCloseServePanel(controller.DeskCode);
+    }
+
+    /// <summary>主机驱赶结果越过旧服务等待项，直接重放原版完整清理。</summary>
+    public static void DoRepell(GuestRepellAction result)
+    {
+        var runtimeId = result.RuntimeId;
+        var fsm = GuestsMap.GetGuestFsm(runtimeId);
+        if (fsm?.Controller == null || fsm.CurrentState is State.Left or State.Dead) return;
+        var controller = fsm.Controller;
+        var occupant = GuestsManager.Instance.GetInDeskGuest(controller.DeskCode);
+        if (occupant != null && occupant.Pointer != controller.Pointer)
+        {
+            Log.Warning($"Ignoring repell #{runtimeId}: desk is occupied by another guest");
+            return;
+        }
+
+        fsm.IsRepelling = true;
         fsm.To(State.Left);
-        return true;
+        controller.Left = true;
+        controller.Mood = result.Mood;
+        var eventManager = NightScene.EventUtility.EventManager.Instance;
+        eventManager.CurrentCombo = result.Combo;
+        eventManager.LoseComboTimes = result.LoseComboTimes;
+        eventManager.LoseComboTimeForPassion = result.LoseComboTimeForPassion;
+        eventManager.LoseComboGuestSetNum = result.LoseComboGuestSetNum;
+        eventManager.CallExternOnComboUpdate(result.Combo);
+        eventManager.CallExternOnMusicIndexUpdate(eventManager.CurrentMusicLevelHandle.Invoke());
+        TryCloseServePanel(controller.DeskCode);
+        GuestsManagerPatch.SkipRepellInternalPatch.Grant();
+        try
+        {
+            GuestsManager.Instance.RepellInternal(controller, out _, result.LeaveType, result.TriggerLeaveBuff);
+        }
+        finally
+        {
+            GuestsManagerPatch.SkipRepellInternalPatch.Reset();
+            GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
+        }
     }
 
     /// <summary>
@@ -842,6 +890,7 @@ public partial class GuestFSM
     /// <returns></returns>
     public static bool TryCloseServePanel(int deskCode)
     {
+        if (deskCode < 0 || WorkSceneServePannelPatch.instanceRef == null) return false;
         if (WorkSceneServePannelPatch.PanelDeskCode != deskCode) return false;
 
         WorkSceneServePannelPatch.instanceRef?.willServeFood = null;
@@ -923,6 +972,7 @@ public partial class GuestFSM
     {
         var fsm = GuestsMap.GetGuestFsm(controller);
         if (fsm == null) return;
+        if (fsm.IsRepelling) return;
         if (fsm.CurrentState == State.WaitingServe)
         {
             ConfirmServeAction.Send(fsm.RuntimeId, controller.AllOrdersCount, food, beverage);
@@ -1144,7 +1194,10 @@ public partial class GuestFSM
         FlowLog($"Guest #{fsm.RuntimeId} OnLeaveFromDesk from {fsm.CurrentState}, leaveType={leaveType}, triggerLeaveBuff={triggerLeaveBuff}, broadcast={broadcast}");
         if (broadcast)
         {
-            GuestLeaveAction.Send(fsm.RuntimeId, leaveType, triggerLeaveBuff);
+            if (fsm.IsRepelling)
+                GuestRepellAction.Send(fsm.RuntimeId, controller, leaveType, triggerLeaveBuff);
+            else
+                GuestLeaveAction.Send(fsm.RuntimeId, leaveType, triggerLeaveBuff);
         }
         fsm.To(State.Left);
     }

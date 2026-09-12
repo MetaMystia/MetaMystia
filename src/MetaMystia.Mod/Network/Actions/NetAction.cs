@@ -64,6 +64,7 @@ public enum ActionType : ushort
     PassionEdit,
 
     IzakayaClose,
+    GuestRepell,
 }
 
 [MemoryPackable]
@@ -114,6 +115,7 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.ExpEdit, typeof(ExpEditAction))]
 [MemoryPackUnion((ushort)ActionType.PassionEdit, typeof(PassionEditAction))]
 [MemoryPackUnion((ushort)ActionType.IzakayaClose, typeof(IzakayaCloseAction))]
+[MemoryPackUnion((ushort)ActionType.GuestRepell, typeof(GuestRepellAction))]
 [AutoLog]
 
 public abstract partial class Action
