@@ -45,6 +45,8 @@ public static partial class PatchRegistry
         typeof(YuyukoTimedNegativeSpellPatch),
         typeof(YuyukoPhase2GuestSpawnPatch),
         typeof(YuyukoChallengeContextPatch),
+        typeof(YuyukoFailurePatch),
+        typeof(IncomeControllerYuyukoPatch),
         typeof(WorkSceneSustainedPannelPatch),
         typeof(MystiaQTEBuffRewardPatch),
         typeof(GameTimeManagerPatch),

@@ -65,6 +65,8 @@ public enum ActionType : ushort
 
     IzakayaClose,
     GuestRepell,
+    YuyukoFailed,
+    YuyukoLife,
 }
 
 [MemoryPackable]
@@ -116,6 +118,8 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.PassionEdit, typeof(PassionEditAction))]
 [MemoryPackUnion((ushort)ActionType.IzakayaClose, typeof(IzakayaCloseAction))]
 [MemoryPackUnion((ushort)ActionType.GuestRepell, typeof(GuestRepellAction))]
+[MemoryPackUnion((ushort)ActionType.YuyukoFailed, typeof(YuyukoFailedAction))]
+[MemoryPackUnion((ushort)ActionType.YuyukoLife, typeof(YuyukoLifeAction))]
 [AutoLog]
 
 public abstract partial class Action
