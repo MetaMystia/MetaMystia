@@ -20,6 +20,7 @@ public partial class CookControllerPatch
     [HarmonyPrefix]
     public static bool SetCook_Prefix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
     {
+        if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
         // Log.Debug($"SetCook_Prefix called");
         if (MpManager.IsConnected && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
         {
@@ -40,6 +41,7 @@ public partial class CookControllerPatch
     [HarmonyPostfix]
     public static void SetCook_Postfix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
     {
+        if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return;
         if (MpManager.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         var recipeId = recipe.Id;
@@ -56,6 +58,8 @@ public partial class CookControllerPatch
     [HarmonyPrefix]
     public static void Extract_Prefix(CookController __instance)
     {
+        // 吞食消息已让两端各执行一次原版中断，不能再把其内部 Extract 当作玩家取菜广播。
+        if (YuyukoGuestSync.IsInterruptingCooker) return;
         if (MpManager.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         ExtractFromCookerAction.Send(gridIndex);
@@ -83,10 +87,13 @@ public partial class CookControllerPatch
 
     [HarmonyPatch(nameof(CookController.StartCookCountDown))]
     [HarmonyPrefix]
-    public static void StartCookCountDown_Prefix(CookController __instance, float qteScore)
+    public static bool StartCookCountDown_Prefix(CookController __instance, float qteScore)
     {
+        // 联机下 QTE 期间时间继续推进，厨具可能已被吞食，需阻止 QTE 结束后再启动烹饪倒计时。
+        if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
         var gridIndex = __instance.GridIndex;
         QTEAction.Send(gridIndex, qteScore);
+        return RunOriginal;
     }
 
 }

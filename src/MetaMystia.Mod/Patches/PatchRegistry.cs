@@ -44,12 +44,21 @@ public static partial class PatchRegistry
         typeof(WorkSceneStoragePannelPatch),
         typeof(QTERewardManagerPatch),
         typeof(NightSceneEventManagerPatch),
+
+        // 幽幽子挑战专用补丁
         typeof(YuyukoTimedNegativeSpellPatch),
         typeof(YuyukoPhase2GuestSpawnPatch),
         typeof(YuyukoChallengeContextPatch),
         typeof(YuyukoBossDataPatch),
+        typeof(YuyukoMainLoopPatch),
+        typeof(YuyukoTimingPatch),
+        typeof(YuyukoPhase3GuestSpawnPatch),
+        typeof(YuyukoLockCookersPatch),
+        typeof(YuyukoRetakeContextPatch),
+        typeof(NightSceneDirectorPatch),
         typeof(YuyukoOnFailPatch),
         typeof(IncomeControllerYuyukoPatch),
+
         typeof(WorkSceneSustainedPannelPatch),
         typeof(MystiaQTEBuffRewardPatch),
         typeof(GameTimeManagerPatch),

@@ -22,6 +22,7 @@ public partial class NightCookAction : Action
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
+        if (YuyukoGuestSync.IsSwallowedCooker(GridIndex)) return;
         Log.LogInfo($"Received COOK: CookerIndex={GridIndex}, FoodId={Food.Id}, Modifiers=[{string.Join(",", Food.ModifierIds)}]");
         if (!PlayerManager.RecipeAvailable(RecipeId))
         {

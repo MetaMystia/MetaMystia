@@ -46,7 +46,7 @@ public partial class GuestFSM
 
     public int DeskCode => Controller.DeskCode;
     public OrderBase CurrentOrder => Controller?.PeekOrders();
-    public int OrderSeq => Controller?.AllOrdersCount ?? -1;
+    public int OrderSeq => IsManualGuest ? manualOrderSeq : Controller?.AllOrdersCount ?? -1;
 
     public bool IsFirstOrder { get; private set; } = true; // TODO: OrderSeq == 1 ?
     public bool IsRepelling { get; private set; }
@@ -106,6 +106,7 @@ public partial class GuestFSM
     private void Drain()
     {
         if (_draining) return;
+        if (IsManualGuest && MpManager.InStory) return;
         _draining = true;
         try
         {
@@ -115,9 +116,17 @@ public partial class GuestFSM
                 if (MpManager.TimestampNow > head.DeadlineMs)
                 {
                     Log.Error($"Guest #{RuntimeId} pending '{head.Tag}' timeout: stalled at {CurrentState}");
-                    _pending.Clear();
-                    Kill();
-                    return;
+                    if (IsManualGuest)
+                    {
+                        // 剧情可能长于普通顾客的 TTL；本体仍被挑战协程引用，不能销毁。
+                        head.DeadlineMs = MpManager.TimestampNow + PendingTtlMs;
+                    }
+                    else
+                    {
+                        _pending.Clear();
+                        Kill();
+                        return;
+                    }
                 }
                 if (!head.Apply())
                 {
@@ -611,12 +620,12 @@ public partial class GuestFSM
     }
 
     /// <summary>
-    /// 订单序号校验：以 <see cref="GuestGroupController.AllOrdersCount"/> 栈深为序，主客双侧 PushToOrder 锁步同步。
-    /// 不一致时记录并消费该 Action，避免应用到错误的栈顶订单上。
+    /// 校验订单序号：普通顾客取订单栈深，手动顾客取主机序号。
+    /// 不一致时记录并由调用方丢弃该 Action，避免应用到错误的订单上。
     /// </summary>
     private static bool OrderSeqMismatch(GuestFSM fsm, int orderSeq, string tag)
     {
-        var local = fsm.Controller.AllOrdersCount;
+        var local = fsm.OrderSeq;
         if (orderSeq == local) return false;
         Log.Error($"Guest #{fsm.RuntimeId} OrderSeq mismatch in {tag}: action=#{orderSeq} local=#{local}, dropping");
         return true;
@@ -657,6 +666,8 @@ public partial class GuestFSM
     public static void OnServe(GuestGroupController controller, Sellable sellable, Sellable.SellableType type)
     {
         var fsm = GuestsMap.GetGuestFsm(controller);
+        // 忽略手动顾客非待上菜状态下的上菜同步，避免进入异常分支销毁仍被剧情引用的实体。
+        if (fsm?.IsManualGuest == true && fsm.CurrentState != State.WaitingServe) return;
         FlowLog($"Guest #{fsm.RuntimeId} served {sellable?.Text?.BriefName ?? "null"}, current FSM state: {fsm.CurrentState}");
 
         if (fsm.CurrentState == State.WaitingServe)
@@ -672,7 +683,7 @@ public partial class GuestFSM
                 basedOn = fsm.WillServeBeverage;
                 fsm.WillServeBeverage = sellable;
             }
-            ServeSellableAction.Send(fsm.RuntimeId, controller.AllOrdersCount, sellable, basedOn, type);
+            ServeSellableAction.Send(fsm.RuntimeId, fsm.OrderSeq, sellable, basedOn, type);
             fsm.To(State.WaitingServe);
         }
         else
@@ -776,6 +787,9 @@ public partial class GuestFSM
 
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
+        if (fsm.IsManualGuest && orderSeq > fsm.OrderSeq) return false;
+        if (fsm.IsManualGuest && (orderSeq < fsm.OrderSeq
+            || (orderSeq == fsm.OrderSeq && fsm.CurrentState != State.WaitingServe))) return true;
         if (fsm.CurrentState != State.WaitingServe) return false;
         if (OrderSeqMismatch(fsm, orderSeq, nameof(DoServe))) return true;
         var controller = fsm.Controller;
@@ -972,10 +986,11 @@ public partial class GuestFSM
     {
         var fsm = GuestsMap.GetGuestFsm(controller);
         if (fsm == null) return;
+        if (fsm.IsManualGuest && fsm.CurrentState != State.WaitingServe) return;
         if (fsm.IsRepelling) return;
         if (fsm.CurrentState == State.WaitingServe)
         {
-            ConfirmServeAction.Send(fsm.RuntimeId, controller.AllOrdersCount, food, beverage);
+            ConfirmServeAction.Send(fsm.RuntimeId, fsm.OrderSeq, food, beverage);
             fsm.WillServeFood = null;
             fsm.WillServeBeverage = null;
         }
@@ -1000,6 +1015,9 @@ public partial class GuestFSM
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
+        if (fsm.IsManualGuest && orderSeq > fsm.OrderSeq) return false;
+        if (fsm.IsManualGuest && (orderSeq < fsm.OrderSeq
+            || (orderSeq == fsm.OrderSeq && fsm.CurrentState != State.WaitingServe))) return true;
         if (fsm.CurrentState != State.WaitingServe) return false;
         if (OrderSeqMismatch(fsm, orderSeq, nameof(DoConfirmServe))) return true;
 
@@ -1070,7 +1088,8 @@ public partial class GuestFSM
             TryCloseServePanel(fsm.DeskCode);
             if (MpManager.IsRoomHost && fsm.CurrentState == State.WaitingServe)
             {
-                GuestsManager.Instance.EvaluateOrder(controller, false, null);
+                if (fsm.IsManualGuest) YuyukoGuestSync.EvaluateConfirmed();
+                else GuestsManager.Instance.EvaluateOrder(controller, false, null);
             }
         }
         return true;

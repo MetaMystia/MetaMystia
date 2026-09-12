@@ -22,9 +22,12 @@ public partial class YuyukoBossDataPatch
     private static bool failurePending;
 
     internal static YuyukoBossData.__c__DisplayClass16_0 CurrentContext => currentLoop?.__8__1;
+    internal static YuyukoBossData.__c__DisplayClass16_6 CurrentRetake => currentLoop?.__8__3;
+    internal static int CurrentState => currentLoop?.__1__state ?? -1;
 
     internal static void ResetChallenge()
     {
+        YuyukoGuestSync.Reset();
         currentLoop = null;
         failureStarted = false;
         failurePending = false;
@@ -52,6 +55,7 @@ public partial class YuyukoBossDataPatch
     {
         if (!PrepSceneManager.IsYuyukoChallenge || currentLoop == null || failureStarted || failurePending) return;
         failurePending = true;
+        YuyukoGuestSync.EndPhase3();
         var loop = currentLoop;
         var events = loop.__8__1.eventManager;
 

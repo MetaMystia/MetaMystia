@@ -56,6 +56,41 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class GuestsManagerPatch
 {
+    // 幽幽子挑战：手动订单与剧情回调。
+    /// <summary>
+    /// 暂存本体的原版手动订单和完成回调，等待同步条件就绪后安装。
+    /// 同步管理器主动安装时放行，其他手动顾客仍使用原版流程。
+    /// </summary>
+    [HarmonyPatch(nameof(GuestsManager.SetManualControllerOrderInternal))]
+    [HarmonyPrefix]
+    public static bool SetManualControllerOrderInternal_Prefix(GuestGroupController manualControlled,
+        Il2CppSystem.Action<GuestGroupController.EvaluationResult> onEvaluate, GuestsManager.OrderBase order)
+    {
+        if (!YuyukoGuestSync.IsBody(manualControlled) || YuyukoGuestSync.IsInstalling) return RunOriginal;
+        YuyukoGuestSync.QueueOrder(order, onEvaluate);
+        return SkipOriginal;
+    }
+
+    /// <summary>
+    /// 本体仅允许主机发起评价或客机重放主机结果，并要求仍处于等待上菜状态。
+    /// 手动评价不经过普通 EvaluateOrder 入口，需在此单独限制；其他实体放行。
+    /// </summary>
+    [HarmonyPatch(nameof(GuestsManager.EvaulateManualOrder))]
+    [HarmonyPrefix]
+    public static bool EvaulateManualOrder_Prefix(GuestGroupController toEvaluate) =>
+        YuyukoGuestSync.CanEvaluate(toEvaluate) ? RunOriginal : SkipOriginal;
+
+    /// <summary>原版清理订单显示后，取消本体的同步订单及旧回调；主机同时广播取消序号。</summary>
+    [HarmonyPatch(nameof(GuestsManager.CleanOrderInfo))]
+    [HarmonyPostfix]
+    public static void CleanOrderInfo_Postfix(GuestGroupController guestGroup) => YuyukoGuestSync.OnClean(guestGroup);
+
+    /// <summary>原版手动离场前取消本体订单，避免离场期间迟到的上菜或完成回调继续推进旧订单。</summary>
+    [HarmonyPatch(nameof(GuestsManager.SetManualControlledLeave))]
+    [HarmonyPrefix]
+    public static void SetManualControlledLeave_Prefix(GuestGroupController manualControlled) =>
+        YuyukoGuestSync.OnClean(manualControlled);
+
     private const int MaxNormalGuestRerollAttempts = 32;
     private const int ReimuProtectionGuestId = 7;
 
@@ -641,6 +676,7 @@ public partial class GuestsManagerPatch
     [HarmonyPostfix]
     public static void SetManualControllerOrderInternal_Postfix(GuestGroupController manualControlled)
     {
+        if (YuyukoGuestSync.IsBody(manualControlled) && !YuyukoGuestSync.IsInstalling) return;
         ExtendYuyukoPhase3Patient(manualControlled);
     }
 
@@ -703,6 +739,7 @@ public partial class GuestsManagerPatch
         GuestGroupController.LeaveType leaveType,
         bool triggerLeaveBuff)
     {
+        if (YuyukoGuestSync.IsBody(toLeave)) return RunOriginal;
         if (IsReimuProtectionGuest(toLeave)) return RunOriginal;
 
         if (SkipLeaveFromDeskPatch.TryConsume())

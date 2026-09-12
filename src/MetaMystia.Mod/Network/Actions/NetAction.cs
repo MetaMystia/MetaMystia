@@ -68,6 +68,8 @@ public enum ActionType : ushort
     DayDestinationIntent,
     DayDestinationState,
     DayDestinationConfirm,
+    YuyukoGuest,
+    YuyukoGuestBound,
 }
 
 [MemoryPackable]
@@ -122,6 +124,8 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.DayDestinationIntent, typeof(DayDestinationIntentAction))]
 [MemoryPackUnion((ushort)ActionType.DayDestinationState, typeof(DayDestinationStateAction))]
 [MemoryPackUnion((ushort)ActionType.DayDestinationConfirm, typeof(DayDestinationConfirmAction))]
+[MemoryPackUnion((ushort)ActionType.YuyukoGuest, typeof(YuyukoGuestAction))]
+[MemoryPackUnion((ushort)ActionType.YuyukoGuestBound, typeof(YuyukoGuestBoundAction))]
 [AutoLog]
 
 public abstract partial class Action
@@ -212,10 +216,13 @@ public abstract partial class Action
 
     private bool ShouldDiscardOnStory()
     {
-        if (!MpManager.InStory) return false;
+        if (!MpManager.InStory || CanReceiveDuringStory) return false;
         var method = this.GetType().GetMethod(nameof(OnReceivedDerived));
         return method.GetCustomAttribute<DiscardOnStoryAttribute>() != null;
     }
+
+    [MemoryPackIgnore]
+    protected virtual bool CanReceiveDuringStory => false;
 
     public override string ToString()
     {
