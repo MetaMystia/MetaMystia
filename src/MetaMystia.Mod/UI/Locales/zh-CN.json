@@ -31,6 +31,7 @@
     "ReadyForWork": "{0} 已经准备好营业啦",
     "MystiaReadyForWork": "你已经准备好营业啦",
     "YuyukoTimedNegativeSpellDisabled": "循环触发的惩罚符卡将在联机中被禁用。",
+    "YuyukoPhase3PatientExtended": "联机中，三阶段幽幽子的点单耐心已延长至原来的三倍。",
     "AllReadyTransition": "全员就绪，即将切换场景…",
     "ModPatchFailure": "补丁注入失败！此Mod将不会正常运行！可能是你的游戏版本不受支持？请考虑移除此Mod进行游玩！",
     "ModVersionMismatch": "Mod 版本不匹配，连接已断开！",

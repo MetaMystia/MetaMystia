@@ -83,6 +83,7 @@ public enum TextId
     MystiaReadyForWork,
     ReadyForWork,
     YuyukoTimedNegativeSpellDisabled,
+    YuyukoPhase3PatientExtended,
     AllReadyTransition,
     PeerClosedIzakaya,
 

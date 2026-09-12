@@ -31,6 +31,7 @@
     "ReadyForWork": "{0} are ready to open for business.",
     "MystiaReadyForWork": "You are ready to open for business.",
     "YuyukoTimedNegativeSpellDisabled": "Periodically triggered negative spell cards are disabled in multiplayer.",
+    "YuyukoPhase3PatientExtended": "In multiplayer, Yuyuko's order patience in phase three is tripled.",
     "AllReadyTransition": "All players are ready, transitioning...",
     "ModPatchFailure": "Patch failure! The Mod will not function normally! Maybe your game version is not supported, please consider removing the mod!",
     "ModVersionMismatch": "Mod version mismatch, connection disconnected!",

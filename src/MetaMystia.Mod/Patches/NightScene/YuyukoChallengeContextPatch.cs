@@ -1,5 +1,7 @@
 using HarmonyLib;
 
+using MetaMystia.UI;
+
 using YuyukoContext = GameData.Profile.YuyukoBossData.__c__DisplayClass16_0;
 
 namespace MetaMystia.Patch;
@@ -14,6 +16,9 @@ public partial class YuyukoChallengeContextPatch
     public static void Method_Internal_IEnumerator_Func_1_Boolean_0_Prefix(YuyukoContext __instance)
     {
         if (!MpManager.IsConnected) return;
+
+        if (PrepSceneManager.YuyukoPrepRound == 3)
+            InGameConsole.ShowPassive(TextId.YuyukoPhase3PatientExtended.Get());
 
         int originalDuration = __instance.__4__this.singleRoundDuration;
 #if DEBUG

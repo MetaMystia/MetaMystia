@@ -629,6 +629,33 @@ public partial class GuestsManagerPatch
     public static void TryCloseIzakaya_ReversePatch(GuestsManager __instance) { }
 
 
+    [HarmonyPatch(nameof(GuestsManager.AddToPatientCountdown))]
+    [HarmonyPostfix]
+    public static void AddToPatientCountdown_Postfix(GuestGroupController toCountDown)
+    {
+        ExtendYuyukoPhase3Patient(toCountDown);
+    }
+
+    [HarmonyPatch(nameof(GuestsManager.SetManualControllerOrderInternal))]
+    [HarmonyPostfix]
+    public static void SetManualControllerOrderInternal_Postfix(GuestGroupController manualControlled)
+    {
+        ExtendYuyukoPhase3Patient(manualControlled);
+    }
+
+    private static void ExtendYuyukoPhase3Patient(GuestGroupController controller)
+    {
+        if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge
+            || PrepSceneManager.YuyukoPrepRound != 3 || PrepSceneManager.IsYuyukoPrepActive) return;
+        if (!controller.GetAllGuests().ToArray().Any(guest => guest.Id is 23 or 40)) return;
+
+        // 普通点单和剧情手动点单都会先重置耐心；同时扩大上限，保持耐心条比例正确。
+        int originalPatient = controller.CurrentPatient;
+        controller.MaxPatient *= 3;
+        GuestsManager.Instance.SetManualControlledPatient(controller, originalPatient * 3);
+        Log.Info($"幽幽子三阶段耐心：{originalPatient} → {controller.CurrentPatient}");
+    }
+
     /// <summary>
     /// 主机桌上客人耐心耗尽。
     /// </summary>
