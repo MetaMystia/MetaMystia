@@ -225,6 +225,7 @@ public static partial class MpManager
 
     public static void OnSceneTransit(Common.UI.Scene newScene)
     {
+        if (newScene != Common.UI.Scene.DayScene) DayDestinationManager.Reset();
         if (newScene != Common.UI.Scene.WorkScene) PrepSceneManager.ResetYuyukoPrep();
         Log.Message($"LocalScene transit from {LocalScene} -> {newScene}");
         SceneTransitAction.Send(newScene);
@@ -272,16 +273,7 @@ public static partial class MpManager
 
     public static void DayOver()
     {
-        if (!IsConnectedServer) return;
-        if (PlayerManager.AllDayOver)
-        {
-            DayAllReadyAction.Send();
-            CommandScheduler.EnqueueWithNoCondition(() =>
-            {
-                InGameConsole.ShowPassive(TextId.AllReadyTransition.Get());
-                DaySceneManagerPatch.OnDayOver();
-            });
-        }
+        DayDestinationManager.TryConfirm();
     }
 
     public static void PrepOver()
@@ -301,15 +293,8 @@ public static partial class MpManager
 
     public static bool ContinueDay()
     {
-        if (!IsRoomHost || LocalScene != Common.UI.Scene.DayScene || !LocalIsDayOver) return false;
-        foreach (var peer in PlayerManager.Peers.Values) peer.IsDayOver = true;
-        DayAllReadyAction.Send();
-        CommandScheduler.EnqueueWithNoCondition(() =>
-        {
-            InGameConsole.ShowPassive(TextId.AllReadyTransition.Get());
-            DaySceneManagerPatch.OnDayOver();
-        });
-        return true;
+        // 模式意向必须由本人提交，旧命令不能代替其他玩家同意。
+        return false;
     }
 
     public static bool ContinuePrep()

@@ -67,6 +67,9 @@ public enum ActionType : ushort
     GuestRepell,
     YuyukoFailed,
     YuyukoLife,
+    DayDestinationIntent,
+    DayDestinationState,
+    DayDestinationConfirm,
 }
 
 [MemoryPackable]
@@ -120,6 +123,9 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.GuestRepell, typeof(GuestRepellAction))]
 [MemoryPackUnion((ushort)ActionType.YuyukoFailed, typeof(YuyukoFailedAction))]
 [MemoryPackUnion((ushort)ActionType.YuyukoLife, typeof(YuyukoLifeAction))]
+[MemoryPackUnion((ushort)ActionType.DayDestinationIntent, typeof(DayDestinationIntentAction))]
+[MemoryPackUnion((ushort)ActionType.DayDestinationState, typeof(DayDestinationStateAction))]
+[MemoryPackUnion((ushort)ActionType.DayDestinationConfirm, typeof(DayDestinationConfirmAction))]
 [AutoLog]
 
 public abstract partial class Action

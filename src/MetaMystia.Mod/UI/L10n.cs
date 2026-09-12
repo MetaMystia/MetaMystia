@@ -15,6 +15,16 @@ public enum Language
 
 public enum TextId
 {
+    DestinationBusiness,
+    DestinationFinalTrial,
+    DestinationFinalTrialAgain,
+    DestinationBusinessReady,
+    DestinationFinalTrialReady,
+    DestinationFinalTrialAgainReady,
+    DestinationJoiningBlocked,
+    DestinationBusinessConfirmed,
+    DestinationFinalTrialConfirmed,
+    DestinationFinalTrialAgainConfirmed,
     // 资源包礼物邮箱
     GiftMailboxTitle,
     GiftMailboxInvalidGift,

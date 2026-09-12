@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 
 using MemoryPack;
@@ -14,6 +15,8 @@ namespace MetaMystia.Network;
 public partial class HelloAckAction : Action
 {
     public int AssignedUid { get; set; }
+    public int DestinationRound { get; set; }
+    public Dictionary<int, DayDestination> DestinationIntents { get; set; } = new();
 
     /// <summary>
     /// 主机信息（Uid = Session.HostUid）
@@ -71,6 +74,7 @@ public partial class HelloAckAction : Action
         }
 
         MpWire.OnHandshakeComplete(HostInfo.PeerId);
+        DayDestinationManager.InitializeSession(DestinationRound, DestinationIntents);
         InGameConsole.ShowPassiveFromAnyThread(TextId.MpConnected.Get(LiveModeManager.GetDisplayName(HostInfo.Uid)));
     }
 
@@ -91,6 +95,8 @@ public partial class HelloAckAction : Action
         new HelloAckAction
         {
             AssignedUid = clientUid,
+            DestinationRound = DayDestinationManager.Round,
+            DestinationIntents = DayDestinationManager.Snapshot(),
             HostInfo = PlayerInfo.FromPlayer(PlayerManager.Local),
             ExistingPeers = existingPeers.ToArray(),
             WireTargetUid = clientUid,
