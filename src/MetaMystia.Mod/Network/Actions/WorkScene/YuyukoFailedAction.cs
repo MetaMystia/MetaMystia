@@ -12,7 +12,7 @@ public partial class YuyukoFailedAction : Action
     [RequireHostSender]
     [ClientOnlyReceive]
     [CheckScene(Common.UI.Scene.WorkScene)]
-    public override void OnReceivedDerived() => YuyukoFailurePatch.ReceiveFailure();
+    public override void OnReceivedDerived() => YuyukoBossDataPatch.ReceiveFailure();
 
     public static void Send() => new YuyukoFailedAction().Enqueue();
 }

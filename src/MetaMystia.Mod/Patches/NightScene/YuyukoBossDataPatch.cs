@@ -16,9 +16,9 @@ using MainLoop = GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16;
 
 namespace MetaMystia.Patch;
 
-[HarmonyPatch]
+[HarmonyPatch(typeof(GameData.Profile.YuyukoBossData))]
 [AutoLog]
-public partial class YuyukoFailurePatch
+public partial class YuyukoBossDataPatch
 {
     private static MainLoop currentLoop;
     private static bool failureStarted;
@@ -26,9 +26,7 @@ public partial class YuyukoFailurePatch
 
     internal static YuyukoBossData.__c__DisplayClass16_0 CurrentContext => currentLoop?.__8__1;
 
-    [HarmonyPatch(typeof(NightScene.SceneManager), nameof(NightScene.SceneManager.Dispose))]
-    [HarmonyPrefix]
-    public static void Dispose_Prefix()
+    internal static void ResetChallenge()
     {
         currentLoop = null;
         failureStarted = false;
@@ -36,7 +34,7 @@ public partial class YuyukoFailurePatch
         IncomeControllerYuyukoPatch.ResetProgress();
     }
 
-    [HarmonyPatch(typeof(YuyukoBossData), nameof(YuyukoBossData.MainChallengeLoop))]
+    [HarmonyPatch(nameof(YuyukoBossData.MainChallengeLoop))]
     [HarmonyPostfix]
     public static void MainChallengeLoop_Postfix(Il2CppSystem.Collections.IEnumerator __result)
     {
@@ -46,12 +44,9 @@ public partial class YuyukoFailurePatch
         IncomeControllerYuyukoPatch.ResetProgress();
     }
 
-    // 原版 OnFail_4：失败剧情结束后自行调用 CloseIzakayaDelayed(Challenge)。
-    [HarmonyPatch(typeof(FailureLoop), nameof(FailureLoop.MoveNext))]
-    [HarmonyPrefix]
-    public static void OnFail_Prefix(FailureLoop __instance)
+    internal static void OnFailureStarted()
     {
-        if (!MpManager.IsConnected || __instance.__1__state != 0 || failureStarted) return;
+        if (!MpManager.IsConnected || failureStarted) return;
         failureStarted = true;
         if (MpManager.IsRoomHost) YuyukoFailedAction.Send();
     }

@@ -4,6 +4,7 @@ using Common.UI;
 using NightScene;
 
 using MetaMystia.Network;
+using MetaMystia.Patch;
 using SgrYuki;
 
 namespace MetaMystia;
@@ -13,6 +14,9 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class NightSceneManagerPatch
 {
+    [HarmonyPatch(nameof(SceneManager.Dispose))]
+    [HarmonyPrefix]
+    public static void Dispose_Prefix() => YuyukoBossDataPatch.ResetChallenge();
 
     [HarmonyPatch(nameof(SceneManager.Start))]
     [HarmonyPostfix]

@@ -41,18 +41,18 @@ public partial class IncomeControllerYuyukoPatch
         }
         else if (hostLife.HasValue)
         {
-            YuyukoFailurePatch.CurrentContext.yuyukoTotalLife = hostLife.Value;
+            YuyukoBossDataPatch.CurrentContext.yuyukoTotalLife = hostLife.Value;
             targetValue = hostLife.Value;
         }
     }
 
     private static bool IsPhase3Panel(IncomeControllerYuyuko panel) =>
         MpManager.IsConnected && PrepSceneManager.IsYuyukoChallenge && panel != null && panel.invert
-        && YuyukoFailurePatch.CurrentContext?.statusDisplayer?.Pointer == panel.Pointer;
+        && YuyukoBossDataPatch.CurrentContext?.statusDisplayer?.Pointer == panel.Pointer;
 
     private static void SendProgress()
     {
-        int life = YuyukoFailurePatch.CurrentContext.yuyukoTotalLife;
+        int life = YuyukoBossDataPatch.CurrentContext.yuyukoTotalLife;
         if (lastSentLife == life) return;
         lastSentLife = life;
         YuyukoLifeAction.Send(life);
@@ -60,7 +60,7 @@ public partial class IncomeControllerYuyukoPatch
 
     internal static void ReceiveProgress(int life)
     {
-        var context = YuyukoFailurePatch.CurrentContext;
+        var context = YuyukoBossDataPatch.CurrentContext;
         if (!PrepSceneManager.IsYuyukoChallenge || context == null
             || life < 0 || life > context.__4__this.phase3YuyukoTotalLife) return;
 
@@ -71,7 +71,7 @@ public partial class IncomeControllerYuyukoPatch
 
     private static void ApplyProgress()
     {
-        var context = YuyukoFailurePatch.CurrentContext;
+        var context = YuyukoBossDataPatch.CurrentContext;
         if (!hostLife.HasValue || !IsPhase3Panel(context?.statusDisplayer)) return;
         context.yuyukoTotalLife = hostLife.Value;
         context.statusDisplayer.SetTargetProgress(hostLife.Value);
