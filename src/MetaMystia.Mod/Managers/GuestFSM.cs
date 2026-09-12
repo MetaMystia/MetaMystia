@@ -1155,6 +1155,7 @@ public partial class GuestFSM
             FlowLog($"Guest #{fsm.RuntimeId} patient depleted at desk, FSM: WaitingServe -> Leaving");
             PatientDepletedDeskAction.Send(fsm.RuntimeId);
             fsm.To(State.Leaving);
+            TryCloseServePanel(fsm.DeskCode);
             return;
         }
 
@@ -1171,12 +1172,19 @@ public partial class GuestFSM
         if (fsm.CurrentState != State.WaitingServe) return false;
         var controller = fsm.Controller;
 
-        // PatientDepletedLeave 内含有 LeaveFromDesk 需进行放权。
-        GuestsManagerPatch.SkipLeaveFromDeskPatch.SetCount(1);
-        GuestsManager.Instance.PatientDepletedLeave(controller);
-        GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
-
         fsm.To(State.Leaving);
+        // 同时放行耐心耗尽入口和它内部的离桌，重放原版订单清理与回调。
+        TryCloseServePanel(fsm.DeskCode);
+        GuestsManagerPatch.SkipPatientDepletedLeavePatch.Grant();
+        try
+        {
+            GuestsManager.Instance.PatientDepletedLeave(controller);
+        }
+        finally
+        {
+            GuestsManagerPatch.SkipPatientDepletedLeavePatch.Reset();
+            GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
+        }
         return true;
     }
 

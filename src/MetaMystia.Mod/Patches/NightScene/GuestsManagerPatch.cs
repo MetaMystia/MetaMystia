@@ -60,6 +60,7 @@ public partial class GuestsManagerPatch
     private const int ReimuProtectionGuestId = 7;
 
     public static readonly PatchBypassToken SkipRepellInternalPatch = new();
+    public static readonly PatchBypassToken SkipPatientDepletedLeavePatch = new();
     public static readonly PatchBypassToken SkipLeaveFromDeskPatch = new();
 
     private static PendingSpawnArgs? _pendingNormalSpawnArgs;
@@ -666,11 +667,16 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool PatientDepletedLeave_Prefix(GuestGroupController toPatientDepletedLeave)
     {
+        if (SkipPatientDepletedLeavePatch.TryConsume())
+        {
+            SkipLeaveFromDeskPatch.Grant();
+            return RunOriginal;
+        }
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
             // 上游 PatientDepletedDeskAction 已会让客机完整重放 PatientDepletedLeave 链路
-            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Postfix 再发 GuestLeaveAction。
+            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Prefix 再发 GuestLeaveAction。
             SkipLeaveFromDeskPatch.Grant();
             GuestFSM.OnPatientDepletedAtDesk(toPatientDepletedLeave);
             return RunOriginal;
