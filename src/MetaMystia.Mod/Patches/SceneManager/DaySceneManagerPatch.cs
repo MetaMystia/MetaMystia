@@ -21,6 +21,7 @@ public partial class DaySceneManagerPatch
     [HarmonyPostfix]
     public static void Awake_Postfix()
     {
+        RunTimeSchedulerPatch.ResetFirstTrialGuest();
         MpManager.OnSceneTransit(Scene.DayScene);
         PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();

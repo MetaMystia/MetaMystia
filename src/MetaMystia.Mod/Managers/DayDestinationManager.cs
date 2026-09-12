@@ -5,6 +5,7 @@ using System.Linq;
 using Common.UI;
 
 using MetaMystia.Network;
+using MetaMystia.Patch;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -61,6 +62,7 @@ public static partial class DayDestinationManager
     public static void ResetSession()
     {
         Reset();
+        RunTimeSchedulerPatch.ResetFirstTrialGuest();
         Round = 1;
     }
 
@@ -75,8 +77,8 @@ public static partial class DayDestinationManager
     {
         if (!MpManager.IsConnected || MpManager.LocalScene != Scene.DayScene) return;
         // 白天结束剧情仍可能要求进入首次挑战，此时属于下一轮入口。
-        if (committed && !(businessReleased && destination == DayDestination.FinalTrial)) return;
-        if (businessReleased && destination != DayDestination.FinalTrial) return;
+        if (committed && !(businessReleased && destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain)) return;
+        if (businessReleased && destination == DayDestination.Business) return;
         if (IsStoryLocked && destination != DayDestination.FinalTrial) return;
         committed = false;
         continuations[destination] = continuation;
@@ -94,9 +96,9 @@ public static partial class DayDestinationManager
         if (!MpManager.IsRoomHost || round != Round
             || destination is < DayDestination.Business or > DayDestination.FinalTrialAgain) return;
         if (uid != PlayerManager.Local.Uid && !PlayerManager.Peers.ContainsKey(uid)) return;
-        if (committed && businessReleased && destination == DayDestination.FinalTrial) committed = false;
+        if (committed && businessReleased && destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain) committed = false;
         if (committed) return;
-        if (businessReleased && destination != DayDestination.FinalTrial) return;
+        if (businessReleased && destination == DayDestination.Business) return;
         if (GetIntent(uid) == DayDestination.FinalTrial && destination != DayDestination.FinalTrial) return;
         if (GetIntent(uid) == destination) return;
         intents[uid] = destination;
@@ -107,7 +109,7 @@ public static partial class DayDestinationManager
 
     public static void ApplyState(int round, Dictionary<int, DayDestination> state)
     {
-        if (round == Round && businessReleased && state.Values.Contains(DayDestination.FinalTrial)) committed = false;
+        if (round == Round && businessReleased && state.Values.Any(value => value is DayDestination.FinalTrial or DayDestination.FinalTrialAgain)) committed = false;
         if (round != Round || committed) return;
         foreach (var pair in state)
             if (GetIntent(pair.Key) != pair.Value) Notify(pair.Key, pair.Value);
@@ -139,7 +141,20 @@ public static partial class DayDestinationManager
     {
         if (!MpManager.IsRoomHost || !MpManager.IsConnected || committed) return;
         var target = GetIntent(PlayerManager.Local.Uid);
-        if (target == DayDestination.None || PlayerManager.Peers.Keys.Any(uid => GetIntent(uid) != target)) return;
+        if (target == DayDestination.None) return;
+        foreach (var uid in PlayerManager.Peers.Keys)
+        {
+            var peerTarget = GetIntent(uid);
+            if (peerTarget == DayDestination.None) return;
+            if (target == DayDestination.Business || peerTarget == DayDestination.Business)
+            {
+                if (target != peerTarget) return;
+            }
+            else if (peerTarget == DayDestination.FinalTrial)
+            {
+                target = DayDestination.FinalTrial;
+            }
+        }
         // 在发送确认前锁定，后续改选不能改变本轮结果。
         committed = true;
         DayDestinationConfirmAction.Send(Round, target);
@@ -151,8 +166,13 @@ public static partial class DayDestinationManager
         if (round != Round) return;
         if (!continuations.TryGetValue(destination, out var continuation))
         {
-            Log.Error($"Missing local entry for destination {destination}, round {round}");
-            return;
+            if (destination == DayDestination.FinalTrial && continuations.ContainsKey(DayDestination.FinalTrialAgain))
+                continuation = RunTimeSchedulerPatch.EnterFirstTrialAsGuest;
+            else
+            {
+                Log.Error($"Missing local entry for destination {destination}, round {round}");
+                return;
+            }
         }
         committed = true;
         Round++;
