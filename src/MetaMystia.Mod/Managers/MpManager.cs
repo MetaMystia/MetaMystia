@@ -271,11 +271,6 @@ public static partial class MpManager
         Log.LogWarning($"Multiplayer blocked: {reason}");
     }
 
-    public static void DayOver()
-    {
-        DayDestinationManager.TryConfirm();
-    }
-
     public static void PrepOver()
     {
         if (PrepSceneManager.IsYuyukoChallenge)

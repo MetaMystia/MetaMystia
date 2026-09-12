@@ -22,7 +22,7 @@ public partial class IzakayaConfigPannelPatch
     public static void IzakayaConfigPannel_OnPanelOpen_Postfix(IzakayaConfigPannel __instance)
     {
         instanceRef = __instance;
-        PrepSceneManager.BeginYuyukoPrep();
+        PrepSceneManager.TryBeginYuyukoPrep();
     }
 
     [HarmonyPatch(nameof(IzakayaConfigPannel.GoToSpecific))]

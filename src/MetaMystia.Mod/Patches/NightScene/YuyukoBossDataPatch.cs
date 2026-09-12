@@ -11,16 +11,13 @@ using NightScene.GuestManagementUtility;
 using MetaMystia.Network;
 using SgrYuki.Utils;
 
-using FailureLoop = GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObObObUnique;
-using MainLoop = GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16;
-
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData))]
 [AutoLog]
 public partial class YuyukoBossDataPatch
 {
-    private static MainLoop currentLoop;
+    private static GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16 currentLoop;
     private static bool failureStarted;
     private static bool failurePending;
 
@@ -38,7 +35,7 @@ public partial class YuyukoBossDataPatch
     [HarmonyPostfix]
     public static void MainChallengeLoop_Postfix(Il2CppSystem.Collections.IEnumerator __result)
     {
-        currentLoop = MpManager.IsConnected ? __result.Cast<MainLoop>() : null;
+        currentLoop = MpManager.IsConnected ? __result.Cast<GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16>() : null;
         failureStarted = false;
         failurePending = false;
         IncomeControllerYuyukoPatch.ResetProgress();
@@ -76,7 +73,7 @@ public partial class YuyukoBossDataPatch
         events.StartCoroutine(FinishFailure(loop).WrapToIl2Cpp());
     }
 
-    private static IEnumerator FinishFailure(MainLoop loop)
+    private static IEnumerator FinishFailure(GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16 loop)
     {
         // 不把失败消息按 DiscardOnStory 丢弃，也不强行打断正在播放的剧情。
         while (MpManager.InStory)
@@ -124,7 +121,7 @@ public partial class YuyukoBossDataPatch
             guest.SetGuestCannotOrder();
 
         Log.Info("收到主机的幽幽子挑战失败结果，进入原版失败剧情与收尾。");
-        var failure = new FailureLoop(0) { __4__this = context };
+        var failure = new GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObObObUnique(0) { __4__this = context };
         context.eventManager.StartCoroutine(failure.Cast<Il2CppSystem.Collections.IEnumerator>());
     }
 }

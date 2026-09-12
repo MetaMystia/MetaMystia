@@ -29,7 +29,7 @@ public static partial class PrepSceneManager
         nextYuyukoPrepTables.Clear();
     }
 
-    public static void BeginYuyukoPrep()
+    public static void TryBeginYuyukoPrep()
     {
         if (!MpManager.IsConnected || !IsYuyukoChallenge) return;
 

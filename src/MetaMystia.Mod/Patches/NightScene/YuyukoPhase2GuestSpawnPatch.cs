@@ -2,7 +2,6 @@ using HarmonyLib;
 using UnityEngine;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
-using Phase2GuestSpawn = GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb1;
 
 namespace MetaMystia.Patch;
 
@@ -11,9 +10,9 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class YuyukoPhase2GuestSpawnPatch
 {
-    [HarmonyPatch(nameof(Phase2GuestSpawn.MoveNext))]
+    [HarmonyPatch(nameof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb1.MoveNext))]
     [HarmonyPrefix]
-    public static bool MoveNext_Prefix(Phase2GuestSpawn __instance, ref bool __result)
+    public static bool MoveNext_Prefix(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb1 __instance, ref bool __result)
     {
         if (!MpManager.IsConnected || !MpManager.IsRoomClient) return RunOriginal;
 

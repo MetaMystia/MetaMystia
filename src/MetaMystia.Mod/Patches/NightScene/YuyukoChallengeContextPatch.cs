@@ -2,8 +2,6 @@ using HarmonyLib;
 
 using MetaMystia.UI;
 
-using YuyukoContext = GameData.Profile.YuyukoBossData.__c__DisplayClass16_0;
-
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0))]
@@ -11,9 +9,9 @@ namespace MetaMystia.Patch;
 public partial class YuyukoChallengeContextPatch
 {
     // MainChallengeLoop 的 Timing_2（VA 0x18078CA80），三个阶段共用的计时协程入口。
-    [HarmonyPatch(nameof(YuyukoContext.Method_Internal_IEnumerator_Func_1_Boolean_0))]
+    [HarmonyPatch(nameof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.Method_Internal_IEnumerator_Func_1_Boolean_0))]
     [HarmonyPrefix]
-    public static void Method_Internal_IEnumerator_Func_1_Boolean_0_Prefix(YuyukoContext __instance)
+    public static void Method_Internal_IEnumerator_Func_1_Boolean_0_Prefix(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0 __instance)
     {
         if (!MpManager.IsConnected) return;
 

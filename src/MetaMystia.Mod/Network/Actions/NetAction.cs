@@ -27,8 +27,6 @@ public enum ActionType : ushort
     MoveSync,
     NightMoveSync,
 
-    DayReady,
-    DayAllReady,
     SelectIzakaya,
     ConfirmIzakaya,
     UpdatePrep,
@@ -87,8 +85,6 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.SceneTransit, typeof(SceneTransitAction))]
 [MemoryPackUnion((ushort)ActionType.MoveSync, typeof(MoveSyncAction))]
 [MemoryPackUnion((ushort)ActionType.NightMoveSync, typeof(NightMoveSyncAction))]
-[MemoryPackUnion((ushort)ActionType.DayReady, typeof(DayReadyAction))]
-[MemoryPackUnion((ushort)ActionType.DayAllReady, typeof(DayAllReadyAction))]
 [MemoryPackUnion((ushort)ActionType.SelectIzakaya, typeof(SelectIzakayaAction))]
 [MemoryPackUnion((ushort)ActionType.ConfirmIzakaya, typeof(ConfirmIzakayaAction))]
 [MemoryPackUnion((ushort)ActionType.UpdatePrep, typeof(UpdatePrepAction))]

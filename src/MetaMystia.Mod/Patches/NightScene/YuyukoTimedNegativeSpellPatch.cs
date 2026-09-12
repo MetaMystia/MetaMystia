@@ -4,7 +4,6 @@ using UnityEngine;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
-using TimedNegativeSpell = GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb2;
 
 namespace MetaMystia.Patch;
 
@@ -13,9 +12,9 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class YuyukoTimedNegativeSpellPatch
 {
-    [HarmonyPatch(nameof(TimedNegativeSpell.MoveNext))]
+    [HarmonyPatch(nameof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb2.MoveNext))]
     [HarmonyPrefix]
-    public static bool MoveNext_Prefix(TimedNegativeSpell __instance, ref bool __result)
+    public static bool MoveNext_Prefix(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb2 __instance, ref bool __result)
     {
         if (!MpManager.IsConnected) return RunOriginal;
 
