@@ -20,6 +20,7 @@ public partial class QTEAction : Action
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
+        if (YuyukoGuestSync.IsSwallowedCooker(GridIndex)) return;
         var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
         if (cookerController == null)
         {

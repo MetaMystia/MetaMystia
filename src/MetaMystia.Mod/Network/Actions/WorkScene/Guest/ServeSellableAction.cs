@@ -19,6 +19,8 @@ public partial class ServeSellableAction : Action
     public SellableFood BasedOn { get; set; }
     public Sellable.SellableType SellableType { get; set; }
 
+    protected override bool CanReceiveDuringStory => YuyukoGuestSync.OwnsRuntimeId(RuntimeId);
+
 
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]

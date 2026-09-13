@@ -56,6 +56,13 @@ public partial class HelloAction : Action
             return;
         }
 
+        // 确认已发出后不能加入本轮，否则新玩家没有对应的本地入口。
+        if (MpManager.LocalScene == Scene.DayScene && DayDestinationManager.IsEntering)
+        {
+            RejectAction.SendAndDisconnect(SenderUid, TextId.DestinationJoiningBlocked);
+            return;
+        }
+
         // --- 备菜/营业阶段不允许重连 ---
         if (MpManager.LocalScene == Scene.IzakayaPrepScene || MpManager.LocalScene == Scene.WorkScene)
         {

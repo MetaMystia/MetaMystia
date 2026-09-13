@@ -1,6 +1,7 @@
-using Il2CppSystem.Linq;
 using System.Collections.Generic;
 using System.Linq;
+
+using Il2CppSystem.Linq;
 using UnityEngine;
 
 using GameData.Core.Collections;
@@ -45,9 +46,10 @@ public partial class GuestFSM
 
     public int DeskCode => Controller.DeskCode;
     public OrderBase CurrentOrder => Controller?.PeekOrders();
-    public int OrderSeq => Controller?.AllOrdersCount ?? -1;
+    public int OrderSeq => IsManualGuest ? manualOrderSeq : Controller?.AllOrdersCount ?? -1;
 
     public bool IsFirstOrder { get; private set; } = true; // TODO: OrderSeq == 1 ?
+    public bool IsRepelling { get; private set; }
     public Sellable WillServeBeverage { get; set; }
     public Sellable WillServeFood { get; set; }
 
@@ -104,6 +106,7 @@ public partial class GuestFSM
     private void Drain()
     {
         if (_draining) return;
+        if (IsManualGuest && MpManager.InStory) return;
         _draining = true;
         try
         {
@@ -113,9 +116,17 @@ public partial class GuestFSM
                 if (MpManager.TimestampNow > head.DeadlineMs)
                 {
                     Log.Error($"Guest #{RuntimeId} pending '{head.Tag}' timeout: stalled at {CurrentState}");
-                    _pending.Clear();
-                    Kill();
-                    return;
+                    if (IsManualGuest)
+                    {
+                        // 剧情可能长于普通顾客的 TTL；本体仍被挑战协程引用，不能销毁。
+                        head.DeadlineMs = MpManager.TimestampNow + PendingTtlMs;
+                    }
+                    else
+                    {
+                        _pending.Clear();
+                        Kill();
+                        return;
+                    }
                 }
                 if (!head.Apply())
                 {
@@ -149,7 +160,7 @@ public partial class GuestFSM
     /// 主机 Hook 到顾客创建事件，获取顾客类型、ids、金钱等基本信息，注册顾客并广播 GuestSpawnAction
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnSpawn(GuestGroupController controller, GuestsManagerPatch.PendingNormalSpawnArgs? normalSpawnArgs = null)
+    public static void OnSpawn(GuestGroupController controller, GuestsManagerPatch.PendingSpawnArgs? spawnArgs = null)
     {
         var fsm = new GuestFSM();
         fsm.CurrentState = State.Constructed;
@@ -172,10 +183,12 @@ public partial class GuestFSM
             MaxFundCarry = fsm.MaxFundCarry,
         };
 
-        if (normalSpawnArgs.HasValue)
+        if (spawnArgs.HasValue)
         {
-            var args = normalSpawnArgs.Value;
-            spawnInfo.HasNormalSpawnArgs = true;
+            var args = spawnArgs.Value;
+            spawnInfo.HasNormalSpawnArgs = fsm.GuestType == GuestType.Normal;
+            spawnInfo.HasSpecialSpawnArgs = fsm.GuestType == GuestType.Special;
+            spawnInfo.GuestSpawnType = args.GuestSpawnType;
             spawnInfo.HasOverrideSpawnPosition = args.HasOverrideSpawnPosition;
             spawnInfo.OverrideSpawnX = args.OverrideSpawnPosition.x;
             spawnInfo.OverrideSpawnY = args.OverrideSpawnPosition.y;
@@ -212,7 +225,7 @@ public partial class GuestFSM
         }
         if (fsm.GuestType == GuestType.Special)
         {
-            GuestService.ReplaySpawnSpecialGuestGroup(ref fsm);
+            GuestService.ReplaySpawnSpecialGuestGroup(ref fsm, guestSpawnInfo);
             return;
         }
 
@@ -331,7 +344,7 @@ public partial class GuestFSM
     }
 
     /// <summary>
-    /// 主机或客机玩家赶客时
+    /// 客机提交玩家赶客请求，不推进状态。
     /// </summary>
     /// <param name="deskCode"></param>
     public static void OnPlayerRepell(int deskCode)
@@ -343,26 +356,72 @@ public partial class GuestFSM
         if (fsm == null) return;
 
         PlayerRepellAction.Send(fsm.RuntimeId);
-        fsm.To(State.Left);
     }
 
     /// <summary>
-    /// 主机和客机重放玩家赶客
+    /// 主机立即裁定赶客请求；过期请求不得等待下一次可赶客状态。
     /// </summary>
     /// <param name="runtimeId"></param>
-    public static bool DoPlayerRepell(int runtimeId)
+    public static void DoPlayerRepell(int runtimeId)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
-        if (fsm == null) return false;
-        if (fsm.CurrentState == State.Dead || fsm.CurrentState == State.Left) return true;
-        var deskCode = fsm.Controller.DeskCode;
+        if (!MpManager.IsRoomHost || fsm?.Controller == null) return;
+        var controller = fsm.Controller;
+        if (fsm.CurrentState is State.Leaving or State.Left or State.Dead || !controller.HaveNotLeft()) return;
+        var manager = GuestsManager.Instance;
+        var occupant = manager.GetInDeskGuest(controller.DeskCode);
+        if (occupant == null || occupant.Pointer != controller.Pointer) return;
+        if (!manager.CheckCanPlayerRepelGuest(controller.DeskCode)) return;
 
-        // 正常调用栈为: PlayerRepell -> RepellInternal -> LeaveFromDesk
-        // 然而本 Mod 默认会阻止 RepellInternal LeaveFromDesk 等方法的调用，因此需要逐级设置 Skip*Patch 以跳过客机 Prefix 中的跳过逻辑
-        GuestsManagerPatch.SkipPlayerRepellPatch.Grant();
-        GuestsManager.Instance.PlayerRepell(deskCode);
+        manager.PlayerRepell(controller.DeskCode);
+    }
+
+    /// <summary>原版已决定驱赶；离桌入口发送结果，不能在玩家请求入口宣布成功。</summary>
+    public static void OnRepell(GuestGroupController controller)
+    {
+        var fsm = GuestsMap.GetGuestFsm(controller);
+        if (fsm == null || fsm.CurrentState is State.Left or State.Dead) return;
+        fsm.IsRepelling = true;
+        fsm.To(State.Leaving);
+        TryCloseServePanel(controller.DeskCode);
+    }
+
+    /// <summary>主机驱赶结果越过旧服务等待项，直接重放原版完整清理。</summary>
+    public static void DoRepell(GuestRepellAction result)
+    {
+        var runtimeId = result.RuntimeId;
+        var fsm = GuestsMap.GetGuestFsm(runtimeId);
+        if (fsm?.Controller == null || fsm.CurrentState is State.Left or State.Dead) return;
+        var controller = fsm.Controller;
+        var occupant = GuestsManager.Instance.GetInDeskGuest(controller.DeskCode);
+        if (occupant != null && occupant.Pointer != controller.Pointer)
+        {
+            Log.Warning($"Ignoring repell #{runtimeId}: desk is occupied by another guest");
+            return;
+        }
+
+        fsm.IsRepelling = true;
         fsm.To(State.Left);
-        return true;
+        controller.Left = true;
+        controller.Mood = result.Mood;
+        var eventManager = NightScene.EventUtility.EventManager.Instance;
+        eventManager.CurrentCombo = result.Combo;
+        eventManager.LoseComboTimes = result.LoseComboTimes;
+        eventManager.LoseComboTimeForPassion = result.LoseComboTimeForPassion;
+        eventManager.LoseComboGuestSetNum = result.LoseComboGuestSetNum;
+        eventManager.CallExternOnComboUpdate(result.Combo);
+        eventManager.CallExternOnMusicIndexUpdate(eventManager.CurrentMusicLevelHandle.Invoke());
+        TryCloseServePanel(controller.DeskCode);
+        GuestsManagerPatch.SkipRepellInternalPatch.Grant();
+        try
+        {
+            GuestsManager.Instance.RepellInternal(controller, out _, result.LeaveType, result.TriggerLeaveBuff);
+        }
+        finally
+        {
+            GuestsManagerPatch.SkipRepellInternalPatch.Reset();
+            GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
+        }
     }
 
     /// <summary>
@@ -561,12 +620,12 @@ public partial class GuestFSM
     }
 
     /// <summary>
-    /// 订单序号校验：以 <see cref="GuestGroupController.AllOrdersCount"/> 栈深为序，主客双侧 PushToOrder 锁步同步。
-    /// 不一致时记录并消费该 Action，避免应用到错误的栈顶订单上。
+    /// 校验订单序号：普通顾客取订单栈深，手动顾客取主机序号。
+    /// 不一致时记录并由调用方丢弃该 Action，避免应用到错误的订单上。
     /// </summary>
     private static bool OrderSeqMismatch(GuestFSM fsm, int orderSeq, string tag)
     {
-        var local = fsm.Controller.AllOrdersCount;
+        var local = fsm.OrderSeq;
         if (orderSeq == local) return false;
         Log.Error($"Guest #{fsm.RuntimeId} OrderSeq mismatch in {tag}: action=#{orderSeq} local=#{local}, dropping");
         return true;
@@ -607,6 +666,8 @@ public partial class GuestFSM
     public static void OnServe(GuestGroupController controller, Sellable sellable, Sellable.SellableType type)
     {
         var fsm = GuestsMap.GetGuestFsm(controller);
+        // 忽略手动顾客非待上菜状态下的上菜同步，避免进入异常分支销毁仍被剧情引用的实体。
+        if (fsm?.IsManualGuest == true && fsm.CurrentState != State.WaitingServe) return;
         FlowLog($"Guest #{fsm.RuntimeId} served {sellable?.Text?.BriefName ?? "null"}, current FSM state: {fsm.CurrentState}");
 
         if (fsm.CurrentState == State.WaitingServe)
@@ -622,7 +683,7 @@ public partial class GuestFSM
                 basedOn = fsm.WillServeBeverage;
                 fsm.WillServeBeverage = sellable;
             }
-            ServeSellableAction.Send(fsm.RuntimeId, controller.AllOrdersCount, sellable, basedOn, type);
+            ServeSellableAction.Send(fsm.RuntimeId, fsm.OrderSeq, sellable, basedOn, type);
             fsm.To(State.WaitingServe);
         }
         else
@@ -726,6 +787,9 @@ public partial class GuestFSM
 
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
+        if (fsm.IsManualGuest && orderSeq > fsm.OrderSeq) return false;
+        if (fsm.IsManualGuest && (orderSeq < fsm.OrderSeq
+            || (orderSeq == fsm.OrderSeq && fsm.CurrentState != State.WaitingServe))) return true;
         if (fsm.CurrentState != State.WaitingServe) return false;
         if (OrderSeqMismatch(fsm, orderSeq, nameof(DoServe))) return true;
         var controller = fsm.Controller;
@@ -840,6 +904,7 @@ public partial class GuestFSM
     /// <returns></returns>
     public static bool TryCloseServePanel(int deskCode)
     {
+        if (deskCode < 0 || WorkSceneServePannelPatch.instanceRef == null) return false;
         if (WorkSceneServePannelPatch.PanelDeskCode != deskCode) return false;
 
         WorkSceneServePannelPatch.instanceRef?.willServeFood = null;
@@ -921,9 +986,11 @@ public partial class GuestFSM
     {
         var fsm = GuestsMap.GetGuestFsm(controller);
         if (fsm == null) return;
+        if (fsm.IsManualGuest && fsm.CurrentState != State.WaitingServe) return;
+        if (fsm.IsRepelling) return;
         if (fsm.CurrentState == State.WaitingServe)
         {
-            ConfirmServeAction.Send(fsm.RuntimeId, controller.AllOrdersCount, food, beverage);
+            ConfirmServeAction.Send(fsm.RuntimeId, fsm.OrderSeq, food, beverage);
             fsm.WillServeFood = null;
             fsm.WillServeBeverage = null;
         }
@@ -948,6 +1015,9 @@ public partial class GuestFSM
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
+        if (fsm.IsManualGuest && orderSeq > fsm.OrderSeq) return false;
+        if (fsm.IsManualGuest && (orderSeq < fsm.OrderSeq
+            || (orderSeq == fsm.OrderSeq && fsm.CurrentState != State.WaitingServe))) return true;
         if (fsm.CurrentState != State.WaitingServe) return false;
         if (OrderSeqMismatch(fsm, orderSeq, nameof(DoConfirmServe))) return true;
 
@@ -1018,7 +1088,8 @@ public partial class GuestFSM
             TryCloseServePanel(fsm.DeskCode);
             if (MpManager.IsRoomHost && fsm.CurrentState == State.WaitingServe)
             {
-                GuestsManager.Instance.EvaluateOrder(controller, false, null);
+                if (fsm.IsManualGuest) YuyukoGuestSync.EvaluateConfirmed();
+                else GuestsManager.Instance.EvaluateOrder(controller, false, null);
             }
         }
         return true;
@@ -1103,6 +1174,7 @@ public partial class GuestFSM
             FlowLog($"Guest #{fsm.RuntimeId} patient depleted at desk, FSM: WaitingServe -> Leaving");
             PatientDepletedDeskAction.Send(fsm.RuntimeId);
             fsm.To(State.Leaving);
+            TryCloseServePanel(fsm.DeskCode);
             return;
         }
 
@@ -1119,12 +1191,19 @@ public partial class GuestFSM
         if (fsm.CurrentState != State.WaitingServe) return false;
         var controller = fsm.Controller;
 
-        // PatientDepletedLeave 内含有 LeaveFromDesk 需进行放权。
-        GuestsManagerPatch.SkipLeaveFromDeskPatch.SetCount(1);
-        GuestsManager.Instance.PatientDepletedLeave(controller);
-        GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
-
         fsm.To(State.Leaving);
+        // 同时放行耐心耗尽入口和它内部的离桌，重放原版订单清理与回调。
+        TryCloseServePanel(fsm.DeskCode);
+        GuestsManagerPatch.SkipPatientDepletedLeavePatch.Grant();
+        try
+        {
+            GuestsManager.Instance.PatientDepletedLeave(controller);
+        }
+        finally
+        {
+            GuestsManagerPatch.SkipPatientDepletedLeavePatch.Reset();
+            GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
+        }
         return true;
     }
 
@@ -1142,7 +1221,10 @@ public partial class GuestFSM
         FlowLog($"Guest #{fsm.RuntimeId} OnLeaveFromDesk from {fsm.CurrentState}, leaveType={leaveType}, triggerLeaveBuff={triggerLeaveBuff}, broadcast={broadcast}");
         if (broadcast)
         {
-            GuestLeaveAction.Send(fsm.RuntimeId, leaveType, triggerLeaveBuff);
+            if (fsm.IsRepelling)
+                GuestRepellAction.Send(fsm.RuntimeId, controller, leaveType, triggerLeaveBuff);
+            else
+                GuestLeaveAction.Send(fsm.RuntimeId, leaveType, triggerLeaveBuff);
         }
         fsm.To(State.Left);
     }
