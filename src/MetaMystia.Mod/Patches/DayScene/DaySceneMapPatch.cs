@@ -32,18 +32,27 @@ public partial class DaySceneMapPatch
 
     [HarmonyPatch(nameof(DaySceneMap.SolveAndUpdateCharacterPositionInternal))]
     [HarmonyPrefix]
-    public static bool SolveAndUpdateCharacterPositionInternal_Prefix(DaySceneMap __instance, ref TrackedNPC npc)
+    public static bool SolveAndUpdateCharacterPositionInternal_Prefix(DaySceneMap __instance,
+        ref Il2CppSystem.Collections.Generic.Dictionary<string, TrackedNPC> npcs, ref TrackedNPC npc, ref bool isNPCOnMap)
     {
 
         if (npc.key.IsResourceExSpecialGuest())
         {
             var markerName = npc.key;
-            if (__instance.AllSpawnMarkers.ContainsKey(markerName))
+            if (!__instance.AllSpawnMarkers.ContainsKey(markerName))
             {
-                // 仅替换定位调用的参数，持久化 NPC 保留原目的地和覆盖位置。
-                npc = npc.Clone();
-                npc.currentDestination = new NPC.Destination { spawnMarker = markerName };
-                npc.overridePosition = null;
+                isNPCOnMap = false;
+                return SkipOriginal;
+            }
+
+            // 地图归属和点位仅用于本次定位，持久化 NPC 保留原记录。
+            npc = npc.Clone();
+            npc.currentDestination = new NPC.Destination { spawnMarker = markerName };
+            npc.overridePosition = null;
+            if (!npcs.ContainsKey(markerName))
+            {
+                npcs = new Il2CppSystem.Collections.Generic.Dictionary<string, TrackedNPC>();
+                npcs.Add(markerName, npc);
             }
         }
         return RunOriginal;
