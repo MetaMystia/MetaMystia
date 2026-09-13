@@ -1,7 +1,8 @@
-using HarmonyLib;
-using Il2CppSystem.Linq;
 using System;
 using System.Linq;
+
+using HarmonyLib;
+using Il2CppSystem.Linq;
 using UnityEngine;
 
 using GameData.Core.Collections.CharacterUtility;
@@ -55,24 +56,59 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class GuestsManagerPatch
 {
+    // 幽幽子挑战：手动订单与剧情回调。
+    /// <summary>
+    /// 暂存本体的原版手动订单和完成回调，等待同步条件就绪后安装。
+    /// 同步管理器主动安装时放行，其他手动顾客仍使用原版流程。
+    /// </summary>
+    [HarmonyPatch(nameof(GuestsManager.SetManualControllerOrderInternal))]
+    [HarmonyPrefix]
+    public static bool SetManualControllerOrderInternal_Prefix(GuestGroupController manualControlled,
+        Il2CppSystem.Action<GuestGroupController.EvaluationResult> onEvaluate, GuestsManager.OrderBase order)
+    {
+        if (!YuyukoGuestSync.IsBody(manualControlled) || YuyukoGuestSync.IsInstalling) return RunOriginal;
+        YuyukoGuestSync.QueueOrder(order, onEvaluate);
+        return SkipOriginal;
+    }
+
+    /// <summary>
+    /// 本体仅允许主机发起评价或客机重放主机结果，并要求仍处于等待上菜状态。
+    /// 手动评价不经过普通 EvaluateOrder 入口，需在此单独限制；其他实体放行。
+    /// </summary>
+    [HarmonyPatch(nameof(GuestsManager.EvaulateManualOrder))]
+    [HarmonyPrefix]
+    public static bool EvaulateManualOrder_Prefix(GuestGroupController toEvaluate) =>
+        YuyukoGuestSync.CanEvaluate(toEvaluate) ? RunOriginal : SkipOriginal;
+
+    /// <summary>原版清理订单显示后，取消本体的同步订单及旧回调；主机同时广播取消序号。</summary>
+    [HarmonyPatch(nameof(GuestsManager.CleanOrderInfo))]
+    [HarmonyPostfix]
+    public static void CleanOrderInfo_Postfix(GuestGroupController guestGroup) => YuyukoGuestSync.OnClean(guestGroup);
+
+    /// <summary>原版手动离场前取消本体订单，避免离场期间迟到的上菜或完成回调继续推进旧订单。</summary>
+    [HarmonyPatch(nameof(GuestsManager.SetManualControlledLeave))]
+    [HarmonyPrefix]
+    public static void SetManualControlledLeave_Prefix(GuestGroupController manualControlled) =>
+        YuyukoGuestSync.OnClean(manualControlled);
+
     private const int MaxNormalGuestRerollAttempts = 32;
     private const int ReimuProtectionGuestId = 7;
 
-    public static readonly PatchBypassToken SkipPlayerRepellPatch = new();
     public static readonly PatchBypassToken SkipRepellInternalPatch = new();
+    public static readonly PatchBypassToken SkipPatientDepletedLeavePatch = new();
     public static readonly PatchBypassToken SkipLeaveFromDeskPatch = new();
-    public static readonly PatchBypassToken SkipRepellInternalLeaveBroadcastPatch = new();
-    public static readonly PatchBypassToken SkipLeaveFromDeskBroadcastPatch = new();
 
-    private static PendingNormalSpawnArgs? _pendingNormalSpawnArgs;
+    private static PendingSpawnArgs? _pendingNormalSpawnArgs;
+    private static PendingSpawnArgs? _pendingSpecialSpawnArgs;
 
-    public readonly struct PendingNormalSpawnArgs
+    public readonly struct PendingSpawnArgs
     {
         public bool HasOverrideSpawnPosition { get; init; }
         public Vector3 OverrideSpawnPosition { get; init; }
         public GuestGroupController.LeaveType LeaveType { get; init; }
         public int TargetDeskCode { get; init; }
         public bool ShouldFade { get; init; }
+        public SpecialGuestsController.GuestSpawnType GuestSpawnType { get; init; }
     }
 
     private static bool IsReimuProtectionGuest(int id)
@@ -228,7 +264,7 @@ public partial class GuestsManagerPatch
                 return SkipOriginal;
             }
 
-            _pendingNormalSpawnArgs = new PendingNormalSpawnArgs
+            _pendingNormalSpawnArgs = new PendingSpawnArgs
             {
                 HasOverrideSpawnPosition = overrideSpawnPosition.HasValue,
                 OverrideSpawnPosition = overrideSpawnPosition.GetValueOrDefault(),
@@ -257,7 +293,7 @@ public partial class GuestsManagerPatch
         _pendingNormalSpawnArgs = null;
     }
 
-    private static PendingNormalSpawnArgs? ConsumePendingNormalSpawnArgs()
+    private static PendingSpawnArgs? ConsumePendingNormalSpawnArgs()
     {
         var args = _pendingNormalSpawnArgs;
         _pendingNormalSpawnArgs = null;
@@ -272,7 +308,14 @@ public partial class GuestsManagerPatch
     /// <returns></returns>
     [HarmonyPatch(nameof(GuestsManager.SpawnSpecialGuestGroup))]
     [HarmonyPrefix]
-    public static bool SpawnSpecialGuestGroup_Prefix(ref int id, ref SpecialGuestsController __result)
+    public static bool SpawnSpecialGuestGroup_Prefix(
+        ref int id,
+        SpecialGuestsController.GuestSpawnType guestSpawnType,
+        Il2CppSystem.Nullable<Vector3> overrideSpawnPosition,
+        GuestGroupController.LeaveType leaveType,
+        int targetDeskCode,
+        bool shouldFade,
+        ref SpecialGuestsController __result)
     {
         if (IsReimuProtectionGuest(id)) return RunOriginal;
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
@@ -283,12 +326,39 @@ public partial class GuestsManagerPatch
         }
         if (MpManager.IsRoomHost)
         {
-            if (TryResolveAvailableSpecialGuest(ref id)) return RunOriginal;
+            if (TryResolveAvailableSpecialGuest(ref id))
+            {
+                _pendingSpecialSpawnArgs = new PendingSpawnArgs
+                {
+                    HasOverrideSpawnPosition = overrideSpawnPosition.HasValue,
+                    OverrideSpawnPosition = overrideSpawnPosition.GetValueOrDefault(),
+                    LeaveType = leaveType,
+                    TargetDeskCode = targetDeskCode,
+                    ShouldFade = shouldFade,
+                    GuestSpawnType = guestSpawnType,
+                };
+                return RunOriginal;
+            }
             __result = null;
             return SkipOriginal;
         }
 
         return RunOriginal;
+    }
+
+    [HarmonyPatch(nameof(GuestsManager.SpawnSpecialGuestGroup))]
+    [HarmonyPostfix]
+    public static void SpawnSpecialGuestGroup_Postfix()
+    {
+        // 游戏可能提前返回 null，清理未被消费的出生参数。
+        _pendingSpecialSpawnArgs = null;
+    }
+
+    private static PendingSpawnArgs? ConsumePendingSpecialSpawnArgs()
+    {
+        var args = _pendingSpecialSpawnArgs;
+        _pendingSpecialSpawnArgs = null;
+        return args;
     }
 
     /// <summary>
@@ -327,10 +397,13 @@ public partial class GuestsManagerPatch
         if (MpManager.IsRoomHost)
         {
             // 将主机生成的顾客信息广播给客机
-            var normalSpawnArgs = initializedController.ControllType == GuestsManager.GuestType.Normal
-                ? ConsumePendingNormalSpawnArgs()
-                : null;
-            GuestFSM.OnSpawn(initializedController, normalSpawnArgs);
+            var spawnArgs = initializedController.ControllType switch
+            {
+                GuestsManager.GuestType.Normal => ConsumePendingNormalSpawnArgs(),
+                GuestsManager.GuestType.Special => ConsumePendingSpecialSpawnArgs(),
+                _ => null,
+            };
+            GuestFSM.OnSpawn(initializedController, spawnArgs);
         }
     }
 
@@ -344,39 +417,17 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool PlayerRepell_Prefix(int deskCode)
     {
-        if (SkipPlayerRepellPatch.TryConsume())
-        {
-            SkipRepellInternalPatch.Grant(); // TODO
-            if (MpManager.IsRoomHost) SkipRepellInternalLeaveBroadcastPatch.Grant();
-            return RunOriginal;
-        }
-
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-
-        if (MpManager.IsRoomHost)
-        {
-            SkipRepellInternalLeaveBroadcastPatch.Grant();
-            GuestFSM.OnPlayerRepell(deskCode);
-            return RunOriginal;
-        }
         if (MpManager.IsRoomClient)
         {
             GuestFSM.OnPlayerRepell(deskCode);
-            // 客机会阻止 RepellInternal LeaveFromDesk 等方法的调用，因此不仅需要 return RunOriginal
-            // 还需要逐级设置 Skip*Patch 以跳过客机 Prefix 中的跳过逻辑
-            SkipRepellInternalPatch.Grant();
-            return RunOriginal;
+            return SkipOriginal;
         }
 
-        throw new InvalidOperationException("Unexpected network state in PlayerRepell_Prefix");
-    }
-
-    [HarmonyPatch(nameof(GuestsManager.PlayerRepell))]
-    [HarmonyPostfix]
-    public static void PlayerRepell_Postfix()
-    {
-        SkipRepellInternalLeaveBroadcastPatch.Reset();
-        SkipLeaveFromDeskBroadcastPatch.Reset();
+        var manager = GuestsManager.Instance;
+        var guest = manager.GetInDeskGuest(deskCode);
+        return guest != null && guest.HaveNotLeft() && manager.CheckCanPlayerRepelGuest(deskCode)
+            ? RunOriginal : SkipOriginal;
     }
 
 
@@ -391,6 +442,7 @@ public partial class GuestsManagerPatch
     public static bool EvaluateOrder_Prefix(GuestGroupController toEvaluate)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (GuestsMap.GetGuestFsm(toEvaluate)?.IsRepelling == true) return SkipOriginal;
         if (MpManager.IsRoomHost)
         {
             return RunOriginal;
@@ -416,6 +468,7 @@ public partial class GuestsManagerPatch
     public static void EvaluateOrder_Postfix(GuestGroupController toEvaluate, bool isTriggerByPartner)
     {
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (GuestsMap.GetGuestFsm(toEvaluate)?.IsRepelling == true) return;
         if (MpManager.IsRoomHost)
         {
             // 主机端直接记录评价结束，推进 Evaluating -> EatingDelay
@@ -448,16 +501,15 @@ public partial class GuestsManagerPatch
     {
         if (IsReimuProtectionGuest(guestGroupController)) return RunOriginal;
 
-        var skipLeaveBroadcast = SkipRepellInternalLeaveBroadcastPatch.TryConsume();
         if (SkipRepellInternalPatch.TryConsume())
         {
-            // 如果 PlayerRepell 已经触发并设置了 SkipRepellInternalPatch
-            // 则同样设置 SkipLeaveFromDeskPatch 以正常执行 LeaveFromDesk
             SkipLeaveFromDeskPatch.Grant();
+            return RunOriginal;
         }
-        if (skipLeaveBroadcast && MpManager.IsRoomHost)
+        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (MpManager.IsRoomHost && guestGroupController.DeskCode >= 0)
         {
-            SkipLeaveFromDeskBroadcastPatch.Grant();
+            GuestFSM.OnRepell(guestGroupController);
         }
 
         return RunOriginal;
@@ -613,6 +665,26 @@ public partial class GuestsManagerPatch
     public static void TryCloseIzakaya_ReversePatch(GuestsManager __instance) { }
 
 
+    [HarmonyPatch(nameof(GuestsManager.AddToPatientCountdown))]
+    [HarmonyPostfix]
+    public static void AddToPatientCountdown_Postfix(GuestGroupController toCountDown)
+    {
+        ExtendYuyukoPhase3Patient(toCountDown);
+    }
+
+    private static void ExtendYuyukoPhase3Patient(GuestGroupController controller)
+    {
+        if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge
+            || PrepSceneManager.YuyukoPrepRound != 3 || PrepSceneManager.IsYuyukoPrepActive) return;
+        if (!controller.GetAllGuests().ToArray().Any(guest => guest.Id is 23 or 40)) return;
+
+        // 仅扩展 AddToPatientCountdown 已初始化的倒计时；手动订单不重置实际耐心，不能复用此处理。
+        int originalPatient = controller.CurrentPatient;
+        controller.MaxPatient *= 3;
+        GuestsManager.Instance.SetManualControlledPatient(controller, originalPatient * 3);
+        Log.Info($"幽幽子三阶段耐心：{originalPatient} → {controller.CurrentPatient}");
+    }
+
     /// <summary>
     /// 主机桌上客人耐心耗尽。
     /// </summary>
@@ -623,11 +695,16 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool PatientDepletedLeave_Prefix(GuestGroupController toPatientDepletedLeave)
     {
+        if (SkipPatientDepletedLeavePatch.TryConsume())
+        {
+            SkipLeaveFromDeskPatch.Grant();
+            return RunOriginal;
+        }
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
         if (MpManager.IsRoomHost)
         {
             // 上游 PatientDepletedDeskAction 已会让客机完整重放 PatientDepletedLeave 链路
-            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Postfix 再发 GuestLeaveAction。
+            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Prefix 再发 GuestLeaveAction。
             SkipLeaveFromDeskPatch.Grant();
             GuestFSM.OnPatientDepletedAtDesk(toPatientDepletedLeave);
             return RunOriginal;
@@ -654,6 +731,7 @@ public partial class GuestsManagerPatch
         GuestGroupController.LeaveType leaveType,
         bool triggerLeaveBuff)
     {
+        if (YuyukoGuestSync.IsBody(toLeave)) return RunOriginal;
         if (IsReimuProtectionGuest(toLeave)) return RunOriginal;
 
         if (SkipLeaveFromDeskPatch.TryConsume())
@@ -667,8 +745,7 @@ public partial class GuestsManagerPatch
             GuestFSM.OnLeaveFromDesk(
                 toLeave,
                 leaveType,
-                triggerLeaveBuff,
-                broadcast: !SkipLeaveFromDeskBroadcastPatch.TryConsume());
+                triggerLeaveBuff);
             return RunOriginal;
         }
 

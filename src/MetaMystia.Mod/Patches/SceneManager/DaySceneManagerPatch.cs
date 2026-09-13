@@ -21,6 +21,7 @@ public partial class DaySceneManagerPatch
     [HarmonyPostfix]
     public static void Awake_Postfix()
     {
+        RunTimeSchedulerPatch.ResetFirstTrialGuest();
         MpManager.OnSceneTransit(Scene.DayScene);
         PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
@@ -75,16 +76,18 @@ public partial class DaySceneManagerPatch
     {
         Log.InfoCaller($"called");
 
-        PlayerManager.LocalIsDayOver = true;
-
         if (!MpManager.IsConnected)
         {
+            PlayerManager.LocalIsDayOver = true;
             return RunOriginal;
         }
 
-        InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
-        DayReadyAction.Send();
-        MpManager.DayOver();
+        if (DayDestinationManager.ReplayingBusiness)
+        {
+            OnDayOver();
+            return SkipOriginal;
+        }
+        DayDestinationManager.Submit(DayDestination.Business, OnDayOver);
         return SkipOriginal;
     }
 

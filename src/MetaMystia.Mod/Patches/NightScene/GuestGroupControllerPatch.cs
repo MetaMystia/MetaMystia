@@ -2,6 +2,8 @@ using HarmonyLib;
 
 using NightScene.GuestManagementUtility;
 
+using static MetaMystia.Patch.HarmonyPrefixFlow;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.GuestGroupController))]
@@ -25,6 +27,11 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class GuestGroupControllerPatch
 {
+    [HarmonyPatch(nameof(GuestGroupController.Evaluate))]
+    [HarmonyPrefix]
+    public static bool Evaluate_Prefix(GuestGroupController __instance, ref int __result) =>
+        YuyukoGuestSync.OverrideEvaluation(__instance, ref __result) ? SkipOriginal : RunOriginal;
+
     /// <summary>
     /// RefreshCurrentFundAndOrder 在 _TrySendToSeat_b__0 (OnArrive 回调) 中被调用，
     /// 此时角色刚到达桌位，随后进入 10s/speed 的首单延时。
@@ -34,6 +41,7 @@ public partial class GuestGroupControllerPatch
     [HarmonyPrefix]
     public static void RefreshCurrentFundAndOrder_Prefix(GuestGroupController __instance)
     {
+        if (YuyukoGuestSync.IsBody(__instance)) return;
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
         {
@@ -51,6 +59,7 @@ public partial class GuestGroupControllerPatch
     [HarmonyPrefix]
     public static void MoveToDesk_Prefix(GuestGroupController __instance, int deskCode, ref Il2CppSystem.Action onMovementFinishCallback)
     {
+        if (YuyukoGuestSync.IsBody(__instance)) return;
         if (GuestsManagerPatch.IsReimuProtectionGuest(__instance)) return;
         if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
         if (MpManager.IsRoomHost)
