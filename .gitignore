@@ -2,8 +2,7 @@
 .vs
 .agent
 .claude
-.tmp/
-
+.tmp
 *.user
 *.lscache
 *.local.props
