@@ -42,7 +42,7 @@ public static partial class YuyukoGuestSync
     }
 
     /// <summary>
-    /// 在主循环准备进行阶段判定前同步主机依据，之后仍由原版选择成功或失败分支。
+    /// 客机等待主机阶段依据，再由原版选择成功或失败分支。一阶段主机需先清场结账，由 Postfix 广播。
     /// 4.4.0e 的恢复位置：4 为一阶段计时结束，9 为二阶段计时结束，10 为二阶段符卡执行完毕；
     /// 15、16 分别为剧情版、重打版三阶段计时结束，不表示成功和失败。
     /// </summary>
@@ -59,15 +59,7 @@ public static partial class YuyukoGuestSync
         if (MpManager.IsRoomHost)
         {
             if (fsm == null) return false;
-            if (sentPhases.Add(state))
-            {
-                var message = Message(YuyukoGuestEvent.Phase);
-                message.PhaseState = state;
-                message.Fund = context.eventManager.EarnedFund;
-                message.PositiveSpellCount = context.positiveSpellCount;
-                message.Life = context.yuyukoTotalLife;
-                YuyukoGuestAction.Send(message);
-            }
+            if (state != 4) SendPhase(loop, state);
         }
         else
         {
@@ -75,9 +67,35 @@ public static partial class YuyukoGuestSync
             context.eventManager.EarnedFund = message.Fund;
             context.positiveSpellCount = message.PositiveSpellCount;
             context.yuyukoTotalLife = message.Life;
+            if (state == 4) Log.Info($"Yuyuko phase 1 applying settled fund: {message.Fund}");
         }
         if (state is 15 or 16) EndPhase3();
         return true;
+    }
+
+    /// <summary>
+    /// 4.4.0e state 4 在同一次 MoveNext 内清场结账并判定，随后停在失败等待 5 或成功剧情等待 6。
+    /// 此时发送最终营业额，避免客机用清场前金额判定；原版未执行或未完成该段时不发送。
+    /// </summary>
+    internal static void AfterMainStep(MainLoop loop, int previousState)
+    {
+        if (!MpManager.IsConnected || !MpManager.IsRoomHost || !PrepSceneManager.IsYuyukoChallenge
+            || previousState != 4 || loop.__1__state is not (5 or 6)) return;
+        SendPhase(loop, 4);
+    }
+
+    private static void SendPhase(MainLoop loop, int state)
+    {
+        if (!sentPhases.Add(state)) return;
+        var context = loop.__8__1;
+        var message = Message(YuyukoGuestEvent.Phase);
+        message.PhaseState = state;
+        message.Fund = context.eventManager.EarnedFund;
+        message.PositiveSpellCount = context.positiveSpellCount;
+        message.Life = context.yuyukoTotalLife;
+        YuyukoGuestAction.Send(message);
+        if (state == 4)
+            Log.Info($"Yuyuko phase 1 settled: fund={message.Fund}, nextState={loop.__1__state}");
     }
 
     /// <summary>

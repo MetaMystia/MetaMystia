@@ -11,17 +11,25 @@ namespace MetaMystia.Patch;
 public static partial class YuyukoMainLoopPatch
 {
     /// <summary>
-    /// 在原版主循环恢复前检查阶段数据：主机发布判定依据，客机等待并回填对应消息。
+    /// 在原版主循环恢复前检查阶段数据：一阶段主机先清场，其他阶段发布依据；客机等待并回填消息。
     /// 未就绪时不执行本次原版 MoveNext，不改变恢复位置，以 null 等待下一帧。
     /// 返回给协程的结果仍为 true，表示等待而非结束挑战或跳过阶段。
     /// </summary>
     [HarmonyPatch(nameof(MainLoop.MoveNext))]
     [HarmonyPrefix]
-    public static bool MoveNext_Prefix(MainLoop __instance, ref bool __result)
+    public static bool MoveNext_Prefix(MainLoop __instance, ref bool __result, out int __state)
     {
+        __state = __instance.__1__state;
         if (YuyukoGuestSync.BeforeMainStep(__instance)) return RunOriginal;
         __instance.__2__current = null;
         __result = true;
         return SkipOriginal;
+    }
+
+    [HarmonyPatch(nameof(MainLoop.MoveNext))]
+    [HarmonyPostfix]
+    public static void MoveNext_Postfix(MainLoop __instance, int __state, bool __runOriginal)
+    {
+        if (__runOriginal) YuyukoGuestSync.AfterMainStep(__instance, __state);
     }
 }
