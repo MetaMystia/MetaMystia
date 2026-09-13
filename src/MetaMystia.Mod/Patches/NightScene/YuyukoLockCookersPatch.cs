@@ -1,3 +1,7 @@
+#if !TMI_RELEASE_4_4_0E
+#error 请核对本文件依赖的游戏协程、状态机及编译器生成成员，完成版本适配后再更新此标记。
+#endif
+
 using HarmonyLib;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;

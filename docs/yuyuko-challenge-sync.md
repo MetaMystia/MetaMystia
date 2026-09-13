@@ -120,6 +120,10 @@ sequenceDiagram
 
 ## 版本与还原代码的差异
 
+游戏目标版本统一配置在 `src/MetaMystia.Mod/MetaMystia.csproj` 的 `TargetGameVersion`，同时生成运行时版本字符串和编译宏，如 `RELEASE 4.4.0e` 对应 `TMI_RELEASE_4_4_0E`。
+
+依赖协程状态、闭包类型和生成回调的文件使用 `#if !TMI_RELEASE_4_4_0E` 与 `#error` 标记。升级目标版本后，这些文件会直接编译报错；逐个核对新版本行为与 Interop 接口后，再更新对应文件的标记，不要保留旧宏绕过检查。
+
 - 4.4.0e 挑战分支使用 `__c__DisplayClass16_6`；4.3.0c 对应 `_5`，局部函数编号随之变化。不能照抄旧闭包名称。
 - 当前吞厨具明确写入 `EventManager.LockedCookersRaw`（字段偏移 `0x280`）；旧还原 C# 中的 `ExiledGuestIndexes` 不能作为实现依据。
 - 当前挑战本体循环仍随机选择普通订单或标签订单，并单独等待 `orderCanContinue`。旧还原代码中不完整的挑战分支不足以说明完整链路。
