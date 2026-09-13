@@ -13,8 +13,7 @@ namespace MetaMystia.Network;
 ///       -> onForcePannelClosingWhenGuestRepellCallback (若匹配)
 ///       -> GuestPay(toLeave, includeTip: true)
 ///       -> LeaveFromDesk(toLeave)
-/// 客机重放需要等价地推进副作用，但 PatientDepletedLeave 是 private，所以由
-/// GuestReplayService.ReplayPatientDepletedLeave 复刻。
+/// 客机通过一次性放行调用原版 PatientDepletedLeave，完整执行清理与离桌。
 /// </summary>
 [MemoryPackable]
 [AutoLog]
@@ -23,6 +22,7 @@ public partial class PatientDepletedDeskAction : Action
 
     public int RuntimeId { get; set; }
 
+    [RequireHostSender]
     [ClientOnlyReceive]
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]

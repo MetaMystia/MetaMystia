@@ -14,6 +14,8 @@ public partial class ConfirmServeAction : Action
     public SellableFood Food { get; set; }
     public SellableFood Beverage { get; set; }
 
+    protected override bool CanReceiveDuringStory => YuyukoGuestSync.OwnsRuntimeId(RuntimeId);
+
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()

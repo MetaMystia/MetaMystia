@@ -21,4 +21,6 @@ public partial class GuestSpawnInfo
     public GuestGroupController.LeaveType LeaveType { get; set; } = GuestGroupController.LeaveType.Move;
     public int TargetDeskCode { get; set; } = -1;
     public bool ShouldFade { get; set; } = true;
+    public bool HasSpecialSpawnArgs { get; set; }
+    public SpecialGuestsController.GuestSpawnType GuestSpawnType { get; set; }
 }

@@ -331,6 +331,7 @@ public static partial class PlayerManager
         HidePeer(uid);
         if (Peers.TryRemove(uid, out var peer))
         {
+            DayDestinationManager.OnPeerLeft(uid);
             Log.LogMessage($"Removed peer '{peer.Id}' (uid={uid})");
             return true;
         }
@@ -347,6 +348,7 @@ public static partial class PlayerManager
     /// </summary>
     public static void ClearPeers()
     {
+        DayDestinationManager.ResetSession();
         foreach (var peer in Peers.Values)
             peer.DespawnCharacter();
         foreach (var peer in PublicPeers.Values)
@@ -362,6 +364,7 @@ public static partial class PlayerManager
     /// </summary>
     public static void ClearRoomPeers()
     {
+        DayDestinationManager.ResetSession();
         foreach (var kvp in Peers)
         {
             kvp.Value.DespawnCharacter();

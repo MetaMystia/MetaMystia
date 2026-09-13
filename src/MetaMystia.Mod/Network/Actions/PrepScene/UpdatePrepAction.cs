@@ -42,12 +42,19 @@ public partial class UpdatePrepAction : Action
     }
 
     public Table PrepTable { get; set; } = new Table();
+    public int PrepRound { get; set; } // 0：普通备菜；正数：本次幽幽子挑战的备菜轮次。
 
     protected override bool OnSendLogOnlyAction => true;
     protected override bool OnReceiveLogOnlyAction => true;
 
     public override void OnReceivedDerived()
     {
+        if (PrepRound > 0)
+        {
+            if (MpManager.LocalScene == Common.UI.Scene.WorkScene)
+                PrepSceneManager.ReceiveYuyukoPrepTable(SenderUid, PrepRound, PrepTable);
+            return;
+        }
         switch (MpManager.LocalScene)
         {
             case Common.UI.Scene.IzakayaPrepScene:
@@ -63,6 +70,13 @@ public partial class UpdatePrepAction : Action
         }
     }
 
-    public static void Send(Table prepTable) =>
-        new UpdatePrepAction { PrepTable = prepTable }.Enqueue();
+    public static void Send(Table prepTable)
+    {
+        if (PrepSceneManager.IsYuyukoChallenge && !PrepSceneManager.IsYuyukoPrepActive) return;
+        new UpdatePrepAction
+        {
+            PrepTable = prepTable,
+            PrepRound = PrepSceneManager.IsYuyukoChallenge ? PrepSceneManager.YuyukoPrepRound : 0
+        }.Enqueue();
+    }
 }

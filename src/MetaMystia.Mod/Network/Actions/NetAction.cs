@@ -27,8 +27,6 @@ public enum ActionType : ushort
     MoveSync,
     NightMoveSync,
 
-    DayReady,
-    DayAllReady,
     SelectIzakaya,
     ConfirmIzakaya,
     UpdatePrep,
@@ -64,6 +62,14 @@ public enum ActionType : ushort
     PassionEdit,
 
     IzakayaClose,
+    GuestRepell,
+    YuyukoFailed,
+    YuyukoLife,
+    DayDestinationIntent,
+    DayDestinationState,
+    DayDestinationConfirm,
+    YuyukoGuest,
+    YuyukoGuestBound,
 }
 
 [MemoryPackable]
@@ -81,8 +87,6 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.SceneTransit, typeof(SceneTransitAction))]
 [MemoryPackUnion((ushort)ActionType.MoveSync, typeof(MoveSyncAction))]
 [MemoryPackUnion((ushort)ActionType.NightMoveSync, typeof(NightMoveSyncAction))]
-[MemoryPackUnion((ushort)ActionType.DayReady, typeof(DayReadyAction))]
-[MemoryPackUnion((ushort)ActionType.DayAllReady, typeof(DayAllReadyAction))]
 [MemoryPackUnion((ushort)ActionType.SelectIzakaya, typeof(SelectIzakayaAction))]
 [MemoryPackUnion((ushort)ActionType.ConfirmIzakaya, typeof(ConfirmIzakayaAction))]
 [MemoryPackUnion((ushort)ActionType.UpdatePrep, typeof(UpdatePrepAction))]
@@ -114,6 +118,14 @@ public enum ActionType : ushort
 [MemoryPackUnion((ushort)ActionType.ExpEdit, typeof(ExpEditAction))]
 [MemoryPackUnion((ushort)ActionType.PassionEdit, typeof(PassionEditAction))]
 [MemoryPackUnion((ushort)ActionType.IzakayaClose, typeof(IzakayaCloseAction))]
+[MemoryPackUnion((ushort)ActionType.GuestRepell, typeof(GuestRepellAction))]
+[MemoryPackUnion((ushort)ActionType.YuyukoFailed, typeof(YuyukoFailedAction))]
+[MemoryPackUnion((ushort)ActionType.YuyukoLife, typeof(YuyukoLifeAction))]
+[MemoryPackUnion((ushort)ActionType.DayDestinationIntent, typeof(DayDestinationIntentAction))]
+[MemoryPackUnion((ushort)ActionType.DayDestinationState, typeof(DayDestinationStateAction))]
+[MemoryPackUnion((ushort)ActionType.DayDestinationConfirm, typeof(DayDestinationConfirmAction))]
+[MemoryPackUnion((ushort)ActionType.YuyukoGuest, typeof(YuyukoGuestAction))]
+[MemoryPackUnion((ushort)ActionType.YuyukoGuestBound, typeof(YuyukoGuestBoundAction))]
 [AutoLog]
 
 public abstract partial class Action
@@ -204,10 +216,13 @@ public abstract partial class Action
 
     private bool ShouldDiscardOnStory()
     {
-        if (!MpManager.InStory) return false;
+        if (!MpManager.InStory || CanReceiveDuringStory) return false;
         var method = this.GetType().GetMethod(nameof(OnReceivedDerived));
         return method.GetCustomAttribute<DiscardOnStoryAttribute>() != null;
     }
+
+    [MemoryPackIgnore]
+    protected virtual bool CanReceiveDuringStory => false;
 
     public override string ToString()
     {

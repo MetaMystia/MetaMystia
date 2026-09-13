@@ -10,11 +10,17 @@ namespace MetaMystia.Network;
 public partial class PrepAllReadyAction : Action
 {
     public UpdatePrepAction.Table PrepTable { get; set; } = new();
+    public int PrepRound { get; set; }
 
     [RequireHostSender]
-    [CheckScene(Common.UI.Scene.IzakayaPrepScene)]
     public override void OnReceivedDerived()
     {
+        if (PrepRound > 0)
+        {
+            if (MpManager.LocalScene != Common.UI.Scene.WorkScene
+                || !PrepSceneManager.CanFinishYuyukoPrep(PrepRound)) return;
+        }
+        else if (MpManager.LocalScene != Common.UI.Scene.IzakayaPrepScene) return;
         PrepSceneManager.ApplyHostTable(PrepTable);
         IzakayaConfigPannelPatch.PrepOver();
     }
@@ -22,6 +28,10 @@ public partial class PrepAllReadyAction : Action
     public static void Send()
     {
         if (!MpManager.IsRoomHost) return;
-        new PrepAllReadyAction { PrepTable = PrepSceneManager.GetLocalPrepTableSnapshot() }.Enqueue();
+        new PrepAllReadyAction
+        {
+            PrepTable = PrepSceneManager.GetLocalPrepTableSnapshot(),
+            PrepRound = PrepSceneManager.IsYuyukoChallenge ? PrepSceneManager.YuyukoPrepRound : 0
+        }.Enqueue();
     }
 }

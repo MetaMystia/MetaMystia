@@ -38,6 +38,7 @@
 
 ## 开发参考
 
+- 名词速查：[`docs/glossary.md`](docs/glossary.md)（遇到游戏相关名词时必读）
 - Harmony Hook：[`docs/harmony-hook-style.md`](docs/harmony-hook-style.md)
 - 网络 Action：[`docs/network-action-style.md`](docs/network-action-style.md)
 - 线程与调度：[`docs/threading-and-scheduling.md`](docs/threading-and-scheduling.md)

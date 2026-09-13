@@ -4,21 +4,17 @@ namespace MetaMystia.Network;
 
 [MemoryPackable]
 [AutoLog]
-[RoomRelay]
 public partial class PlayerRepellAction : Action
 {
 
     public int RuntimeId { get; set; }
 
+    [HostOnlyReceive]
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        var rid = RuntimeId;
-        var fsm = GuestsMap.GetGuestFsm(rid);
-        if (fsm == null) return;
-        fsm.Enqueue(nameof(GuestFSM.DoPlayerRepell),
-            () => GuestFSM.DoPlayerRepell(rid));
+        GuestFSM.DoPlayerRepell(RuntimeId);
     }
 
     public static void Send(int runtimeId) =>
