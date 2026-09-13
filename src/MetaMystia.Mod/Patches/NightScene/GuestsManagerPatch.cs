@@ -672,21 +672,13 @@ public partial class GuestsManagerPatch
         ExtendYuyukoPhase3Patient(toCountDown);
     }
 
-    [HarmonyPatch(nameof(GuestsManager.SetManualControllerOrderInternal))]
-    [HarmonyPostfix]
-    public static void SetManualControllerOrderInternal_Postfix(GuestGroupController manualControlled)
-    {
-        if (YuyukoGuestSync.IsBody(manualControlled) && !YuyukoGuestSync.IsInstalling) return;
-        ExtendYuyukoPhase3Patient(manualControlled);
-    }
-
     private static void ExtendYuyukoPhase3Patient(GuestGroupController controller)
     {
         if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge
             || PrepSceneManager.YuyukoPrepRound != 3 || PrepSceneManager.IsYuyukoPrepActive) return;
         if (!controller.GetAllGuests().ToArray().Any(guest => guest.Id is 23 or 40)) return;
 
-        // 普通点单和剧情手动点单都会先重置耐心；同时扩大上限，保持耐心条比例正确。
+        // 仅扩展 AddToPatientCountdown 已初始化的倒计时；手动订单不重置实际耐心，不能复用此处理。
         int originalPatient = controller.CurrentPatient;
         controller.MaxPatient *= 3;
         GuestsManager.Instance.SetManualControlledPatient(controller, originalPatient * 3);
