@@ -23,6 +23,8 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 
 ## 约定
 
+`DayMapRegistry` 在白天数据库初始化时校验配置并从零创建地图模板，登记地图与语言数据。`InMemoryGameObjectProvider` 保留模板，原游戏切图负责实例的加载与销毁；`DayMapCommands` 提供单机指令进入和返回。配置见 [白天地图首版](resourceex-day-maps.md)。
+
 - 注册器只持有本领域配置与产物；跨领域查询调用兄弟注册器，资产读取走 `RexAssetRegistry`。
 - 新增内容类型：在 `Registries/` 新增注册器类，并在 `ResourceExManager.MergeResourcePackage` 与对应生命周期钩子中登记。
 - 配置 DTO 与注册逻辑的同步见 [resourceex-package-contract.md](resourceex-package-contract.md)。

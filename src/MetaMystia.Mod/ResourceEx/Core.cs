@@ -103,6 +103,7 @@ public static partial class ResourceExManager
     }
     public static void OnDataBaseDayInitialized()
     {
+        DayMapRegistry.RegisterAll();
         DialogRegistry.RegisterAllDialogPackages();
         GiftRegistry.ValidateAllGifts();
 
@@ -153,7 +154,7 @@ public static partial class ResourceExManager
 
     public static void OnDaySceneLanguageInitialized()
     {
-        // Currently no actions needed here
+        DayMapRegistry.RegisterLanguages();
     }
 
     public static void OnDaySceneAwake()
@@ -263,6 +264,7 @@ public static partial class ResourceExManager
         string packageLabel = package.PackageLabel;
 
         NormalizePackageResourceUris(config, packageLabel);
+        DayMapRegistry.Merge(package);
 
         SpecialGuestRegistry.Merge(config, packageName);
         DialogRegistry.Merge(config, packageName);

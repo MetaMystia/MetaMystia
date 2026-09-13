@@ -15,6 +15,12 @@ public enum Language
 
 public enum TextId
 {
+    DayMapHelp,
+    DayMapList,
+    DayMapUnavailable,
+    DayMapInvalid,
+    DayMapNoReturn,
+    DayMapRequested,
     // 资源包礼物邮箱
     GiftMailboxTitle,
     GiftMailboxInvalidGift,

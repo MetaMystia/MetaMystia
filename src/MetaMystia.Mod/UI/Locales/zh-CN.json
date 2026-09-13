@@ -1,4 +1,10 @@
 {
+    "DayMapHelp": "/resourceex map list | goto <地图ID> [出生点] | back",
+    "DayMapList": "已注册的地图 ID：{0}",
+    "DayMapUnavailable": "仅可在单机白天自由活动时使用，请等待剧情或切图结束。",
+    "DayMapInvalid": "地图尚未注册或出生点不存在，请检查资源包与加载日志。",
+    "DayMapNoReturn": "当前会话没有可用的返回出生点。",
+    "DayMapRequested": "正在切换至 {0}。",
     "GiftMailboxTitle": "资源包礼物邮箱",
     "GiftMailboxInvalidGift": "无效礼物",
     "ConnectCommand": "用法：/mp connect <IP:端口>",

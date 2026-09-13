@@ -1,5 +1,11 @@
 # AI 游戏测试实践
 
+2026-09-13 新地图结构实践见 [ResourceEx 白天新地图调研](../../docs/resourceex-day-map-research.md)：从零建图、原生加载、碰撞、遮挡与相机检查。`map-audit-*` 为该实验专用载荷，使用范围和清理步骤见报告。
+
+2026-09-13 资源包地图实现见 [白天地图首版](../../docs/resourceex-day-maps.md)。`create-day-map-package.py` 生成独立 ZIP，`day-map-test-init.csx` 提供真实控制台命令与快照；`day-map-test-walk.csx` 依赖它和 `day-nav-init.csx`，仅适用测试包坐标。先核验每次切图完成再移动，结束用 `DayMapTest.Command("back")` 返回。
+
+坡面测试使用 0.2.0 测试包及 `day-map-height-test.csx`：先通过指令到 `SlopeUp` / `SlopeDown`，确认切图结束，再调用 `DayMapHeightTest.Move(3)` 或 `Move(-3)`，等待 `Busy=false` 并读取 `Result`、`Sample()`。该载荷只发送水平输入，用实际纵向位移检验原生坡度；返回并再次进入以检查高度绑定。
+
 本目录为独立调试载荷，不参与 Mod 编译。通过 Il2cppConsoleMod 操作运行中的游戏；所有 HTTP 请求均须走提权审批，携带 `X-Debug-Token`。Token 仅作为调用参数传入，不写入文件。
 
 这份记录面向接手的操作 agent 和开发 agent：前者据此选择动作、判断结果，后者据此定位代码、复现行为、验证修改。维持“单份主文档 + 多个小脚本”，暂不建立自动游玩框架。

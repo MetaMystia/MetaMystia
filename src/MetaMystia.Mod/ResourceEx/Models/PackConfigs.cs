@@ -23,6 +23,7 @@ public class PackInfoConfig
 public class ResourceConfig
 {
     public PackInfoConfig packInfo { get; set; }
+    public List<DayMapConfig> dayMaps { get; set; }
     public List<CharacterConfig> characters { get; set; }
     public List<DialogPackageConfig> dialogPackages { get; set; }
     public List<GiftConfig> gifts { get; set; }

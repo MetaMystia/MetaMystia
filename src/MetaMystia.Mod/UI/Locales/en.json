@@ -1,4 +1,10 @@
 {
+    "DayMapHelp": "/resourceex map list | goto <mapID> [spawn] | back",
+    "DayMapList": "Registered map IDs: {0}",
+    "DayMapUnavailable": "Available during single-player daytime free movement. Wait for events or map transitions to finish.",
+    "DayMapInvalid": "Map is not registered or spawn marker is missing. Check the package and loading log.",
+    "DayMapNoReturn": "No return spawn marker is available in this session.",
+    "DayMapRequested": "Switching to {0}.",
     "GiftMailboxTitle": "Resource Pack Gift Mailbox",
     "GiftMailboxInvalidGift": "Invalid gift",
     "ConnectCommand": "Usage: /mp connect <IP:Port>",
