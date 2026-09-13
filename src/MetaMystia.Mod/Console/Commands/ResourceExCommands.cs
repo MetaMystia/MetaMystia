@@ -12,6 +12,7 @@ public static class ResourceExCommands
     public static void Register(RootCommand root)
     {
         var resCmd = new Command("resourceex", "Resource pack management");
+        DayMapCommands.Register(resCmd);
 
         // /resourceex list
         var listCmd = new Command("list", "List all loaded resource packs");
@@ -35,7 +36,7 @@ public static class ResourceExCommands
         root.AddCommand(resCmd);
 
         // Register tab completions
-        CommandRegistry.RegisterCompletions("resourceex", 0, "list", "info");
+        CommandRegistry.RegisterCompletions("resourceex", 0, "list", "info", "map");
 
         // Register dynamic completions for info subcommand — package names
         var packageNames = ResourceExManager.LoadedPackages
@@ -50,6 +51,7 @@ public static class ResourceExCommands
         ctx.Log(ConsoleFormat.Header(TextId.ResourceExHelpHeader.Get()));
         ctx.Log(ConsoleFormat.SubCmd("list", "", TextId.ResourceExDescList.Get()));
         ctx.Log(ConsoleFormat.SubCmd("info", "<name>", TextId.ResourceExDescInfo.Get()));
+        ctx.Log(TextId.DayMapHelp.Get());
         ctx.Log(ConsoleFormat.Line);
     }
 

@@ -15,6 +15,12 @@ public enum Language
 
 public enum TextId
 {
+    DayMapHelp,
+    DayMapList,
+    DayMapUnavailable,
+    DayMapInvalid,
+    DayMapNoReturn,
+    DayMapRequested,
     DestinationBusiness,
     DestinationFinalTrial,
     DestinationFinalTrialAgain,

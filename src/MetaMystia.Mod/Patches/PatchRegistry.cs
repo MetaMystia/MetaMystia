@@ -76,6 +76,7 @@ public static partial class PatchRegistry
         typeof(DataBaseDayPatch),
         typeof(DataBaseCorePatch),
         typeof(DataBaseLanguagePatch),
+        typeof(DaySceneLanguagePatch),
         typeof(NightSceneLanguagePatch),
         typeof(SpecialGuestDescriberPatch),
         typeof(DaySceneMapProfilePatch),

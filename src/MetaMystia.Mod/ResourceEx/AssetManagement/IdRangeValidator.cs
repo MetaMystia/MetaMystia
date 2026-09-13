@@ -217,6 +217,11 @@ public static partial class IdRangeValidator
     {
         var ids = new List<(string category, int id)>();
         if (config == null) return ids;
+        if (config.dayMaps != null)
+        {
+            foreach (var map in config.dayMaps)
+                if (map != null) ids.Add(("DayMap", map.id));
+        }
 
         if (config.characters != null)
         {
