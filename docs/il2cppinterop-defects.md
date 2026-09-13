@@ -18,6 +18,18 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 此方法仅适用于已确认存在该缺陷的 `Dictionary<TKey, TValue>` 写入，不得作为通用 Dictionary API。当前调用位于 `ResourceEx/SpecialGuest.cs`，用于写入 `DataBaseLanguage.SpecialGuest`。
 
+## `Utils.ForceAddOrUpdateBoxedValue<TValue>`
+
+`DaySceneMapProfile.MapNode` 是包含引用字段的原生结构体。直接写入 `DataBaseDay.mapData` 的索引器时，同样会把装箱对象头复制进值槽，造成字段偏移。地图无需配置食堂，也会在原游戏遍历地图查询食堂等级时触发异常。
+
+2026-09-14 在 RELEASE 4.4.0e、BepInEx 6 be.785 环境实测：临时字典写入前的三级食堂数组均为 `Int32[]`，写入后变为 `String[] / String[] / Int32[]`；指针对比分别对应原采集点标签、出生点标签、一级食堂数组。
+
+该方法位于 `Utils/MetaMikuUtils.cs`，用于字符串键与装箱值类型，当前调用为 `DayMapRegistry` 的 `Dictionary<string, DaySceneMapProfile.MapNode>`。调用前检查字典声明的 Value 是原生值类型，禁止对普通引用类型拆箱；其他类型需先确认同类缺陷再使用。
+
+从字典类型获取双参数 `set_Item`，字符串 Key 传对象指针，Value 使用 `il2cpp_object_unbox` 取得结构体数据。调用期间保留对象引用，原生异常照常抛出，不吞掉失败。原有值类型 Key 的 `ForceAddOrUpdateValueTuple` 保持不变。
+
+验证包括临时字典新增与覆盖、字符串及数组回读、数组指针一致性；修复后重启，两张扩展地图的三个食堂数组均为空 `Int32[]`，55 个原版食堂编号的等级查询及不存在编号查询通过，实际日终进入开店准备成功。验证范围为单机，不代表联机或所有版本均已验证。
+
 ## `Utils/Il2CppOutDelegate.cs`
 
 `Il2CppOutDelegate` 用于构造 `DaySceneChatSelectionPannel.GetSelectionConfigurationCallback`。该委托包含 `string`、`bool` 和 `Il2CppSystem.Action` 三个 `out` 参数，普通 `DelegateSupport.ConvertDelegate` 无法正确表达其原生写回布局。

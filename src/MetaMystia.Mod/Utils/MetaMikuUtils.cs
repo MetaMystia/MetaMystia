@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+
 using BepInEx.Logging;
 using Il2CppInterop.Runtime;
 
@@ -9,6 +10,38 @@ namespace MetaMiku
     {
         private static ManualLogSource Log => MetaMystia.Plugin.Instance.Log;
         private const string LOG_TAG = "[MetaMiku.Utils]";
+
+        /// <summary>
+        /// 向字符串键字典写入已确认存在封送缺陷的装箱值类型。
+        /// </summary>
+        public static unsafe void ForceAddOrUpdateBoxedValue<TValue>(
+            this Il2CppSystem.Collections.Generic.Dictionary<string, TValue> dictionary,
+            string key,
+            TValue value)
+            where TValue : Il2CppSystem.Object
+        {
+            if (dictionary == null) throw new ArgumentNullException(nameof(dictionary));
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (!IL2CPP.il2cpp_class_is_valuetype(Il2CppClassPointerStore<TValue>.NativeClassPtr))
+                throw new ArgumentException("Dictionary value must be an IL2CPP value type", nameof(value));
+
+            var method = IL2CPP.il2cpp_class_get_method_from_name(
+                IL2CPP.il2cpp_object_get_class(dictionary.Pointer), "set_Item", 2);
+            if (method == IntPtr.Zero) throw new InvalidOperationException("Dictionary set_Item unavailable");
+
+            // 字符串传对象指针，装箱值类型传拆箱后的结构体数据。
+            var nativeKey = new Il2CppSystem.Object(IL2CPP.ManagedStringToIl2Cpp(key));
+            IntPtr* args = stackalloc IntPtr[2];
+            args[0] = nativeKey.Pointer;
+            args[1] = IL2CPP.il2cpp_object_unbox(value.Pointer);
+            IntPtr exception = IntPtr.Zero;
+            IL2CPP.il2cpp_runtime_invoke(method, dictionary.Pointer, (void**)args, ref exception);
+            GC.KeepAlive(nativeKey);
+            GC.KeepAlive(value);
+            GC.KeepAlive(dictionary);
+            Il2CppException.RaiseExceptionIfNecessary(exception);
+        }
 
         /// <summary>
         /// 强制将 Il2CppSystem.ValueTuple 等装箱类型的值插入到 Il2CppSystem.Collections.Generic.Dictionary 中。
