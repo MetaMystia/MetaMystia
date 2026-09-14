@@ -100,6 +100,8 @@ public static partial class ResourceExManager
         FoodRegistry.RegisterAllFoods();
         ClothRegistry.RegisterAllClothItems();
         ClothRegistry.RegisterAllClothProfiles();
+        RegisterDovePendantDecoration();
+        RegisterDarumaYukiyukiDecoration();
     }
     public static void OnDataBaseDayInitialized()
     {
