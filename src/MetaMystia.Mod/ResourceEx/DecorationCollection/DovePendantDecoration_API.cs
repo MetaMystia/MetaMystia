@@ -2,6 +2,8 @@ using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
 
 using GameData.Core.Collections;
+using GameData.CoreLanguage;
+using GameData.CoreLanguage.Collections;
 using GameData.Profile;
 
 using MetaMystia.ResourceEx.DecorationCollection;
@@ -55,5 +57,18 @@ public static partial class ResourceExManager
         DataBaseCore.Decorations[DovePendantDecorationId] = decoration;
 
         Log.Info($"[DovePendant] 已注册小鸽子挂坠（id={DovePendantDecorationId}）");
+    }
+
+    /// <summary>
+    /// 注册小鸽子挂坠的展示文案（名称与描述），写入 DataBaseLanguage.Items 供展示柜读取。
+    /// </summary>
+    public static void RegisterDovePendantDecorationLanguage()
+    {
+        TryGetSprite(DovePendantSpriteUri, out var sprite);
+        DataBaseLanguage.Items[DovePendantDecorationId] = new ObjectLanguageBase(
+            name: "小鸽子挂坠",
+            Description: "激活后，白天时玩家移动速度增加0.12；夜间营业时移动速度增加20%，并增加20%的伙伴工作效率与伙伴移动速度。",
+            visual: sprite);
+        Log.Info($"[DovePendant] 已注册文案（id={DovePendantDecorationId}）");
     }
 }

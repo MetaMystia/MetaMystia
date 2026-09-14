@@ -123,6 +123,8 @@ public static partial class ResourceExManager
         FoodRegistry.RegisterAllFoodLanguages();
         MissionNodeRegistry.RegisterAllMissionNodeLanguages();
         ClothRegistry.RegisterAllClothLanguages();
+        RegisterDovePendantDecorationLanguage();
+        RegisterDarumaYukiyukiDecorationLanguage();
     }
 
     public static void OnDataBaseCharacterInitialized()
