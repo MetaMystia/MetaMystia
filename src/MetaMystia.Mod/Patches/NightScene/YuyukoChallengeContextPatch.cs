@@ -39,7 +39,7 @@ public partial class YuyukoChallengeContextPatch
 
     /// <summary>
     /// 对应 4.4.0e MainChallengeLoop 的 Timing|2 入口（VA 0x18078CA80），三个阶段共用。
-    /// 联机下按构建配置延长当前阶段时长：Debug 为原时长的 64 倍，Release 为 2 倍。
+    /// 联机下按构建配置延长当前阶段时长：Debug 为原时长的 64 倍，Release 前两阶段为 2.25 倍，第三阶段为 4 倍。
     /// 此处设置时长及三阶段提示；计时结束是否放行由 YuyukoTimingPatch 处理。
     /// </summary>
     [HarmonyPatch(nameof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.Method_Internal_IEnumerator_Func_1_Boolean_0))]
@@ -55,7 +55,7 @@ public partial class YuyukoChallengeContextPatch
 #if DEBUG
         __instance.thisSingleRoundDuration = originalDuration * 64;
 #else
-        __instance.thisSingleRoundDuration = originalDuration * 2;
+        __instance.thisSingleRoundDuration = (int)(originalDuration * (PrepSceneManager.YuyukoPrepRound == 3 ? 4f : 2.25f));
 #endif
         Log.Info($"幽幽子试炼本阶段时长：{originalDuration}s → {__instance.thisSingleRoundDuration}s");
     }

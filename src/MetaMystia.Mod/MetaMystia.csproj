@@ -6,7 +6,7 @@
     <LangVersion>14</LangVersion>
     <AssemblyName>MetaMystia</AssemblyName>
     <Product>MetaMystia</Product>
-    <Version>0.28.0</Version>
+    <Version>0.28.1</Version>
     <TargetGameVersion>RELEASE 4.4.0e</TargetGameVersion>
     <DefineConstants>$(DefineConstants);TMI_$(TargetGameVersion.Replace(' ', '_').Replace('.', '_').ToUpperInvariant())</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
