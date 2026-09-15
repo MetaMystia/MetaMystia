@@ -2,7 +2,9 @@ using HarmonyLib;
 
 using NightScene.UI.HUDUtility;
 
-using MetaMystia.Network;
+
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 
 namespace MetaMystia.Patch;
 
@@ -24,7 +26,7 @@ public partial class IncomeControllerYuyukoPatch
     public static void SetContext_Postfix(IncomeControllerYuyuko __instance)
     {
         if (!IsPhase3Panel(__instance)) return;
-        if (MpManager.IsRoomHost) SendProgress();
+        if (GameSession.IsRoomHost) SendProgress();
         else ApplyProgress();
     }
 
@@ -35,7 +37,7 @@ public partial class IncomeControllerYuyukoPatch
     public static void SetTargetProgress_Prefix(IncomeControllerYuyuko __instance, ref int targetValue)
     {
         if (!IsPhase3Panel(__instance)) return;
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             SendProgress();
         }
@@ -47,7 +49,7 @@ public partial class IncomeControllerYuyukoPatch
     }
 
     private static bool IsPhase3Panel(IncomeControllerYuyuko panel) =>
-        MpManager.IsConnected && PrepSceneManager.IsYuyukoChallenge && panel != null && panel.invert
+        GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge && panel != null && panel.invert
         && YuyukoBossDataPatch.CurrentContext?.statusDisplayer?.Pointer == panel.Pointer;
 
     private static void SendProgress()

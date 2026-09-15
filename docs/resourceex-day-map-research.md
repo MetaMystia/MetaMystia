@@ -279,4 +279,4 @@ flowchart LR
 - `src/Assembly-CSharp/DayScene/Interactables/` 下的 `MapTransitionData`、`InteractableArea`、`VisualEntity` 及相关 Condition / Behaviour：出口与初始化依赖。
 - `src/Assembly-CSharp/GameData/RunTime/DaySceneUtility/RunTimeDayScene.cs`：地图解锁、NPC 与存档数据。
 
-项目依据：[资源包约定](resourceex-package-contract.md)、[模块结构](resourceex-module-structure.md)、[RuntimeAddressables](../src/MetaMystia.Mod/ResourceEx/Addressables/RuntimeAddressables.cs)、[SpawnMarkerRegistry](../src/MetaMystia.Mod/ResourceEx/Registries/SpawnMarkerRegistry.cs)、[移动同步](../src/MetaMystia.Mod/Network/Actions/DayScene/MoveSyncAction.cs)。
+项目依据：[资源包约定](resourceex-package-contract.md)、[模块结构](resourceex-module-structure.md)、[RuntimeAddressables](../src/MetaMystia.Mod/ResourceEx/Addressables/RuntimeAddressables.cs)、[SpawnMarkerRegistry](../src/MetaMystia.Mod/ResourceEx/Registries/SpawnMarkerRegistry.cs)、[移动同步](../src/MetaMystia.Mod/Players/PlayerProfile.cs)。

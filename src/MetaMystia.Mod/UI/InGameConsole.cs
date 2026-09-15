@@ -10,8 +10,9 @@ using UnityEngine.EventSystems;
 
 using Common.UI;
 
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.ConsoleSystem;
-using MetaMystia.Network;
 
 namespace MetaMystia.UI;
 
@@ -870,7 +871,7 @@ public static partial class InGameConsole
             string displayMsg = LiveModeManager.MaskMessage(cmd);
             LogToConsole($"{localName}: {displayMsg}");
 
-            if (MpManager.IsConnected)
+            if (GameSession.IsOnline)
                 MessageAction.Send(cmd);
 
             closeConsole = true;

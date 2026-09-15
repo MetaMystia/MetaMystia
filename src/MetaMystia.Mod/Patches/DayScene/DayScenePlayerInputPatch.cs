@@ -2,7 +2,7 @@ using HarmonyLib;
 
 using DayScene.Input;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -22,7 +22,7 @@ public partial class DayScenePlayerInputPatch
             return SkipOriginal;
         }
         PlayerManager.LocalIsSprinting = true;
-        MoveSyncAction.Send();
+        PlayerProfile.SendMotion();
         return RunOriginal;
     }
 
@@ -31,7 +31,7 @@ public partial class DayScenePlayerInputPatch
     public static void OnSprintCanceled_Prefix()
     {
         PlayerManager.LocalIsSprinting = false;
-        MoveSyncAction.Send();
+        PlayerProfile.SendMotion();
     }
 
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.TryInteract))]
@@ -43,7 +43,7 @@ public partial class DayScenePlayerInputPatch
             Log.Warning($"Console is open, skipping interaction");
             return SkipOriginal;
         }
-        if (!MpManager.IsConnected)
+        if (!GameSession.HasPeers)
         {
             return RunOriginal;
         }

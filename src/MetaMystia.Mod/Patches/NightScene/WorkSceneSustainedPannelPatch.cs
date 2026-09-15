@@ -8,6 +8,8 @@ using NightScene.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.UI.WorkSceneSustainedPannel))]
@@ -36,7 +38,7 @@ public partial class WorkSceneSustainedPannelPatch
 
         bool IsCurrentOrder() => currentGuestController.AllOrdersCount > 0
             && fsm.CurrentOrder?.Pointer == order.Pointer
-            && (!MpManager.IsConnected || (YuyukoGuestSync.IsBody(currentGuestController)
+            && (!GameSession.HasPeers || (YuyukoGuestSync.IsBody(currentGuestController)
                 && fsm.OrderSeq == seq && fsm.CurrentState == GuestFSM.State.WaitingServe));
 
         onOrderEvaluate = (Action)(() =>
@@ -60,7 +62,7 @@ public partial class WorkSceneSustainedPannelPatch
     [HarmonyPrefix]
     public static bool OnFastForwardSubmit_Prefix()
     {
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             Log.Message("Client attempted to fast forward, blocked");
             return SkipOriginal;

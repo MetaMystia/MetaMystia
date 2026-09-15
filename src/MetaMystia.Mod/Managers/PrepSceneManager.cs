@@ -3,7 +3,8 @@ using System.Collections.Generic;
 
 using GameData.Core.Collections;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.Patch;
 
 
@@ -20,7 +21,7 @@ public static partial class PrepSceneManager
 
     public static void Initialize()
     {
-        if (!MpManager.IsConnected)
+        if (!GameSession.HasPeers)
         {
             return;
         }
@@ -113,7 +114,7 @@ public static partial class PrepSceneManager
             for (int i = 0; i < removeCount; i++)
             {
                 var itemToRemove = validItems[i];
-                deletions[itemToRemove.Key] = MpManager.GetSynchronizedTimestampNow;
+                deletions[itemToRemove.Key] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
                 changed = true;
                 Log.LogInfo($"Trimmed item {itemToRemove.Key} due to limit.");
             }

@@ -3,6 +3,8 @@ using HarmonyLib;
 using NightScene.GuestManagementUtility;
 
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.NormalGuestsController))]
@@ -17,7 +19,7 @@ public partial class NormalGuestsControllerPatch
     [HarmonyPostfix]
     public static void NormalGuest_PostEvaluation_Postfix(NormalGuestsController __instance)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
         GuestFSM.OnPostEvaluation(__instance);
     }
 }

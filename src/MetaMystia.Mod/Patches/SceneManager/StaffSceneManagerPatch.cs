@@ -13,6 +13,6 @@ public partial class StaffSceneManagerPatch
     [HarmonyPostfix]
     public static void StaffScene_Start_Postfix()
     {
-        MpManager.OnSceneTransit(Scene.StaffScene);
+        GameFlow.OnSceneTransit(Scene.StaffScene);
     }
 }

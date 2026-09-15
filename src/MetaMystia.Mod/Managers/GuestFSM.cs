@@ -10,7 +10,8 @@ using GameData.RunTime.NightSceneUtility;
 using NightScene.GuestManagementUtility;
 using NightScene.Tiles;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.Patch;
 using SgrYuki.Utils;
 using static NightScene.GuestManagementUtility.GuestsManager;
@@ -95,7 +96,7 @@ public partial class GuestFSM
         {
             Tag = tag,
             Apply = apply,
-            DeadlineMs = MpManager.TimestampNow + ttlMs,
+            DeadlineMs = MetaMystia.Multiplayer.RoomClock.Now + ttlMs,
         });
         Drain();
     }
@@ -106,20 +107,20 @@ public partial class GuestFSM
     private void Drain()
     {
         if (_draining) return;
-        if (IsManualGuest && MpManager.InStory) return;
+        if (IsManualGuest && GameFlow.InStory) return;
         _draining = true;
         try
         {
             while (_pending.Count > 0)
             {
                 var head = _pending.Peek();
-                if (MpManager.TimestampNow > head.DeadlineMs)
+                if (MetaMystia.Multiplayer.RoomClock.Now > head.DeadlineMs)
                 {
                     Log.Error($"Guest #{RuntimeId} pending '{head.Tag}' timeout: stalled at {CurrentState}");
                     if (IsManualGuest)
                     {
                         // 剧情可能长于普通顾客的 TTL；本体仍被挑战协程引用，不能销毁。
-                        head.DeadlineMs = MpManager.TimestampNow + PendingTtlMs;
+                        head.DeadlineMs = MetaMystia.Multiplayer.RoomClock.Now + PendingTtlMs;
                     }
                     else
                     {
@@ -365,7 +366,7 @@ public partial class GuestFSM
     public static void DoPlayerRepell(int runtimeId)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
-        if (!MpManager.IsRoomHost || fsm?.Controller == null) return;
+        if (!GameSession.IsRoomHost || fsm?.Controller == null) return;
         var controller = fsm.Controller;
         if (fsm.CurrentState is State.Leaving or State.Left or State.Dead || !controller.HaveNotLeft()) return;
         var manager = GuestsManager.Instance;
@@ -707,7 +708,7 @@ public partial class GuestFSM
     /// <returns></returns>
     public static bool DoServe(int runtimeId, int orderSeq, Sellable requested, Sellable baseOn, Sellable.SellableType type, int senderUid)
     {
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             return DoServeHost(runtimeId, orderSeq, requested, baseOn, type, senderUid);
         }
@@ -1021,7 +1022,7 @@ public partial class GuestFSM
         if (fsm.CurrentState != State.WaitingServe) return false;
         if (OrderSeqMismatch(fsm, orderSeq, nameof(DoConfirmServe))) return true;
 
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             // 主机已上该 料理/酒水 => 丢弃
             if ((fsm.CurrentOrder?.ServFood != null && food != null)
@@ -1086,7 +1087,7 @@ public partial class GuestFSM
         if (order.IsFullfilled)
         {
             TryCloseServePanel(fsm.DeskCode);
-            if (MpManager.IsRoomHost && fsm.CurrentState == State.WaitingServe)
+            if (GameSession.IsRoomHost && fsm.CurrentState == State.WaitingServe)
             {
                 if (fsm.IsManualGuest) YuyukoGuestSync.EvaluateConfirmed();
                 else GuestsManager.Instance.EvaluateOrder(controller, false, null);
@@ -1279,7 +1280,7 @@ public partial class GuestFSM
         UI.InGameConsole.ShowPassive($"#{RuntimeId}: 状态异常 {stateBefore} -> {state}");
         Log.LogStacktrace();
 
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             GuestKillAction.Send(rid, stateBefore, Controller?.DeskCode ?? -1);
         }

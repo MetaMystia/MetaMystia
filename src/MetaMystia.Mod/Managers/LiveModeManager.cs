@@ -31,7 +31,7 @@ public static class LiveModeManager
     public static string GetLocalDisplayName()
     {
         if (Mode == LiveMode.Off)
-            return MpManager.PlayerId ?? "Player";
+            return PlayerIdentity.Name ?? "Player";
         return FormatUid(PlayerManager.Local.Uid);
     }
 

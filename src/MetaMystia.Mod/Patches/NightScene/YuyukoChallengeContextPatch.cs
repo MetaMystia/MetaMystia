@@ -7,6 +7,7 @@ using HarmonyLib;
 using GameData.Profile;
 using NightScene.GuestManagementUtility;
 
+using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -46,7 +47,7 @@ public partial class YuyukoChallengeContextPatch
     [HarmonyPrefix]
     public static void Method_Internal_IEnumerator_Func_1_Boolean_0_Prefix(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0 __instance)
     {
-        if (!MpManager.IsConnected) return;
+        if (!GameSession.HasPeers) return;
 
         if (PrepSceneManager.YuyukoPrepRound == 3)
             InGameConsole.ShowPassive(TextId.YuyukoPhase3PatientExtended.Get());

@@ -134,7 +134,7 @@ flowchart TD
 ### 少量源码参考
 
 - [选店补丁](../src/MetaMystia.Mod/Patches/Common/IzakayaSelectorPanelPatch.cs)：提交选择、主机确认、继续原流程。
-- [备菜完成消息](../src/MetaMystia.Mod/Network/Actions/PrepScene/PrepAllReadyAction.cs)：阶段推进前先统一必要配置。
+- [备菜完成消息](../src/MetaMystia.Mod/Multiplayer/Actions/PrepScene/PrepAllReadyAction.cs)：阶段推进前先统一必要配置。
 - [顾客补丁](../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)与 [GuestFSM](../src/MetaMystia.Mod/Managers/GuestFSM.cs)：探测生命周期变化，按业务状态应用同步。
 - [夜间事件补丁](../src/MetaMystia.Mod/Patches/NightScene/NightSceneEventManagerPatch.cs)：约束客机自主变更，捕获主机产生的业务变化。
 

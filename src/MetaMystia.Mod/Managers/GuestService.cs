@@ -11,7 +11,7 @@ using NightScene.GuestManagementUtility;
 using NightScene.EventUtility;
 using Night.UI.HUD.Ordering;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.Patch;
 using SgrYuki.Utils;
 

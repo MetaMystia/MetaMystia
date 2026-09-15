@@ -9,6 +9,8 @@ using NightScene.GuestManagementUtility;
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 using Retake = GameData.Profile.YuyukoBossData.__c__DisplayClass16_6;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_6))]
@@ -42,6 +44,6 @@ public static partial class YuyukoRetakeContextPatch
     [HarmonyPostfix]
     public static void Method_Internal_Void_PDM_0_Postfix()
     {
-        if (MpManager.IsConnected && PrepSceneManager.IsYuyukoChallenge) YuyukoGuestSync.EndPhase3();
+        if (GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge) YuyukoGuestSync.EndPhase3();
     }
 }

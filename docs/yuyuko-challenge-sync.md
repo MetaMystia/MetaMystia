@@ -112,9 +112,9 @@ sequenceDiagram
 - `Managers/YuyukoGuestSync.cs`：绑定、订单、评价与回调生命周期。
 - `Managers/YuyukoGuestSync.Challenge.cs`：阶段数据、吞食重放和收尾；与上一个文件属于同一个类。
 - `Patches/NightScene/GuestsManagerPatch.cs`：同一原版管理类的手动订单、评价、清理和离场 Hook。
-- `Network/Actions/WorkScene/YuyukoGuestAction.cs`：主机权威事件。
-- `Network/Actions/WorkScene/YuyukoGuestBoundAction.cs`：客机绑定确认及补发请求。
-- `Network/Actions/WorkScene/YuyukoGuestEvent.cs`：事件枚举，数值顺序属于协议。
+- `Multiplayer/Actions/WorkScene/YuyukoGuestAction.cs`：主机权威事件。
+- `Multiplayer/Actions/WorkScene/YuyukoGuestBoundAction.cs`：客机绑定确认及补发请求。
+- `Multiplayer/Actions/WorkScene/YuyukoGuestEvent.cs`：事件枚举，数值顺序属于协议。
 
 以上路径相对 `src/MetaMystia.Mod/`。编译器生成类型和状态编号的解释见对应方法 XML 注释。游戏版本变化时，需要重新核对这些映射及调用时序；能通过 Interop 编译不足以证明行为兼容。
 

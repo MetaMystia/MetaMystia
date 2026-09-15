@@ -11,7 +11,8 @@ using UnityEngine;
 using NightScene.CookingUtility;
 using NightScene.Tiles;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.Patch;
 
 using LockLoop = GameData.Profile.YuyukoBossData.__c__DisplayClass16_6.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObSpCoObObUnique;
@@ -37,7 +38,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static bool IsSwallowedCooker(int gridIndex)
     {
-        if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge) return false;
+        if (!GameSession.HasPeers || !PrepSceneManager.IsYuyukoChallenge) return false;
         foreach (var loop in activeSwallows.Values)
             if (loop._lockedCookController_5__3?.GridIndex == gridIndex && loop.__8__1?.targets != null
                 && loop.__4__this.field_Public___c__DisplayClass16_0_0.eventManager.LockedCookersRaw.Contains(loop.__8__1.targets))
@@ -56,11 +57,11 @@ public static partial class YuyukoGuestSync
     /// </returns>
     internal static bool BeforeMainStep(MainLoop loop)
     {
-        if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge) return true;
+        if (!GameSession.HasPeers || !PrepSceneManager.IsYuyukoChallenge) return true;
         int state = loop.__1__state;
         if (state is not (4 or 9 or 10 or 15 or 16)) return true;
         var context = loop.__8__1;
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             if (fsm == null) return false;
             if (state != 4) SendPhase(loop, state);
@@ -83,7 +84,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void AfterMainStep(MainLoop loop, int previousState)
     {
-        if (!MpManager.IsConnected || !MpManager.IsRoomHost || !PrepSceneManager.IsYuyukoChallenge
+        if (!GameSession.HasPeers || !GameSession.IsRoomHost || !PrepSceneManager.IsYuyukoChallenge
             || previousState != 4 || loop.__1__state is not (5 or 6)) return;
         SendPhase(loop, 4);
     }
@@ -123,7 +124,7 @@ public static partial class YuyukoGuestSync
     private static void PlayPendingSwallows()
     {
         var retake = YuyukoBossDataPatch.CurrentRetake;
-        if (!MpManager.IsRoomClient || phase3Ended || retake?.eatingGameObejct == null) return;
+        if (!GameSession.IsRoomClient || phase3Ended || retake?.eatingGameObejct == null) return;
         while (pendingSwallows.TryDequeue(out int index))
         {
             if (index < 0 || index >= TileManager.Instance.CookerDesks.Length)
@@ -151,10 +152,10 @@ public static partial class YuyukoGuestSync
     internal static bool BeforeSwallowStep(LockLoop loop, ref bool result)
     {
         IsInterruptingCooker = false;
-        if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge) return true;
+        if (!GameSession.HasPeers || !PrepSceneManager.IsYuyukoChallenge) return true;
         if (phase3Ended) { result = false; return false; }
         IsInterruptingCooker = loop.__1__state == 2;
-        if (!MpManager.IsRoomClient) return true;
+        if (!GameSession.IsRoomClient) return true;
         // 不接受客机自己的差评再次触发随机吞食。
         if (!replaySwallows.TryGetValue(loop.Pointer, out int index)) { result = false; return false; }
         if (loop.__1__state != 1) return true;
@@ -189,8 +190,8 @@ public static partial class YuyukoGuestSync
     internal static void AfterSwallowStep(LockLoop loop, int previousState)
     {
         IsInterruptingCooker = false;
-        if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge || phase3Ended) return;
-        if (MpManager.IsRoomHost && previousState == 1 && loop.__1__state == 2)
+        if (!GameSession.HasPeers || !PrepSceneManager.IsYuyukoChallenge || phase3Ended) return;
+        if (GameSession.IsRoomHost && previousState == 1 && loop.__1__state == 2)
         {
             activeSwallows[loop.Pointer] = loop;
             var message = Message(YuyukoGuestEvent.Swallow);

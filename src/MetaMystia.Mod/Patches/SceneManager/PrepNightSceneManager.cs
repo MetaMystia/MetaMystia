@@ -13,7 +13,7 @@ public partial class PrepNightSceneManagerPatch
     [HarmonyPostfix]
     public static void PrepNightScene_Start_Postfix()
     {
-        MpManager.OnSceneTransit(Scene.IzakayaPrepScene);
+        GameFlow.OnSceneTransit(Scene.IzakayaPrepScene);
         PrepSceneManager.Initialize();
         PrepSceneManager.FlushBufferedTables();
     }

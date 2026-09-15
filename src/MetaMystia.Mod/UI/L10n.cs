@@ -15,6 +15,27 @@ public enum Language
 
 public enum TextId
 {
+    NetworkProtocolMismatch,
+    NetworkServerFull,
+    NetworkRoomFull,
+    NetworkPreparing,
+    NetworkRoomEnded,
+    NetworkLimit,
+    NetworkDuplicateName,
+    NetworkResources,
+    NetworkTimeout,
+    NetworkOverload,
+    NetworkLost,
+    NetworkFailure,
+    NetworkWorldFirst,
+    NetworkRoomLine,
+    NetworkRoomOpen,
+    NetworkRoomClosed,
+    NetworkConnecting,
+    NetworkOffline,
+    NetworkStatus,
+    NetworkCommands,
+
     DayMapHelp,
     DayMapList,
     DayMapUnavailable,

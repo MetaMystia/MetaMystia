@@ -4,7 +4,8 @@ using System.Linq;
 using GameData.RunTime.NightSceneUtility;
 using NightScene;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.Patch;
 
 namespace MetaMystia;
@@ -31,7 +32,7 @@ public static partial class PrepSceneManager
 
     public static void TryBeginYuyukoPrep()
     {
-        if (!MpManager.IsConnected || !IsYuyukoChallenge) return;
+        if (!GameSession.HasPeers || !IsYuyukoChallenge) return;
 
         YuyukoPrepRound++;
         IsYuyukoPrepActive = true;
@@ -79,7 +80,7 @@ public static partial class PrepSceneManager
 
     public static void TryConfirmYuyukoPrep()
     {
-        if (!MpManager.IsConnectedServer || !IsYuyukoChallenge || !IsYuyukoPrepActive
+        if (!(GameSession.IsRoomHost && GameSession.HasPeers) || !IsYuyukoChallenge || !IsYuyukoPrepActive
             || yuyukoPrepConfirmed || !PlayerManager.LocalIsPrepOver) return;
         if (!PlayerManager.Peers.Keys.All(uid =>
                 yuyukoReadyRounds.TryGetValue(uid, out var round) && round == YuyukoPrepRound)) return;
@@ -87,10 +88,13 @@ public static partial class PrepSceneManager
         yuyukoPrepConfirmed = true;
         PrepAllReadyAction.Send();
         int confirmedRound = YuyukoPrepRound;
+        var client = GameSession.Client;
+        var membership = GameSession.Membership;
         // 离开当前按钮 Hook 后再重放提交，避免在同一次调用中重入面板。
         PluginManager.RunOnMainThread(() =>
         {
-            if (IsYuyukoChallenge && IsYuyukoPrepActive && YuyukoPrepRound == confirmedRound)
+            if (client == GameSession.Client && membership == GameSession.Membership
+                && IsYuyukoChallenge && IsYuyukoPrepActive && YuyukoPrepRound == confirmedRound)
                 IzakayaConfigPannelPatch.PrepOver();
         });
     }

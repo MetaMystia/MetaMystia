@@ -18,7 +18,7 @@ public partial class MainSceneManagerPatch
     [HarmonyPostfix]
     public static void MainScene_Awake_Postfix()
     {
-        MpManager.OnSceneTransit(Scene.MainScene);
+        GameFlow.OnSceneTransit(Scene.MainScene);
         L10n.PostInitializeTable();
         if (FirstEnterMain)
         {

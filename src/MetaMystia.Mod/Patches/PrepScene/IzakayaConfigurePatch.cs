@@ -6,7 +6,8 @@ using UnityEngine;
 using GameData.Core.Collections;
 using GameData.RunTime.NightSceneUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -27,7 +28,7 @@ public partial class IzakayaConfigurePatch
 
     private static void ApplyConfiguredFlowRate()
     {
-        if (MpManager.IsRoomClient) return;
+        if (GameSession.IsRoomClient) return;
 
         float rate = ConfigManager.CheatFlowRate.Value;
         if (rate == 0f || rate == 1f || float.IsNaN(rate) || rate < 0f || rate >= 16f) return;
@@ -53,14 +54,14 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"RegisterToDailyRecipes: {id}");
 
-        if (MpManager.IsConnected && !PlayerManager.RecipeAvailable(id))
+        if (GameSession.HasPeers && !PlayerManager.RecipeAvailable(id))
         {
             Log.LogWarning($"Peer does not have recipe {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerRecipeNotAvailable.Get(id));
             return SkipOriginal;
         }
 
-        PrepSceneManager.localPrepTable.RecipeAdditions[id] = MpManager.GetSynchronizedTimestampNow;
+        PrepSceneManager.localPrepTable.RecipeAdditions[id] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
         UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
@@ -70,14 +71,14 @@ public partial class IzakayaConfigurePatch
     public static bool RegisterToDailyBeverages_Prefix(int id)
     {
         Log.LogInfo($"RegisterToDailyBeverages: {id}");
-        if (MpManager.IsConnected && !PlayerManager.BeverageAvailable(id))
+        if (GameSession.HasPeers && !PlayerManager.BeverageAvailable(id))
         {
             Log.LogWarning($"Peer does not have beverage {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerBeverageNotAvailable.Get(id));
             return SkipOriginal;
         }
 
-        PrepSceneManager.localPrepTable.BeverageAdditions[id] = MpManager.GetSynchronizedTimestampNow;
+        PrepSceneManager.localPrepTable.BeverageAdditions[id] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
         UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
@@ -93,14 +94,14 @@ public partial class IzakayaConfigurePatch
             return SkipOriginal;
         }
 
-        if (id != -1 && MpManager.IsConnected && !PlayerManager.CookerAvailable(id))
+        if (id != -1 && GameSession.HasPeers && !PlayerManager.CookerAvailable(id))
         {
             Log.LogWarning($"Peer does not have cooker {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerCookerNotAvailable.Get(id));
             return SkipOriginal;
         }
 
-        long timestamp = MpManager.GetSynchronizedTimestampNow;
+        long timestamp = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
         slots[index].Id = id;
         slots[index].Timestamp = timestamp;
 
@@ -115,7 +116,7 @@ public partial class IzakayaConfigurePatch
     public static void LogoffFromDailyRecipes_Prefix(int id)
     {
         Log.LogInfo($"LogoffFromDailyRecipes: {id}");
-        PrepSceneManager.localPrepTable.RecipeDeletions[id] = MpManager.GetSynchronizedTimestampNow;
+        PrepSceneManager.localPrepTable.RecipeDeletions[id] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
         UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
     }
 
@@ -124,7 +125,7 @@ public partial class IzakayaConfigurePatch
     public static void LogoffFromDailyBeverages_Prefix(int id)
     {
         Log.LogInfo($"LogoffFromDailyBeverages: {id}");
-        PrepSceneManager.localPrepTable.BeverageDeletions[id] = MpManager.GetSynchronizedTimestampNow;
+        PrepSceneManager.localPrepTable.BeverageDeletions[id] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
         UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
     }
 
@@ -150,7 +151,7 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"StoreFood: {sellable.Text.Name}");
         if (_skipPatchStoreFood) return;
-        if (!MpManager.IsConnected) return;
+        if (!GameSession.HasPeers) return;
 
         var food = SellableFood.FromSellable(sellable);
         StoreFoodAction.Send(food);

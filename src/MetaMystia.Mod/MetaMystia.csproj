@@ -1,13 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="../../MetaMystia.local.props" />
+  <Import Project="../../Versions.props" />
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>14</LangVersion>
     <AssemblyName>MetaMystia</AssemblyName>
     <Product>MetaMystia</Product>
-    <Version>0.28.1</Version>
-    <TargetGameVersion>RELEASE 4.4.0e</TargetGameVersion>
     <DefineConstants>$(DefineConstants);TMI_$(TargetGameVersion.Replace(' ', '_').Replace('.', '_').ToUpperInvariant())</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RestoreAdditionalProjectSources>
@@ -15,7 +14,7 @@
       https://nuget.bepinex.dev/v3/index.json
     </RestoreAdditionalProjectSources>
     <RootNamespace>MetaMystia</RootNamespace>
-    <OutputPath>$(BepInExPath)\plugins</OutputPath>
+    <OutputPath Condition="'$(DeployToGame)' != 'false'">$(BepInExPath)\plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -40,7 +39,7 @@
     <Message Text="Renamed $(TargetPath) to $(RenamedAssemblyPath)$(TargetExt)" Importance="High" />
   </Target>
 
-  <Target Name="PatchIl2CppInteropHarmonySupport" AfterTargets="Build">
+  <Target Name="PatchIl2CppInteropHarmonySupport" AfterTargets="Build" Condition="'$(DeployToGame)' != 'false'">
     <Copy SourceFiles="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll"
       DestinationFolder="$(BepInExPath)\core"
       SkipUnchangedFiles="true" />
@@ -56,6 +55,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
     <ProjectReference Include="../MetaMystia.Generators\MetaMystia.Generators.csproj"
       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

@@ -35,7 +35,7 @@ public static class GeneralCommands
 
     private static void WhereAmIHandler(InvocationContext ctx)
     {
-        if (MpManager.LocalScene != Common.UI.Scene.DayScene)
+        if (GameFlow.LocalScene != Common.UI.Scene.DayScene)
         {
             ctx.Log(TextId.NotInDayScene.Get());
             return;

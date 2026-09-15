@@ -27,6 +27,7 @@ public partial class PlayerSkin
     /// 未就绪时返回 Fallback 占位，下载完成后会自动刷新。为空则回落到原有 CharacterId/Type/Index 流程。
     /// </summary>
     public string NetSkinName = null;
+    public string ResourcePackId = "";
 
     /// <summary>
     /// 旋转覆盖。null = 使用皮肤默认值；true = 强制开启旋转；false = 强制关闭旋转。
@@ -52,6 +53,8 @@ public partial class PlayerSkin
     /// </summary>
     public CharacterSpriteSetCompact ResolveSkin()
     {
+        if (!string.IsNullOrEmpty(ResourcePackId) && !ResourceExManager.LoadedPackages.Any(p => p.PackageLabel == ResourcePackId))
+            return DataBaseCharacter.FallbackFullPixel;
         if (!string.IsNullOrEmpty(NetSkinName))
         {
             if (NetSkinManager.TryGet(NetSkinName, out var net))

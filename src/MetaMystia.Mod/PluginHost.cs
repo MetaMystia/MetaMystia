@@ -8,6 +8,7 @@ using UnityEngine;
 
 using Common.UI;
 
+using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 using SgrYuki;
 
@@ -55,8 +56,8 @@ public partial class PluginHost : MonoBehaviour
     private void Update()
     {
         PluginManager.TickMainThreadQueue();
-        Network.MpWire.FlushInbox();
-        MpManager.RefreshInStoryCache();
+        GameFlow.RefreshInStoryCache();
+        GameSession.Tick();
         GuestsMap.TickAllPending();
 
         InGameConsole.Update();
@@ -69,7 +70,7 @@ public partial class PluginHost : MonoBehaviour
     {
         CommandScheduler.Tick();
 
-        switch (MpManager.LocalScene)
+        switch (GameFlow.LocalScene)
         {
             case Scene.DayScene:
             case Scene.WorkScene:
@@ -87,6 +88,7 @@ public partial class PluginHost : MonoBehaviour
 
     private void OnDestroy()
     {
+        GameSession.Stop();
         StopAllCoroutines();
     }
 }

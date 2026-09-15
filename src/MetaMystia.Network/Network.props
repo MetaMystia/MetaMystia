@@ -1,0 +1,18 @@
+<Project>
+  <Import Project="../../MetaMystia.local.props" />
+  <Import Project="../../Versions.props" />
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp" HintPath="$(BepInExPath)/interop/Assembly-CSharp.dll" />
+    <Reference Include="Il2Cppmscorlib" HintPath="$(BepInExPath)/interop/Il2Cppmscorlib.dll" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(BepInExPath)/interop/UnityEngine.CoreModule.dll" />
+    <Reference Include="Il2CppInterop.Runtime" HintPath="$(BepInExPath)/core/Il2CppInterop.Runtime.dll" />
+  </ItemGroup>
+</Project>

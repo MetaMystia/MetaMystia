@@ -3,7 +3,8 @@ using HarmonyLib;
 using GameData.Core.Collections;
 using NightScene.UI.CookingUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -39,7 +40,7 @@ public partial class WorkSceneStoragePannelPatch
         Log.InfoCaller($"{toExtract?.id}, {toExtract?.Text?.Name}");
         if (toExtract.type == Sellable.SellableType.Beverage)
         {
-            if (MpManager.IsConnected && !PlayerManager.BeverageAvailable(toExtract.id))
+            if (GameSession.HasPeers && !PlayerManager.BeverageAvailable(toExtract.id))
             {
                 Log.LogWarning($"Peer does not have beverage {toExtract.id}, cannot extract.");
                 InGameConsole.ShowPassive(TextId.DLCPeerBeverageNotAvailable.Get(toExtract.id));
@@ -48,7 +49,7 @@ public partial class WorkSceneStoragePannelPatch
         }
         else if (toExtract.type == Sellable.SellableType.Food)
         {
-            if (MpManager.IsConnected && !PlayerManager.FoodAvailable(toExtract.id))
+            if (GameSession.HasPeers && !PlayerManager.FoodAvailable(toExtract.id))
             {
                 Log.LogWarning($"Peer does not have recipe {toExtract.id}, cannot extract.");
                 InGameConsole.ShowPassive(TextId.DLCPeerFoodNotAvailable.Get(toExtract.id));

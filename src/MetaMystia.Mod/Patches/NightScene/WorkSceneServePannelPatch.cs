@@ -9,6 +9,8 @@ using NightScene.UI.GuestManagementUtility;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.UI.GuestManagementUtility.WorkSceneServePannel))]
@@ -33,7 +35,7 @@ public partial class WorkSceneServePannelPatch
     {
         instanceRef = __instance;
         
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
         
         var panelDeskCode = WorkSceneServePannelPatch.instanceRef?.currentGuestController?.DeskCode
                             ?? WorkSceneServePannelPatch.instanceRef?.operatingOrder?.DeskCode
@@ -76,13 +78,13 @@ public partial class WorkSceneServePannelPatch
             return RunOriginal;
         }
 
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnConfirmServe(__instance.currentGuestController, __instance.willServeFood, __instance.willServeBeverage);
             return RunOriginal;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             GuestFSM.OnConfirmServe(__instance.currentGuestController, __instance.willServeFood, __instance.willServeBeverage);
             return RunOriginal;
@@ -94,7 +96,7 @@ public partial class WorkSceneServePannelPatch
     [HarmonyPrefix]
     public static bool Send_Prefix(ref WorkSceneServePannel __instance, Sellable toSend)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
 
         if ((toSend.Type == Sellable.SellableType.Food && __instance.operatingOrder.ServFood != null) ||
             (toSend.Type == Sellable.SellableType.Beverage && __instance.operatingOrder.ServBeverage != null))
@@ -104,13 +106,13 @@ public partial class WorkSceneServePannelPatch
             return SkipOriginal;
         }
 
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             Log.Warning($"Send {toSend?.Text?.BriefName}");
             GuestFSM.OnServe(__instance.currentGuestController, toSend, toSend.Type);
             return RunOriginal;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             Log.Warning($"Send {toSend?.Text?.BriefName}");
             GuestFSM.OnServe(__instance.currentGuestController, toSend, toSend.Type);
@@ -123,7 +125,7 @@ public partial class WorkSceneServePannelPatch
     [HarmonyPrefix]
     public static bool Cancel_Prefix(ref WorkSceneServePannel __instance, Sellable toCancel)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
 
         if ((toCancel.Type == Sellable.SellableType.Food && __instance.willServeFood == null) ||
             (toCancel.Type == Sellable.SellableType.Beverage && __instance.willServeBeverage == null) ||
@@ -134,13 +136,13 @@ public partial class WorkSceneServePannelPatch
             return SkipOriginal;
         }
 
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             Log.Warning($"Cancel {toCancel?.Text?.BriefName}");
             GuestFSM.OnServe(__instance.currentGuestController, null, toCancel.Type);
             return RunOriginal;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             Log.Warning($"Cancel {toCancel?.Text?.BriefName}");
             GuestFSM.OnServe(__instance.currentGuestController, null, toCancel.Type);

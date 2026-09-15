@@ -3,6 +3,8 @@ using HarmonyLib;
 using NightScene;
 using NightScene.GuestManagementUtility;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.NightSceneDirector))]
@@ -15,7 +17,7 @@ public static partial class NightSceneDirectorPatch
     [HarmonyPostfix]
     public static void SpawnManualControlledSpecialGuest_Postfix(NightSceneDirector __instance, string label)
     {
-        if (label == YuyukoGuestLabel && MpManager.IsConnected && PrepSceneManager.IsYuyukoChallenge)
+        if (label == YuyukoGuestLabel && GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge)
             YuyukoGuestSync.Capture(__instance.GetControlled(label));
     }
 

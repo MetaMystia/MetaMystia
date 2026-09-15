@@ -2,7 +2,8 @@ using HarmonyLib;
 
 using GameData.Profile;
 
-using MetaMystia.Network;
+
+using MetaMystia.Multiplayer.Actions;
 
 namespace MetaMystia.Patch;
 

@@ -3,7 +3,7 @@ using HarmonyLib;
 using Common.UI;
 using NightScene;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
 using MetaMystia.Patch;
 using SgrYuki;
 
@@ -25,18 +25,18 @@ public static partial class NightSceneManagerPatch
         // REFACTORING
         // GuestsManagerPatch.ReimuSpellCard = false;
 
-        MpManager.OnSceneTransit(Scene.WorkScene);
+        GameFlow.OnSceneTransit(Scene.WorkScene);
         CheatManager.TryApplyFever();
         PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
 
-        if (!MpManager.CanSeeOnlinePlayers)
+        if (!GameSession.IsOnline)
         {
             return;
         }
-        PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+        PlayerProfile.SendProfile();
 
-        if (!MpManager.IsConnected)
+        if (!GameSession.HasPeers)
         {
             PlayerManager.SpawnPeers();
             return;
@@ -48,7 +48,7 @@ public static partial class NightSceneManagerPatch
         PlayerManager.SpawnPeers();
 
         CommandScheduler.EnqueueKey(
-            key: MpManager.PeerGetCharacterUnitNotNullCommand,
+            key: "PeerCollision",
             executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,
             execute: () =>
             {

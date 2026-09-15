@@ -4,7 +4,8 @@ using HarmonyLib;
 using GameData.Core.Collections;
 using NightScene.CookingUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -22,7 +23,7 @@ public partial class CookControllerPatch
     {
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
         // Log.Debug($"SetCook_Prefix called");
-        if (MpManager.IsConnected && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
+        if (GameSession.HasPeers && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
         {
             Log.LogWarning($"Peer does not have recipe {recipe.Id}, skipping SetCook.");
             InGameConsole.ShowPassive(TextId.DLCPeerRecipeNotAvailable.Get(recipe.Id));
@@ -42,7 +43,7 @@ public partial class CookControllerPatch
     public static void SetCook_Postfix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
     {
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return;
-        if (MpManager.ShouldSkipAction) return;
+        if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         var recipeId = recipe.Id;
         SellableFood food = SellableFood.FromSellable(thisResult);
@@ -60,7 +61,7 @@ public partial class CookControllerPatch
     {
         // 吞食消息已让两端各执行一次原版中断，不能再把其内部 Extract 当作玩家取菜广播。
         if (YuyukoGuestSync.IsInterruptingCooker) return;
-        if (MpManager.ShouldSkipAction) return;
+        if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         ExtractFromCookerAction.Send(gridIndex);
     }
@@ -74,7 +75,7 @@ public partial class CookControllerPatch
     [HarmonyPrefix]
     public static void Store_Prefix(CookController __instance, Sellable value)
     {
-        if (MpManager.ShouldSkipAction) return;
+        if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         StoreSellableAction.Send(gridIndex, value);
     }

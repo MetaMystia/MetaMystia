@@ -5,6 +5,8 @@ using GameData.RunTime.DaySceneUtility;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.UI.DaySceneSustainedPannel))]
@@ -15,7 +17,7 @@ public partial class DaySceneSustainedPannelPatch
     [HarmonyPrefix]
     public static bool OnFastForwardSubmit_Prefix(DaySceneSustainedPannel __instance)
     {
-        if (!MpManager.IsConnected || DayDestinationManager.ReplayingBusiness) return RunOriginal;
+        if (!GameSession.HasPeers || DayDestinationManager.ReplayingBusiness) return RunOriginal;
         // WarpToNight 会先耗尽行动点；在此之前等待，才能改选挑战。
         DayDestinationManager.Submit(DayDestination.Business, () =>
         {

@@ -6,6 +6,8 @@ using NightScene;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeScheduler))]
@@ -56,7 +58,7 @@ public partial class RunTimeSchedulerPatch
     [HarmonyPrefix]
     public static bool ProcessReward_Prefix(SchedulerNode.Reward reward)
     {
-        if (!MpManager.IsConnected || DayDestinationManager.ReplayingChallenge
+        if (!GameSession.IsInRoom || DayDestinationManager.ReplayingChallenge
             || reward.rewardType != SchedulerNode.Reward.RewardType.MoveToChallenge) return RunOriginal;
         if (reward.challengeType is not (NightSceneDirector.ChallengeType.Story_Yuyuko
             or NightSceneDirector.ChallengeType.Challenge_Yuyuko)) return RunOriginal;
@@ -77,7 +79,7 @@ public partial class RunTimeSchedulerPatch
 
     private static void GuardDayEnd(ref Il2CppSystem.Action onFinish)
     {
-        if (!MpManager.IsConnected) return;
+        if (!GameSession.IsInRoom) return;
         var continuation = onFinish;
         onFinish = (System.Action)(() => DayDestinationManager.FinishDayEnd(continuation));
     }

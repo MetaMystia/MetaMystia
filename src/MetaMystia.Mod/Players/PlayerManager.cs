@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEngine;
 
 using Common.CharacterUtility;
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -206,7 +206,7 @@ public static partial class PlayerManager
             peer.SpawnForScene();
         }
         // 为本地玩家也添加头顶标签（等 Local unit 初始化后；仅在联机时创建）
-        if (MpManager.CanSeeOnlinePlayers)
+        if (GameSession.IsOnline)
         {
             SgrYuki.CommandScheduler.Enqueue(
                 executeWhen: () => Local.unit != null,
@@ -237,52 +237,6 @@ public static partial class PlayerManager
     }
 
     /// <summary>
-    /// 握手成功后，根据对端 UID 创建并注册 PeerPlayer
-    /// </summary>
-    public static PeerPlayer AddPeer(PlayerInfo info)
-    {
-        // TODO: refactor
-        var uid = info.Uid;
-        var peerId = info.PeerId;
-        var skin = info.Skin;
-
-        PublicPeers.TryRemove(uid, out _);
-
-        if (Peers.TryGetValue(uid, out var existing))
-        {
-            Log.LogWarning($"Peer with uid={uid} already exists (id='{existing.Id}'), replacing");
-        }
-        var peer = new PeerPlayer(uid, info.IncrementalDataBase) { Id = peerId };
-        if (skin != null) peer.Skin = skin;
-        peer.ResetState();
-        peer.IsDayOver = info.IsDayOver;
-        peer.IsPrepOver = info.IsPrepOver;
-        peer.ResetMotion();
-        Peers[uid] = peer;
-        Log.LogMessage($"Added peer '{peerId}' (uid={uid}, characterId='{peer.CharacterId}')");
-        return peer;
-    }
-
-    public static PeerPlayer AddPublicPeer(PlayerInfo info)
-    {
-        var uid = info.Uid;
-        var peerId = info.PeerId;
-        if (Peers.ContainsKey(uid))
-        {
-            Log.LogInfo($"Public peer '{peerId}' (uid={uid}) is already in room peers, skipping public registration");
-            return Peers[uid];
-        }
-
-        var peer = new PeerPlayer(uid, info.IncrementalDataBase) { Id = peerId };
-        if (info.Skin != null) peer.Skin = info.Skin;
-        peer.ResetState();
-        peer.ResetMotion();
-        PublicPeers[uid] = peer;
-        Log.LogMessage($"Added public peer '{peerId}' (uid={uid}, characterId='{peer.CharacterId}')");
-        return peer;
-    }
-
-    /// <summary>
     /// 从游戏中获取实际皮肤数据，并在角色就绪后应用皮肤
     /// </summary>
     public static void InitLocalSkin()
@@ -301,7 +255,7 @@ public static partial class PlayerManager
     /// </summary>
     public static void RefreshPortrait(bool skipSceneCheck = false)
     {
-        if (!skipSceneCheck && MpManager.LocalScene != Common.UI.Scene.WorkScene) return;
+        if (!skipSceneCheck && GameFlow.LocalScene != Common.UI.Scene.WorkScene) return;
         var uiManager = NightScene.UI.UIManager.Instance;
         if (uiManager != null)
         {
@@ -349,6 +303,7 @@ public static partial class PlayerManager
     public static void ClearPeers()
     {
         DayDestinationManager.ResetSession();
+        networkPlayers.Clear();
         foreach (var peer in Peers.Values)
             peer.DespawnCharacter();
         foreach (var peer in PublicPeers.Values)

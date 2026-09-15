@@ -5,7 +5,7 @@ using Common.CharacterUtility;
 using DayScene.Interactables.Collections.ConditionComponents;
 using GameData.RunTime.DaySceneUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 using SgrYuki;
 
@@ -27,7 +27,12 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     public int CharacterModelId { get; set; } = 14;
 
-    public bool IsSameMapAsLocal => MapLabel == LocalPlayer.CurrentMapLabel;
+    public bool IsSameMapAsLocal => MapLabel != MapLabel.Unknown && MapLabel == LocalPlayer.CurrentMapLabel;
+    public Common.UI.Scene Scene { get; set; }
+    public bool HasMotion { get; set; }
+    public bool CanRender => GameSession.IsOnline && PlayerManager.TryGetVisiblePeer(Uid, out var current)
+        && ReferenceEquals(this, current) && Scene == GameFlow.LocalScene &&
+        (Scene == Common.UI.Scene.DayScene || (Scene == Common.UI.Scene.WorkScene && PlayerManager.Peers.ContainsKey(Uid)));
 
     private string SpawnCommandKey => $"PeerSpawn_{CharacterId}";
 
@@ -112,7 +117,8 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     public void SpawnForScene()
     {
-        var scene = MpManager.LocalScene;
+        if (!CanRender || !HasMotion) return;
+        var scene = GameFlow.LocalScene;
         if (scene is not Common.UI.Scene.DayScene and not Common.UI.Scene.WorkScene)
         {
             Log.LogDebug($"SpawnForScene called in {scene}, skipping for '{CharacterId}'");
@@ -133,6 +139,7 @@ public partial class PeerPlayer : NetPlayer
             executeWhen: readyWhen,
             execute: () =>
             {
+                if (!CanRender || !HasMotion || GameFlow.LocalScene != scene) return;
                 SpawnCharacter(spawnPos);
                 CommandScheduler.Enqueue(
                     executeWhen: () => IsUnitReady(unit),
@@ -166,13 +173,14 @@ public partial class PeerPlayer : NetPlayer
     /// </summary>
     private void PostSpawnSetup(bool visible)
     {
-        if (!IsUnitReady(unit)) return;
+        if (!CanRender || !HasMotion || !IsUnitReady(unit)) return;
 
         TryAddHeightProcessor();
         IgnoreCollisionWithSelf();
         UpdateVisibleState(visible);
         FloatingTextHelper.SetPlayerLabel(Uid, LiveModeManager.GetDisplayName(Uid), unit.transform);
         Skin.ApplyToUnit(unit);
+        PlayerManager.ApplyLatestMotion(this);
         Log.LogMessage($"PeerPlayer '{CharacterId}' post-spawn setup done (visible={visible})");
     }
 
@@ -206,7 +214,7 @@ public partial class PeerPlayer : NetPlayer
             unit.AddInputProcessor<HeightBlendedInputProcessorComponent>();
 
         var heightProcessor = unit.GetComponent<HeightBlendedInputProcessorComponent>();
-        switch (MpManager.LocalScene)
+        switch (GameFlow.LocalScene)
         {
             case Common.UI.Scene.DayScene:
                 heightProcessor.Initialize(DayScene.SceneManager.Instance.CurrentActiveMap.height);
@@ -248,7 +256,7 @@ public partial class PeerPlayer : NetPlayer
 
     public void OnFixedUpdate()
     {
-        if (MpManager.ShouldSkipAction) return;
+        if (!CanRender || GameFlow.InStory) return;
 
         var unit = GetCharacterUnit();
         if (unit == null) return;
@@ -268,7 +276,7 @@ public partial class PeerPlayer : NetPlayer
         if (!unit.IsMoving) unit.IsMoving = true;
         unit.UpdateInputVelocity(velocity);
 
-        if (MpManager.LocalScene == Common.UI.Scene.DayScene)
+        if (GameFlow.LocalScene == Common.UI.Scene.DayScene)
         {
             var trackedNPC = RunTimeDayScene.GetTrackedNPC(CharacterId);
             var position = unit.rb2d.position;
@@ -358,7 +366,7 @@ public partial class PeerPlayer : NetPlayer
     {
         if (!IsUnitReady(unit)) return;
 
-        bool visible = forceVisible ?? IsSameMapAsLocal;
+        bool visible = CanRender && HasMotion && (forceVisible ?? (Scene == Common.UI.Scene.WorkScene || IsSameMapAsLocal));
         SetZ(visible ? 0 : LARGE_Z_VALUE);
         unit.cl2d.enabled = visible;
     }

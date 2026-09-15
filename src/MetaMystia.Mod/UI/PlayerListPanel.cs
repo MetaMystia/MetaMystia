@@ -2,6 +2,8 @@ using UnityEngine;
 
 using Common.UI;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.UI;
 
 /// <summary>
@@ -55,7 +57,7 @@ public static partial class PlayerListPanel
     // ====================================================================
     public static void OnGUI()
     {
-        if (!MpManager.IsRunning || (!_visible && !InGameConsole.IsOpen))
+        if (!GameSession.IsRunning || (!_visible && !InGameConsole.IsOpen))
             return;
 
         InitStyles();
@@ -136,12 +138,12 @@ public static partial class PlayerListPanel
     private static System.Collections.Generic.List<(string text, int uid)> BuildLines()
     {
         var lines = new System.Collections.Generic.List<(string, int)>();
-        var scene = MpManager.LocalScene;
+        var scene = GameFlow.LocalScene;
 
         // 仅在游戏场景中读取坐标/地图标签，避免在 MainScene 等场景中触发 GetCharacterUnit 警告
         bool needsGameplayData = scene is Scene.DayScene or Scene.WorkScene or Scene.IzakayaPrepScene;
 
-        // 本地玩家 (UID=0 if host, else assigned)
+        // 本地玩家与房间身份均来自服务器。
         var local = PlayerManager.Local;
         string localLine = FormatPlayer(
             local.Uid, local.Id, scene,
@@ -149,7 +151,7 @@ public static partial class PlayerListPanel
             needsGameplayData ? local.Position : Vector2.zero,
             local.IsDayOver, local.IsPrepOver,
             local.IzakayaMapLabel, local.IzakayaLevel,
-            isSelf: true, isHost: MpManager.IsServer);
+            isSelf: true, isHost: GameSession.IsRoomHost);
         lines.Add((localLine, local.Uid));
 
         // Peers sorted by UID
@@ -158,12 +160,13 @@ public static partial class PlayerListPanel
         {
             var peer = kvp.Value;
             string line = FormatPlayer(
-                peer.Uid, peer.Id, scene,
-                needsGameplayData ? peer.MapLabel : MapLabel.Unknown,
-                needsGameplayData ? peer.Position : Vector2.zero,
+                peer.Uid, peer.Id, peer.Scene,
+                peer.HasMotion && peer.CanRender ? peer.MapLabel : MapLabel.Unknown,
+                peer.HasMotion && peer.CanRender ? peer.Position : Vector2.zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
-                isSelf: false, isHost: kvp.Key == MpManager.HOST_UID);
+                isSelf: false, isHost: kvp.Key == GameSession.Room?.Host,
+                hasMotion: peer.HasMotion && peer.CanRender);
             lines.Add((line, kvp.Key));
         }
 
@@ -173,12 +176,13 @@ public static partial class PlayerListPanel
             if (PlayerManager.Peers.ContainsKey(kvp.Key)) continue;
             var peer = kvp.Value;
             string line = FormatPlayer(
-                peer.Uid, peer.Id, scene,
-                needsGameplayData ? peer.MapLabel : MapLabel.Unknown,
-                needsGameplayData ? peer.Position : Vector2.zero,
+                peer.Uid, peer.Id, peer.Scene,
+                peer.HasMotion && peer.CanRender ? peer.MapLabel : MapLabel.Unknown,
+                peer.HasMotion && peer.CanRender ? peer.Position : Vector2.zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
                 isSelf: false, isHost: false,
+                hasMotion: peer.HasMotion && peer.CanRender,
                 scopeTag: "Online");
             lines.Add((line, kvp.Key));
         }
@@ -191,7 +195,7 @@ public static partial class PlayerListPanel
         MapLabel mapLabel, Vector2 pos,
         bool isDayOver, bool isPrepOver,
         MapLabel izakayaMapLabel, int izakayaLevel,
-        bool isSelf, bool isHost,
+        bool isSelf, bool isHost, bool hasMotion = true,
         string scopeTag = null)
     {
         // 名字颜色
@@ -211,9 +215,10 @@ public static partial class PlayerListPanel
 
         return scene switch
         {
+            Scene.DayScene or Scene.WorkScene when !hasMotion => name,
             Scene.DayScene => FormatDayLine(name, dim, mapLabel, pos, isDayOver, izakayaMapLabel, izakayaLevel, uid, scopeTag == null),
             Scene.IzakayaPrepScene => scopeTag == null ? $"{name}  {ReadyTag(isPrepOver)}" : name,
-            Scene.WorkScene when scopeTag == null && MpManager.IsConnected
+            Scene.WorkScene when scopeTag == null && GameSession.HasPeers
                 && PrepSceneManager.IsYuyukoChallenge && PrepSceneManager.IsYuyukoPrepActive =>
                 $"{name}  {ReadyTag(PrepSceneManager.IsYuyukoPrepReady(uid))}",
             Scene.WorkScene => $"{name}  <color={dim}>({pos.x:F2}, {pos.y:F2})</color>",
@@ -228,7 +233,7 @@ public static partial class PlayerListPanel
         MapLabel mapLabel, Vector2 pos, bool isDayOver,
         MapLabel izakayaMapLabel, int izakayaLevel, int uid, bool inRoom)
     {
-        var destination = inRoom && MpManager.IsConnected ? DayDestinationManager.GetIntent(uid) : DayDestination.None;
+        var destination = inRoom && GameSession.HasPeers ? DayDestinationManager.GetIntent(uid) : DayDestination.None;
         if (destination != DayDestination.None)
             return $"{name}  <color={dim}>{mapLabel.GetDisplayName()}  ({pos.x:F2}, {pos.y:F2})</color>  {DayDestinationManager.ReadyText(destination)}";
         if (!PlayerManager.AllDayOver)

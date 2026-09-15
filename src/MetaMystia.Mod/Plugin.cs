@@ -68,7 +68,7 @@ public class Plugin : BasePlugin
             Log.LogError($"FAILED to Register Il2Cpp Type! {ex.Message}");
         }
 
-        Log.LogInfo(MpManager.DebugText);
+        Log.LogInfo(MetaMystia.UI.MultiplayerStatus.DebugText);
 
         var harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         var originalHandle = AccessTools.Method(typeof(CanvasScaler), "Handle");
@@ -77,7 +77,7 @@ public class Plugin : BasePlugin
 
         PatchRegistry.ApplyAll(harmony);
 
-        Network.Action.RegisterAllFormatter();
+        Multiplayer.Actions.Action.RegisterAllFormatter();
 
         try
         {
@@ -109,7 +109,7 @@ public class Plugin : BasePlugin
         }
         Il2CppInteropPatcher.NotifyIfPatched();
         MetricsReporter.OnEnterMainScene();
-        Instance?.Log.LogInfo(MpManager.DebugText);
+        Instance?.Log.LogInfo(MetaMystia.UI.MultiplayerStatus.DebugText);
     }
 
     class BootstrapPatch

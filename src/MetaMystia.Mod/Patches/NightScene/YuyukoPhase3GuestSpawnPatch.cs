@@ -8,6 +8,8 @@ using UnityEngine;
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 using SpawnLoop = GameData.Profile.YuyukoBossData.__c__DisplayClass16_6.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb0;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 // 4.4.0e：<MainChallengeLoop>g__Phase3GuestSpawnLoop|43。
@@ -28,7 +30,7 @@ public static partial class YuyukoPhase3GuestSpawnPatch
     [HarmonyPrefix]
     public static bool MoveNext_Prefix(SpawnLoop __instance, ref bool __result)
     {
-        if (!MpManager.IsConnected || !MpManager.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge) return RunOriginal;
+        if (!GameSession.HasPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge) return RunOriginal;
         // 本体可提前准备本地回调，真正安装哪一单仍由主机消息决定。
         __instance.__4__this.ifYuyukoCouldOrder = true;
         __instance.__2__current ??= new WaitForSeconds(1f);

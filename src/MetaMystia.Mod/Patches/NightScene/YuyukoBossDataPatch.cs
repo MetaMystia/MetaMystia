@@ -12,7 +12,8 @@ using UnityEngine;
 using GameData.Profile;
 using NightScene.GuestManagementUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using SgrYuki.Utils;
 
 namespace MetaMystia.Patch;
@@ -42,7 +43,7 @@ public partial class YuyukoBossDataPatch
     [HarmonyPostfix]
     public static void MainChallengeLoop_Postfix(Il2CppSystem.Collections.IEnumerator __result)
     {
-        currentLoop = MpManager.IsConnected ? __result.Cast<GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16>() : null;
+        currentLoop = GameSession.HasPeers ? __result.Cast<GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16>() : null;
         failureStarted = false;
         failurePending = false;
         IncomeControllerYuyukoPatch.ResetProgress();
@@ -50,9 +51,9 @@ public partial class YuyukoBossDataPatch
 
     internal static void OnFailureStarted()
     {
-        if (!MpManager.IsConnected || failureStarted) return;
+        if (!GameSession.HasPeers || failureStarted) return;
         failureStarted = true;
-        if (MpManager.IsRoomHost) YuyukoFailedAction.Send();
+        if (GameSession.IsRoomHost) YuyukoFailedAction.Send();
     }
 
     public static void ReceiveFailure()
@@ -84,13 +85,13 @@ public partial class YuyukoBossDataPatch
     private static IEnumerator FinishFailure(GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16 loop)
     {
         // 不把失败消息按 DiscardOnStory 丢弃，也不强行打断正在播放的剧情。
-        while (MpManager.InStory)
+        while (GameFlow.InStory)
         {
-            if (!MpManager.IsConnected || currentLoop?.Pointer != loop.Pointer || !PrepSceneManager.IsYuyukoChallenge)
+            if (!GameSession.HasPeers || currentLoop?.Pointer != loop.Pointer || !PrepSceneManager.IsYuyukoChallenge)
                 yield break;
             yield return null;
         }
-        if (!MpManager.IsConnected || currentLoop?.Pointer != loop.Pointer || !PrepSceneManager.IsYuyukoChallenge)
+        if (!GameSession.HasPeers || currentLoop?.Pointer != loop.Pointer || !PrepSceneManager.IsYuyukoChallenge)
             yield break;
 
         var context = loop.__8__1;
@@ -116,7 +117,7 @@ public partial class YuyukoBossDataPatch
                 panel.ClosePanel();
                 while (!closed.IsCancellationRequested)
                 {
-                    if (currentLoop?.Pointer != loop.Pointer || !MpManager.IsConnected) yield break;
+                    if (currentLoop?.Pointer != loop.Pointer || !GameSession.HasPeers) yield break;
                     yield return null;
                 }
             }

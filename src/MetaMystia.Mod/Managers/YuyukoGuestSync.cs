@@ -7,7 +7,8 @@ using Il2CppSystem.Linq;
 
 using NightScene.GuestManagementUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.Patch;
 
 using static NightScene.GuestManagementUtility.GuestGroupController;
@@ -47,7 +48,7 @@ public static partial class YuyukoGuestSync
     /// 判断顾客是否为当前联机挑战已捕获的本体。按底层对象地址比较，避免将同角色的其他实体纳入同步。
     /// </summary>
     internal static bool IsBody(GuestGroupController controller) =>
-        MpManager.IsConnected && PrepSceneManager.IsYuyukoChallenge && controller != null
+        GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge && controller != null
         && body?.Pointer == controller.Pointer;
 
     /// <summary>判断网络编号是否属于已绑定本体，供上菜消息在剧情期间接收并暂存。</summary>
@@ -64,10 +65,10 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void Capture(GuestGroupController controller)
     {
-        if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge || controller == null) return;
+        if (!GameSession.HasPeers || !PrepSceneManager.IsYuyukoChallenge || controller == null) return;
         if (body?.Pointer == controller.Pointer) return;
         body = controller;
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             session = Guid.NewGuid();
             fsm = GuestFSM.BindManual(body);
@@ -124,7 +125,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     private static void TryBind()
     {
-        if (!MpManager.IsRoomClient || body == null || binding == null || fsm != null) return;
+        if (!GameSession.IsRoomClient || body == null || binding == null || fsm != null) return;
         body.GetFund = binding.Fund;
         body.MaxFundCarry = binding.MaxFund;
         fsm = GuestFSM.BindManual(body, binding.RuntimeId);
@@ -200,10 +201,10 @@ public static partial class YuyukoGuestSync
     /// </remarks>
     private static IEnumerator Process(int generation)
     {
-        while (generation == lifetime && MpManager.IsConnected && PrepSceneManager.IsYuyukoChallenge)
+        while (generation == lifetime && GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge)
         {
             TryBind();
-            if (fsm != null && !MpManager.InStory)
+            if (fsm != null && !GameFlow.InStory)
             {
                 PlayPendingSwallows();
                 if (pendingClear != null)
@@ -216,7 +217,7 @@ public static partial class YuyukoGuestSync
                     }
                     pendingClear = null;
                 }
-                if (MpManager.IsRoomHost && pendingOrder != null
+                if (GameSession.IsRoomHost && pendingOrder != null
                     && PlayerManager.Peers.Keys.All(boundPeers.Contains))
                 {
                     var order = pendingOrder;
@@ -231,14 +232,14 @@ public static partial class YuyukoGuestSync
                     message.Mood = body.Mood;
                     YuyukoGuestAction.Send(message);
                 }
-                if (MpManager.IsRoomClient && incoming.TryPeek(out var received) && Apply(received))
+                if (GameSession.IsRoomClient && incoming.TryPeek(out var received) && Apply(received))
                     incoming.Dequeue();
                 FinishClientOrder();
             }
             yield return null;
         }
         if (generation != lifetime) yield break;
-        if (!MpManager.IsConnected && PrepSceneManager.IsYuyukoChallenge)
+        if (!GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge)
         {
             // 断线后交回原版；已启动的评价仍持有包装回调，等它实际完成再继续。
             running = false;
@@ -327,7 +328,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static bool CanEvaluate(GuestGroupController controller) =>
         !IsBody(controller) || (fsm?.CurrentState == GuestFSM.State.WaitingServe
-            && (MpManager.IsRoomHost || IsReplayingEvaluation));
+            && (GameSession.IsRoomHost || IsReplayingEvaluation));
 
     /// <summary>
     /// 主机确认菜酒上齐后调用原版手动评价，并传入已包装的完成回调。
@@ -335,7 +336,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void EvaluateConfirmed()
     {
-        if (fsm?.CurrentState == GuestFSM.State.WaitingServe && MpManager.IsRoomHost)
+        if (fsm?.CurrentState == GuestFSM.State.WaitingServe && GameSession.IsRoomHost)
             GuestsManager.Instance.EvaulateManualOrder(body, wrappedCallback);
     }
 
@@ -387,7 +388,7 @@ public static partial class YuyukoGuestSync
     {
         if (!IsBody(controller) || fsm == null) return;
         if (replayEvaluation != null) body.Mood = replayEvaluation.Mood;
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             var message = Message(YuyukoGuestEvent.Evaluate);
             var order = body.PeekOrders();
@@ -435,12 +436,12 @@ public static partial class YuyukoGuestSync
         if (generation != lifetime || version != orderVersion || fsm == null
             || fsm.OrderSeq != seq || localCompleted.HasValue) return;
         localCompleted = result;
-        if (!MpManager.IsConnected)
+        if (!GameSession.HasPeers)
         {
             ContinueOrder(result);
             return;
         }
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             var message = Message(YuyukoGuestEvent.Complete);
             message.Result = result;
@@ -452,7 +453,7 @@ public static partial class YuyukoGuestSync
     /// <summary>客机在本地评价完成和主机完成通知都已到达后，以主机结果继续剧情；两者先后顺序不限。</summary>
     private static void FinishClientOrder()
     {
-        if (MpManager.IsRoomClient && localCompleted.HasValue && hostCompleted.HasValue && orderCallback != null)
+        if (GameSession.IsRoomClient && localCompleted.HasValue && hostCompleted.HasValue && orderCallback != null)
             ContinueOrder(hostCompleted.Value);
     }
 
@@ -475,7 +476,7 @@ public static partial class YuyukoGuestSync
     internal static void OnClean(GuestGroupController controller)
     {
         if (!IsBody(controller) || fsm == null) return;
-        if (MpManager.IsRoomHost) YuyukoGuestAction.Send(Message(YuyukoGuestEvent.Clear));
+        if (GameSession.IsRoomHost) YuyukoGuestAction.Send(Message(YuyukoGuestEvent.Clear));
         CancelOrder();
     }
 

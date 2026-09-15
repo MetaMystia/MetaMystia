@@ -3,7 +3,8 @@ using HarmonyLib;
 using Common.UI;
 using DayScene;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Actions;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 using SgrYuki.Utils;
@@ -22,16 +23,16 @@ public partial class DaySceneManagerPatch
     public static void Awake_Postfix()
     {
         RunTimeSchedulerPatch.ResetFirstTrialGuest();
-        MpManager.OnSceneTransit(Scene.DayScene);
+        GameFlow.OnSceneTransit(Scene.DayScene);
         PlayerManager.Local.ResetState();
         PlayerManager.InitLocalSkin();
         PlayerManager.SpawnPeers();
         ResourceExManager.OnDaySceneAwake();
         PrepSceneManager.ClearPrepTable();
 
-        if (MpManager.CanSeeOnlinePlayers)
+        if (GameSession.IsOnline)
         {
-            PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+            PlayerProfile.SendProfile();
         }
 
         if (PatchRegistry.PatchedException != null)
@@ -41,14 +42,14 @@ public partial class DaySceneManagerPatch
         }
 
 
-        // if (MpManager.IsConnected)
+        // if (GameSession.HasPeers)
         // {
         //     CommandScheduler.EnqueueKey(
-        //         key: MpManager.PeerGetCharacterUnitNotNullCommand,
+        //         key: "PeerCollision",
         //         executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,
         //         execute: () =>
         //         {
-        //             if (!MpManager.InStory)
+        //             if (!GameFlow.InStory)
         //             {
         //                 PlayerManager.EnablePeerCollision(true);
         //             }
@@ -62,7 +63,7 @@ public partial class DaySceneManagerPatch
 
     public static void OnDayOver()
     {
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             GuestInviteAction.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
         }
@@ -76,7 +77,7 @@ public partial class DaySceneManagerPatch
     {
         Log.InfoCaller($"called");
 
-        if (!MpManager.IsConnected)
+        if (!GameSession.IsInRoom)
         {
             PlayerManager.LocalIsDayOver = true;
             return RunOriginal;
