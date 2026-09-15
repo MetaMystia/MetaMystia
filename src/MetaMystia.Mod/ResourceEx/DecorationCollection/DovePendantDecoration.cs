@@ -14,5 +14,6 @@ public class DovePendantDecoration : DecorationBase
     /// <param name="eventManager">夜场营业开始时传入的全局事件管理器。</param>
     public override void DecorationBuffEnterNight(EventManager eventManager)
     {
+        MetaMystia.ResourceExManager.ApplyDovePendantNightBuffs(eventManager);
     }
 }

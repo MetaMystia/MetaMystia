@@ -76,6 +76,8 @@ public partial class DaySceneManagerPatch
     {
         Log.InfoCaller($"called");
 
+        ResourceExManager.ClearDovePendantDaytimeSpeed();
+
         if (!MpManager.IsConnected)
         {
             PlayerManager.LocalIsDayOver = true;

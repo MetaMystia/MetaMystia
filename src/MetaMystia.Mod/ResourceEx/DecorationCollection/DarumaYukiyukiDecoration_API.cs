@@ -6,6 +6,7 @@ using GameData.CoreLanguage;
 using GameData.CoreLanguage.Collections;
 using GameData.Profile;
 
+using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.DecorationCollection;
 
 namespace MetaMystia;
@@ -40,7 +41,7 @@ public static partial class ResourceExManager
         }
 
         var specialBuff = ScriptableObject.CreateInstance<DarumaYukiyukiDecoration>();
-        TryGetSprite(DarumaYukiyukiSpriteUri, out var overrideSprite);
+        RexAssetRegistry.TryGetSprite(DarumaYukiyukiSpriteUri, out var overrideSprite);
         if (overrideSprite == null)
         {
             Log.Warning($"[DarumaYukiyuki] 图标资源加载失败，使用空占位：{DarumaYukiyukiSpriteUri}");
@@ -64,7 +65,7 @@ public static partial class ResourceExManager
     /// </summary>
     public static void RegisterDarumaYukiyukiDecorationLanguage()
     {
-        TryGetSprite(DarumaYukiyukiSpriteUri, out var sprite);
+        RexAssetRegistry.TryGetSprite(DarumaYukiyukiSpriteUri, out var sprite);
         DataBaseLanguage.Items[DarumaYukiyukiDecorationId] = new ObjectLanguageBase(
             name: "达摩雪雪",
             Description: "营业时若因任何效果获得黑暗料理，获得30秒「不倒翁七転八起」效果；持续时间内再次获得相同效果时刷新累计时间、不叠加。不倒翁七転八起：制作料理时有20%概率返还食材，且烹饪时间降低20%。",

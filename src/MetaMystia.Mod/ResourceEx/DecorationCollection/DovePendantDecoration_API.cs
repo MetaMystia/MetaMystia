@@ -1,5 +1,7 @@
+using System;
 using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
+using NightScene.EventUtility;
 
 using GameData.Core.Collections;
 using GameData.CoreLanguage;
@@ -7,6 +9,7 @@ using GameData.CoreLanguage.Collections;
 using GameData.Profile;
 using GameData.RunTime.Common;
 
+using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.DecorationCollection;
 
 using SgrYuki;
@@ -32,6 +35,11 @@ public static partial class ResourceExManager
     private const float DovePendantDaySpeedBonus = 0.12f;
 
     /// <summary>
+    /// 夜间效果倍率：玩家与伙伴移速、伙伴工作效率均为基础值 × 1.2（即 +20%）。
+    /// </summary>
+    private const float DovePendantNightSpeedFactor = 1.2f;
+
+    /// <summary>
     /// il2cpp 类型注入幂等标记：同一进程生命周期内只注入一次，重复注入会抛异常。
     /// </summary>
     private static bool _dovePendantTypeInjected;
@@ -49,7 +57,7 @@ public static partial class ResourceExManager
         }
 
         var specialBuff = ScriptableObject.CreateInstance<DovePendantDecoration>();
-        TryGetSprite(DovePendantSpriteUri, out var overrideSprite);
+        RexAssetRegistry.TryGetSprite(DovePendantSpriteUri, out var overrideSprite);
         if (overrideSprite == null)
         {
             Log.Warning($"[DovePendant] 图标资源加载失败，使用空占位：{DovePendantSpriteUri}");
@@ -69,12 +77,16 @@ public static partial class ResourceExManager
     }
 
     /// <summary>
-    /// 应用小鸽子挂坠的白天移速加成：装备时本地玩家移动速度 = 基础移速 + 0.12（绝对值设定，幂等可重复调用）。
+    /// 应用小鸽子挂坠的白天移速加成：装备且在白天时，本地玩家移动速度 = 基础移速 + 0.12（绝对值设定，幂等可重复调用）。
     /// 设计为响应式：装饰在白天任意时刻被装备都会触发（见 DovePendantDecorationDayScenePatch 对 RunTimeAlbum.TryRecordUsedDecoration 的 Hook）；
     /// 角色未就绪时延迟到 unit 可用后再施加，避免被初始化基准值覆盖。
     /// </summary>
     public static void ApplyDovePendantDaytimeSpeed()
     {
+        if (PlayerManager.LocalIsDayOver)
+        {
+            return;
+        }
         if (!RunTimeAlbum.HasDecorationUsing(DovePendantDecorationId))
         {
             return;
@@ -92,6 +104,76 @@ public static partial class ResourceExManager
             return;
         }
         ApplyDaytimeSpeed(RunTimePlayerData.LevelProfile.MoveSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// 进入夜晚时清掉白天移速加成，将本地玩家移速恢复为基础值，无视装饰当前是否仍装备。
+    /// </summary>
+    public static void ClearDovePendantDaytimeSpeed()
+    {
+        ApplyDaytimeSpeed(RunTimePlayerData.LevelProfile.MoveSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// 进入夜晚时施加小鸽子挂坠夜间效果：玩家与全体伙伴移速、伙伴工作效率 +20%（基础值 × 1.2）。
+    /// 由 DecorationBuffEnterNight 在夜间开业时调用；装饰在夜间被装备时也经响应式钩子触发。
+    /// </summary>
+    /// <param name="eventManager">夜间事件管理器实例（SceneManager 传入）。</param>
+    public static void ApplyDovePendantNightBuffs(NightScene.EventUtility.EventManager eventManager)
+    {
+        if (eventManager == null) return;
+        try
+        {
+            ApplyNightPlayerSpeed();
+            // 先 Remove 再 Set 保证幂等：夜间重入不会叠加成 1.2×1.2。
+            eventManager.RemovePartnerExtraWorkSpeed(DovePendantNightSpeedFactor, false);
+            eventManager.SetPartnerExtraWorkSpeed(DovePendantNightSpeedFactor, false);
+            eventManager.RemovePartnerExtraMoveSpeed(DovePendantNightSpeedFactor, false);
+            eventManager.SetPartnerExtraMoveSpeed(DovePendantNightSpeedFactor, false);
+            Log.Info("[DovePendant] 已施加夜间效果：玩家移速+20%，伙伴效率+20%、移速+20%");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[DovePendant] 夜间效果施加异常: {ex}");
+        }
+    }
+
+    /// <summary>
+    /// 卸下装饰或夜场结束时撤销夜间效果（伙伴 extra 需显式 Remove；玩家移速由 ClearDovePendantDaytimeSpeed 复位）。
+    /// </summary>
+    public static void RemoveDovePendantNightBuffs()
+    {
+        var eventManager = NightScene.EventUtility.EventManager.Instance;
+        if (eventManager == null) return;
+        try
+        {
+            eventManager.RemovePartnerExtraWorkSpeed(DovePendantNightSpeedFactor, false);
+            eventManager.RemovePartnerExtraMoveSpeed(DovePendantNightSpeedFactor, false);
+            Log.Info("[DovePendant] 已撤销夜间伙伴效果");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[DovePendant] 夜间效果撤销异常: {ex}");
+        }
+    }
+
+    private static void ApplyNightPlayerSpeed()
+    {
+        var target = RunTimePlayerData.LevelProfile.MoveSpeedMultiplier * DovePendantNightSpeedFactor;
+        if (PlayerManager.Local.unit != null)
+        {
+            PlayerManager.Local.Speed = target;
+            Log.Info($"[DovePendant] 已应用夜间玩家移速（目标={target}）");
+            return;
+        }
+        CommandScheduler.Enqueue(
+            executeWhen: () => PlayerManager.Local.unit != null,
+            execute: () =>
+            {
+                PlayerManager.Local.Speed = target;
+                Log.Info($"[DovePendant] 已应用夜间玩家移速（目标={target}）");
+            },
+            timeoutSeconds: 30);
     }
 
     private static void ApplyDaytimeSpeed(float targetSpeed)
@@ -117,7 +199,7 @@ public static partial class ResourceExManager
     /// </summary>
     public static void RegisterDovePendantDecorationLanguage()
     {
-        TryGetSprite(DovePendantSpriteUri, out var sprite);
+        RexAssetRegistry.TryGetSprite(DovePendantSpriteUri, out var sprite);
         DataBaseLanguage.Items[DovePendantDecorationId] = new ObjectLanguageBase(
             name: "小鸽子挂坠",
             Description: "激活后，白天时玩家移动速度增加0.12；夜间营业时移动速度增加20%，并增加20%的伙伴工作效率与伙伴移动速度。",
