@@ -169,6 +169,8 @@ public static partial class ResourceExManager
         SpecialGuestRegistry.ResetTrackedNpcDialog();
         MerchantRegistry.CheckAndCleanOrphanedMerchants(); // 清理孤儿商人数据，防止 RefMerchant KeyNotFoundException
         MerchantRegistry.RegisterAllTrackedMerchant();
+
+        ApplyDovePendantDaytimeSpeed();
     }
 
     /// <summary>
