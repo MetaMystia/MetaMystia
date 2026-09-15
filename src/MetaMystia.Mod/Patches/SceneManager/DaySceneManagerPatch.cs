@@ -76,6 +76,8 @@ public partial class DaySceneManagerPatch
     {
         Log.InfoCaller($"called");
 
+        ResourceExManager.ClearDovePendantDaytimeSpeed();
+
         if (!MpManager.IsConnected)
         {
             PlayerManager.LocalIsDayOver = true;
@@ -104,6 +106,9 @@ public partial class DaySceneManagerPatch
 
         var refreshAllDayNpcs = SpecialGuestRegistry.RefreshAllDayNpcs; // TODO: 以更优雅的方式实现 Day NPC 刷新
         onSwapFinish += refreshAllDayNpcs;
+        // 地图切换可能重建角色 unit，重新施加小鸽子挂坠白天移速加成（幂等）
+        System.Action applyDovePendantDaytimeSpeed = ResourceExManager.ApplyDovePendantDaytimeSpeed;
+        onSwapFinish += (Il2CppSystem.Action)applyDovePendantDaytimeSpeed;
 
         return RunOriginal;
     }
