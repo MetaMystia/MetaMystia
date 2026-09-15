@@ -341,6 +341,9 @@ public enum TextId
     CheatFlowRateApplied,
     CheatFlowRateActive,
 
+    // Decoration test commands
+    CmdDescDecor,
+
     // Live streaming mode
     CmdDescLive,
     LiveUsage,

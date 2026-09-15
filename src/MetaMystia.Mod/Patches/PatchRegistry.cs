@@ -29,6 +29,7 @@ public static partial class PatchRegistry
         typeof(DaySceneMapPatch),
         typeof(NoteBookProfilePannelPatch),
         typeof(DaySceneShopPannelPatch),
+        typeof(DovePendantDecorationDayScenePatch),
 
         // PrepScene Patches
         typeof(IzakayaConfigPannelPatch),

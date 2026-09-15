@@ -12,7 +12,6 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
 
-
 [HarmonyPatch(typeof(DayScene.SceneManager))]
 [AutoLog]
 public partial class DaySceneManagerPatch
@@ -39,26 +38,7 @@ public partial class DaySceneManagerPatch
             var warningMessage = TextId.ModPatchFailure.Get();
             InGameConsole.LogError(warningMessage);
         }
-
-
-        // if (MpManager.IsConnected)
-        // {
-        //     CommandScheduler.EnqueueKey(
-        //         key: MpManager.PeerGetCharacterUnitNotNullCommand,
-        //         executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,
-        //         execute: () =>
-        //         {
-        //             if (!MpManager.InStory)
-        //             {
-        //                 PlayerManager.EnablePeerCollision(true);
-        //             }
-        //             PlayerManager.Peer?.GetCharacterComponent()?.UpdateIcon(false);
-        //         },
-        //         timeoutSeconds: 120
-        //     );
-        // }
     }
-
 
     public static void OnDayOver()
     {
@@ -104,11 +84,11 @@ public partial class DaySceneManagerPatch
     {
         Log.InfoCaller($"targetMapLabel {targetMapLabel}, targetMarkerName {targetMarkerName}");
 
-        var refreshAllDayNpcs = SpecialGuestRegistry.RefreshAllDayNpcs; // TODO: 以更优雅的方式实现 Day NPC 刷新
-        onSwapFinish += refreshAllDayNpcs;
+        System.Action refreshAllDayNpcs = SpecialGuestRegistry.RefreshAllDayNpcs;
+        onSwapFinish += refreshAllDayNpcs.ToIl2cppAction();
         // 地图切换可能重建角色 unit，重新施加小鸽子挂坠白天移速加成（幂等）
         System.Action applyDovePendantDaytimeSpeed = ResourceExManager.ApplyDovePendantDaytimeSpeed;
-        onSwapFinish += (Il2CppSystem.Action)applyDovePendantDaytimeSpeed;
+        onSwapFinish += applyDovePendantDaytimeSpeed.ToIl2cppAction();
 
         return RunOriginal;
     }

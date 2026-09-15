@@ -4,7 +4,6 @@ using UnityEngine;
 using GameData.Core.Collections;
 using GameData.CoreLanguage;
 using GameData.CoreLanguage.Collections;
-using GameData.Profile;
 
 using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.DecorationCollection;
@@ -14,12 +13,12 @@ namespace MetaMystia;
 public static partial class ResourceExManager
 {
     /// <summary>
-    /// 达摩雪雪的装饰 id；落于 9000+ 段以避让原生占用区，紧接小鸽子挂坠（9006）取 9007。
+    /// 达摩雪雪的装饰 id，落在 9000+ 段以避让原生占用区。
     /// </summary>
     private const int DarumaYukiyukiDecorationId = 9007;
 
     /// <summary>
-    /// 达摩雪雪在展示柜中显示的图标占位路径；正式美术资源待补，先以占位 Sprite 跑通注册链路。
+    /// 达摩雪雪在展示柜中显示的图标资源路径。
     /// </summary>
     private const string DarumaYukiyukiSpriteUri = "rex://ResourceExample/assets/Decoration/9007.png";
 
@@ -30,7 +29,6 @@ public static partial class ResourceExManager
 
     /// <summary>
     /// 注册达摩雪雪装饰，使其出现在展示柜并被勾选生效。
-    /// 同一 Decoration 实例须同时写入 Items 与 Decorations 两字典，以满足展示柜列举与 IsDecoration/RefDecorations 的要求。
     /// </summary>
     public static void RegisterDarumaYukiyukiDecoration()
     {
