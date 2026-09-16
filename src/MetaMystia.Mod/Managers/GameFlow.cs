@@ -1,7 +1,6 @@
 using Common.UI;
 using GameData.RunTime.Common;
 
-
 using MetaMystia.Multiplayer;
 
 namespace MetaMystia;
@@ -12,9 +11,10 @@ public static class GameFlow
     public static Scene LocalScene { get; private set; } = Scene.EmptyScene;
     public static bool IsMultiplayerAvailable { get; private set; }
     public static bool InStory { get; private set; }
+    public static bool CharactersReady { get; private set; }
     public static bool IsGameplaySyncActive => GameSession.HasPeers && !InStory;
     public static bool ShouldSkipAction => !IsGameplaySyncActive;
-    public static bool IsPureDay => LocalScene == Scene.DayScene && !InStory
+    public static bool IsPureDay => LocalScene == Scene.DayScene && CharactersReady && !InStory
         && !Patch.UniversalGameManagerPatch.WaitingForAdmission
         && !DayDestinationManager.IsEntering && !DayDestinationManager.HasLocalIntent
         && !PlayerManager.LocalIsDayOver && PlayerManager.CharacterSpawnedAndInitialized
@@ -33,6 +33,8 @@ public static class GameFlow
 
     public static void OnSceneTransit(Scene scene)
     {
+        CharactersReady = false;
+        PlayerManager.OnSceneUnloading();
         if (scene != Scene.DayScene) DayDestinationManager.Reset();
         if (scene != Scene.WorkScene) PrepSceneManager.ResetYuyukoPrep();
         LocalScene = scene;
@@ -44,5 +46,15 @@ public static class GameFlow
         }
         PlayerProfile.SendProfile();
         if (GameSession.IsRoomHost && scene != Scene.DayScene) GameSession.SetJoinable(false);
+    }
+
+    public static void OnCharactersReady(Scene scene)
+    {
+        if (LocalScene != scene) return;
+        CharactersReady = true;
+        PlayerManager.InitLocalSkin();
+        PlayerManager.RefreshCharacters();
+        PlayerProfile.SendProfile();
+        PlayerProfile.SendMotion();
     }
 }

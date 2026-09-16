@@ -42,14 +42,15 @@ public static class PlayerProfile
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (!GameSession.IsOnline) return;
         GameSession.Client.SetProfile(PlayerIdentity.Name, CaptureSkin(), GameFlow.LocalScene);
-        if (PlayerManager.Local.unit != null)
+        if (GameFlow.CharactersReady && PlayerManager.Local.unit != null)
             FloatingTextHelper.SetPlayerLabel(PlayerManager.Local.Uid, LiveModeManager.GetDisplayName(PlayerManager.Local.Uid), PlayerManager.Local.unit.transform);
     }
 
     public static void SendMotion()
     {
-        if (!GameSession.IsOnline || !PlayerManager.CharacterSpawnedAndInitialized
-            || GameFlow.LocalScene is not Scene.DayScene and not Scene.WorkScene) return;
+        if (!GameSession.IsOnline || !GameFlow.CharactersReady || GameFlow.LocalScene is not Scene.DayScene and not Scene.WorkScene
+            || !PlayerManager.CharacterSpawnedAndInitialized) return;
+        if (GameFlow.LocalScene == Scene.DayScene && DayScene.SceneManager.Instance.IsMapSwapping) return;
         var direction = PlayerManager.LocalInputDirection;
         var position = PlayerManager.LocalPosition;
         GameSession.Client.SendMotion(new()

@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Linq;
+
 using UnityEngine;
 
-using Common.CharacterUtility;
 using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 
@@ -189,36 +189,6 @@ public static partial class PlayerManager
     }
 
     /// <summary>
-    /// 为所有 Peer 生成角色（SpawnForScene）并重置运动插值状态。
-    /// 在 DayScene / WorkScene 开始时调用。
-    /// 同时为本地玩家创建头顶标签。
-    /// </summary>
-    public static void SpawnPeers()
-    {
-        foreach (var peer in Peers.Values)
-        {
-            peer.ResetMotion();
-            peer.SpawnForScene();
-        }
-        foreach (var peer in PublicPeers.Values)
-        {
-            peer.ResetMotion();
-            peer.SpawnForScene();
-        }
-        // 为本地玩家也添加头顶标签（等 Local unit 初始化后；仅在联机时创建）
-        if (GameSession.IsOnline)
-        {
-            SgrYuki.CommandScheduler.Enqueue(
-                executeWhen: () => Local.unit != null,
-                execute: () => UI.FloatingTextHelper.SetPlayerLabel(
-                    Local.Uid, LiveModeManager.GetDisplayName(Local.Uid), Local.unit.transform),
-                timeoutSeconds: 30
-            );
-        }
-        Log.LogInfo($"PlayerManager peers spawned (peers: {Peers.Count})");
-    }
-
-    /// <summary>
     /// 检查指定 PeerId 是否已有在线连接
     /// </summary>
     public static bool IsPeerIdOnline(string peerId)
@@ -237,17 +207,12 @@ public static partial class PlayerManager
     }
 
     /// <summary>
-    /// 从游戏中获取实际皮肤数据，并在角色就绪后应用皮肤
+    /// 从游戏中获取实际皮肤数据，并应用到已就绪的本地角色
     /// </summary>
     public static void InitLocalSkin()
     {
         Local.InitSkin();
-        // 场景切换后角色会被重建，需要在 unit 就绪后重新应用皮肤
-        SgrYuki.CommandScheduler.Enqueue(
-            executeWhen: () => Local.unit != null,
-            execute: () => Local.UpdateCharacterSprite(),
-            timeoutSeconds: 30
-        );
+        Local.UpdateCharacterSprite();
     }
 
     /// <summary>
@@ -267,14 +232,13 @@ public static partial class PlayerManager
     }
 
     /// <summary>
-    /// 销毁指定对端玩家的角色、取消 pending spawn，并移除头顶标签。
+    /// 销毁指定对端玩家的角色和头顶标签。
     /// 在移除 peer 之前调用，避免留下"幽灵"角色。
     /// </summary>
     public static void HidePeer(int uid)
     {
         if (Peers.TryGetValue(uid, out var peer) || PublicPeers.TryGetValue(uid, out peer))
-            peer.DespawnCharacter();
-        UI.FloatingTextHelper.RemovePlayerLabel(uid);
+            peer.ReleaseCharacter();
     }
 
     /// <summary>
@@ -298,35 +262,19 @@ public static partial class PlayerManager
     }
 
     /// <summary>
-    /// 清除所有对端玩家（先销毁所有角色并取消 pending spawn，断开连接时调用）
+    /// 断开连接时销毁所有对端角色和标签，并清除玩家状态。
     /// </summary>
     public static void ClearPeers()
     {
         DayDestinationManager.ResetSession();
-        networkPlayers.Clear();
         foreach (var peer in Peers.Values)
-            peer.DespawnCharacter();
+            peer.ReleaseCharacter();
         foreach (var peer in PublicPeers.Values)
-            peer.DespawnCharacter();
+            peer.ReleaseCharacter();
         UI.FloatingTextHelper.ClearAllLabels();
         Peers.Clear();
         PublicPeers.Clear();
         Log.LogMessage($"All peers cleared");
-    }
-
-    /// <summary>
-    /// 清除房间内对端玩家（销毁角色、取消 pending spawn，并移除标签）
-    /// </summary>
-    public static void ClearRoomPeers()
-    {
-        DayDestinationManager.ResetSession();
-        foreach (var kvp in Peers)
-        {
-            kvp.Value.DespawnCharacter();
-            UI.FloatingTextHelper.RemovePlayerLabel(kvp.Key);
-        }
-        Peers.Clear();
-        Log.LogMessage("Room peers cleared");
     }
 
     #endregion
@@ -350,24 +298,4 @@ public static partial class PlayerManager
 
     #endregion
 
-    #region Peer 静态便捷方法（1v1 兼容，委托给 Peer）
-
-    [OnMainThread]
-    public static void EnablePeerCollision(CharacterControllerUnit unit, bool enable = true)
-    {
-        unit?.UpdateColliderStatus(enable);
-        if (unit?.rb2d != null)
-            unit.rb2d.isKinematic = !enable;
-        Log.Info($"set collision for {unit?.name} to {enable}");
-    }
-
-    [OnMainThread]
-    public static void EnablePeerCollision(bool enable = true) =>
-        EnablePeerCollision(Peer?.GetCharacterUnit(), enable);
-
-    public static bool IsPeerCharacter(string label) =>
-        Peers.Values.Any(p => p.CharacterId == label) ||
-        PublicPeers.Values.Any(p => p.CharacterId == label);
-
-    #endregion
 }

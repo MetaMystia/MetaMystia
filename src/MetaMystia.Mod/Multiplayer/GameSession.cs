@@ -123,14 +123,13 @@ public static partial class GameSession
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (previous != Membership)
         {
-            PlayerManager.ClearRoomPeers();
             DayDestinationManager.ResetSession();
             PrepSceneManager.ClearPrepTable();
             PrepSceneManager.ResetYuyukoPrep();
             YuyukoGuestSync.Reset();
             RoomClock.Reset();
         }
-        PlayerManager.ApplyNetworkState(State);
+        PlayerManager.ApplyNetworkState(State, previous != Membership);
     }
 
     public static void Tick()
@@ -141,7 +140,7 @@ public static partial class GameSession
             SetJoinable(GameFlow.IsPureDay);
         if (RoomClock.Now >= nextMotion)
         {
-            nextMotion = RoomClock.Now + 500;
+            nextMotion = RoomClock.Now + 2000;
             PlayerProfile.SendMotion();
         }
         RoomClock.Tick();

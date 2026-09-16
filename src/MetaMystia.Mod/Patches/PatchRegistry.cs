@@ -23,7 +23,6 @@ public static partial class PatchRegistry
         typeof(DaySceneSustainedPannelPatch),
         typeof(YuyukoExtraDialogData__c__DisplayClass4_0Patch),
         typeof(StatusTrackerPatch),
-        typeof(CharacterControllerUnitPatch),
         typeof(CharacterControllerInputGeneratorComponentPatch),
         typeof(DayScenePlayerInputPatch),
         typeof(DaySceneMapPatch),

@@ -5,7 +5,6 @@ using NightScene;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.Patch;
-using SgrYuki;
 
 namespace MetaMystia;
 
@@ -22,39 +21,14 @@ public static partial class NightSceneManagerPatch
     [HarmonyPostfix]
     public static void NightScene_Start_Postfix()
     {
-        // REFACTORING
-        // GuestsManagerPatch.ReimuSpellCard = false;
-
         GameFlow.OnSceneTransit(Scene.WorkScene);
         CheatManager.TryApplyFever();
         PlayerManager.Local.ResetState();
-        PlayerManager.InitLocalSkin();
-
-        if (!GameSession.IsOnline)
+        if (GameSession.HasPeers)
         {
-            return;
+            if (!PrepSceneManager.IsYuyukoPrepActive) PrepSceneManager.ClearPrepTable();
+            PlayerManager.ResetState();
         }
-        PlayerProfile.SendProfile();
-
-        if (!GameSession.HasPeers)
-        {
-            PlayerManager.SpawnPeers();
-            return;
-        }
-
-        if (!PrepSceneManager.IsYuyukoPrepActive) PrepSceneManager.ClearPrepTable();
-
-        PlayerManager.ResetState();
-        PlayerManager.SpawnPeers();
-
-        CommandScheduler.EnqueueKey(
-            key: "PeerCollision",
-            executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,
-            execute: () =>
-            {
-                PlayerManager.EnablePeerCollision(true);
-            },
-            timeoutSeconds: 120
-        );
+        GameFlow.OnCharactersReady(Scene.WorkScene);
     }
 }

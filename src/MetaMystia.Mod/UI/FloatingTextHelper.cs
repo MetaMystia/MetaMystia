@@ -1,11 +1,11 @@
-using BepInEx.Unity.IL2CPP.Utils;
-using MetaMystia.Multiplayer;
-using MetaMystia;
 using System;
-using System.Collections.Generic;
 using System.Linq;
+
+using BepInEx.Unity.IL2CPP.Utils;
 using TMPro;
 using UnityEngine;
+
+using MetaMystia.Multiplayer;
 
 namespace MetaMystia.UI;
 
@@ -17,6 +17,7 @@ public static partial class FloatingTextHelper
 
     // Font
     private static TMP_FontAsset _cachedFont;
+    private static Material _outlinedMaterial;
     private static bool _fontSearched;
     private const float OutlineWidthValue = 0.05f;
 
@@ -78,91 +79,21 @@ public static partial class FloatingTextHelper
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = textColor;
 
-        // 描边: SDF outline + 额外偏移阴影作为后备
-        try
+        if (_outlinedMaterial == null)
         {
-            var mat = new Material(tmp.fontMaterial);
-            mat.EnableKeyword("OUTLINE_ON");
-            mat.SetFloat("_OutlineWidth", OutlineWidthValue);
-            mat.SetColor("_OutlineColor", Color.black);
-            // 轻微 underlay（底层阴影）增强可读性
-            mat.EnableKeyword("UNDERLAY_ON");
-            mat.SetFloat("_UnderlayOffsetX", 0f);
-            mat.SetFloat("_UnderlayOffsetY", 0f);
-            mat.SetFloat("_UnderlayDilate", 0.3f);
-            mat.SetColor("_UnderlayColor", Color.black);
-            tmp.fontMaterial = mat;
+            _outlinedMaterial = new Material(tmp.fontSharedMaterial);
+            _outlinedMaterial.EnableKeyword("OUTLINE_ON");
+            _outlinedMaterial.SetFloat("_OutlineWidth", OutlineWidthValue);
+            _outlinedMaterial.SetColor("_OutlineColor", Color.black);
+            _outlinedMaterial.EnableKeyword("UNDERLAY_ON");
+            _outlinedMaterial.SetFloat("_UnderlayOffsetX", 0f);
+            _outlinedMaterial.SetFloat("_UnderlayOffsetY", 0f);
+            _outlinedMaterial.SetFloat("_UnderlayDilate", 0.3f);
+            _outlinedMaterial.SetColor("_UnderlayColor", Color.black);
         }
-        catch (Exception e)
-        {
-            Log.Warning($"Outline setup failed: {e.Message}");
-        }
+        tmp.fontSharedMaterial = _outlinedMaterial;
     }
 
-    #region 持久玩家标签（显示玩家 ID）
-
-    private static readonly Dictionary<int, GameObject> playerLabels = new();
-
-    /// <summary>
-    /// 在角色脚下方创建/更新持久标签（显示玩家 ID）。
-    /// 仅在联机且状态信息可见时显示。
-    /// </summary>
-    public static void SetPlayerLabel(int uid, string displayName, Transform parent)
-    {
-        if (parent == null) return;
-        RemovePlayerLabel(uid);
-
-        var go = new GameObject($"MetaLabel_{uid}");
-        go.transform.SetParent(parent, false);
-        go.transform.localPosition = new Vector3(0, 1.5f, 0);
-
-        var tmp = go.AddComponent<TextMeshPro>();
-        tmp.text = displayName;
-        ApplyStyle(tmp, 3.5f, new Color(1f, 1f, 0.7f, 0.85f));
-
-        go.SetActive(PluginManager.IsStatusVisible && GameSession.IsOnline);
-        playerLabels[uid] = go;
-    }
-
-    /// <summary>
-    /// 更新已有标签的显示文本（例如玩家改名时），若标签不存在则忽略
-    /// </summary>
-    public static void UpdatePlayerLabel(int uid, string displayName)
-    {
-        if (playerLabels.TryGetValue(uid, out var go) && go != null)
-        {
-            var tmp = go.GetComponent<TextMeshPro>();
-            if (tmp != null) tmp.text = displayName;
-        }
-    }
-
-    public static void RemovePlayerLabel(int uid)
-    {
-        if (playerLabels.TryGetValue(uid, out var go))
-        {
-            if (go != null) UnityEngine.Object.Destroy(go);
-            playerLabels.Remove(uid);
-        }
-    }
-
-    public static void ClearAllLabels()
-    {
-        foreach (var go in playerLabels.Values)
-        {
-            if (go != null) UnityEngine.Object.Destroy(go);
-        }
-        playerLabels.Clear();
-    }
-
-    public static void SetLabelsVisible(bool visible)
-    {
-        foreach (var go in playerLabels.Values)
-        {
-            if (go != null) go.SetActive(visible);
-        }
-    }
-
-    #endregion
 
     private static GameObject MakeFloatingText(Transform parent, string text)
     {
