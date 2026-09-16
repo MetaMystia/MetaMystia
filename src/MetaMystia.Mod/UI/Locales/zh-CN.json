@@ -17,7 +17,7 @@
     "NetworkRoomClosed": "禁止加入",
     "NetworkConnecting": "联机：正在连接",
     "NetworkOffline": "联机：关闭",
-    "NetworkStatus": "联机 {0} UID {1}｜世界 {2}/{3}｜房间 {4}（{5} 人）｜延迟 {6}ms",
+    "NetworkStatus": "{0} UID {1} | World {2}/{3} | Room {4} ({5} players) | Latency {6}ms",
     "NetworkCommands": "/mp start [端口] | connect <地址> [端口] [--world] | rooms | create [人数] | join <房间> | leave | disconnect | stop | restart | status | id <名字> | kick id|uid <玩家> | maxplayers [人数] | continue day|prep | ipv6 enable|disable",
     "DayMapHelp": "/resourceex map list | goto <地图ID> [出生点] | back",
     "DayMapList": "已注册的地图 ID：{0}",
