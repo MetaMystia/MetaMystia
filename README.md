@@ -26,8 +26,6 @@
 
 ## 参与开发
 
-当前连接模块的职责、命令与离线构建方式见 [连接架构](docs/connection-architecture.md)。
-
 如果您希望了解如何搭建开发环境或参与贡献，请阅读开发者文档：
 
 👉 [https://doc.meta-mystia.izakaya.cc/developer_guide/getting_started.html](https://doc.meta-mystia.izakaya.cc/developer_guide/getting_started.html)

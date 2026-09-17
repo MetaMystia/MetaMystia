@@ -120,7 +120,7 @@ sequenceDiagram
 
 ## 版本与还原代码的差异
 
-游戏目标版本统一配置在 `src/MetaMystia.Mod/MetaMystia.csproj` 的 `TargetGameVersion`，同时生成运行时版本字符串和编译宏，如 `RELEASE 4.4.0e` 对应 `TMI_RELEASE_4_4_0E`。
+游戏目标版本统一配置在根目录 `Versions.props` 的 `TargetGameVersion`，模组项目据此生成运行时版本字符串和编译宏，如 `RELEASE 4.4.0e` 对应 `TMI_RELEASE_4_4_0E`。
 
 依赖协程状态、闭包类型和生成回调的文件使用 `#if !TMI_RELEASE_4_4_0E` 与 `#error` 标记。升级目标版本后，这些文件会直接编译报错；逐个核对新版本行为与 Interop 接口后，再更新对应文件的标记，不要保留旧宏绕过检查。
 

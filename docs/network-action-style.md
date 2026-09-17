@@ -1,6 +1,6 @@
 # 网络 Action 规范
 
-连接、资料和运动使用 `Client` 专用接口；其他玩法使用 `Multiplayer/Actions/` 下的 Action。职责与连接流程见 [连接架构](connection-architecture.md)。
+连接、资料和运动使用 `Client` 专用接口；其他玩法使用 `Multiplayer/Actions/` 下的 Action。职责与同步流程见 [联机架构](multiplayer-architecture.md)。
 
 ## 定义与注册
 
