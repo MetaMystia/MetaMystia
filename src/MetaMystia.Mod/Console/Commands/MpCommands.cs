@@ -22,10 +22,10 @@ public static class MpCommands
         start.AddCommand(legacyStart);
         mp.AddCommand(start);
         var stop = new Command("stop", "Stop multiplayer");
-        stop.SetHandler(GameSession.Stop);
+        stop.SetHandler(() => GameSession.Stop());
         mp.AddCommand(stop);
         var disconnect = new Command("disconnect", "Disconnect and close the local server");
-        disconnect.SetHandler(GameSession.Stop);
+        disconnect.SetHandler(() => GameSession.Stop());
         mp.AddCommand(disconnect);
         var restart = new Command("restart", "Restart the local server");
         restart.SetHandler(GameSession.Restart);

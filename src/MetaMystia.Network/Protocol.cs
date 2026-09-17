@@ -100,7 +100,8 @@ internal static class Protocol
     {
         if (string.IsNullOrWhiteSpace(p.Name) || p.Name.Length > 64 || p.Name.Any(c => c is '<' or '>' || char.IsWhiteSpace(c) || char.IsControl(c)) || p.Skin == null ||
             p.Skin.NetSkinName == null || p.Skin.NetSkinName.Length > 128 || p.Skin.ResourcePackId == null ||
-            p.Skin.ResourcePackId.Length > 128 || !Enum.IsDefined(typeof(Common.UI.Scene), p.Scene)) throw new InvalidDataException("Invalid profile");
+            p.Skin.ResourcePackId.Length > 128 || !Enum.IsDefined(typeof(Common.UI.Scene), p.Scene)
+            || !Enum.IsDefined(typeof(GameStage), p.Stage)) throw new InvalidDataException("Invalid profile");
         Validate(p.Motion);
         if (!resources) return;
         var res = p.Resources;

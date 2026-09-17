@@ -191,14 +191,14 @@ public sealed class Client : IDisposable
             UpdatePlayer(uid, p => p with { Motion = motion, HasMotion = true });
         }
     }
-    public void SetProfile(string name, Skin skin, Scene scene)
+    public void SetProfile(string name, Skin skin, Scene scene, GameStage stage)
     {
-        var profile = new Player { Name = name, Skin = skin, Scene = scene };
+        var profile = new Player { Name = name, Skin = skin, Scene = scene, Stage = stage };
         Protocol.Validate(profile, false);
         lock (gate)
         {
             Require().Wire!.Send(new(Kind.Profile, Protocol.Pack(profile)));
-            UpdatePlayer(uid, p => p with { Name = name, Skin = skin, Scene = scene,
+            UpdatePlayer(uid, p => p with { Name = name, Skin = skin, Scene = scene, Stage = stage,
                 Motion = p.Scene == scene ? p.Motion : new(), HasMotion = p.Scene == scene && p.HasMotion });
             FilterMotion();
         }
@@ -284,7 +284,7 @@ public sealed class Client : IDisposable
                     snapshot = snapshot with { Room = null, MembershipRequest = 0 };
                 state = snapshot;
                 // 自己的资料与运动不回送；旧快照只更新服务器拥有的成员关系。
-                if (local != null) UpdatePlayer(uid, p => p with { Name = local.Name, Skin = local.Skin, Motion = local.Motion, HasMotion = local.HasMotion, Scene = local.Scene });
+                if (local != null) UpdatePlayer(uid, p => p with { Name = local.Name, Skin = local.Skin, Motion = local.Motion, HasMotion = local.HasMotion, Scene = local.Scene, Stage = local.Stage });
                 FilterMotion();
                 Invoke(() => StateChanged?.Invoke());
                 if (f.Kind == Kind.Welcome) current.Connected.TrySetResult(uid);
@@ -304,7 +304,7 @@ public sealed class Client : IDisposable
                 Invoke(() => StateChanged?.Invoke()); break;
             case Kind.Profile:
                 var profile = Protocol.Read<Player>(f.Body);
-                UpdatePlayer(f.Sender, p => p with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene });
+                UpdatePlayer(f.Sender, p => p with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene, Stage = profile.Stage });
                 Invoke(() => StateChanged?.Invoke()); break;
             case Kind.Data:
                 if (f.Room != 0 && (state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership)) return;

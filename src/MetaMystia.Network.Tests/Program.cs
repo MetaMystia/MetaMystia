@@ -20,7 +20,7 @@ static partial class Checks
     static int checks;
     static Player Player(string name, Resources? resources = null) => new()
     {
-        Name = name, Scene = Scene.DayScene, Skin = new() { SelectedType = CharacterSkinSets.SelectedType.Default },
+        Name = name, Scene = Scene.DayScene, Stage = GameStage.Day, Skin = new() { SelectedType = CharacterSkinSets.SelectedType.Default },
         Resources = resources ?? new() { Ready = true, DlcFlags = DlcPack.Core, PackIds = ["test.pack"] },
         Motion = new() { X = 7, DirectionX = 1, Speed = 2, Map = MapLabel.Home }
     };
@@ -71,6 +71,7 @@ static partial class Checks
 
     internal static async Task Run()
     {
+        await Stages();
         await StationaryHostSnapshot();
         var data = Player("真实枚举");
         Assert(MemoryPackSerializer.Deserialize<Player>(MemoryPackSerializer.Serialize(data))!.Scene == Scene.DayScene, "真实游戏枚举在无头进程读写");

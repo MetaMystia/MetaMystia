@@ -18,6 +18,7 @@ public static partial class PatchRegistry
         typeof(ResultSceneManagerPatch),
         typeof(StaffSceneManagerPatch),
         typeof(UniversalGameManagerPatch),
+        typeof(SaveManagementPatch),
 
         // DayScene Patches
         typeof(DaySceneSustainedPannelPatch),

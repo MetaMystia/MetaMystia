@@ -61,7 +61,7 @@ public static partial class PrepSceneManager
 
     public static void ReceiveYuyukoPrepTable(int senderUid, int round, UpdatePrepAction.Table table)
     {
-        if (!IsYuyukoChallenge || !PlayerManager.Peers.ContainsKey(senderUid)) return;
+        if (!GameFlow.IsFinalTrial || !PlayerManager.Peers.ContainsKey(senderUid)) return;
         if (round == YuyukoPrepRound && IsYuyukoPrepActive && !yuyukoPrepConfirmed)
             MergeFromPeer(table);
         else if (round == YuyukoPrepRound + 1)
@@ -70,7 +70,7 @@ public static partial class PrepSceneManager
 
     public static void ReceiveYuyukoPrepReady(int senderUid, int round)
     {
-        if (!IsYuyukoChallenge || !PlayerManager.Peers.ContainsKey(senderUid)) return;
+        if (!GameFlow.IsFinalTrial || !PlayerManager.Peers.ContainsKey(senderUid)) return;
         if (round < YuyukoPrepRound || round > YuyukoPrepRound + 1) return;
         // 对端可能先播完剧情；打开本地面板时不能清掉已收到的本轮就绪。
         if (!yuyukoReadyRounds.TryGetValue(senderUid, out var previous) || round > previous)
@@ -80,7 +80,7 @@ public static partial class PrepSceneManager
 
     public static void TryConfirmYuyukoPrep()
     {
-        if (!(GameSession.IsRoomHost && GameSession.HasPeers) || !IsYuyukoChallenge || !IsYuyukoPrepActive
+        if (!GameSession.IsRoomHost || !IsYuyukoChallenge || !IsYuyukoPrepActive
             || yuyukoPrepConfirmed || !PlayerManager.LocalIsPrepOver) return;
         if (!PlayerManager.Peers.Keys.All(uid =>
                 yuyukoReadyRounds.TryGetValue(uid, out var round) && round == YuyukoPrepRound)) return;

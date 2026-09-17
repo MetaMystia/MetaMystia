@@ -15,7 +15,7 @@ static partial class Checks
         await Pump(b.CreateRoomAsync());
         await Until(() => a.PendingFrames > 0);
         a.SendMotion(new() { X = 123, Map = MapLabel.Home });
-        a.SetProfile("new-name", new() { NetSkinName = "new-skin" }, Common.UI.Scene.WorkScene);
+        a.SetProfile("new-name", new() { NetSkinName = "new-skin" }, Common.UI.Scene.WorkScene, GameStage.Work);
         a.DispatchPending(); clients.Add(a);
         var local = a.State.World.Single(p => p.Uid == a.Uid);
         Assert(!local.HasMotion && local.Motion.X == 0 && local.Name == "new-name" && local.Skin.NetSkinName == "new-skin" && local.Scene == Common.UI.Scene.WorkScene,

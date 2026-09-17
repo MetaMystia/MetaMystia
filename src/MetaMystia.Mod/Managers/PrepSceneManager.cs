@@ -50,6 +50,7 @@ public static partial class PrepSceneManager
 
     public static void ClearPrepTable()
     {
+        completingPrep = false;
         localPrepTable = new UpdatePrepAction.Table();
         bufferedPrepTables.Clear();
     }

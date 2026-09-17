@@ -6,7 +6,6 @@ using Common.UI;
 using GameData.Core.Collections.DaySceneUtility;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Network;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 
@@ -19,11 +18,6 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class UniversalGameManagerPatch
 {
-    public static bool WaitingForAdmission => waitingClient != null && waitingClient == GameSession.Client
-        && waitingMembership == GameSession.Membership;
-    private static Client waitingClient;
-    private static long waitingMembership;
-    private static bool replayScene;
     [HarmonyPatch(nameof(UniversalGameManager.OpenDialogMenu))]
     [HarmonyPrefix]
     public static bool OpenDialogMenu_Prefix(ref GameData.Profile.DialogPackage dialogPackage, Il2CppSystem.Action onFinishCallback, ref Il2CppSystem.Action<Dictionary<int, string>> overrideReplaceTextCallback, DEYU.AdpUISystem.Managers.AdpUIPanelManager.PanelVisualMode previousPanelVisualMode = DEYU.AdpUISystem.Managers.AdpUIPanelManager.PanelVisualMode.HideVisual)
@@ -81,39 +75,9 @@ public partial class UniversalGameManagerPatch
 
     [HarmonyPatch(nameof(UniversalGameManager.LoadScene))]
     [HarmonyPrefix]
-    public static bool LoadScene_Prefix(Scene scene, Il2CppSystem.Action onFadeFinishCallback)
+    public static void LoadScene_Prefix(Scene scene)
     {
-        if (scene != Scene.MainScene && GameSession.IsRoomHost && GameFlow.LocalScene == Scene.DayScene && !replayScene)
-        {
-            if (!WaitingForAdmission)
-                PluginHost.Instance.StartManagedCoroutine(WaitForAdmission(scene, onFadeFinishCallback));
-            return SkipOriginal;
-        }
-        if (GameSession.HasPeers)
-        {
-            if (GameFlow.LocalScene == Scene.DayScene && scene == Scene.WorkScene)
-            {
-                InGameConsole.ShowPassive(TextId.ChallengeWarning.Get());
-            }
-        }
-        GameFlow.OnSceneTransit(Scene.LoadScene);
+        GameFlow.BeforeSceneLoad(scene);
         Log.LogInfo($"LoadScene called, scene {scene}");
-        return RunOriginal;
-    }
-
-    private static System.Collections.IEnumerator WaitForAdmission(Scene scene, Il2CppSystem.Action callback)
-    {
-        var client = GameSession.Client;
-        var membership = GameSession.Membership;
-        waitingClient = client;
-        waitingMembership = membership;
-        var closed = GameSession.SetJoinable(false);
-        while (!closed.IsCompleted) yield return null;
-        if (waitingClient == client && waitingMembership == membership) waitingClient = null;
-        if (!closed.IsCompletedSuccessfully || client != GameSession.Client || membership != GameSession.Membership
-            || GameFlow.LocalScene != Scene.DayScene) yield break;
-        replayScene = true;
-        try { UniversalGameManager.LoadScene(scene, callback); }
-        finally { replayScene = false; }
     }
 }

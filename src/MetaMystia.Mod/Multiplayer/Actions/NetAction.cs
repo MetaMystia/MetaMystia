@@ -55,6 +55,8 @@ namespace MetaMystia.Multiplayer.Actions;
 [MemoryPackUnion((ushort)GameMessage.YuyukoGuest, typeof(YuyukoGuestAction))]
 [MemoryPackUnion((ushort)GameMessage.YuyukoGuestBound, typeof(YuyukoGuestBoundAction))]
 [MemoryPackUnion((ushort)GameMessage.RoomReady, typeof(RoomReadyAction))]
+[MemoryPackUnion((ushort)GameMessage.DayEntryReply, typeof(DayEntryReplyAction))]
+[MemoryPackUnion((ushort)GameMessage.BusinessStart, typeof(BusinessStartAction))]
 [AutoLog]
 
 public abstract partial class Action

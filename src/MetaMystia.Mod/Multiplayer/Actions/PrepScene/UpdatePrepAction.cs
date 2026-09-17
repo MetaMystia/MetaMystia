@@ -50,7 +50,7 @@ public partial class UpdatePrepAction : Action
     {
         if (PrepRound > 0)
         {
-            if (GameFlow.LocalScene == Common.UI.Scene.WorkScene)
+            if (GameFlow.IsFinalTrial)
                 PrepSceneManager.ReceiveYuyukoPrepTable(SenderUid, PrepRound, PrepTable);
             return;
         }
@@ -60,8 +60,9 @@ public partial class UpdatePrepAction : Action
                 PrepSceneManager.MergeFromPeer(PrepTable);
                 break;
             case Common.UI.Scene.DayScene:
+            case Common.UI.Scene.LoadScene:
                 // Day→Prep 转场窗口期缓存，进入 PrepScene 后由 PrepSceneManager.FlushBufferedTables 重放
-                PrepSceneManager.BufferPrepTable(PrepTable);
+                if (GameFlow.Destination == DayDestination.Business) PrepSceneManager.BufferPrepTable(PrepTable);
                 break;
             default:
                 Log.LogInfo($"Discarded UpdatePrepAction in {GameFlow.LocalScene}");

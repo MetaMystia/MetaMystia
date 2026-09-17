@@ -7,6 +7,8 @@ namespace MetaMystia.Network;
 
 public sealed partial record Versions(int Protocol, string Game, string Mod);
 
+public enum GameStage : byte { Loading, MainMenu, Day, DayEnd, Preparation, Work, Result, Unavailable }
+
 
 [MemoryPackable]
 public partial record Skin
@@ -52,6 +54,7 @@ public partial record Player
     public Motion Motion { get; init; } = new();
     public bool HasMotion { get; init; }
     public Scene Scene { get; init; }
+    public GameStage Stage { get; init; }
     public long Membership { get; init; }
 }
 

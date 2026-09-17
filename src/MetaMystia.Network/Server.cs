@@ -160,7 +160,7 @@ public sealed class Server : IAsyncDisposable
                     var profile = Protocol.Read<Player>(f.Body); Protocol.Validate(profile, false);
                     if (peers.Any(x => x != p && x.Player != null && string.Equals(x.Player.Name, profile.Name, StringComparison.OrdinalIgnoreCase))) throw new InvalidDataException("DuplicateName");
                     bool changedScene = p.Player.Scene != profile.Scene;
-                    var updated = p.Player with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene };
+                    var updated = p.Player with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene, Stage = profile.Stage };
                     if (changedScene) updated = updated with { Motion = new(), HasMotion = false };
                     if (!CanStore(p, updated)) throw new InvalidDataException("WorldDataBudgetExceeded");
                     p.Player = updated;
@@ -202,6 +202,7 @@ public sealed class Server : IAsyncDisposable
         {
             case Command.Create:
                 if (p.Room != 0) { error = "AlreadyInRoom"; break; }
+                if (p.Player!.Stage is not (GameStage.MainMenu or GameStage.Day)) { error = "PlayerNotAvailable"; break; }
                 if (options.LanKey != null && p.Player!.Uid != lanHost) { error = "DefaultRoomOnly"; break; }
                 if (c.Value < 1 || c.Value > maxPlayers) { error = "InvalidLimit"; break; }
                 var created = new Room { Id = checked(++nextRoom), Host = p.Player!.Uid, MaxPlayers = options.LanKey == null ? c.Value : maxPlayers };
@@ -211,6 +212,7 @@ public sealed class Server : IAsyncDisposable
                 break;
             case Command.Join:
                 if (p.Room != 0) { error = "AlreadyInRoom"; break; }
+                if (p.Player!.Stage is not (GameStage.MainMenu or GameStage.Day)) { error = "PlayerNotAvailable"; break; }
                 var wanted = options.LanKey != null ? defaultRoom : c.Room;
                 if (!rooms.TryGetValue(wanted, out var target)) { error = "RoomMissing"; break; }
                 if (!target.Joinable) { error = "JoinClosed"; break; }

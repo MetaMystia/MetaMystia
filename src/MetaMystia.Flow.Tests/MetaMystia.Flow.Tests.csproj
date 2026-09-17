@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../MetaMystia.Network/Network.props" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
+    <Compile Include="../MetaMystia.Mod/Managers/DayDestinationManager.cs" Link="DayDestinationManager.cs" />
+    <Compile Include="../MetaMystia.Mod/Managers/BusinessStart.cs" Link="BusinessStart.cs" />
+    <Compile Include="../MetaMystia.Mod/Managers/GameFlow.Transitions.cs" Link="GameFlow.Transitions.cs" />
+  </ItemGroup>
+</Project>

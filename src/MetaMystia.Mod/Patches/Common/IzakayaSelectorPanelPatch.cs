@@ -18,12 +18,14 @@ public partial class IzakayaSelectorPanelPatch
 {
     public static IzakayaSelectorPanel_New instanceRef = null;
     public static Dictionary<MapLabel, Common.UI.GlobalMap.IGuideMapSpot> cachedSpots = new();
+    private static bool confirmed;
 
     [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapInitialize))]
     [HarmonyPrefix]
     public static void OnGuideMapInitialize_Prefix(IzakayaSelectorPanel_New __instance)
     {
         instanceRef = __instance;
+        confirmed = false;
         Log.LogInfo($"OnGuideMapInitialize called");
     }
 
@@ -77,28 +79,26 @@ public partial class IzakayaSelectorPanelPatch
     /// </summary>
     public static void TryConfirmSelection()
     {
+        if (confirmed || !GameSession.IsRoomHost || GameFlow.Destination != DayDestination.Business) return;
         var mapLabel = PlayerManager.Local.IzakayaMapLabel;
         var level = PlayerManager.Local.IzakayaLevel;
 
         // 主机自己还没选择
         if (!mapLabel.IsSelected() || level == 0)
         {
-            Log.Info("Host has not selected izakaya yet, waiting...");
             return;
         }
 
         var mySelect = mapLabel.FormatIzakayaSelection(level);
 
-        if (!PlayerManager.AllPeersSelectedSameIzakaya(mapLabel, level))
+        if (PlayerManager.Peers.Count > 0 && !PlayerManager.AllPeersSelectedSameIzakaya(mapLabel, level))
         {
-            var mismatch = PlayerManager.GetFirstMismatchSelection(mapLabel, level);
-            Log.LogWarning($"Selection mismatch: my={mySelect}, peer={mismatch}");
-            InGameConsole.ShowPassive(TextId.SelectedIzakayaMismatch.Get(mySelect, mismatch ?? "???"));
             return;
         }
 
         // 全员一致 → 广播 CONFIRM_SELECT → 本地执行切换
         Log.LogMessage($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
+        confirmed = true;
         ConfirmIzakayaAction.Send(mapLabel, level);
         InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(mySelect));
 

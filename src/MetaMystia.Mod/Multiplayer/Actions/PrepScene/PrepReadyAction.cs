@@ -15,11 +15,11 @@ public partial class PrepReadyAction : Action
     {
         if (PrepRound > 0)
         {
-            if (GameFlow.LocalScene == Common.UI.Scene.WorkScene)
+            if (GameFlow.IsFinalTrial)
                 PrepSceneManager.ReceiveYuyukoPrepReady(SenderUid, PrepRound);
             return;
         }
-        if (GameFlow.LocalScene != Common.UI.Scene.IzakayaPrepScene) return;
+        if (GameFlow.Destination != DayDestination.Business || GameFlow.LocalScene == Common.UI.Scene.WorkScene) return;
         PlayerManager.SetPeerPrepOver(SenderUid);
         PrepSceneManager.TryCompletePrep();
         InGameConsole.ShowPassive(TextId.ReadyForWork.Get(LiveModeManager.GetDisplayName(SenderUid)));

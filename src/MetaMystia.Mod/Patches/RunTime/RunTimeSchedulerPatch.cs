@@ -4,9 +4,9 @@ using GameData.Profile;
 using GameData.RunTime.Common;
 using NightScene;
 
-using static MetaMystia.Patch.HarmonyPrefixFlow;
-
 using MetaMystia.Multiplayer;
+
+using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
 

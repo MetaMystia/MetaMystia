@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 
 using Common.UI;
 
@@ -10,6 +11,7 @@ namespace MetaMystia;
 
 public static partial class PrepSceneManager
 {
+    private static bool completingPrep;
     public static void TryCompletePrep()
     {
         if (IsYuyukoChallenge)
@@ -17,9 +19,10 @@ public static partial class PrepSceneManager
             TryConfirmYuyukoPrep();
             return;
         }
-        if (!GameSession.IsRoomHost) return;
-        if (PlayerManager.AllPrepOver)
+        if (!GameSession.IsRoomHost || completingPrep || GameFlow.LocalScene != Scene.IzakayaPrepScene) return;
+        if (PlayerManager.LocalIsPrepOver && PlayerManager.Peers.Values.All(p => p.IsPrepOver))
         {
+            completingPrep = true;
             PrepAllReadyAction.Send();
             PluginHost.Instance.StartManagedCoroutine(FinishPrep());
         }
@@ -28,9 +31,10 @@ public static partial class PrepSceneManager
     public static bool ContinuePrep()
     {
         if (IsYuyukoChallenge) return false;
-        if (!GameSession.IsRoomHost || (GameFlow.LocalScene != Scene.IzakayaPrepScene && GameFlow.LocalScene != Scene.WorkScene) || !PlayerManager.LocalIsPrepOver)
+        if (!GameSession.IsRoomHost || completingPrep || GameFlow.LocalScene != Scene.IzakayaPrepScene || !PlayerManager.LocalIsPrepOver)
             return false;
         foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;
+        completingPrep = true;
         PrepAllReadyAction.Send();
         PluginHost.Instance.StartManagedCoroutine(FinishPrep());
         return true;

@@ -36,6 +36,7 @@ public static partial class GameSession
     private static Task shutdown = Task.CompletedTask;
     private static Task joinability = Task.CompletedTask;
     private static long nextMotion;
+    private static GameStage publishedStage;
 
     public static void StartHost(int port = -1)
     {
@@ -84,7 +85,7 @@ public static partial class GameSession
 
     private static bool CanStart()
     {
-        if (!Plugin.AllPatched || !GameFlow.IsMultiplayerAvailable)
+        if (!Plugin.AllPatched || !GameFlow.IsMultiplayerAvailable || !GameFlow.CanJoin)
         {
             InGameConsole.LogError((Plugin.AllPatched ? TextId.MpMainSceneRequired : TextId.ModPatchFailure).Get());
             return false;
@@ -100,6 +101,7 @@ public static partial class GameSession
         Client = client;
         cancellation = new();
         IsConnecting = true;
+        publishedStage = GameFlow.Stage;
         joinability = Task.CompletedTask;
         client.CallbackError += error => Log.Error($"Network callback: {error}");
         if (lan != null) lan.Server.CallbackError += error => Log.Error($"Server callback: {error}");
@@ -123,9 +125,9 @@ public static partial class GameSession
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (previous != Membership)
         {
+            BusinessStart.Reset(resume: previous != 0 && Membership == 0);
+            GameFlow.ResetGameplay();
             DayDestinationManager.ResetSession();
-            PrepSceneManager.ClearPrepTable();
-            PrepSceneManager.ResetYuyukoPrep();
             YuyukoGuestSync.Reset();
             RoomClock.Reset();
         }
@@ -136,8 +138,21 @@ public static partial class GameSession
     {
         Client?.DispatchPending();
         if (!IsOnline) return;
-        if (IsRoomHost && !IsConnecting && joinability.IsCompleted && Room.Joinable != GameFlow.IsPureDay)
-            SetJoinable(GameFlow.IsPureDay);
+        if (publishedStage != GameFlow.Stage)
+        {
+            publishedStage = GameFlow.Stage;
+            PlayerProfile.SendProfile();
+        }
+        DayDestinationManager.TryConfirm();
+        BusinessStart.TryStart();
+        if (IsRoomHost && GameFlow.IsCooperative)
+        {
+            PrepSceneManager.TryCompletePrep();
+            if (GameFlow.LocalScene == Common.UI.Scene.DayScene && !GameFlow.IsFinalTrial)
+                Patch.IzakayaSelectorPanelPatch.TryConfirmSelection();
+        }
+        if (IsRoomHost && !IsConnecting && joinability.IsCompleted && Room.Joinable != GameFlow.CanOpenRoom)
+            SetJoinable(GameFlow.CanOpenRoom);
         if (RoomClock.Now >= nextMotion)
         {
             nextMotion = RoomClock.Now + 2000;
@@ -176,7 +191,7 @@ public static partial class GameSession
         ApplyState(Client);
     }
 
-    public static void Stop()
+    public static void Stop(bool resumeGameplay = true)
     {
         cancellation?.Cancel();
         cancellation?.Dispose();
@@ -187,11 +202,10 @@ public static partial class GameSession
         lan = null;
         IsConnecting = false;
         State = new();
+        BusinessStart.Reset(resumeGameplay);
+        GameFlow.ResetGameplay();
         PlayerManager.ClearPeers();
         PlayerManager.Local.Uid = 0;
-        PlayerManager.Local.ResetState();
-        PrepSceneManager.ClearPrepTable();
-        PrepSceneManager.ResetYuyukoPrep();
         YuyukoGuestSync.Reset();
         RoomClock.Reset();
     }

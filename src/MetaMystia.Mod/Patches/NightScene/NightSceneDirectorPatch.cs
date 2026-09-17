@@ -11,6 +11,17 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public static partial class NightSceneDirectorPatch
 {
+    public static bool ReturningFromTrial { get; private set; }
+
+    // TryLeaveSession 同步调用 LoadScene；只在该调用范围允许最终试炼正常返回。
+    [HarmonyPatch(nameof(NightSceneDirector.TryLeaveSession))]
+    [HarmonyPrefix]
+    public static void TryLeaveSession_Prefix() => ReturningFromTrial = GameFlow.IsFinalTrial;
+
+    [HarmonyPatch(nameof(NightSceneDirector.TryLeaveSession))]
+    [HarmonyPostfix]
+    public static void TryLeaveSession_Postfix() => ReturningFromTrial = false;
+
     private const string YuyukoGuestLabel = "Yuyuko";
 
     [HarmonyPatch(nameof(NightSceneDirector.SpawnManualControlledSpecialGuest))]

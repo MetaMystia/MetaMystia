@@ -4,15 +4,14 @@ using HarmonyLib;
 
 using NightScene.EventUtility;
 
-
-using static MetaMystia.Patch.HarmonyPrefixFlow;
-
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Actions;
 
+using static MetaMystia.Patch.HarmonyPrefixFlow;
+
 namespace MetaMystia.Patch;
 
-[HarmonyPatch(typeof(EventManager))]
+[HarmonyPatch(typeof(NightScene.EventUtility.EventManager))]
 [AutoLog]
 public static partial class NightSceneEventManagerPatch
 {
@@ -68,14 +67,23 @@ public static partial class NightSceneEventManagerPatch
 
     [HarmonyPatch(nameof(EventManager.StartGuestSpawningAndTiming))]
     [HarmonyPrefix]
-    public static void StartGuestSpawningAndTiming_Prefix(ref int gameTotalSeconds)
+    public static bool StartGuestSpawningAndTiming_Prefix(EventManager __instance, ref int gameTotalSeconds)
     {
         if (GameSession.HasPeers)
         {
             gameTotalSeconds = GameFlow.WorkTimeSecondOverride;
             Log.InfoCaller($"gameTotalSeconds set to {gameTotalSeconds}s");
         }
+        if (!GameSession.IsInRoom || GameFlow.Destination != DayDestination.Business) return RunOriginal;
+        // 开场事件、装饰与伙伴初始化都已完成，放行前不启动刷客和计时。
+        int duration = gameTotalSeconds;
+        BusinessStart.Wait(() => StartGuestSpawningAndTiming_ReversePatch(__instance, duration));
+        return SkipOriginal;
     }
+
+    [HarmonyPatch(nameof(EventManager.StartGuestSpawningAndTiming))]
+    [HarmonyReversePatch]
+    private static void StartGuestSpawningAndTiming_ReversePatch(EventManager __instance, int gameTotalSeconds) { }
 
     /// <summary>
     /// 客机本地倒计时不能自行触发打烊，等待主机广播完整关闭路径。

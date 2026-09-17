@@ -13,7 +13,6 @@ public partial class DayDestinationStateAction : Action
 
     [RequireHostSender]
     [ClientOnlyReceive]
-    [CheckScene(Common.UI.Scene.DayScene)]
     public override void OnReceivedDerived() => DayDestinationManager.ApplyState(Round, Intents);
 
     public static void Send(int round, Dictionary<int, DayDestination> intents) =>
