@@ -81,7 +81,9 @@ dotnet run --project src/MetaMystia.Flow.Tests -c Release --no-build
 dotnet run --project src/MetaMystia.Server -c Release --no-build -- 40815 16
 ```
 
-`DeployToGame=false` 将模组输出到项目的 `bin/Release`，不复制到游戏目录；网络程序集由 Costura 嵌入模组。服务器入口按回车或 Ctrl+C 退出。
+`DeployToGame=false` 将模组输出到模组项目的 `bin/Release`，不复制到游戏目录；网络程序集由 Costura 嵌入模组。服务器入口按回车或 Ctrl+C 退出。
+
+游戏端同时部署主模组与依赖预加载组件：主模组位于 `BepInEx/plugins`，引导组件位于 `BepInEx/patchers/MetaMystia`。后者提前执行主模组的模块初始化，注册内嵌依赖解析，避免入口类型依赖网络程序集时出现加载顺序循环。普通构建会部署两者，`DeployToGame=false` 时两者均只生成本地输出。
 
 网络测试覆盖真实 TCP 的顺序、阶段更新、自由切场景保留房间、入房限制、容量、退出、权限、昼夜隔离和旧房间上下文。流程测试直接编译模组的入口协调、营业等待与场景转换规则，替代游戏和传输入口，覆盖确认交错、成员离开、混合试炼及正常／中断路径。
 
