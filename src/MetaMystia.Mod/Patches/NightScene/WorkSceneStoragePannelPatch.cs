@@ -4,7 +4,7 @@ using GameData.Core.Collections;
 using NightScene.UI.CookingUtility;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -56,7 +56,7 @@ public partial class WorkSceneStoragePannelPatch
                 return SkipOriginal;
             }
             SellableFood food = SellableFood.FromSellable(toExtract);
-            ExtractFoodAction.Send(food);
+            ExtractFoodMessage.Send(food);
         }
         return RunOriginal;
     }

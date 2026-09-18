@@ -11,7 +11,7 @@ using NightScene.GuestManagementUtility;
 using NightScene.EventUtility;
 using Night.UI.HUD.Ordering;
 
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 using SgrYuki.Utils;
 
@@ -210,7 +210,7 @@ public static partial class GuestService
     }
 
     /// <summary>
-    /// FSM 已移除时仍清理 HUD 订单（主机 GuestKillAction 携带 DeskCode）。
+    /// FSM 已移除时仍清理 HUD 订单（主机 GuestKillMessage 携带 DeskCode）。
     /// </summary>
     public static void CleanGuestOrderRegistrationForDesk(int deskCode)
     {

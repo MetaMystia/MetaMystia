@@ -11,7 +11,7 @@ using UnityEngine.EventSystems;
 using Common.UI;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.ConsoleSystem;
 
 namespace MetaMystia.UI;
@@ -872,7 +872,7 @@ public static partial class InGameConsole
             LogToConsole($"{localName}: {displayMsg}");
 
             if (GameSession.IsOnline)
-                MessageAction.Send(cmd);
+                ChatMessage.Send(cmd);
 
             closeConsole = true;
         }

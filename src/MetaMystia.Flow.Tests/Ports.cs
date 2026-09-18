@@ -71,22 +71,22 @@ namespace MetaMystia.Multiplayer
         public static Task SetJoinable(bool allowed) => Admission;
     }
 }
-namespace MetaMystia.Multiplayer.Actions
+namespace MetaMystia.Multiplayer.Messages
 {
-    static class DayDestinationConfirmAction
+    static class DayDestinationConfirmMessage
     {
         public static readonly List<(int Round, DayDestination Target)> Sent = new();
         public static void Send(int round, DayDestination destination) => Sent.Add((round, destination));
     }
-    static class DayDestinationIntentAction
+    static class DayDestinationIntentMessage
     {
         public static void Send(int round, DayDestination destination) { }
     }
-    static class DayDestinationStateAction
+    static class DayDestinationStateMessage
     {
         public static void Send(int round, Dictionary<int, DayDestination> state) { }
     }
-    static class BusinessStartAction
+    static class BusinessStartMessage
     {
         public static readonly List<bool> Sent = new();
         public static void Send(bool start) => Sent.Add(start);

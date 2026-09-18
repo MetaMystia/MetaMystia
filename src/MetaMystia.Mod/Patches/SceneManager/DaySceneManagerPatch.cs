@@ -4,7 +4,7 @@ using Common.UI;
 using DayScene;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 using SgrYuki.Utils;
@@ -51,7 +51,7 @@ public partial class DaySceneManagerPatch
     {
         if (GameSession.IsRoomClient)
         {
-            GuestInviteAction.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
+            GuestInviteMessage.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
         }
         Panel.CloseActivePanelsBeforeSceneTransit();
         OnDayOver_ReversePatch(SceneManager.Instance);

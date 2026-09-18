@@ -77,7 +77,7 @@ public class Plugin : BasePlugin
 
         PatchRegistry.ApplyAll(harmony);
 
-        Multiplayer.Actions.Action.RegisterAllFormatter();
+        Multiplayer.Messages.MultiplayerMessage.RegisterAllFormatter();
 
         try
         {

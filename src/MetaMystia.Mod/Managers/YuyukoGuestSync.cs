@@ -8,7 +8,7 @@ using Il2CppSystem.Linq;
 using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 
 using static NightScene.GuestManagementUtility.GuestGroupController;
@@ -26,17 +26,17 @@ public static partial class YuyukoGuestSync
     private static GuestGroupController body;
     private static GuestFSM fsm;
     private static Guid session;
-    private static YuyukoGuestAction binding;
-    private static YuyukoGuestAction pendingClear;
+    private static YuyukoGuestMessage binding;
+    private static YuyukoGuestMessage pendingClear;
     private static readonly HashSet<int> boundPeers = new();
-    private static readonly Queue<YuyukoGuestAction> incoming = new();
+    private static readonly Queue<YuyukoGuestMessage> incoming = new();
     private static OrderBase pendingOrder;
     private static Il2CppSystem.Action<EvaluationResult> pendingCallback;
     private static Il2CppSystem.Action<EvaluationResult> orderCallback;
     private static Il2CppSystem.Action<EvaluationResult> wrappedCallback;
     private static EvaluationResult? localCompleted;
     private static EvaluationResult? hostCompleted;
-    private static YuyukoGuestAction replayEvaluation;
+    private static YuyukoGuestMessage replayEvaluation;
     private static bool installing;
     private static bool running;
     private static int lifetime;
@@ -74,7 +74,7 @@ public static partial class YuyukoGuestSync
             fsm = GuestFSM.BindManual(body);
             SendBinding();
         }
-        else if (binding == null) YuyukoGuestBoundAction.Send(Guid.Empty, 0);
+        else if (binding == null) YuyukoGuestBoundMessage.Send(Guid.Empty, 0);
         TryBind();
         Start();
     }
@@ -84,7 +84,7 @@ public static partial class YuyukoGuestSync
     /// 阶段消息按恢复位置保存，吞食目标进入专用队列，订单与评价按接收顺序等待应用。
     /// 清理消息可越过尚未安装的订单，并移除其之前的待处理消息，避免阶段取消被阻塞。
     /// </summary>
-    public static void Receive(YuyukoGuestAction message)
+    public static void Receive(YuyukoGuestMessage message)
     {
         if (!PrepSceneManager.IsYuyukoChallenge) return;
         if (message.Event == YuyukoGuestEvent.Bind)
@@ -129,7 +129,7 @@ public static partial class YuyukoGuestSync
         body.GetFund = binding.Fund;
         body.MaxFundCarry = binding.MaxFund;
         fsm = GuestFSM.BindManual(body, binding.RuntimeId);
-        YuyukoGuestBoundAction.Send(session, fsm.RuntimeId);
+        YuyukoGuestBoundMessage.Send(session, fsm.RuntimeId);
         Log.Info($"幽幽子本体已绑定 #{fsm.RuntimeId}");
     }
 
@@ -156,13 +156,13 @@ public static partial class YuyukoGuestSync
         var message = Message(YuyukoGuestEvent.Bind);
         message.Fund = body.GetFund;
         message.MaxFund = body.MaxFundCarry;
-        YuyukoGuestAction.Send(message);
+        YuyukoGuestMessage.Send(message);
     }
 
     /// <summary>
     /// 创建带有会话、本体编号和当前订单序号的消息。调用方补充事件数据并负责发送。
     /// </summary>
-    private static YuyukoGuestAction Message(YuyukoGuestEvent kind) => new()
+    private static YuyukoGuestMessage Message(YuyukoGuestEvent kind) => new()
     {
         Session = session,
         RuntimeId = fsm.RuntimeId,
@@ -230,7 +230,7 @@ public static partial class YuyukoGuestSync
                     message.NotShowInUI = order.NotShowInUI;
                     message.FreeOrder = order.FreeOrder;
                     message.Mood = body.Mood;
-                    YuyukoGuestAction.Send(message);
+                    YuyukoGuestMessage.Send(message);
                 }
                 if (GameSession.IsRoomClient && incoming.TryPeek(out var received) && Apply(received))
                     incoming.Dequeue();
@@ -264,7 +264,7 @@ public static partial class YuyukoGuestSync
     /// 过期事件直接消费；未来事件等待本地进度追上。阶段取消由处理协程单独优先执行。
     /// </summary>
     /// <returns>true 表示处理或丢弃完毕，可以出队；false 表示保留队首，后续帧重试。</returns>
-    private static bool Apply(YuyukoGuestAction message)
+    private static bool Apply(YuyukoGuestMessage message)
     {
         switch (message.Event)
         {
@@ -399,7 +399,7 @@ public static partial class YuyukoGuestSync
             message.EvaluationMessage = evaluationMessage;
             message.ComboProtect = comboProtect;
             message.DamageMultiplier = YuyukoBossDataPatch.CurrentContext.dmgMultiplier;
-            YuyukoGuestAction.Send(message);
+            YuyukoGuestMessage.Send(message);
         }
         fsm.SetManualState(GuestFSM.State.Evaluating);
     }
@@ -408,7 +408,7 @@ public static partial class YuyukoGuestSync
     /// 客机写入主机确认的菜酒，关闭上菜面板，再调用原版手动评价以重放表现。
     /// 同步调用期间的重放标记供评价 Hook 回填结果，返回后即清除；异步完成由 wrappedCallback 跟踪。
     /// </summary>
-    private static void ReplayEvaluation(YuyukoGuestAction message)
+    private static void ReplayEvaluation(YuyukoGuestMessage message)
     {
         var order = body.PeekOrders();
         GuestFSM.TryCloseServePanel(body.DeskCode);
@@ -445,7 +445,7 @@ public static partial class YuyukoGuestSync
         {
             var message = Message(YuyukoGuestEvent.Complete);
             message.Result = result;
-            YuyukoGuestAction.Send(message);
+            YuyukoGuestMessage.Send(message);
             ContinueOrder(result);
         }
     }
@@ -476,7 +476,7 @@ public static partial class YuyukoGuestSync
     internal static void OnClean(GuestGroupController controller)
     {
         if (!IsBody(controller) || fsm == null) return;
-        if (GameSession.IsRoomHost) YuyukoGuestAction.Send(Message(YuyukoGuestEvent.Clear));
+        if (GameSession.IsRoomHost) YuyukoGuestMessage.Send(Message(YuyukoGuestEvent.Clear));
         CancelOrder();
     }
 

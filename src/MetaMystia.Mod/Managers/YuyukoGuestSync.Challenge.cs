@@ -12,7 +12,7 @@ using NightScene.CookingUtility;
 using NightScene.Tiles;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 
 using LockLoop = GameData.Profile.YuyukoBossData.__c__DisplayClass16_6.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObSpCoObObUnique;
@@ -23,7 +23,7 @@ namespace MetaMystia;
 
 public static partial class YuyukoGuestSync
 {
-    private static readonly Dictionary<int, YuyukoGuestAction> phases = new();
+    private static readonly Dictionary<int, YuyukoGuestMessage> phases = new();
     private static readonly HashSet<int> sentPhases = new();
     private static readonly Queue<int> pendingSwallows = new();
     private static readonly Dictionary<IntPtr, int> replaySwallows = new();
@@ -98,7 +98,7 @@ public static partial class YuyukoGuestSync
         message.Fund = context.eventManager.EarnedFund;
         message.PositiveSpellCount = context.positiveSpellCount;
         message.Life = context.yuyukoTotalLife;
-        YuyukoGuestAction.Send(message);
+        YuyukoGuestMessage.Send(message);
         if (state == 4)
             Log.Info($"Yuyuko phase 1 settled: fund={message.Fund}, nextState={loop.__1__state}");
     }
@@ -107,7 +107,7 @@ public static partial class YuyukoGuestSync
     /// 客机按主循环恢复位置保存阶段消息，允许消息先于本地剧情到达。
     /// 仅接受已核对的五个位置；相同位置保留第一条消息，不在接收时直接推进原版协程。
     /// </summary>
-    private static void ReceivePhase(YuyukoGuestAction message)
+    private static void ReceivePhase(YuyukoGuestMessage message)
     {
         if (message.PhaseState is 4 or 9 or 10 or 15 or 16)
             phases.TryAdd(message.PhaseState, message);
@@ -196,7 +196,7 @@ public static partial class YuyukoGuestSync
             activeSwallows[loop.Pointer] = loop;
             var message = Message(YuyukoGuestEvent.Swallow);
             message.CookerIndex = loop.__8__1.targets.First();
-            YuyukoGuestAction.Send(message);
+            YuyukoGuestMessage.Send(message);
         }
     }
 

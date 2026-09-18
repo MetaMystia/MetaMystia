@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Common.UI;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -57,7 +57,7 @@ public partial class IzakayaSelectorPanelPatch
         PlayerManager.Local.IzakayaLevel = izakayaLevel;
 
         // 广播自己的选择
-        SelectIzakayaAction.Send(izakayaMapLabel, izakayaLevel);
+        SelectIzakayaMessage.Send(izakayaMapLabel, izakayaLevel);
 
         var mySelect = izakayaMapLabel.FormatIzakayaSelection(izakayaLevel);
 
@@ -99,7 +99,7 @@ public partial class IzakayaSelectorPanelPatch
         // 全员一致 → 广播 CONFIRM_SELECT → 本地执行切换
         Log.LogMessage($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
         confirmed = true;
-        ConfirmIzakayaAction.Send(mapLabel, level);
+        ConfirmIzakayaMessage.Send(mapLabel, level);
         InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(mySelect));
 
         TryProceedWithConfirmedSelection(mapLabel, (IzakayaLevel)level);

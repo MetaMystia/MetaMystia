@@ -2,7 +2,7 @@ using Common.UI;
 
 using MetaMystia;
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
 
 int checks = 0;
@@ -27,8 +27,8 @@ void Setup(bool host = true)
     GameFlow.InStory = false;
     DayDestinationManager.ResetSession();
     BusinessStart.Reset();
-    DayDestinationConfirmAction.Sent.Clear();
-    BusinessStartAction.Sent.Clear();
+    DayDestinationConfirmMessage.Sent.Clear();
+    BusinessStartMessage.Sent.Clear();
 }
 void Intent(DayDestination target, System.Action continuation)
 {
@@ -41,17 +41,17 @@ int entered = 0;
 var admission = new TaskCompletionSource();
 GameSession.Admission = admission.Task;
 Intent(DayDestination.Business, () => entered++);
-Check(DayDestinationConfirmAction.Sent.Count == 0, "关闭入房尚未确认时不发出共同入口");
+Check(DayDestinationConfirmMessage.Sent.Count == 0, "关闭入房尚未确认时不发出共同入口");
 admission.SetResult();
 PluginHost.Instance.Tick();
-Check(DayDestinationConfirmAction.Sent.Single().Target == DayDestination.Business, "入房关闭且意向一致后直接广播执行，无需客机再次接受");
+Check(DayDestinationConfirmMessage.Sent.Single().Target == DayDestination.Business, "入房关闭且意向一致后直接广播执行，无需客机再次接受");
 PluginHost.Instance.Tick();
 Check(entered == 1 && DayDestinationManager.Round == 2, "房主确认后执行一次原营业入口");
 DayDestinationManager.ApplyConfirmation(1, DayDestination.Business);
 DayDestinationManager.ReceiveIntent(2, 1, DayDestination.None);
 DayDestinationManager.ReceiveIntent(2, 1, DayDestination.FinalTrialAgain);
 PluginHost.Instance.Tick();
-Check(entered == 1 && GameFlow.Destination == DayDestination.Business && DayDestinationConfirmAction.Sent.Count == 1,
+Check(entered == 1 && GameFlow.Destination == DayDestination.Business && DayDestinationConfirmMessage.Sent.Count == 1,
     "重复命令和迟到的撤回或改选不能取消或改变已确认营业");
 
 Setup();
@@ -59,7 +59,7 @@ GameSession.Admission = new TaskCompletionSource().Task;
 Intent(DayDestination.Business, () => entered++);
 DayDestinationManager.ReceiveIntent(2, 1, DayDestination.None);
 Check(DayDestinationManager.GetIntent(2) == DayDestination.None && DayDestinationManager.Round == 1
-    && DayDestinationConfirmAction.Sent.Count == 0, "房主确认前撤回只更新意向，不产生执行或取消命令");
+    && DayDestinationConfirmMessage.Sent.Count == 0, "房主确认前撤回只更新意向，不产生执行或取消命令");
 
 Setup(false);
 DayDestinationManager.Submit(DayDestination.Business, () => entered++);
@@ -83,7 +83,7 @@ Setup();
 DayDestinationManager.Submit(DayDestination.Business, () => entered++);
 GameSession.Room = GameSession.Room with { Members = [new() { Uid = 1, Stage = GameStage.Day }, new() { Uid = 2, Stage = GameStage.MainMenu }] };
 DayDestinationManager.ReceiveIntent(2, 1, DayDestination.Business);
-Check(DayDestinationConfirmAction.Sent.Count == 0, "主菜单成员不被静默忽略或当成可营业成员");
+Check(DayDestinationConfirmMessage.Sent.Count == 0, "主菜单成员不被静默忽略或当成可营业成员");
 GameSession.Room = GameSession.Room with { Members = [new() { Uid = 1, Stage = GameStage.Day }] };
 PlayerManager.Peers.Clear();
 DayDestinationManager.OnPeerLeft(2);
@@ -103,7 +103,7 @@ Check(BusinessStart.IsWaitingForStart, "等待全员就绪期间保持厨具交�
 GameSession.Room = GameSession.Room with { Members = [new() { Uid = 1, Stage = GameStage.Work }, new() { Uid = 2, Stage = GameStage.Work }] };
 BusinessStart.TryStart();
 BusinessStart.TryStart();
-Check(started == 1 && BusinessStartAction.Sent.Count == 1, "全部开场就绪后只广播并执行一次营业放行");
+Check(started == 1 && BusinessStartMessage.Sent.Count == 1, "全部开场就绪后只广播并执行一次营业放行");
 Check(!BusinessStart.IsWaitingForStart, "主机放行后恢复厨具交互");
 
 Setup();
@@ -134,7 +134,7 @@ Check(started == 2, "普通断线可以解除开场等待并继续本地原流�
 Setup();
 GameFlow.LocalScene = Scene.ResultScene;
 DayDestinationManager.ReceiveIntent(2, 1, DayDestination.Business);
-Check(DayDestinationManager.GetIntent(2) == DayDestination.Business && DayDestinationConfirmAction.Sent.Count == 0,
+Check(DayDestinationManager.GetIntent(2) == DayDestination.Business && DayDestinationConfirmMessage.Sent.Count == 0,
     "房主收尾期间保留较快成员的新意向，但不能放行");
 GameFlow.LocalScene = Scene.DayScene;
 GameSession.Admission = new TaskCompletionSource().Task;

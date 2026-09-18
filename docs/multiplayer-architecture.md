@@ -4,7 +4,7 @@
 
 ## 职责
 
-核心库使用 `MetaMystia.Network`，模组接入层使用 `MetaMystia.Multiplayer`，玩法消息位于 `MetaMystia.Multiplayer.Actions`。
+核心库使用 `MetaMystia.Network`，模组接入层使用 `MetaMystia.Multiplayer`，玩法消息位于 `MetaMystia.Multiplayer.Messages`。
 
 服务器管理连接、世界成员、房间和入房许可。房主是由房间 `Host` 标识的客户端，UID 不固定。
 
@@ -17,7 +17,7 @@
 | `MetaMystia.Mod/Multiplayer/GameSession` | 游戏连接入口、主线程派发、异步操作提示与清理 |
 | `GameFlow`、`DayDestinationManager`、`BusinessStart` | 游戏阶段、场景转换规则、入口确认与营业开场等待 |
 | `PlayerProfile`、`PlayerManager.Network` | 玩家资料和运动转换、世界及房间角色显示 |
-| `GameActions`、`GameMessageRules` | 玩法消息类型、路由、发送者身份与房间校验 |
+| `GameMessages`、`GameMessageRules` | 玩法消息类型、路由、发送者身份与房间校验 |
 | `RoomClock` | 房主时钟校准；与网络存活检测分开 |
 
 连接状态、房间身份和玩法阶段分别判断。

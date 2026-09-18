@@ -5,7 +5,7 @@ using System.Linq;
 using Common.UI;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
 using MetaMystia.Patch;
 using MetaMystia.UI;
@@ -78,7 +78,7 @@ public static partial class DayDestinationManager
         Round = round;
         ApplyState(round, state);
         if (localIntent != DayDestination.None && GameSession.IsRoomClient)
-            DayDestinationIntentAction.Send(Round, localIntent);
+            DayDestinationIntentMessage.Send(Round, localIntent);
     }
 
     public static void Submit(DayDestination destination, System.Action continuation)
@@ -96,7 +96,7 @@ public static partial class DayDestinationManager
         if (GameSession.IsRoomHost)
             ReceiveIntent(PlayerManager.Local.Uid, Round, destination);
         else
-            DayDestinationIntentAction.Send(Round, destination);
+            DayDestinationIntentMessage.Send(Round, destination);
     }
 
     public static void ReceiveIntent(int uid, int round, DayDestination destination)
@@ -107,7 +107,7 @@ public static partial class DayDestinationManager
         if (destination == DayDestination.None)
         {
             intents.Remove(uid);
-            DayDestinationStateAction.Send(Round, Snapshot());
+            DayDestinationStateMessage.Send(Round, Snapshot());
             return;
         }
         if (committed && businessReleased && destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain) committed = false;
@@ -117,7 +117,7 @@ public static partial class DayDestinationManager
         if (GetIntent(uid) == destination) return;
         intents[uid] = destination;
         Notify(uid, destination);
-        DayDestinationStateAction.Send(Round, Snapshot());
+        DayDestinationStateMessage.Send(Round, Snapshot());
         TryConfirm();
     }
 
@@ -147,7 +147,7 @@ public static partial class DayDestinationManager
     {
         intents.Remove(uid);
         if (!GameSession.IsRoomHost || committed || GameFlow.LocalScene != Scene.DayScene) return;
-        DayDestinationStateAction.Send(Round, Snapshot());
+        DayDestinationStateMessage.Send(Round, Snapshot());
         TryConfirm();
     }
 
@@ -181,7 +181,7 @@ public static partial class DayDestinationManager
         }
         // 在发送确认前锁定，后续改选不能改变本轮结果。
         committed = true;
-        DayDestinationConfirmAction.Send(Round, target);
+        DayDestinationConfirmMessage.Send(Round, target);
         ApplyConfirmation(Round, target);
     }
 
@@ -195,8 +195,8 @@ public static partial class DayDestinationManager
         closing = false;
         admissionClosed = false;
         intents.Remove(PlayerManager.Local.Uid);
-        if (GameSession.IsRoomHost) DayDestinationStateAction.Send(Round, Snapshot());
-        else if (GameSession.IsRoomClient) DayDestinationIntentAction.Send(Round, DayDestination.None);
+        if (GameSession.IsRoomHost) DayDestinationStateMessage.Send(Round, Snapshot());
+        else if (GameSession.IsRoomClient) DayDestinationIntentMessage.Send(Round, DayDestination.None);
     }
 
     private static IEnumerator CloseAdmission(int entryGeneration, long membership)

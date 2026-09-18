@@ -113,7 +113,7 @@ flowchart TD
 
 原游戏已维护的状态，能可靠读取就直接读取。额外记录的联机状态应有明确用途，例如保存各玩家的选择、一次确认是否已处理，或当前等待哪个业务结果。
 
-具体写法遵循 [Harmony Hook](harmony-hook-style.md)、[网络 Action](network-action-style.md)、[线程与调度](threading-and-scheduling.md) 和 [协程](coroutine-style.md) 规范。现有代码可以参考思路，新增代码仍应补齐必要的接收约束，不照搬旧实现的缺漏。
+具体写法遵循 [Harmony Hook](harmony-hook-style.md)、[网络 Action](network-message-style.md)、[线程与调度](threading-and-scheduling.md) 和 [协程](coroutine-style.md) 规范。现有代码可以参考思路，新增代码仍应补齐必要的接收约束，不照搬旧实现的缺漏。
 
 ## 7. 按主线逐步开发和验证
 
@@ -134,7 +134,7 @@ flowchart TD
 ### 少量源码参考
 
 - [选店补丁](../src/MetaMystia.Mod/Patches/Common/IzakayaSelectorPanelPatch.cs)：提交选择、主机确认、继续原流程。
-- [备菜完成消息](../src/MetaMystia.Mod/Multiplayer/Actions/PrepScene/PrepAllReadyAction.cs)：阶段推进前先统一必要配置。
+- [备菜完成消息](../src/MetaMystia.Mod/Multiplayer/Messages/PrepScene/PrepAllReadyMessage.cs)：阶段推进前先统一必要配置。
 - [顾客补丁](../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)与 [GuestFSM](../src/MetaMystia.Mod/Managers/GuestFSM.cs)：探测生命周期变化，按业务状态应用同步。
 - [夜间事件补丁](../src/MetaMystia.Mod/Patches/NightScene/NightSceneEventManagerPatch.cs)：约束客机自主变更，捕获主机产生的业务变化。
 

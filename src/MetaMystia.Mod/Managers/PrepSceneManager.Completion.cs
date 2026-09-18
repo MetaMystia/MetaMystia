@@ -4,7 +4,7 @@ using System.Linq;
 using Common.UI;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 
 namespace MetaMystia;
@@ -23,7 +23,7 @@ public static partial class PrepSceneManager
         if (PlayerManager.LocalIsPrepOver && PlayerManager.Peers.Values.All(p => p.IsPrepOver))
         {
             completingPrep = true;
-            PrepAllReadyAction.Send();
+            PrepAllReadyMessage.Send();
             PluginHost.Instance.StartManagedCoroutine(FinishPrep());
         }
     }
@@ -35,7 +35,7 @@ public static partial class PrepSceneManager
             return false;
         foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;
         completingPrep = true;
-        PrepAllReadyAction.Send();
+        PrepAllReadyMessage.Send();
         PluginHost.Instance.StartManagedCoroutine(FinishPrep());
         return true;
     }

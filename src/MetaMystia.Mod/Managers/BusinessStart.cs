@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
 
 namespace MetaMystia;
@@ -35,7 +35,7 @@ public static class BusinessStart
         }
         continuation = callback;
         if (GameSession.IsRoomHost) ReceiveReady(PlayerManager.Local.Uid);
-        else BusinessStartAction.Send(false);
+        else BusinessStartMessage.Send(false);
     }
 
     public static void ReceiveReady(int uid)
@@ -49,7 +49,7 @@ public static class BusinessStart
         if (!GameSession.IsRoomHost || started || continuation == null || GameFlow.Stage != GameStage.Work
             || !GameSession.Room.Members.All(p => ready.Contains(p.Uid)
                 && (p.Uid == PlayerManager.Local.Uid || p.Stage == GameStage.Work))) return;
-        BusinessStartAction.Send(true);
+        BusinessStartMessage.Send(true);
         ApplyStart();
     }
 

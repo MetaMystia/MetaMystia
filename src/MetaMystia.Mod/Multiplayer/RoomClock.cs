@@ -1,6 +1,6 @@
 using System;
 
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 
 namespace MetaMystia.Multiplayer;
 
@@ -18,7 +18,7 @@ public static class RoomClock
     {
         if (!GameSession.IsRoomClient || Now - sent < 3000) return;
         sent = Now;
-        PingAction.Send(++request);
+        PingMessage.Send(++request);
     }
 
     public static void Receive(int id, long hostReceived)

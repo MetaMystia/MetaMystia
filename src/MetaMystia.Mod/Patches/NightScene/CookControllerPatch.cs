@@ -5,7 +5,7 @@ using GameData.Core.Collections;
 using NightScene.CookingUtility;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -47,7 +47,7 @@ public partial class CookControllerPatch
         var gridIndex = __instance.GridIndex;
         var recipeId = recipe.Id;
         SellableFood food = SellableFood.FromSellable(thisResult);
-        NightCookAction.Send(gridIndex, food, recipeId);
+        NightCookMessage.Send(gridIndex, food, recipeId);
     }
 
     [HarmonyPatch(nameof(CookController.Extract))]
@@ -63,7 +63,7 @@ public partial class CookControllerPatch
         if (YuyukoGuestSync.IsInterruptingCooker) return;
         if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
-        ExtractFromCookerAction.Send(gridIndex);
+        ExtractFromCookerMessage.Send(gridIndex);
     }
 
     [HarmonyPatch(nameof(CookController.Store))]
@@ -77,7 +77,7 @@ public partial class CookControllerPatch
     {
         if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
-        StoreSellableAction.Send(gridIndex, value);
+        StoreSellableMessage.Send(gridIndex, value);
     }
 
 
@@ -93,7 +93,7 @@ public partial class CookControllerPatch
         // 联机下 QTE 期间时间继续推进，厨具可能已被吞食，需阻止 QTE 结束后再启动烹饪倒计时。
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
         var gridIndex = __instance.GridIndex;
-        QTEAction.Send(gridIndex, qteScore);
+        QTEMessage.Send(gridIndex, qteScore);
         return RunOriginal;
     }
 

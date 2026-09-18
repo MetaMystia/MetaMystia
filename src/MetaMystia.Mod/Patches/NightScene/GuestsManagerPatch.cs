@@ -11,7 +11,7 @@ using GameData.RunTime.NightSceneUtility;
 using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using SgrYuki.Utils;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -644,7 +644,7 @@ public partial class GuestsManagerPatch
         if (NightSceneEventManagerPatch.IsHostCloseReplay) return RunOriginal;
         if (GameSession.IsRoomHost)
         {
-            IzakayaCloseAction.Send();
+            IzakayaCloseMessage.Send();
             return RunOriginal;
         }
 
@@ -704,8 +704,8 @@ public partial class GuestsManagerPatch
         if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
         if (GameSession.IsRoomHost)
         {
-            // 上游 PatientDepletedDeskAction 已会让客机完整重放 PatientDepletedLeave 链路
-            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Prefix 再发 GuestLeaveAction。
+            // 上游 PatientDepletedDeskMessage 已会让客机完整重放 PatientDepletedLeave 链路
+            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Prefix 再发 GuestLeaveMessage。
             SkipLeaveFromDeskPatch.Grant();
             GuestFSM.OnPatientDepletedAtDesk(toPatientDepletedLeave);
             return RunOriginal;

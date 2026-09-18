@@ -5,7 +5,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
 using MetaMystia.UI;
 
@@ -105,7 +105,7 @@ public static partial class GameSession
         client.CallbackError += error => Log.Error($"Network callback: {error}");
         if (lan != null) lan.Server.CallbackError += error => Log.Error($"Server callback: {error}");
         client.StateChanged += () => ApplyState(client);
-        client.MessageReceived += GameActions.Receive;
+        client.MessageReceived += GameMessages.Receive;
         client.ConnectionEnded += reason =>
         {
             if (Client != client) return;

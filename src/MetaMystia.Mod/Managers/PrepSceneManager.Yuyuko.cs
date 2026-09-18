@@ -5,7 +5,7 @@ using GameData.RunTime.NightSceneUtility;
 using NightScene;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 
 namespace MetaMystia;
@@ -19,7 +19,7 @@ public static partial class PrepSceneManager
     public static bool IsYuyukoPrepActive { get; private set; }
     private static bool yuyukoPrepConfirmed;
     private static readonly Dictionary<int, int> yuyukoReadyRounds = new();
-    private static readonly Dictionary<int, UpdatePrepAction.Table> nextYuyukoPrepTables = new();
+    private static readonly Dictionary<int, UpdatePrepMessage.Table> nextYuyukoPrepTables = new();
 
     public static void ResetYuyukoPrep()
     {
@@ -41,7 +41,7 @@ public static partial class PrepSceneManager
 
         // OnPanelOpen 已完成：保留本阶段原有配置，实际编辑的时间戳优先于基线。
         var configure = IzakayaConfigure.Instance;
-        localPrepTable = new UpdatePrepAction.Table();
+        localPrepTable = new UpdatePrepMessage.Table();
         foreach (var recipe in configure.DailyRecipes)
             localPrepTable.RecipeAdditions[recipe.Id] = 1;
         foreach (var beverage in configure.DailyBeverages)
@@ -55,11 +55,11 @@ public static partial class PrepSceneManager
         foreach (var table in nextYuyukoPrepTables.Values)
             MergeFromPeer(table);
         nextYuyukoPrepTables.Clear();
-        UpdatePrepAction.Send(localPrepTable);
+        UpdatePrepMessage.Send(localPrepTable);
         Log.Info($"Yuyuko prep round {YuyukoPrepRound} opened");
     }
 
-    public static void ReceiveYuyukoPrepTable(int senderUid, int round, UpdatePrepAction.Table table)
+    public static void ReceiveYuyukoPrepTable(int senderUid, int round, UpdatePrepMessage.Table table)
     {
         if (!GameFlow.IsFinalTrial || !PlayerManager.Peers.ContainsKey(senderUid)) return;
         if (round == YuyukoPrepRound && IsYuyukoPrepActive && !yuyukoPrepConfirmed)
@@ -86,7 +86,7 @@ public static partial class PrepSceneManager
                 yuyukoReadyRounds.TryGetValue(uid, out var round) && round == YuyukoPrepRound)) return;
 
         yuyukoPrepConfirmed = true;
-        PrepAllReadyAction.Send();
+        PrepAllReadyMessage.Send();
         int confirmedRound = YuyukoPrepRound;
         var client = GameSession.Client;
         var membership = GameSession.Membership;

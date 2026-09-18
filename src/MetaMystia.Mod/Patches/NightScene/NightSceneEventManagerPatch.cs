@@ -5,7 +5,7 @@ using HarmonyLib;
 using NightScene.EventUtility;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
@@ -61,7 +61,7 @@ public static partial class NightSceneEventManagerPatch
         Log.Info($"Fever Prefix, durationSec {durationSec}");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
-            BuffAction.Send(QTEBuff.Fever);
+            BuffMessage.Send(QTEBuff.Fever);
         }
     }
 
@@ -127,7 +127,7 @@ public static partial class NightSceneEventManagerPatch
         if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
         if (GameSession.IsRoomHost)
         {
-            FundEditAction.Send(value, mathOperation);
+            FundEditMessage.Send(value, mathOperation);
         }
     }
 
@@ -159,7 +159,7 @@ public static partial class NightSceneEventManagerPatch
         if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
         if (GameSession.IsRoomHost)
         {
-            TipEditAction.Send(value, serveType, comboBuff, moodBuff, extraBuff);
+            TipEditMessage.Send(value, serveType, comboBuff, moodBuff, extraBuff);
         }
     }
 
@@ -189,7 +189,7 @@ public static partial class NightSceneEventManagerPatch
         if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
         if (GameSession.IsRoomHost)
         {
-            ExpEditAction.Send(value, mathOperation);
+            ExpEditMessage.Send(value, mathOperation);
         }
     }
 
@@ -219,7 +219,7 @@ public static partial class NightSceneEventManagerPatch
         if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
         if (GameSession.IsRoomHost)
         {
-            PassionEditAction.Send(value, mathOperation);
+            PassionEditMessage.Send(value, mathOperation);
         }
     }
 }

@@ -23,7 +23,7 @@
 - [GuestFSM](../src/MetaMystia.Mod/Managers/GuestFSM.cs)：状态、等待队列、请求执行。
 - [GuestsManagerPatch](../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)：原版业务拦截。
 - [GuestService](../src/MetaMystia.Mod/Managers/GuestService.cs)：客机重放。
-- [Guest Actions](../src/MetaMystia.Mod/Multiplayer/Actions/WorkScene/Guest)：消息方向及数据。
+- [Guest Actions](../src/MetaMystia.Mod/Multiplayer/Messages/WorkScene/Guest)：消息方向及数据。
 
 ## 实施顺序
 
@@ -34,7 +34,7 @@
 - 原版 `CheckCanPlayerRepelGuest` 检查可赶客登记、全局许可和顾客自身许可；请求必须同时核对 RuntimeId 对应的控制器仍占据该桌。
 - `PlayerRepell` 包含提前返回和异步回调，不能在入口声明成功；计数 Buff、扣心情、付款和排队耐心随机变化由主机原版执行。
 - `RepellInternal` 注销订单、交互、耐心，再调用 `LeaveFromDesk`；只重放末端会漏清理。
-- `PlayerRepellAction` 应成为仅主机接收的请求，不进等待队列、不自动转发。过期请求应直接结束。
+- `PlayerRepellMessage` 应成为仅主机接收的请求，不进等待队列、不自动转发。过期请求应直接结束。
 - 主机真正进入驱赶后，在离桌入口发送驱赶结果；客机重放 `RepellInternal`，不重跑 `PlayerRepell`。
 - 特殊符卡的表现和完整状态同步不在本次范围；不把拒绝或异步等待伪装成已离场。
 
@@ -48,13 +48,13 @@
 
 ## 第 5 项实现与验证
 
-实现链：客机 PlayerRepell → 请求 → 主机校验控制器、桌位及 CheckCanPlayerRepelGuest → 原版 PlayerRepell → 实际 RepellInternal → 离桌入口广播 GuestRepellAction → 客机直接重放 RepellInternal。
+实现链：客机 PlayerRepell → 请求 → 主机校验控制器、桌位及 CheckCanPlayerRepelGuest → 原版 PlayerRepell → 实际 RepellInternal → 离桌入口广播 GuestRepellMessage → 客机直接重放 RepellInternal。
 
 - 请求不再 RoomRelay，也不进入顾客 Pending。失效请求直接结束，不等待下一轮订单。
 - 主机本地赶客也检查原版许可。提前返回不会推进 FSM；异步分支不再依赖跨回调保存的全局放行次数。
 - 在实际驱赶时设置 IsRepelling，关闭当前上菜面板；阻止关闭面板再次确认上菜或评价。无面板时不留下放行许可。
 - 客机结果只接受主机，绕过旧服务 Pending，并检查同桌是否已换成另一顾客。重复终态结果不重复清理。
-- 原版 RepellInternal 保留订单、交互、耐心及离桌清理，内部 LeaveFromDesk 只放行一次；不再同时广播普通 GuestLeaveAction。
+- 原版 RepellInternal 保留订单、交互、耐心及离桌清理，内部 LeaveFromDesk 只放行一次；不再同时广播普通 GuestLeaveMessage。
 - 同步清理入口处的主机心情、连击和连击损失计数，刷新客机连击及音乐状态；付款继续使用已有收入同步。
 - 本次没有统一所有原版副作用：赶客后对排队顾客随机扣耐心仍由主机决定，客机耐心显示可能不同；逐出成就、剧情表现和符卡回调不在本轮适配范围。该限制不能作为完整原版双端等价的证明。
 - 沿用已有 Left 的“开始离桌即终态”语义，第 8 项的实际离场注销仍未修复。

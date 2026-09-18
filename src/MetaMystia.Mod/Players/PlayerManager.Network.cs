@@ -1,7 +1,7 @@
 using System.Linq;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
 using MetaMystia.UI;
 
@@ -37,7 +37,7 @@ public static partial class PlayerManager
             (inRoom ? Peers : PublicPeers)[player.Uid] = peer;
             if (wasInRoom && !inRoom) DayDestinationManager.OnPeerLeft(player.Uid);
             peer.ApplyState(data);
-            if (joined && GameSession.IsRoomHost) RoomInitialStateAction.Send(player.Uid);
+            if (joined && GameSession.IsRoomHost) RoomInitialStateMessage.Send(player.Uid);
         }
         RefreshLocalLabel();
     }

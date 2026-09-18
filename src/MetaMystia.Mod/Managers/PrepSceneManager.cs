@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using GameData.Core.Collections;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 
 
@@ -13,7 +13,7 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class PrepSceneManager
 {
-    public static UpdatePrepAction.Table localPrepTable = new();
+    public static UpdatePrepMessage.Table localPrepTable = new();
 
     public static readonly int MaxRecipes = 8;
     public static readonly int MaxBeverages = 8;
@@ -29,10 +29,10 @@ public static partial class PrepSceneManager
     }
 
     /// <summary>Day→Prep 转场窗口期缓存的 Prep 表，进入 PrepScene 后由 <see cref="FlushBufferedTables"/> 重放。</summary>
-    private static readonly List<UpdatePrepAction.Table> bufferedPrepTables = new();
+    private static readonly List<UpdatePrepMessage.Table> bufferedPrepTables = new();
 
-    /// <summary>缓存转场窗口期收到的 Prep 表（仅 Day→Prep 过渡期由 UpdatePrepAction 调用）。</summary>
-    public static void BufferPrepTable(UpdatePrepAction.Table prepTable)
+    /// <summary>缓存转场窗口期收到的 Prep 表（仅 Day→Prep 过渡期由 UpdatePrepMessage 调用）。</summary>
+    public static void BufferPrepTable(UpdatePrepMessage.Table prepTable)
     {
         if (prepTable == null) return;
         bufferedPrepTables.Add(prepTable);
@@ -51,21 +51,21 @@ public static partial class PrepSceneManager
     public static void ClearPrepTable()
     {
         completingPrep = false;
-        localPrepTable = new UpdatePrepAction.Table();
+        localPrepTable = new UpdatePrepMessage.Table();
         bufferedPrepTables.Clear();
     }
 
-    public static UpdatePrepAction.Table GetLocalPrepTableSnapshot() => localPrepTable.Clone();
+    public static UpdatePrepMessage.Table GetLocalPrepTableSnapshot() => localPrepTable.Clone();
 
     /// <summary>客机：放弃本地备菜修改，强制应用主机权威表。</summary>
-    public static void ApplyHostTable(UpdatePrepAction.Table hostTable)
+    public static void ApplyHostTable(UpdatePrepMessage.Table hostTable)
     {
-        localPrepTable = hostTable?.Clone() ?? new UpdatePrepAction.Table();
+        localPrepTable = hostTable?.Clone() ?? new UpdatePrepMessage.Table();
         Log.LogInfo("Applied authoritative prep table from host.");
         UpdateAll();
     }
 
-    public static void MergeFromPeer(UpdatePrepAction.Table remotePrepTable)
+    public static void MergeFromPeer(UpdatePrepMessage.Table remotePrepTable)
     {
         bool changed = false;
 
@@ -139,7 +139,7 @@ public static partial class PrepSceneManager
         return changed;
     }
 
-    private static bool MergeCookers(UpdatePrepAction.Table remotePrepTable)
+    private static bool MergeCookers(UpdatePrepMessage.Table remotePrepTable)
     {
         if (remotePrepTable == null)
         {

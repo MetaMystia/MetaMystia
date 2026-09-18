@@ -4,7 +4,7 @@ using NightScene.UI.HUDUtility;
 
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 
 namespace MetaMystia.Patch;
 
@@ -57,7 +57,7 @@ public partial class IncomeControllerYuyukoPatch
         int life = YuyukoBossDataPatch.CurrentContext.yuyukoTotalLife;
         if (lastSentLife == life) return;
         lastSentLife = life;
-        YuyukoLifeAction.Send(life);
+        YuyukoLifeMessage.Send(life);
     }
 
     internal static void ReceiveProgress(int life)

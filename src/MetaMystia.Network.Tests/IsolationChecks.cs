@@ -50,15 +50,15 @@ static partial class Checks
         var results = new List<ReceivedMessage>();
         host.MessageReceived += requests.Add;
         guest.MessageReceived += results.Add;
-        guest.SendToHost((ushort)GameMessage.ServeSellable, [1], 42);
+        guest.SendToHost((ushort)GameMessageType.ServeSellable, [1], 42);
         await Until(() => requests.Count == 1);
         var context = requests[0].Context;
         Assert(host.IsCurrent(context), "应用延迟回调可核对双方入房身份");
-        guest.SendToRoom((ushort)GameMessage.ServeSellable, [2]);
-        guest.SendToHost((ushort)GameMessage.Ping, [3]);
+        guest.SendToRoom((ushort)GameMessageType.ServeSellable, [2]);
+        guest.SendToHost((ushort)GameMessageType.Ping, [3]);
         await Until(() => requests.Count == 2);
         Assert(requests.All(m => m.Body[0] != 2), "同一玩法类型允许客人请求但不允许客人伪造广播结果");
-        host.SendToRoom((ushort)GameMessage.ServeSellable, [4], 42);
+        host.SendToRoom((ushort)GameMessageType.ServeSellable, [4], 42);
         await Until(() => results.Count == 1);
         Assert(results[0].Context.Sender == host.Uid && results[0].Context.Request == 42,
             "裁定广播来源是房主，原请求者也收到结果");

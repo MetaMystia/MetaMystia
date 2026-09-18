@@ -13,7 +13,7 @@ using GameData.Profile;
 using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Multiplayer.Actions;
+using MetaMystia.Multiplayer.Messages;
 using SgrYuki.Utils;
 
 namespace MetaMystia.Patch;
@@ -53,7 +53,7 @@ public partial class YuyukoBossDataPatch
     {
         if (!GameSession.HasPeers || failureStarted) return;
         failureStarted = true;
-        if (GameSession.IsRoomHost) YuyukoFailedAction.Send();
+        if (GameSession.IsRoomHost) YuyukoFailedMessage.Send();
     }
 
     public static void ReceiveFailure()
