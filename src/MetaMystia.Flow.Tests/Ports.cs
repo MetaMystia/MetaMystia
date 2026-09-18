@@ -73,16 +73,10 @@ namespace MetaMystia.Multiplayer
 }
 namespace MetaMystia.Multiplayer.Actions
 {
-    public enum EntryStep { Prepare, Release, Cancel }
     static class DayDestinationConfirmAction
     {
-        public static readonly List<(int Round, DayDestination Target, EntryStep Step)> Sent = new();
-        public static void Send(int round, DayDestination destination, EntryStep step) => Sent.Add((round, destination, step));
-    }
-    static class DayEntryReplyAction
-    {
-        public static readonly List<(int Round, bool Ready)> Sent = new();
-        public static void Send(int round, bool ready) => Sent.Add((round, ready));
+        public static readonly List<(int Round, DayDestination Target)> Sent = new();
+        public static void Send(int round, DayDestination destination) => Sent.Add((round, destination));
     }
     static class DayDestinationIntentAction
     {

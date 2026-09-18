@@ -28,7 +28,6 @@ void Setup(bool host = true)
     DayDestinationManager.ResetSession();
     BusinessStart.Reset();
     DayDestinationConfirmAction.Sent.Clear();
-    DayEntryReplyAction.Sent.Clear();
     BusinessStartAction.Sent.Clear();
 }
 void Intent(DayDestination target, System.Action continuation)
@@ -45,33 +44,37 @@ Intent(DayDestination.Business, () => entered++);
 Check(DayDestinationConfirmAction.Sent.Count == 0, "关闭入房尚未确认时不发出共同入口");
 admission.SetResult();
 PluginHost.Instance.Tick();
-Check(entered == 0 && DayDestinationConfirmAction.Sent.Single().Step == EntryStep.Prepare, "入房关闭后仍等待每个成员接受入口");
-DayDestinationManager.ReceiveEntryReply(2, 1, true);
+Check(DayDestinationConfirmAction.Sent.Single().Target == DayDestination.Business, "入房关闭且意向一致后直接广播执行，无需客机再次接受");
 PluginHost.Instance.Tick();
-Check(entered == 1 && DayDestinationManager.Round == 2, "全员接受后只执行一次原营业入口");
-DayDestinationManager.ReceiveEntryReply(2, 1, true);
+Check(entered == 1 && DayDestinationManager.Round == 2, "房主确认后执行一次原营业入口");
+DayDestinationManager.ApplyConfirmation(1, DayDestination.Business);
+DayDestinationManager.ReceiveIntent(2, 1, DayDestination.None);
+DayDestinationManager.ReceiveIntent(2, 1, DayDestination.FinalTrialAgain);
 PluginHost.Instance.Tick();
-Check(entered == 1, "重复入口回复不会重复推进");
+Check(entered == 1 && GameFlow.Destination == DayDestination.Business && DayDestinationConfirmAction.Sent.Count == 1,
+    "重复命令和迟到的撤回或改选不能取消或改变已确认营业");
 
 Setup();
+GameSession.Admission = new TaskCompletionSource().Task;
 Intent(DayDestination.Business, () => entered++);
-DayDestinationManager.ReceiveEntryReply(2, 1, false);
-PluginHost.Instance.Tick();
-Check(entered == 1 && GameFlow.Destination == DayDestination.None, "读档玩家拒绝旧意向时取消放行，不执行游戏副作用");
-Check(DayDestinationManager.GetIntent(2) == DayDestination.None && DayDestinationManager.Round == 2, "撤回者意向清除，已有入口编号推进");
+DayDestinationManager.ReceiveIntent(2, 1, DayDestination.None);
+Check(DayDestinationManager.GetIntent(2) == DayDestination.None && DayDestinationManager.Round == 1
+    && DayDestinationConfirmAction.Sent.Count == 0, "房主确认前撤回只更新意向，不产生执行或取消命令");
 
 Setup(false);
 DayDestinationManager.Submit(DayDestination.Business, () => entered++);
-DayDestinationManager.WithdrawLocal();
-GameFlow.LocalScene = Scene.LoadScene;
-DayDestinationManager.PrepareEntry(1, DayDestination.Business);
-Check(DayEntryReplyAction.Sent.Single().Ready == false && GameFlow.Destination == DayDestination.None, "客机先读档、后收到入口提议时明确拒绝");
-DayDestinationManager.CancelEntry(1);
-Check(DayDestinationManager.Round == 2, "加载中的客机也接收取消，不与房主入口编号脱节");
+int trialEntered = 0;
+DayDestinationManager.Submit(DayDestination.FinalTrialAgain, () => trialEntered++);
+DayDestinationManager.ApplyConfirmation(1, DayDestination.Business);
+PluginHost.Instance.Tick();
+Check(entered == 2 && trialEntered == 0 && GameFlow.Destination == DayDestination.Business,
+    "客机收到房主命令前改选，仍执行已提交过的营业入口，不否决命令");
+DayDestinationManager.ApplyConfirmation(1, DayDestination.Business);
+PluginHost.Instance.Tick();
+Check(entered == 2, "客机重复收到同轮执行命令不会重复执行");
 
 Setup(false);
 DayDestinationManager.Submit(DayDestination.FinalTrialAgain, () => entered++);
-DayDestinationManager.PrepareEntry(1, DayDestination.FinalTrial);
 DayDestinationManager.ApplyConfirmation(1, DayDestination.FinalTrial);
 PluginHost.Instance.Tick();
 Check(MetaMystia.Patch.RunTimeSchedulerPatch.FirstTrialEntries == 1, "首次与重修混合时，重修客机沿已有首次客人入口进入");
@@ -85,7 +88,7 @@ GameSession.Room = GameSession.Room with { Members = [new() { Uid = 1, Stage = G
 PlayerManager.Peers.Clear();
 DayDestinationManager.OnPeerLeft(2);
 PluginHost.Instance.Tick();
-Check(entered == 2, "未就绪成员离开后，房主可以继续已提交的入口");
+Check(entered == 3, "未就绪成员离开后，房主可以继续已提交的入口");
 
 Setup();
 GameFlow.Destination = DayDestination.Business;

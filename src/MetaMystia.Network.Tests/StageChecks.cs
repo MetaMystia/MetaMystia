@@ -53,9 +53,10 @@ static partial class Checks
         var inbound = new List<ReceivedMessage>();
         host.MessageReceived += inbound.Add;
         guest.SendToRoom((ushort)GameMessage.BusinessStart, [3]);
-        guest.SendToHost((ushort)GameMessage.DayEntryReply, [4]);
+        guest.SendToRoom((ushort)GameMessage.DayDestinationConfirm, [3]);
+        guest.SendToHost((ushort)GameMessage.DayDestinationIntent, [4]);
         await Until(() => inbound.Count == 1);
-        Assert(inbound[0].Type == (ushort)GameMessage.DayEntryReply, "客人只能回复入口确认，不能广播营业放行");
+        Assert(inbound[0].Type == (ushort)GameMessage.DayDestinationIntent, "客人只能提交入口意向，不能广播入口执行或营业放行");
         host.Disconnect();
         guest.Disconnect();
     }

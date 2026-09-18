@@ -59,7 +59,6 @@ public static class GameActions
         YuyukoGuestAction => GameMessage.YuyukoGuest,
         YuyukoGuestBoundAction => GameMessage.YuyukoGuestBound,
         RoomReadyAction => GameMessage.RoomReady,
-        DayEntryReplyAction => GameMessage.DayEntryReply,
         BusinessStartAction => GameMessage.BusinessStart,
         _ => throw new ArgumentException("Unregistered action", nameof(action))
     };

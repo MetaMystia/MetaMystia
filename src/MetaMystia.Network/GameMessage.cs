@@ -45,7 +45,7 @@ public enum GameMessage : ushort
     YuyukoGuest = 51,
     YuyukoGuestBound = 52,
     RoomReady = 53,
-    DayEntryReply = 54,
+    // 54：已移除的入口回复，保留编号空位。
     BusinessStart = 55,
 }
 
@@ -96,7 +96,6 @@ public static class GameMessageRules
         new((ushort)GameMessage.YuyukoGuest, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessage.YuyukoGuestBound, [Route.Host]),
         new((ushort)GameMessage.RoomReady, [Route.Room, Route.Player], HostOnly: true),
-        new((ushort)GameMessage.DayEntryReply, [Route.Host]),
         new((ushort)GameMessage.BusinessStart, [Route.Host, Route.Room], HostBroadcastOnly: true),
     ];
 }

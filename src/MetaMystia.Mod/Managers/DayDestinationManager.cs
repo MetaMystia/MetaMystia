@@ -34,9 +34,6 @@ public static partial class DayDestinationManager
     private static int generation;
     private static bool closing;
     private static bool admissionClosed;
-    private static DayDestination proposal;
-    private static DayDestination previousDestination;
-    private static readonly HashSet<int> accepted = new();
     public static bool ReplayingChallenge { get; private set; }
     public static bool ReplayingBusiness { get; private set; }
     public static bool IsStoryLocked => firstTrialPending;
@@ -65,8 +62,6 @@ public static partial class DayDestinationManager
         firstTrialPending = false;
         closing = false;
         admissionClosed = false;
-        proposal = DayDestination.None;
-        accepted.Clear();
         ReplayingChallenge = false;
         ReplayingBusiness = false;
     }
@@ -112,11 +107,9 @@ public static partial class DayDestinationManager
         if (destination == DayDestination.None)
         {
             intents.Remove(uid);
-            if (proposal != DayDestination.None) CancelProposal();
             DayDestinationStateAction.Send(Round, Snapshot());
             return;
         }
-        if (proposal != DayDestination.None) return;
         if (committed && businessReleased && destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain) committed = false;
         if (committed) return;
         if (businessReleased && destination == DayDestination.Business) return;
@@ -153,8 +146,6 @@ public static partial class DayDestinationManager
     public static void OnPeerLeft(int uid)
     {
         intents.Remove(uid);
-        accepted.Remove(uid);
-        if (proposal != DayDestination.None) { TryRelease(); return; }
         if (!GameSession.IsRoomHost || committed || GameFlow.LocalScene != Scene.DayScene) return;
         DayDestinationStateAction.Send(Round, Snapshot());
         TryConfirm();
@@ -189,8 +180,9 @@ public static partial class DayDestinationManager
             }
         }
         // 在发送确认前锁定，后续改选不能改变本轮结果。
-        DayDestinationConfirmAction.Send(Round, target, EntryStep.Prepare);
-        PrepareEntry(Round, target);
+        committed = true;
+        DayDestinationConfirmAction.Send(Round, target);
+        ApplyConfirmation(Round, target);
     }
 
     public static void WithdrawLocal()
@@ -207,64 +199,6 @@ public static partial class DayDestinationManager
         else if (GameSession.IsRoomClient) DayDestinationIntentAction.Send(Round, DayDestination.None);
     }
 
-    public static void PrepareEntry(int round, DayDestination destination)
-    {
-        if (round != Round || proposal != DayDestination.None) return;
-        bool available = GameFlow.LocalScene == Scene.DayScene
-            && (localIntent == destination || (destination == DayDestination.FinalTrial && localIntent == DayDestination.FinalTrialAgain))
-            && (continuations.ContainsKey(destination) || (destination == DayDestination.FinalTrial
-                && continuations.ContainsKey(DayDestination.FinalTrialAgain)));
-        if (available)
-        {
-            previousDestination = GameFlow.Destination;
-            proposal = destination;
-            committed = true;
-            GameFlow.BeginCooperative(destination);
-        }
-        if (GameSession.IsRoomHost) ReceiveEntryReply(PlayerManager.Local.Uid, round, available);
-        else DayEntryReplyAction.Send(round, available);
-    }
-
-    public static void ReceiveEntryReply(int uid, int round, bool ready)
-    {
-        if (!GameSession.IsRoomHost || round != Round || proposal == DayDestination.None) return;
-        if (uid != PlayerManager.Local.Uid && !PlayerManager.Peers.ContainsKey(uid)) return;
-        if (!ready)
-        {
-            intents.Remove(uid);
-            CancelProposal();
-            DayDestinationStateAction.Send(Round, Snapshot());
-            return;
-        }
-        accepted.Add(uid);
-        TryRelease();
-    }
-
-    private static void TryRelease()
-    {
-        if (!GameSession.IsRoomHost || proposal == DayDestination.None
-            || !GameSession.Room.Members.All(p => accepted.Contains(p.Uid))) return;
-        var destination = proposal;
-        DayDestinationConfirmAction.Send(Round, destination, EntryStep.Release);
-        ApplyConfirmation(Round, destination);
-    }
-
-    private static void CancelProposal()
-    {
-        DayDestinationConfirmAction.Send(Round, proposal, EntryStep.Cancel);
-        CancelEntry(Round);
-    }
-
-    public static void CancelEntry(int round)
-    {
-        if (round != Round) return;
-        if (proposal != DayDestination.None) GameFlow.BeginCooperative(previousDestination);
-        proposal = DayDestination.None;
-        accepted.Clear();
-        committed = false;
-        Round++;
-    }
-
     private static IEnumerator CloseAdmission(int entryGeneration, long membership)
     {
         var task = GameSession.SetJoinable(false);
@@ -279,7 +213,7 @@ public static partial class DayDestinationManager
 
     public static void ApplyConfirmation(int round, DayDestination destination)
     {
-        if (round != Round || proposal != destination) return;
+        if (round != Round) return;
         if (!continuations.TryGetValue(destination, out var continuation))
         {
             if (destination == DayDestination.FinalTrial && continuations.ContainsKey(DayDestination.FinalTrialAgain))
@@ -291,8 +225,7 @@ public static partial class DayDestinationManager
             }
         }
         committed = true;
-        proposal = DayDestination.None;
-        accepted.Clear();
+        GameFlow.BeginCooperative(destination);
         Round++;
         localIntent = DayDestination.None;
         firstTrialPending = destination == DayDestination.FinalTrial;
