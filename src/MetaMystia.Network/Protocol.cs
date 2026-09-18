@@ -148,6 +148,7 @@ internal static class Protocol
     internal static void Validate(Motion m)
     {
         if (m == null || !float.IsFinite(m.X) || !float.IsFinite(m.Y) || !float.IsFinite(m.DirectionX) ||
-            !float.IsFinite(m.DirectionY) || !float.IsFinite(m.Speed) || !Enum.IsDefined(typeof(MapLabel), m.Map)) throw new InvalidDataException("Invalid motion");
+            !float.IsFinite(m.DirectionY) || !float.IsFinite(m.Speed) ||
+            (!Enum.IsDefined(typeof(MapLabel), m.Map) && (int)m.Map < 9000)) throw new InvalidDataException("Invalid motion");
     }
 }

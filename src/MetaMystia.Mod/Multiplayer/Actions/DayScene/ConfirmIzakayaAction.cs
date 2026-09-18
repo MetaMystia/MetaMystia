@@ -14,7 +14,7 @@ namespace MetaMystia.Multiplayer.Actions;
 [AutoLog]
 public partial class ConfirmIzakayaAction : Action
 {
-    public MapLabel MapLabel { get; set; }
+    public MapLabel MapLabel { get; set; } = MapLabel.Unknown;
     public int MapLevel { get; set; } = 0;
 
     public override void OnReceivedDerived()

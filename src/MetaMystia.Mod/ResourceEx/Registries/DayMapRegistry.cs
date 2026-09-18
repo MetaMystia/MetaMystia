@@ -37,6 +37,8 @@ public static partial class DayMapRegistry
     private static bool providerRegistered;
 
     public static IEnumerable<int> Ids => Maps.Where(p => p.Value.Template != null).Select(p => p.Key);
+    public static bool IsRegistered(int id) => Maps.TryGetValue(id, out var entry) && entry.Template != null;
+    public static string GetDisplayName(int id) => IsRegistered(id) ? Maps[id].Config.name : null;
     public static string GetLabel(int id) => $"_ResourceEx_Map_{id}";
     public static string GetMarker(int id, string name) => $"{GetLabel(id)}_{name}";
 

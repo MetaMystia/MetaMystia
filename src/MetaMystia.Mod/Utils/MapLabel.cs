@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+
+using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -45,6 +47,15 @@ public static class MapLabelExtensions
         if (MapKeyToLabel.TryGetValue(mapKey, out label))
             return true;
 
+        const string customPrefix = "_ResourceEx_Map_";
+        if (mapKey.StartsWith(customPrefix, StringComparison.Ordinal)
+            && int.TryParse(mapKey.AsSpan(customPrefix.Length), out var id)
+            && DayMapRegistry.IsRegistered(id))
+        {
+            label = (MapLabel)id;
+            return true;
+        }
+
         label = MapLabel.Unknown;
         return false;
     }
@@ -56,7 +67,8 @@ public static class MapLabelExtensions
     }
 
     public static string ToMapKey(this MapLabel label) =>
-        label == MapLabel.Unknown ? "" : label.ToString();
+        label == MapLabel.Unknown ? "" : Enum.IsDefined(label) ? label.ToString()
+        : DayMapRegistry.IsRegistered((int)label) ? DayMapRegistry.GetLabel((int)label) : "";
 
     public static string GetDisplayName(this MapLabel label) => label switch
     {
@@ -81,7 +93,7 @@ public static class MapLabelExtensions
         MapLabel.DLC4_ScarletMansionBasement => TextId.MapLabel_DLC4_ScarletMansionBasement.Get(),
         MapLabel.DLC5_Makai => TextId.MapLabel_DLC5_Makai.Get(),
         MapLabel.DLC5_LunarCapital => TextId.MapLabel_DLC5_LunarCapital.Get(),
-        _ => TextId.MapLabel_Unknown.Get(),
+        _ => DayMapRegistry.GetDisplayName((int)label) ?? TextId.MapLabel_Unknown.Get(),
     };
 
     public static string FormatIzakayaSelection(this MapLabel mapLabel, int level) =>

@@ -29,7 +29,7 @@ public partial record Motion
     public float DirectionY { get; init; }
     public float Speed { get; init; }
     public bool Sprinting { get; init; }
-    public MapLabel Map { get; init; }
+    public MapLabel Map { get; init; } = MapLabel.Unknown;
 }
 
 [MemoryPackable]

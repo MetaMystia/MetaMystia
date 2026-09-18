@@ -11,7 +11,7 @@ namespace MetaMystia.Multiplayer.Actions;
 [MemoryPackable]
 public partial class SelectIzakayaAction : Action
 {
-    public MapLabel MapLabel { get; set; }
+    public MapLabel MapLabel { get; set; } = MapLabel.Unknown;
     public int MapLevel { get; set; } = 0;
     public override void OnReceivedDerived()
     {

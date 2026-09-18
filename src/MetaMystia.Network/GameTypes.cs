@@ -1,31 +1,31 @@
 namespace MetaMystia;
 
-public enum MapLabel : ushort
+public enum MapLabel : int
 {
-    Unknown = 0,
+    Unknown = -1,
 
-    Home = 1,
-    Basement = 2,
-    BeastForest = 3,
-    HumanVillage = 4,
-    HakureiShrine = 5,
-    ScarletMansion = 6,
-    BambooForest = 7,
-    PartyStage = 8,
-    Hakugyokurou = 9,
+    Home = 0,
+    Basement = 1,
+    BeastForest = 2,
+    HumanVillage = 3,
+    HakureiShrine = 4,
+    ScarletMansion = 5,
+    BambooForest = 6,
+    PartyStage = 7,
+    Hakugyokurou = 8,
 
-    DLC1_MagicForest = 10,
-    DLC1_YoukaiMountain = 11,
-    DLC2_FormerHell = 12,
-    DLC2_EarthSpiritsPalace = 13,
-    DLC3_MyourenTemple = 14,
-    DLC3_DivineSpiritMausoleum = 15,
-    DLC3_HakureiFestival = 16,
-    DLC4_GardenOfTheSun = 17,
-    DLC4_ShiningNeedleCastle = 18,
-    DLC4_ScarletMansionBasement = 19,
-    DLC5_Makai = 20,
-    DLC5_LunarCapital = 21,
+    DLC1_MagicForest = 1000,
+    DLC1_YoukaiMountain = 1001,
+    DLC2_FormerHell = 2000,
+    DLC2_EarthSpiritsPalace = 2001,
+    DLC3_MyourenTemple = 3000,
+    DLC3_DivineSpiritMausoleum = 3001,
+    DLC3_HakureiFestival = 3002,
+    DLC4_GardenOfTheSun = 4000,
+    DLC4_ShiningNeedleCastle = 4001,
+    DLC4_ScarletMansionBasement = 4002,
+    DLC5_Makai = 5000,
+    DLC5_LunarCapital = 5001,
 }
 
 [Flags]
