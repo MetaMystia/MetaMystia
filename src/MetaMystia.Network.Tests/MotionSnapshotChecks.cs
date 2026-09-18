@@ -17,7 +17,7 @@ static partial class Checks
         Assert(stored.HasMotion && stored.Motion == motion, "服务端保存静止房主的最新位置");
 
         var guest = new Client(); clients.Add(guest);
-        await Pump(LanSession.JoinAsync(guest, new IPEndPoint(IPAddress.Loopback, lan.Server.Endpoint.Port), Player("new-guest")));
+        await Pump(guest.ConnectAsync(new IPEndPoint(IPAddress.Loopback, lan.Server.Endpoint.Port), Player("new-guest")));
         var host = guest.State.Room!.Members.Single(p => p.Uid == lan.Client.Uid);
         Assert(host.HasMotion && host.Motion == motion, "房主不再发包，新客机仍从入房快照得到位置");
 

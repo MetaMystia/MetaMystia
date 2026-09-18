@@ -31,6 +31,8 @@ static partial class Checks
         }
         var host = await Connect(server, "ErrorHost");
         var guest = await Connect(server, "ErrorGuest");
+        Assert(host.State.Room == null && guest.State.Room == null,
+            "同一普通连接入口连接独立服务器时只进入世界");
         var overflow = new Client();
         clients.Add(overflow);
         var full = await ErrorFrom(overflow.ConnectAsync(server.Endpoint, Player("Overflow")));

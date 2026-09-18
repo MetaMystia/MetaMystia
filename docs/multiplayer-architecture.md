@@ -13,7 +13,7 @@
 | `MetaMystia.Network/Connection`、`Protocol` | TCP 分帧、有序收发、容量限制和超时 |
 | `MetaMystia.Network/Server` | 单一处理循环维护成员和房间，校验身份并路由 |
 | `MetaMystia.Network/Client` | 请求与确认、状态快照、调用线程上的有序派发 |
-| `MetaMystia.Network/LanSession` | 本地开服、房主预留、客人自动加入默认房间 |
+| `MetaMystia.Network/LanSession` | 本地开服与房主连接；服务端在握手时创建或分配默认房间 |
 | `MetaMystia.Mod/Multiplayer/GameSession` | 游戏连接入口、主线程派发、异步操作提示与清理 |
 | `GameFlow`、`DayDestinationManager`、`BusinessStart` | 游戏阶段、场景转换规则、入口确认与营业开场等待 |
 | `PlayerProfile`、`PlayerManager.Network` | 玩家资料和运动转换、世界及房间角色显示 |
@@ -63,8 +63,7 @@
 | 命令 | 用途 |
 |---|---|
 | `/mp start [port]` | 本地开服并建房；保留 `/mp start server` 别名 |
-| `/mp connect <address> [port]` | 连接并自动加入局域网默认房间 |
-| `/mp connect <address> [port] --world` | 连接独立服务器，停留在世界 |
+| `/mp connect <address> [port]` | 服务端决定连接模式：局域网直接进入默认房间，独立服务器停留在世界 |
 | `/mp rooms`、`/mp create [count]`、`/mp join <room>` | 查看、创建、加入房间 |
 | `/mp leave` | 退房；局域网模式结束该次联机 |
 | `/mp disconnect`、`/mp stop` | 结束连接；本地开服时同时关闭服务器 |
@@ -74,7 +73,7 @@
 
 ## 构建与验证
 
-游戏、模组和协议版本统一配置在根目录 `Versions.props`。当前协议为 `6`，与旧协议不兼容，参与者需一起更新。
+游戏、模组和协议版本统一配置在根目录 `Versions.props`。当前协议为 `7`，与旧协议不兼容，参与者需一起更新。
 
 网络错误使用独立的 `NetworkErrorCode`，不传输字符串错误标识或界面文本编号。错误信息可携带对端版本、当前人数和人数上限，由客户端生成本地化提示。握手拒绝使用独立二进制格式，先读取数字错误码，不依赖玩法消息的序列化布局。
 

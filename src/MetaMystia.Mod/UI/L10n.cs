@@ -31,6 +31,7 @@ public enum TextId
     NetworkOverload,
     NetworkLost,
     NetworkFailure,
+    NetworkLeaveRoomFirst,
     NetworkWorldFirst,
     NetworkRoomLine,
     NetworkRoomOpen,

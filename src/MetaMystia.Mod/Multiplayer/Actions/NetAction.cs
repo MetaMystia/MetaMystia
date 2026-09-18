@@ -5,7 +5,6 @@ using BepInEx.Logging;
 using MemoryPack;
 
 using MetaMystia.Network;
-using SgrYuki;
 
 namespace MetaMystia.Multiplayer.Actions;
 

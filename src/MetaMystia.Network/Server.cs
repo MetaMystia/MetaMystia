@@ -108,7 +108,6 @@ public sealed class Server : IAsyncDisposable
                     foreach (var p in peers.ToArray())
                     {
                         if (p.Player == null && DateTime.UtcNow - p.Accepted > options.Timeout) p.Wire.Close(NetworkErrorCode.HandshakeTimeout);
-                        else if (options.LanKey != null && p.Player?.Uid != lanHost && p.Room == 0 && DateTime.UtcNow - p.Accepted > options.Timeout) p.Wire.Close(NetworkErrorCode.JoinTimeout);
                         else if (p.Player != null) p.Wire.Send(new(Kind.Ping, []));
                     }
                 }, stop.Token).ConfigureAwait(false);
@@ -136,11 +135,36 @@ public sealed class Server : IAsyncDisposable
                 if (online >= maxPlayers)
                 { Reject(p, new() { Code = NetworkErrorCode.ServerFull, Count = online, Limit = maxPlayers }); return; }
                 if (options.LanKey != null && lanHost == 0 && key != options.LanKey) { Reject(p, NetworkErrorCode.HostPreparing); return; }
+                Room? lanRoom = null;
+                if (options.LanKey != null)
+                {
+                    if (player.Stage is not (GameStage.MainMenu or GameStage.Day))
+                    { Reject(p, NetworkErrorCode.PlayerNotAvailable); return; }
+                    if (lanHost != 0)
+                    {
+                        if (!rooms.TryGetValue(defaultRoom, out lanRoom))
+                        { Reject(p, NetworkErrorCode.HostPreparing); return; }
+                        if (!lanRoom.Joinable) { Reject(p, NetworkErrorCode.JoinClosed); return; }
+                        int members = peers.Count(x => x.Player != null && x.Room == defaultRoom);
+                        if (members >= lanRoom.MaxPlayers)
+                        { Reject(p, new() { Code = NetworkErrorCode.RoomFull, Count = members, Limit = lanRoom.MaxPlayers }); return; }
+                    }
+                }
                 if (!CanStore(p, player)) { Reject(p, NetworkErrorCode.WorldDataBudgetExceeded); return; }
                 var newUid = AllocateUid();
                 if (newUid == 0) { Reject(p, NetworkErrorCode.UidExhausted); return; }
                 p.Player = player with { Uid = newUid, Membership = 0, HasMotion = false, Motion = new() };
-                if (options.LanKey != null && lanHost == 0) lanHost = newUid;
+                if (options.LanKey != null)
+                {
+                    if (lanHost == 0)
+                    {
+                        lanHost = newUid;
+                        lanRoom = new Room { Id = checked(++nextRoom), Host = newUid, MaxPlayers = maxPlayers };
+                        rooms.Add(lanRoom.Id, lanRoom);
+                        defaultRoom = lanRoom.Id;
+                    }
+                    Join(p, lanRoom!, 0);
+                }
                 p.Wire.Send(new(Kind.Welcome, Protocol.Pack(Capture(p)), newUid));
                 Publish(p);
                 return;

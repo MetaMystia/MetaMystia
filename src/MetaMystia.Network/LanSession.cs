@@ -19,18 +19,8 @@ public sealed class LanSession : IAsyncDisposable
         {
             await Server.StartAsync().ConfigureAwait(false);
             await Client.ConnectCore(new(IPAddress.Loopback, Server.Endpoint.Port), player, key, token).ConfigureAwait(false);
-            await Client.CreateRoomAsync(1, token).ConfigureAwait(false);
         }
         catch { Client.Disconnect(); await Server.StopAsync().ConfigureAwait(false); throw; }
-    }
-    public static async Task JoinAsync(Client client, IPEndPoint endpoint, Player player, CancellationToken token = default)
-    {
-        try
-        {
-            await client.ConnectAsync(endpoint, player, token).ConfigureAwait(false);
-            await client.JoinRoomAsync(0, token).ConfigureAwait(false);
-        }
-        catch { client.Disconnect(); throw; }
     }
     public async ValueTask DisposeAsync()
     { Client.Disconnect(); await Server.StopAsync().ConfigureAwait(false); }

@@ -60,7 +60,7 @@ public static partial class GameSession
         }
     }
 
-    public static void Connect(string host, int port = -1, bool world = false)
+    public static void Connect(string host, int port = -1)
     {
         if (IsConnecting || HasPeers || !CanStart()) return;
         Stop();
@@ -78,8 +78,7 @@ public static partial class GameSession
             var address = addresses.FirstOrDefault(a => ipv6 || a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                 ?? throw new NetworkException(NetworkErrorCode.AddressUnavailable);
             var endpoint = new IPEndPoint(address, targetPort);
-            if (world) await client.ConnectAsync(endpoint, player, token).ConfigureAwait(false);
-            else await LanSession.JoinAsync(client, endpoint, player, token).ConfigureAwait(false);
+            await client.ConnectAsync(endpoint, player, token).ConfigureAwait(false);
         }
     }
 

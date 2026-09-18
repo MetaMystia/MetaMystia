@@ -49,13 +49,11 @@ public static class MpCommands
         });
         mp.AddCommand(id);
 
-        var connect = new Command("connect", "Connect to LAN, or use --world for a standalone server");
+        var connect = new Command("connect", "Connect to a server; LAN servers assign the room automatically");
         var address = new Argument<string>("address");
         var port = new Argument<int?>("port", () => null);
-        var world = new Option<bool>("--world", "Stay in the world without joining a room");
         connect.AddArgument(address);
         connect.AddArgument(port);
-        connect.AddOption(world);
         connect.SetHandler(ctx =>
         {
             if (GameSession.IsConnecting || GameSession.HasPeers) { ctx.Log(TextId.MpConnectInProgress.Get()); return; }
@@ -65,7 +63,7 @@ public static class MpCommands
             var number = ctx.ParseResult.GetValueForArgument(port) ?? (endpoint.Port > 0 ? endpoint.Port : GameSession.ConfigPort);
             if (!ValidPort(number)) return;
             ctx.Log(TextId.MpConnecting.Get(endpoint.Host, number));
-            GameSession.Connect(endpoint.Host, number, ctx.ParseResult.GetValueForOption(world));
+            GameSession.Connect(endpoint.Host, number);
         });
         mp.AddCommand(connect);
 
@@ -81,7 +79,8 @@ public static class MpCommands
         create.AddArgument(capacity);
         create.SetHandler(ctx =>
         {
-            if (!GameSession.IsOnline || GameSession.IsInRoom) { ctx.Log(TextId.NetworkWorldFirst.Get()); return; }
+            if (!GameSession.IsOnline) { ctx.Log(TextId.NetworkWorldFirst.Get()); return; }
+            if (GameSession.IsInRoom) { ctx.Log(TextId.NetworkLeaveRoomFirst.Get()); return; }
             var count = ctx.ParseResult.GetValueForArgument(capacity);
             if (count < 1 || count > GameSession.State.MaxPlayers) { ctx.Log($"1–{GameSession.State.MaxPlayers}"); return; }
             GameSession.CreateRoom(count);
@@ -92,7 +91,8 @@ public static class MpCommands
         join.AddArgument(roomId);
         join.SetHandler(ctx =>
         {
-            if (!GameSession.IsOnline || GameSession.IsInRoom) { ctx.Log(TextId.NetworkWorldFirst.Get()); return; }
+            if (!GameSession.IsOnline) { ctx.Log(TextId.NetworkWorldFirst.Get()); return; }
+            if (GameSession.IsInRoom) { ctx.Log(TextId.NetworkLeaveRoomFirst.Get()); return; }
             GameSession.JoinRoom(ctx.ParseResult.GetValueForArgument(roomId));
         });
         mp.AddCommand(join);
