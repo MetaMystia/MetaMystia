@@ -100,6 +100,8 @@ public static partial class ResourceExManager
         FoodRegistry.RegisterAllFoods();
         ClothRegistry.RegisterAllClothItems();
         ClothRegistry.RegisterAllClothProfiles();
+        RegisterDovePendantDecoration();
+        RegisterDarumaYukiyukiDecoration();
     }
     public static void OnDataBaseDayInitialized()
     {
@@ -121,6 +123,8 @@ public static partial class ResourceExManager
         FoodRegistry.RegisterAllFoodLanguages();
         MissionNodeRegistry.RegisterAllMissionNodeLanguages();
         ClothRegistry.RegisterAllClothLanguages();
+        RegisterDovePendantDecorationLanguage();
+        RegisterDarumaYukiyukiDecorationLanguage();
     }
 
     public static void OnDataBaseCharacterInitialized()
@@ -165,6 +169,8 @@ public static partial class ResourceExManager
         SpecialGuestRegistry.ResetTrackedNpcDialog();
         MerchantRegistry.CheckAndCleanOrphanedMerchants(); // 清理孤儿商人数据，防止 RefMerchant KeyNotFoundException
         MerchantRegistry.RegisterAllTrackedMerchant();
+
+        ApplyDovePendantDaytimeSpeed();
     }
 
     /// <summary>
