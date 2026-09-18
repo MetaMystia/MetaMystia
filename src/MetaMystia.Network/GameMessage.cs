@@ -45,8 +45,7 @@ public enum GameMessage : ushort
     YuyukoGuest = 51,
     YuyukoGuestBound = 52,
     RoomReady = 53,
-    // 54：已移除的入口回复，保留编号空位。
-    BusinessStart = 55,
+    BusinessStart = 54,
 }
 
 public static class GameMessageRules
