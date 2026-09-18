@@ -8,7 +8,7 @@ namespace MetaMystia.UI;
 
 public static class MultiplayerStatus
 {
-    public static string RoleTag => GameSession.IsRoomHost ? "[H]" : GameSession.IsRoomClient ? "[C]" : "[W]";
+    public static string RoleTag => GameSession.IsRoomHost ? "[H]" : GameSession.IsRoomClient ? "[C]" : GameSession.IsOnline ? "[W]" : "[O]";
     public static string RoleName => GameSession.IsRoomHost ? "Host" : GameSession.IsRoomClient ? "Client" : GameSession.IsOnline ? "World" : "Offline";
     public static string BriefStatus => !Plugin.AllPatched ? TextId.ModPatchFailure.Get()
         : GameSession.IsConnecting ? TextId.NetworkConnecting.Get()
