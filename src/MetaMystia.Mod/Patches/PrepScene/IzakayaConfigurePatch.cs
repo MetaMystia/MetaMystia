@@ -50,9 +50,9 @@ public partial class IzakayaConfigurePatch
 
     [HarmonyPatch(nameof(IzakayaConfigure.RegisterToDailyRecipes))]
     [HarmonyPrefix]
-    public static bool RegisterToDailyRecipes_Prefix(int id)
+    public static bool RegisterToDailyRecipes_Prefix(int id, out UpdatePrepMessage.Table __state)
     {
-        Log.LogInfo($"RegisterToDailyRecipes: {id}");
+        __state = CaptureEdit();
 
         if (GameSession.HasPeers && !PlayerManager.RecipeAvailable(id))
         {
@@ -61,16 +61,14 @@ public partial class IzakayaConfigurePatch
             return SkipOriginal;
         }
 
-        PrepSceneManager.localPrepTable.RecipeAdditions[id] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
-        UpdatePrepMessage.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.RegisterToDailyBeverages))]
     [HarmonyPrefix]
-    public static bool RegisterToDailyBeverages_Prefix(int id)
+    public static bool RegisterToDailyBeverages_Prefix(int id, out UpdatePrepMessage.Table __state)
     {
-        Log.LogInfo($"RegisterToDailyBeverages: {id}");
+        __state = CaptureEdit();
         if (GameSession.HasPeers && !PlayerManager.BeverageAvailable(id))
         {
             Log.LogWarning($"Peer does not have beverage {id}, skipping...");
@@ -78,17 +76,15 @@ public partial class IzakayaConfigurePatch
             return SkipOriginal;
         }
 
-        PrepSceneManager.localPrepTable.BeverageAdditions[id] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
-        UpdatePrepMessage.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.RegisterToCookers))]
     [HarmonyPrefix]
-    public static bool RegisterToCookers_Prefix(int id, int index, bool checkPlayerHaveCooker)
+    public static bool RegisterToCookers_Prefix(int id, int index, bool checkPlayerHaveCooker, out UpdatePrepMessage.Table __state)
     {
-        var slots = PrepSceneManager.GetLocalCookerSlots();
-        if (index < 0 || index >= slots.Length)
+        __state = CaptureEdit();
+        if (index < 0 || index >= IzakayaConfigure.Instance.CookerConfigure.Length)
         {
             Log.LogWarning($"RegisterToCookers out of range: id={id}, index={index}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
             return SkipOriginal;
@@ -101,41 +97,39 @@ public partial class IzakayaConfigurePatch
             return SkipOriginal;
         }
 
-        long timestamp = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
-        slots[index].Id = id;
-        slots[index].Timestamp = timestamp;
-
-        Log.LogInfo($"RegisterToCookers: id={id}, index={index}, ts={timestamp}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
-
-        UpdatePrepMessage.Send(PrepSceneManager.localPrepTable);
         return RunOriginal;
     }
 
+    private static UpdatePrepMessage.Table CaptureEdit() =>
+        PrepSceneManager.CanSyncEdits && !PrepSceneManager.IsEditingPreset ? PrepSceneManager.CaptureTable() : null;
+
     [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyRecipes))]
     [HarmonyPrefix]
-    public static void LogoffFromDailyRecipes_Prefix(int id)
-    {
-        Log.LogInfo($"LogoffFromDailyRecipes: {id}");
-        PrepSceneManager.localPrepTable.RecipeDeletions[id] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
-        UpdatePrepMessage.Send(PrepSceneManager.localPrepTable);
-    }
+    public static void RemoveRecipe_Prefix(out UpdatePrepMessage.Table __state) => __state = CaptureEdit();
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyBeverages))]
     [HarmonyPrefix]
-    public static void LogoffFromDailyBeverages_Prefix(int id)
-    {
-        Log.LogInfo($"LogoffFromDailyBeverages: {id}");
-        PrepSceneManager.localPrepTable.BeverageDeletions[id] = MetaMystia.Multiplayer.RoomClock.SynchronizedNow;
-        UpdatePrepMessage.Send(PrepSceneManager.localPrepTable);
-    }
+    public static void RemoveBeverage_Prefix(out UpdatePrepMessage.Table __state) => __state = CaptureEdit();
 
-    [HarmonyPatch(nameof(IzakayaConfigure.LogOffFromCookers))]
-    [HarmonyPrefix]
-    public static void LogOffFromCookers_Prefix(int index)
-    {
-        Log.LogInfo($"LogOffFromCookers: {index}");
-    }
+    [HarmonyPatch(nameof(IzakayaConfigure.RegisterToDailyRecipes))]
+    [HarmonyPostfix]
+    public static void AddRecipe_Postfix(UpdatePrepMessage.Table __state) => PrepSceneManager.FinishLocalEdit(__state);
 
+    [HarmonyPatch(nameof(IzakayaConfigure.RegisterToDailyBeverages))]
+    [HarmonyPostfix]
+    public static void AddBeverage_Postfix(UpdatePrepMessage.Table __state) => PrepSceneManager.FinishLocalEdit(__state);
+
+    [HarmonyPatch(nameof(IzakayaConfigure.RegisterToCookers))]
+    [HarmonyPostfix]
+    public static void Cooker_Postfix(UpdatePrepMessage.Table __state) => PrepSceneManager.FinishLocalEdit(__state);
+
+    [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyRecipes))]
+    [HarmonyPostfix]
+    public static void RemoveRecipe_Postfix(UpdatePrepMessage.Table __state) => PrepSceneManager.FinishLocalEdit(__state);
+
+    [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyBeverages))]
+    [HarmonyPostfix]
+    public static void RemoveBeverage_Postfix(UpdatePrepMessage.Table __state) => PrepSceneManager.FinishLocalEdit(__state);
 
     private static bool _skipPatchStoreFood = false;
     public static void StoreFood_Original(Sellable sellable, int messageSender = -1)

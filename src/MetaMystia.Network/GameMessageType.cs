@@ -57,7 +57,7 @@ public static class GameMessageRules
         new((ushort)GameMessageType.Chat, [Route.World], RoomScoped: false, MaxBytes: 4096),
         new((ushort)GameMessageType.SelectIzakaya, [Route.Room]),
         new((ushort)GameMessageType.ConfirmIzakaya, [Route.Room, Route.Player], HostOnly: true),
-        new((ushort)GameMessageType.UpdatePrep, [Route.Room]),
+        new((ushort)GameMessageType.UpdatePrep, [Route.Host, Route.Room], HostBroadcastOnly: true),
         new((ushort)GameMessageType.PrepReady, [Route.Room]),
         new((ushort)GameMessageType.PrepAllReady, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessageType.NightCook, [Route.Room]),

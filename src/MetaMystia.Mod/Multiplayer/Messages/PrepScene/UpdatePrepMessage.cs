@@ -1,82 +1,79 @@
 using System.Collections.Generic;
+using System.Linq;
+
 using MemoryPack;
 
 namespace MetaMystia.Multiplayer.Messages;
 
-/// <summary>
-/// 任何玩家 → 所有玩家：通告 PrepScene 的食谱/酒水/厨具变更，使用 Last-Write-Wins 策略合并数据，所有玩家对等
-/// </summary>
+/// <summary>客机提交备菜修改，主机按接收顺序处理并广播完整结果。</summary>
 [MemoryPackable]
 [AutoLog]
 public partial class UpdatePrepMessage : MultiplayerMessage
 {
-
     [MemoryPackable]
     public partial class Table
     {
-        public Dictionary<int, long> RecipeAdditions { get; set; } = [];
-        public Dictionary<int, long> RecipeDeletions { get; set; } = [];
-
-        public Dictionary<int, long> BeverageAdditions { get; set; } = [];
-        public Dictionary<int, long> BeverageDeletions { get; set; } = [];
-
+        public List<int> Recipes { get; set; } = [];
+        public List<int> Beverages { get; set; } = [];
         public CookerSlot[] Cookers { get; set; } = CookerSlot.CreateDefaultArray();
 
-        public Table Clone()
+        public Table Clone() => new()
         {
-            var cookers = Cookers ?? CookerSlot.CreateDefaultArray();
-            var clonedCookers = new CookerSlot[cookers.Length];
-            for (int i = 0; i < cookers.Length; i++)
-                clonedCookers[i] = cookers[i]?.Clone() ?? new CookerSlot();
-
-            return new Table
-            {
-                RecipeAdditions = new Dictionary<int, long>(RecipeAdditions),
-                RecipeDeletions = new Dictionary<int, long>(RecipeDeletions),
-                BeverageAdditions = new Dictionary<int, long>(BeverageAdditions),
-                BeverageDeletions = new Dictionary<int, long>(BeverageDeletions),
-                Cookers = clonedCookers,
-            };
-        }
+            Recipes = new(Recipes),
+            Beverages = new(Beverages),
+            Cookers = Cookers.Select(slot => slot.Clone()).ToArray(),
+        };
     }
 
-    public Table PrepTable { get; set; } = new Table();
-    public int PrepRound { get; set; } // 0：普通备菜；正数：本次幽幽子挑战的备菜轮次。
+    public Table PrepTable { get; set; }
+    public int PrepRound { get; set; }
+    public int[] AddedRecipes { get; set; } = [];
+    public int[] RemovedRecipes { get; set; } = [];
+    public int[] AddedBeverages { get; set; } = [];
+    public int[] RemovedBeverages { get; set; } = [];
+    public Dictionary<int, int> ChangedCookers { get; set; } = [];
 
     protected override bool OnSendLogOnlyMessage => true;
     protected override bool OnReceiveLogOnlyMessage => true;
 
     public override void OnReceivedDerived()
     {
-        if (PrepRound > 0)
+        if (GameSession.IsRoomHost)
         {
-            if (GameFlow.IsFinalTrial)
-                PrepSceneManager.ReceiveYuyukoPrepTable(SenderUid, PrepRound, PrepTable);
-            return;
+            if (PrepTable != null) return;
         }
-        switch (GameFlow.LocalScene)
-        {
-            case Common.UI.Scene.IzakayaPrepScene:
-                PrepSceneManager.MergeFromPeer(PrepTable);
-                break;
-            case Common.UI.Scene.DayScene:
-            case Common.UI.Scene.LoadScene:
-                // Day→Prep 转场窗口期缓存，进入 PrepScene 后由 PrepSceneManager.FlushBufferedTables 重放
-                if (GameFlow.Destination == DayDestination.Business) PrepSceneManager.BufferPrepTable(PrepTable);
-                break;
-            default:
-                Log.LogInfo($"Discarded UpdatePrepMessage in {GameFlow.LocalScene}");
-                break;
-        }
+        else if (SenderUid != GameSession.Room?.Host || PrepTable == null) return;
+        PrepSceneManager.ReceivePrepUpdate(this);
     }
 
-    public static void Send(Table prepTable)
+    public static void Submit(Table before, Table after, bool preset)
     {
-        if (PrepSceneManager.IsYuyukoChallenge && !PrepSceneManager.IsYuyukoPrepActive) return;
-        new UpdatePrepMessage
+        var message = new UpdatePrepMessage
         {
-            PrepTable = prepTable,
-            PrepRound = PrepSceneManager.IsYuyukoChallenge ? PrepSceneManager.YuyukoPrepRound : 0
-        }.Enqueue();
+            PrepRound = PrepSceneManager.IsYuyukoChallenge ? PrepSceneManager.YuyukoPrepRound : 0,
+            AddedRecipes = preset ? after.Recipes.ToArray() : after.Recipes.Except(before.Recipes).ToArray(),
+            RemovedRecipes = preset ? before.Recipes.ToArray() : before.Recipes.Except(after.Recipes).ToArray(),
+            AddedBeverages = preset ? after.Beverages.ToArray() : after.Beverages.Except(before.Beverages).ToArray(),
+            RemovedBeverages = preset ? before.Beverages.ToArray() : before.Beverages.Except(after.Beverages).ToArray(),
+        };
+        for (int i = 0; i < after.Cookers.Length; i++)
+            if (before.Cookers[i].Id != after.Cookers[i].Id)
+                message.ChangedCookers[i] = after.Cookers[i].Id;
+        if (message.AddedRecipes.Length + message.RemovedRecipes.Length
+            + message.AddedBeverages.Length + message.RemovedBeverages.Length
+            + message.ChangedCookers.Count == 0) return;
+        if (GameSession.IsRoomHost) PrepSceneManager.ReceivePrepUpdate(message);
+        else message.Enqueue();
     }
+
+    public static void Send(Table table) => new UpdatePrepMessage
+    {
+        PrepTable = table.Clone(),
+        PrepRound = PrepSceneManager.IsYuyukoChallenge ? PrepSceneManager.YuyukoPrepRound : 0,
+    }.Enqueue();
+
+    public static void RequestState() => new UpdatePrepMessage
+    {
+        PrepRound = PrepSceneManager.IsYuyukoChallenge ? PrepSceneManager.YuyukoPrepRound : 0,
+    }.Enqueue();
 }

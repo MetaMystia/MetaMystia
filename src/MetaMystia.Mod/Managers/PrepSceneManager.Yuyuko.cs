@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using GameData.RunTime.NightSceneUtility;
 using NightScene;
 
 using MetaMystia.Multiplayer;
@@ -19,7 +18,6 @@ public static partial class PrepSceneManager
     public static bool IsYuyukoPrepActive { get; private set; }
     private static bool yuyukoPrepConfirmed;
     private static readonly Dictionary<int, int> yuyukoReadyRounds = new();
-    private static readonly Dictionary<int, UpdatePrepMessage.Table> nextYuyukoPrepTables = new();
 
     public static void ResetYuyukoPrep()
     {
@@ -27,7 +25,6 @@ public static partial class PrepSceneManager
         IsYuyukoPrepActive = false;
         yuyukoPrepConfirmed = false;
         yuyukoReadyRounds.Clear();
-        nextYuyukoPrepTables.Clear();
     }
 
     public static void TryBeginYuyukoPrep()
@@ -39,33 +36,8 @@ public static partial class PrepSceneManager
         yuyukoPrepConfirmed = false;
         PlayerManager.LocalIsPrepOver = false;
 
-        // OnPanelOpen 已完成：保留本阶段原有配置，实际编辑的时间戳优先于基线。
-        var configure = IzakayaConfigure.Instance;
-        localPrepTable = new UpdatePrepMessage.Table();
-        foreach (var recipe in configure.DailyRecipes)
-            localPrepTable.RecipeAdditions[recipe.Id] = 1;
-        foreach (var beverage in configure.DailyBeverages)
-            localPrepTable.BeverageAdditions[beverage.Id] = 1;
-        for (int i = 0; i < configure.CookerConfigure.Length && i < localPrepTable.Cookers.Length; i++)
-        {
-            localPrepTable.Cookers[i].Id = configure.CookerConfigure[i];
-            localPrepTable.Cookers[i].Timestamp = 1;
-        }
-
-        foreach (var table in nextYuyukoPrepTables.Values)
-            MergeFromPeer(table);
-        nextYuyukoPrepTables.Clear();
-        UpdatePrepMessage.Send(localPrepTable);
+        BeginPrep();
         Log.Info($"Yuyuko prep round {YuyukoPrepRound} opened");
-    }
-
-    public static void ReceiveYuyukoPrepTable(int senderUid, int round, UpdatePrepMessage.Table table)
-    {
-        if (!GameFlow.IsFinalTrial || !PlayerManager.Peers.ContainsKey(senderUid)) return;
-        if (round == YuyukoPrepRound && IsYuyukoPrepActive && !yuyukoPrepConfirmed)
-            MergeFromPeer(table);
-        else if (round == YuyukoPrepRound + 1)
-            nextYuyukoPrepTables[senderUid] = table;
     }
 
     public static void ReceiveYuyukoPrepReady(int senderUid, int round)

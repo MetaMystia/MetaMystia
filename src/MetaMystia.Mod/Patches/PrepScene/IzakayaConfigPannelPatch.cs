@@ -23,11 +23,33 @@ public partial class IzakayaConfigPannelPatch
     public static IzakayaConfigPannel instanceRef = null;
 
     [HarmonyPatch(nameof(IzakayaConfigPannel.OnPanelOpen))]
+    [HarmonyPrefix]
+    public static void OnPanelOpen_Prefix() => PrepSceneManager.IsOpeningPanel = true;
+
+    [HarmonyPatch(nameof(IzakayaConfigPannel.OnPanelOpen))]
     [HarmonyPostfix]
     public static void IzakayaConfigPannel_OnPanelOpen_Postfix(IzakayaConfigPannel __instance)
     {
         instanceRef = __instance;
+        PrepSceneManager.IsOpeningPanel = false;
         PrepSceneManager.TryBeginYuyukoPrep();
+        if (!PrepSceneManager.IsYuyukoChallenge) PrepSceneManager.BeginPrep();
+    }
+
+    [HarmonyPatch(nameof(IzakayaConfigPannel.LoadPresetInternal))]
+    [HarmonyPrefix]
+    public static void LoadPreset_Prefix(out UpdatePrepMessage.Table __state)
+    {
+        __state = PrepSceneManager.CanSyncEdits ? PrepSceneManager.CaptureTable() : null;
+        PrepSceneManager.IsEditingPreset = true;
+    }
+
+    [HarmonyPatch(nameof(IzakayaConfigPannel.LoadPresetInternal))]
+    [HarmonyPostfix]
+    public static void LoadPreset_Postfix(UpdatePrepMessage.Table __state)
+    {
+        PrepSceneManager.IsEditingPreset = false;
+        PrepSceneManager.FinishLocalEdit(__state, true);
     }
 
     [HarmonyPatch(nameof(IzakayaConfigPannel.GoToSpecific))]
@@ -40,7 +62,7 @@ public partial class IzakayaConfigPannelPatch
             return;
         }
 
-        if (PrepSceneManager.IsYuyukoChallenge && !PrepSceneManager.IsYuyukoPrepActive) return;
+        if (!PrepSceneManager.CanSyncEdits) return;
 
         // MetaMiku 注:
         //     游戏原生的 GoToSpecific 会变更玩家的活跃选项面板，即 菜谱/酒水/厨具 三选一

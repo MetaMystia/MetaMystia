@@ -10,7 +10,7 @@ public partial class PingMessage : MultiplayerMessage
     protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Debug;
     public override void OnReceivedDerived()
     {
-        PongMessage.Send(Id, RoomClock.Now, SenderUid);
+        PongMessage.Send(Id, SenderUid);
     }
 
     /// <summary>
