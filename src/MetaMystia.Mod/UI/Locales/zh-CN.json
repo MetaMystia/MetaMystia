@@ -1,4 +1,5 @@
 {
+    "BusinessStartWaiting": "等待其他玩家准备完成。",
     "NetworkVersionDetails": "本机：游戏 {0}，模组 {1}，协议 {2}；对端：游戏 {3}，模组 {4}，协议 {5}。",
     "NetworkProtocolMismatch": "联机协议不一致，请使用相同版本的游戏和模组。",
     "NetworkServerFull": "服务器人数已满。",

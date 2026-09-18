@@ -15,6 +15,7 @@ public enum Language
 
 public enum TextId
 {
+    BusinessStartWaiting,
     NetworkVersionDetails,
     NetworkProtocolMismatch,
     NetworkServerFull,

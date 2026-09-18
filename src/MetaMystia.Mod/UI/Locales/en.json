@@ -1,4 +1,5 @@
 {
+    "BusinessStartWaiting": "Waiting for the other players to finish preparing.",
     "NetworkVersionDetails": "Local: game {0}, mod {1}, protocol {2}; remote: game {3}, mod {4}, protocol {5}.",
     "NetworkProtocolMismatch": "Network protocol mismatch. Use matching game and mod versions.",
     "NetworkServerFull": "The server is full.",

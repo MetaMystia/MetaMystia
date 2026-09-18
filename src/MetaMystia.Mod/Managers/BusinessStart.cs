@@ -14,6 +14,9 @@ public static class BusinessStart
     private static System.Action continuation;
     private static bool started;
 
+    public static bool IsWaitingForStart => GameSession.IsInRoom
+        && GameFlow.Destination == DayDestination.Business && !started;
+
     public static void Reset(bool resume = false)
     {
         var pending = continuation;

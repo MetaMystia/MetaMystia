@@ -37,6 +37,7 @@ public static partial class PatchRegistry
 
         // WorkScene Patches
         typeof(CookControllerPatch),
+        typeof(CookSystemManagerPatch),
         typeof(SellablePatch),
         typeof(GuestsManagerPatch),
         typeof(GuestGroupControllerPatch),
