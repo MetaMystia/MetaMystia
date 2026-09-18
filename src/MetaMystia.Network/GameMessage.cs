@@ -44,7 +44,7 @@ public enum GameMessage : ushort
     DayDestinationConfirm = 50,
     YuyukoGuest = 51,
     YuyukoGuestBound = 52,
-    RoomReady = 53,
+    RoomInitialState = 53,
     BusinessStart = 54,
 }
 
@@ -94,7 +94,7 @@ public static class GameMessageRules
         new((ushort)GameMessage.DayDestinationConfirm, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessage.YuyukoGuest, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessage.YuyukoGuestBound, [Route.Host]),
-        new((ushort)GameMessage.RoomReady, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessage.RoomInitialState, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessage.BusinessStart, [Route.Host, Route.Room], HostBroadcastOnly: true),
     ];
 }

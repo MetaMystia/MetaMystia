@@ -37,7 +37,7 @@ public static partial class PlayerManager
             (inRoom ? Peers : PublicPeers)[player.Uid] = peer;
             if (wasInRoom && !inRoom) DayDestinationManager.OnPeerLeft(player.Uid);
             peer.ApplyState(data);
-            if (joined && GameSession.IsRoomHost) RoomReadyAction.Send(player.Uid);
+            if (joined && GameSession.IsRoomHost) RoomInitialStateAction.Send(player.Uid);
         }
         RefreshLocalLabel();
     }

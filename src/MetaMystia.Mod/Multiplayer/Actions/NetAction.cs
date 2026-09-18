@@ -53,7 +53,7 @@ namespace MetaMystia.Multiplayer.Actions;
 [MemoryPackUnion((ushort)GameMessage.DayDestinationConfirm, typeof(DayDestinationConfirmAction))]
 [MemoryPackUnion((ushort)GameMessage.YuyukoGuest, typeof(YuyukoGuestAction))]
 [MemoryPackUnion((ushort)GameMessage.YuyukoGuestBound, typeof(YuyukoGuestBoundAction))]
-[MemoryPackUnion((ushort)GameMessage.RoomReady, typeof(RoomReadyAction))]
+[MemoryPackUnion((ushort)GameMessage.RoomInitialState, typeof(RoomInitialStateAction))]
 [MemoryPackUnion((ushort)GameMessage.BusinessStart, typeof(BusinessStartAction))]
 [AutoLog]
 

@@ -7,7 +7,7 @@ namespace MetaMystia.Multiplayer.Actions;
 /// <summary>入房后的玩法初始状态，由房主提供。</summary>
 [MemoryPackable]
 [AutoLog]
-public partial class RoomReadyAction : Action
+public partial class RoomInitialStateAction : Action
 {
     public int Round { get; set; }
     public Dictionary<int, DayDestination> Intents { get; set; } = new();
@@ -16,7 +16,7 @@ public partial class RoomReadyAction : Action
     [ClientOnlyReceive]
     public override void OnReceivedDerived() => DayDestinationManager.InitializeSession(Round, Intents);
 
-    public static void Send(int uid) => new RoomReadyAction
+    public static void Send(int uid) => new RoomInitialStateAction
     {
         Round = DayDestinationManager.Round, Intents = DayDestinationManager.Snapshot(), WireTargetUid = uid
     }.Enqueue();
