@@ -47,8 +47,6 @@ public static partial class CommandRegistry
         Commands.ResourceExCommands.Register(_root);
         Commands.LiveCommands.Register(_root);
         Commands.CheatCommands.Register(_root);
-        // 测试用命令：/decor unlock|use|list，验证装饰注册链路
-        Commands.DecorCommands.Register(_root);
 
         // Build parser without default help/version or verbose error reporting
         _parser = new CommandLineBuilder(_root)

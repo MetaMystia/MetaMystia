@@ -65,7 +65,6 @@ public static class GeneralCommands
         ["resourceex"] = TextId.CmdDescResourceEx,
         ["live"] = TextId.CmdDescLive,
         ["cheat"] = TextId.CmdDescCheat,
-        ["decor"] = TextId.CmdDescDecor,
     };
 
     private static void HelpHandler(InvocationContext ctx)

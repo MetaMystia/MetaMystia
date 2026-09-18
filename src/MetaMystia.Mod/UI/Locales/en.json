@@ -264,7 +264,6 @@
     "CheatFlowRateInvalid": "Invalid flow rate: {0}. Expected 0 <= value < 16. Usage: /cheat flowrate [num]",
     "CheatFlowRateApplied": "Guest flow rate set to {0}. It will take effect the next time you open for business.",
     "CheatFlowRateActive": "Guest flow rate {0} is now active for tonight.",
-    "CmdDescDecor": "Decoration test commands",
     "CmdDescLive": "Live streaming privacy mode (off / partial / full)",
     "LiveUsage": "Usage: /live off | /live partial | /live full  —  /live alone enables full mode (emergency)",
     "LiveEmergencyFull": "Live mode set to FULL (IDs and chat masked). Use /live off to disable live mode.",

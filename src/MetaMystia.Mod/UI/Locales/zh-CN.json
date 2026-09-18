@@ -264,7 +264,6 @@
     "CheatFlowRateInvalid": "无效客流量倍率: {0}，要求 0 ≤ 数值 < 16。用法: /cheat flowrate [num]",
     "CheatFlowRateApplied": "客流量倍率已设为 {0}，将在下一次进入夜间场景时生效。",
     "CheatFlowRateActive": "客流量倍率 {0} 已在本晚生效。",
-    "CmdDescDecor": "装饰品测试命令",
     "CmdDescLive": "直播隐私模式 (off / partial / full)",
     "LiveUsage": "用法: /live off | /live partial | /live full  —  单独 /live 为紧急全开",
     "LiveEmergencyFull": "直播模式已设为全开（ID 与聊天均已遮罩）。可用 /live off 关闭直播模式",
