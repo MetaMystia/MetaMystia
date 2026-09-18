@@ -17,7 +17,7 @@ internal partial record Control
     public long Membership { get; init; }
     public long CancelRequest { get; init; }
     public int Value { get; init; }
-    public string Error { get; init; } = "";
+    public NetworkError Error { get; init; } = new();
 }
 
 internal sealed record Frame(Kind Kind, byte[] Body, int Sender = 0, ushort Type = 0,
@@ -28,6 +28,33 @@ internal static class Protocol
 {
     internal const int MaxFrame = 256 * 1024;
     internal const int QueueCapacity = 256;
+    // 固定外壳先读取数字错误码，协议版本不一致时也能显示拒绝原因。
+    internal static byte[] WriteError(NetworkError error)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8);
+        writer.Write((ushort)error.Code);
+        writer.Write(error.Count ?? -1);
+        writer.Write(error.Limit ?? -1);
+        writer.Write(error.ProtocolVersion ?? -1);
+        writer.Write(error.GameVersion ?? "");
+        writer.Write(error.ModVersion ?? "");
+        return stream.ToArray();
+    }
+
+    internal static NetworkError ReadError(byte[] body)
+    {
+        using var stream = new MemoryStream(body, false);
+        using var reader = new BinaryReader(stream, Encoding.UTF8);
+        var code = (NetworkErrorCode)reader.ReadUInt16();
+        int count = reader.ReadInt32(), limit = reader.ReadInt32(), protocol = reader.ReadInt32();
+        return new()
+        {
+            Code = code, Count = count < 0 ? null : count, Limit = limit < 0 ? null : limit,
+            ProtocolVersion = protocol < 0 ? null : protocol,
+            GameVersion = reader.ReadString(), ModVersion = reader.ReadString()
+        };
+    }
     internal static byte[] Pack<T>(T value) => MemoryPackSerializer.Serialize(value);
     internal static T Read<T>(byte[] body) => MemoryPackSerializer.Deserialize<T>(body) ?? throw new InvalidDataException("Empty payload");
 
@@ -74,7 +101,7 @@ internal static class Protocol
         return new(kind, r.ReadBytes((int)(stream.Length - stream.Position)), sender, type, route, target, room, member, recipient, request);
     }
 
-    // Hello 外壳不依赖 MemoryPack；版本失败始终使用 UTF-8 错误码。
+    // 握手与拒绝信息使用独立二进制格式，不依赖玩法序列化。
     internal static byte[] Hello(Versions v, Player player, string key)
     {
         using var stream = new MemoryStream();
@@ -88,9 +115,16 @@ internal static class Protocol
     {
         using var stream = new MemoryStream(body, false);
         using var r = new BinaryReader(stream, Encoding.UTF8);
-        if (r.ReadInt32() != 0x3152494d || r.ReadInt32() != expected.Protocol) throw new NetworkException("ProtocolMismatch");
-        if (r.ReadString() != expected.Game) throw new NetworkException("GameMismatch");
-        if (r.ReadString() != expected.Mod) throw new NetworkException("ModMismatch");
+        var versionError = new NetworkError
+        {
+            ProtocolVersion = expected.Protocol, GameVersion = expected.Game, ModVersion = expected.Mod
+        };
+        if (r.ReadInt32() != 0x3152494d || r.ReadInt32() != expected.Protocol)
+            throw new NetworkException(versionError with { Code = NetworkErrorCode.ProtocolMismatch });
+        if (r.ReadString() != expected.Game)
+            throw new NetworkException(versionError with { Code = NetworkErrorCode.GameMismatch });
+        if (r.ReadString() != expected.Mod)
+            throw new NetworkException(versionError with { Code = NetworkErrorCode.ModMismatch });
         var key = r.ReadString();
         if (key.Length > 128) throw new InvalidDataException();
         return (Read<Player>(r.ReadBytes((int)(stream.Length - stream.Position))), key);
@@ -108,7 +142,7 @@ internal static class Protocol
         if (res == null || !res.Ready || res.PackIds == null || res.PackIds.Length > 128 ||
             res.PackIds.Any(s => string.IsNullOrEmpty(s) || s.Length > 128) || res.ExtraIds == null ||
             res.ExtraIds.Length != 9 || res.ExtraIds.Any(a => a == null || a.Length > 2048) ||
-            Pack(res).Length > 8192) throw new InvalidDataException("ResourcesNotReadyOrInvalid");
+            Pack(res).Length > 8192) throw new NetworkException(NetworkErrorCode.ResourcesNotReadyOrInvalid);
     }
 
     internal static void Validate(Motion m)

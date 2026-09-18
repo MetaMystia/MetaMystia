@@ -11,11 +11,11 @@ internal sealed class Connection
     private readonly Channel<byte[]> output = Channel.CreateBounded<byte[]>(Protocol.QueueCapacity);
     private readonly CancellationTokenSource stopped = new();
     private readonly Action<Frame> received;
-    private readonly Action<string> ended;
+    private readonly Action<NetworkError> ended;
     private int closed;
     internal Task Completion { get; private set; } = Task.CompletedTask;
 
-    internal Connection(TcpClient tcp, TimeSpan timeout, Action<Frame> received, Action<string> ended)
+    internal Connection(TcpClient tcp, TimeSpan timeout, Action<Frame> received, Action<NetworkError> ended)
     { this.tcp = tcp; this.timeout = timeout; this.received = received; this.ended = ended; tcp.NoDelay = true; }
 
     internal void Start() => Completion = Task.WhenAll(ReadLoop(), WriteLoop());
@@ -24,12 +24,12 @@ internal sealed class Connection
     {
         if (Volatile.Read(ref closed) != 0) return false;
         if (output.Writer.TryWrite(bytes)) return true;
-        Close("SendQueueFull");
+        Close(NetworkErrorCode.SendQueueFull);
         return false;
     }
 
     internal void Finish() => output.Writer.TryComplete();
-    internal void Close(string reason = "Disconnected")
+    internal void Close(NetworkError reason)
     {
         if (Interlocked.Exchange(ref closed, 1) != 0) return;
         stopped.Cancel(); output.Writer.TryComplete(); tcp.Dispose(); ended(reason);
@@ -54,7 +54,7 @@ internal sealed class Connection
             }
         }
         catch (Exception e)
-        { Close(e is OperationCanceledException ? "ReceiveTimeout" : "ConnectionLost"); }
+        { Close(e is OperationCanceledException ? NetworkErrorCode.ReceiveTimeout : NetworkErrorCode.ConnectionLost); }
     }
 
     internal static async Task ReadExactly(NetworkStream stream, Memory<byte> bytes, CancellationToken token)
@@ -78,9 +78,9 @@ internal sealed class Connection
                 deadline.CancelAfter(timeout);
                 await stream.WriteAsync(bytes, deadline.Token).ConfigureAwait(false);
             }
-            Close("Finished");
+            Close(NetworkErrorCode.Finished);
         }
         catch (Exception e) when (e is IOException or SocketException or OperationCanceledException or ObjectDisposedException)
-        { Close("ConnectionLost"); }
+        { Close(NetworkErrorCode.ConnectionLost); }
     }
 }

@@ -51,7 +51,7 @@ static partial class Checks
     static async Task<string> Failure(Task task)
     {
         try { await Pump(task); return "UnexpectedSuccess"; }
-        catch (NetworkException e) { return e.Code; }
+        catch (NetworkException e) { return e.Code.ToString(); }
         catch (OperationCanceledException) { return "Cancelled"; }
         catch (TimeoutException) { return "Timeout"; }
     }
@@ -71,6 +71,7 @@ static partial class Checks
 
     internal static async Task Run()
     {
+        await ErrorDetails();
         await Stages();
         await StationaryHostSnapshot();
         var data = Player("真实枚举");
@@ -166,5 +167,5 @@ static partial class Checks
     }
 
     static async Task<string> Observe(Task task)
-    { try { await task; return "UnexpectedSuccess"; } catch (NetworkException e) { return e.Code; } }
+    { try { await task; return "UnexpectedSuccess"; } catch (NetworkException e) { return e.Code.ToString(); } }
 }

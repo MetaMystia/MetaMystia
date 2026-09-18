@@ -129,7 +129,8 @@ public sealed record ServerOptions
     internal string? LanKey { get; init; }
 }
 
-public sealed class NetworkException(string code) : Exception(code)
+public sealed class NetworkException(NetworkError error) : Exception(error.Code.ToString())
 {
-    public string Code { get; } = code;
+    public NetworkError Error { get; } = error;
+    public NetworkErrorCode Code => Error.Code;
 }

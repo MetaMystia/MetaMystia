@@ -76,7 +76,7 @@ public static partial class GameSession
         {
             var addresses = await Dns.GetHostAddressesAsync(host.Trim('[', ']')).WaitAsync(token).ConfigureAwait(false);
             var address = addresses.FirstOrDefault(a => ipv6 || a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                ?? throw new NetworkException("AddressUnavailable");
+                ?? throw new NetworkException(NetworkErrorCode.AddressUnavailable);
             var endpoint = new IPEndPoint(address, targetPort);
             if (world) await client.ConnectAsync(endpoint, player, token).ConfigureAwait(false);
             else await LanSession.JoinAsync(client, endpoint, player, token).ConfigureAwait(false);

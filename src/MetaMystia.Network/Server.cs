@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Channels;
 
 using Common.UI;
@@ -16,7 +15,7 @@ public sealed class Server : IAsyncDisposable
         internal long Room, MembershipRequest, LastRequest;
         internal DateTime Accepted = DateTime.UtcNow;
         internal bool Rejected;
-        internal string? AdmissionError;
+        internal NetworkError? AdmissionError;
     }
     private readonly ServerOptions options;
     private readonly Dictionary<ushort, MessageRule> rules;
@@ -81,13 +80,14 @@ public sealed class Server : IAsyncDisposable
         bool local = IPAddress.IsLoopback(((IPEndPoint)tcp.Client.RemoteEndPoint!).Address);
         var peer = new Peer();
         peer.Wire = new(tcp, options.Timeout,
-            f => { if (!events.Writer.TryWrite(() => Receive(peer, f))) peer.Wire.Close("ServerQueueFull"); },
+            f => { if (!events.Writer.TryWrite(() => Receive(peer, f))) peer.Wire.Close(NetworkErrorCode.ServerQueueFull); },
             reason => { _ = Post(() => Remove(peer)); });
         peers.Add(peer);
         int occupied = peers.Count(p => !p.Rejected && p.AdmissionError == null);
         if (options.LanKey != null && lanHost == 0 && !local)
-            peer.AdmissionError = "HostPreparing";
-        else if (occupied > maxPlayers || (options.LanKey != null && lanHost == 0 && occupied > 1)) peer.AdmissionError = "ServerFull";
+            peer.AdmissionError = NetworkErrorCode.HostPreparing;
+        else if (occupied > maxPlayers || (options.LanKey != null && lanHost == 0 && occupied > 1))
+            peer.AdmissionError = new() { Code = NetworkErrorCode.ServerFull, Count = occupied - 1, Limit = maxPlayers };
         peer.Wire.Start();
     }
 
@@ -107,8 +107,8 @@ public sealed class Server : IAsyncDisposable
                 {
                     foreach (var p in peers.ToArray())
                     {
-                        if (p.Player == null && DateTime.UtcNow - p.Accepted > options.Timeout) p.Wire.Close("HandshakeTimeout");
-                        else if (options.LanKey != null && p.Player?.Uid != lanHost && p.Room == 0 && DateTime.UtcNow - p.Accepted > options.Timeout) p.Wire.Close("JoinTimeout");
+                        if (p.Player == null && DateTime.UtcNow - p.Accepted > options.Timeout) p.Wire.Close(NetworkErrorCode.HandshakeTimeout);
+                        else if (options.LanKey != null && p.Player?.Uid != lanHost && p.Room == 0 && DateTime.UtcNow - p.Accepted > options.Timeout) p.Wire.Close(NetworkErrorCode.JoinTimeout);
                         else if (p.Player != null) p.Wire.Send(new(Kind.Ping, []));
                     }
                 }, stop.Token).ConfigureAwait(false);
@@ -116,8 +116,8 @@ public sealed class Server : IAsyncDisposable
         catch (OperationCanceledException) { }
     }
 
-    private void Reject(Peer p, string error)
-    { p.Rejected = true; p.Wire.Send(new(Kind.Rejected, Encoding.UTF8.GetBytes(error))); p.Wire.Finish(); }
+    private void Reject(Peer p, NetworkError error)
+    { p.Rejected = true; p.Wire.Send(new(Kind.Rejected, Protocol.WriteError(error))); p.Wire.Finish(); }
 
     private void Receive(Peer p, Frame f)
     {
@@ -131,12 +131,14 @@ public sealed class Server : IAsyncDisposable
                 if (p.AdmissionError != null) { Reject(p, p.AdmissionError); return; }
                 var (player, key) = Protocol.ReadHello(f.Body, options.Versions);
                 Protocol.Validate(player, true);
-                if (peers.Any(x => x.Player != null && string.Equals(x.Player.Name, player.Name, StringComparison.OrdinalIgnoreCase))) { Reject(p, "DuplicateName"); return; }
-                if (peers.Count(x => x.Player != null) >= maxPlayers) { Reject(p, "ServerFull"); return; }
-                if (options.LanKey != null && lanHost == 0 && key != options.LanKey) { Reject(p, "HostPreparing"); return; }
-                if (!CanStore(p, player)) { Reject(p, "WorldDataBudgetExceeded"); return; }
+                if (peers.Any(x => x.Player != null && string.Equals(x.Player.Name, player.Name, StringComparison.OrdinalIgnoreCase))) { Reject(p, NetworkErrorCode.DuplicateName); return; }
+                int online = peers.Count(x => x.Player != null);
+                if (online >= maxPlayers)
+                { Reject(p, new() { Code = NetworkErrorCode.ServerFull, Count = online, Limit = maxPlayers }); return; }
+                if (options.LanKey != null && lanHost == 0 && key != options.LanKey) { Reject(p, NetworkErrorCode.HostPreparing); return; }
+                if (!CanStore(p, player)) { Reject(p, NetworkErrorCode.WorldDataBudgetExceeded); return; }
                 var newUid = AllocateUid();
-                if (newUid == 0) { Reject(p, "UidExhausted"); return; }
+                if (newUid == 0) { Reject(p, NetworkErrorCode.UidExhausted); return; }
                 p.Player = player with { Uid = newUid, Membership = 0, HasMotion = false, Motion = new() };
                 if (options.LanKey != null && lanHost == 0) lanHost = newUid;
                 p.Wire.Send(new(Kind.Welcome, Protocol.Pack(Capture(p)), newUid));
@@ -158,11 +160,11 @@ public sealed class Server : IAsyncDisposable
                     break;
                 case Kind.Profile:
                     var profile = Protocol.Read<Player>(f.Body); Protocol.Validate(profile, false);
-                    if (peers.Any(x => x != p && x.Player != null && string.Equals(x.Player.Name, profile.Name, StringComparison.OrdinalIgnoreCase))) throw new InvalidDataException("DuplicateName");
+                    if (peers.Any(x => x != p && x.Player != null && string.Equals(x.Player.Name, profile.Name, StringComparison.OrdinalIgnoreCase))) throw new NetworkException(NetworkErrorCode.DuplicateName);
                     bool changedScene = p.Player.Scene != profile.Scene;
                     var updated = p.Player with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene, Stage = profile.Stage };
                     if (changedScene) updated = updated with { Motion = new(), HasMotion = false };
-                    if (!CanStore(p, updated)) throw new InvalidDataException("WorldDataBudgetExceeded");
+                    if (!CanStore(p, updated)) throw new NetworkException(NetworkErrorCode.WorldDataBudgetExceeded);
                     p.Player = updated;
                     if (changedScene) Publish();
                     else Broadcast(new(Kind.Profile, Protocol.Pack(p.Player with { Resources = null, Motion = new(), HasMotion = false }), p.Player.Uid), p);
@@ -171,9 +173,9 @@ public sealed class Server : IAsyncDisposable
                 default: throw new InvalidDataException("Unexpected message");
             }
         }
-        catch (NetworkException e) { Reject(p, e.Code); }
+        catch (NetworkException e) { Reject(p, e.Error); }
         catch (Exception)
-        { if (p.Player == null) Reject(p, "InvalidHello"); else p.Wire.Close("InvalidMessage"); }
+        { if (p.Player == null) Reject(p, NetworkErrorCode.InvalidHello); else p.Wire.Close(NetworkErrorCode.InvalidMessage); }
     }
 
     private static int AllocateUid()
@@ -195,28 +197,30 @@ public sealed class Server : IAsyncDisposable
     {
         if (c.Request <= p.LastRequest) throw new InvalidDataException();
         p.LastRequest = c.Request;
-        string error = "";
+        NetworkError error = new();
         var room = rooms.GetValueOrDefault(p.Room);
         bool context = room != null && c.Room == p.Room && c.Membership == p.Player!.Membership;
         switch (c.Command)
         {
             case Command.Create:
-                if (p.Room != 0) { error = "AlreadyInRoom"; break; }
-                if (p.Player!.Stage is not (GameStage.MainMenu or GameStage.Day)) { error = "PlayerNotAvailable"; break; }
-                if (options.LanKey != null && p.Player!.Uid != lanHost) { error = "DefaultRoomOnly"; break; }
-                if (c.Value < 1 || c.Value > maxPlayers) { error = "InvalidLimit"; break; }
+                if (p.Room != 0) { error = NetworkErrorCode.AlreadyInRoom; break; }
+                if (p.Player!.Stage is not (GameStage.MainMenu or GameStage.Day)) { error = NetworkErrorCode.PlayerNotAvailable; break; }
+                if (options.LanKey != null && p.Player!.Uid != lanHost) { error = NetworkErrorCode.DefaultRoomOnly; break; }
+                if (c.Value < 1 || c.Value > maxPlayers) { error = NetworkErrorCode.InvalidLimit; break; }
                 var created = new Room { Id = checked(++nextRoom), Host = p.Player!.Uid, MaxPlayers = options.LanKey == null ? c.Value : maxPlayers };
                 rooms.Add(created.Id, created);
                 Join(p, created, c.Request);
                 if (options.LanKey != null) defaultRoom = created.Id;
                 break;
             case Command.Join:
-                if (p.Room != 0) { error = "AlreadyInRoom"; break; }
-                if (p.Player!.Stage is not (GameStage.MainMenu or GameStage.Day)) { error = "PlayerNotAvailable"; break; }
+                if (p.Room != 0) { error = NetworkErrorCode.AlreadyInRoom; break; }
+                if (p.Player!.Stage is not (GameStage.MainMenu or GameStage.Day)) { error = NetworkErrorCode.PlayerNotAvailable; break; }
                 var wanted = options.LanKey != null ? defaultRoom : c.Room;
-                if (!rooms.TryGetValue(wanted, out var target)) { error = "RoomMissing"; break; }
-                if (!target.Joinable) { error = "JoinClosed"; break; }
-                if (peers.Count(x => x.Player != null && x.Room == wanted) >= target.MaxPlayers) { error = "RoomFull"; break; }
+                if (!rooms.TryGetValue(wanted, out var target)) { error = NetworkErrorCode.RoomMissing; break; }
+                if (!target.Joinable) { error = NetworkErrorCode.JoinClosed; break; }
+                int members = peers.Count(x => x.Player != null && x.Room == wanted);
+                if (members >= target.MaxPlayers)
+                { error = new() { Code = NetworkErrorCode.RoomFull, Count = members, Limit = target.MaxPlayers }; break; }
                 Join(p, target, c.Request); break;
             case Command.Cancel:
                 if (p.MembershipRequest == c.CancelRequest) Leave(p);
@@ -227,18 +231,18 @@ public sealed class Server : IAsyncDisposable
             case Command.Joinable:
             case Command.Limit:
             case Command.Kick:
-                if (!context) { error = "StaleRoom"; break; }
-                if (room!.Host != p.Player!.Uid) { error = "HostOnly"; break; }
+                if (!context) { error = NetworkErrorCode.StaleRoom; break; }
+                if (room!.Host != p.Player!.Uid) { error = NetworkErrorCode.HostOnly; break; }
                 if (c.Command == Command.Kick)
                 {
                     var targetPeer = peers.FirstOrDefault(x => x.Player?.Uid == c.Value && x.Room == p.Room && x != p);
-                    if (targetPeer == null) { error = "PlayerMissing"; break; }
+                    if (targetPeer == null) { error = NetworkErrorCode.PlayerMissing; break; }
                     Leave(targetPeer);
                 }
                 else if (c.Command == Command.Joinable) rooms[room.Id] = room with { Joinable = c.Value != 0 };
                 else
                 {
-                    if (c.Value < 1 || c.Value > 256 || (options.LanKey == null && c.Value > maxPlayers)) { error = "InvalidLimit"; break; }
+                    if (c.Value < 1 || c.Value > 256 || (options.LanKey == null && c.Value > maxPlayers)) { error = NetworkErrorCode.InvalidLimit; break; }
                     rooms[room.Id] = room with { MaxPlayers = c.Value };
                     if (options.LanKey != null) maxPlayers = c.Value;
                 }
@@ -247,7 +251,7 @@ public sealed class Server : IAsyncDisposable
         }
         Publish();
         p.Wire.Send(new(Kind.Ack, Protocol.Pack(c with { Error = error })));
-        if (options.LanKey != null && c.Command == Command.Join && error.Length != 0) p.Wire.Finish();
+        if (options.LanKey != null && c.Command == Command.Join && error.Code != NetworkErrorCode.None) p.Wire.Finish();
     }
 
     private void Join(Peer p, Room room, long request)
@@ -266,7 +270,7 @@ public sealed class Server : IAsyncDisposable
         if (options.LanKey != null)
         {
             if (p.Player!.Uid == lanHost) _ = StopAsync();
-            else p.Wire.Close("LeftDefaultRoom");
+            else p.Wire.Close(NetworkErrorCode.LeftDefaultRoom);
         }
     }
 
@@ -356,7 +360,7 @@ public sealed class Server : IAsyncDisposable
         await Post(() =>
         {
             var connections = peers.Select(p => p.Wire.Completion).ToArray();
-            foreach (var p in peers.ToArray()) p.Wire.Close("ServerStopped");
+            foreach (var p in peers.ToArray()) p.Wire.Close(NetworkErrorCode.ServerStopped);
             peers.Clear(); rooms.Clear();
             drained.TrySetResult(connections);
         }).ConfigureAwait(false);

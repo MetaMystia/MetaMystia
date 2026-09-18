@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Channels;
 
 using Common.UI;
@@ -16,7 +15,7 @@ public sealed class Client : IDisposable
         internal readonly TaskCompletionSource<int> Connected = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal readonly Dictionary<long, TaskCompletionSource<Control>> Pending = [];
         internal readonly HashSet<long> Cancelled = [];
-        internal string? End;
+        internal NetworkError? End;
         internal bool EndNotified, Joining, Leaving;
         internal long SuppressedMembership;
     }
@@ -35,7 +34,7 @@ public sealed class Client : IDisposable
     public Snapshot State { get { lock (gate) return state.Copy(); } }
     public event Action? StateChanged;
     public event Action<ReceivedMessage>? MessageReceived;
-    public event Action<string>? ConnectionEnded;
+    public event Action<NetworkError>? ConnectionEnded;
     public event Action<Exception>? CallbackError;
     public Client(Versions? versions = null) => Versions = versions ?? Versions.Current;
 
@@ -63,7 +62,7 @@ public sealed class Client : IDisposable
                 current.Wire = new(tcp, ConnectionTimeout, frame =>
                 {
                     if (frame.Kind == Kind.Ping) { current.Wire!.Send(new(Kind.Pong, [])); return; }
-                    if (!current.Incoming.Writer.TryWrite(frame)) current.Wire!.Close("ReceiveQueueFull");
+                    if (!current.Incoming.Writer.TryWrite(frame)) current.Wire!.Close(NetworkErrorCode.ReceiveQueueFull);
                 }, reason => { lock (gate) current.End ??= reason; });
                 current.Wire.Send(new(Kind.Hello, hello));
                 current.Wire.Start();
@@ -73,7 +72,7 @@ public sealed class Client : IDisposable
         catch
         {
             tcp.Dispose();
-            lock (gate) End(current, "ConnectFailed");
+            lock (gate) End(current, NetworkErrorCode.ConnectFailed);
             throw;
         }
     }
@@ -97,10 +96,10 @@ public sealed class Client : IDisposable
         try
         {
             var result = await response.WaitAsync(OperationTimeout, token).ConfigureAwait(false);
-            if (result.Error.Length != 0) throw new NetworkException(result.Error);
+            if (result.Error.Code != NetworkErrorCode.None) throw new NetworkException(result.Error);
             lock (gate)
             {
-                if (session != current || current.End != null || state.MembershipRequest != request || state.Room == null) throw new NetworkException("RoomEnded");
+                if (session != current || current.End != null || state.MembershipRequest != request || state.Room == null) throw new NetworkException(NetworkErrorCode.RoomEnded);
                 return Protocol.Read<Room>(Protocol.Pack(state.Room));
             }
         }
@@ -116,7 +115,7 @@ public sealed class Client : IDisposable
                 cancel = Request(current, new() { Command = Command.Cancel, Request = checked(++nextRequest), CancelRequest = request });
             }
             try { await cancel.WaitAsync(OperationTimeout).ConfigureAwait(false); }
-            catch { lock (gate) End(current, "CancelUnconfirmed"); }
+            catch { lock (gate) End(current, NetworkErrorCode.CancelUnconfirmed); }
             throw;
         }
         finally { lock (gate) current.Joining = false; }
@@ -138,10 +137,10 @@ public sealed class Client : IDisposable
         try
         {
             var result = await response.WaitAsync(OperationTimeout, token).ConfigureAwait(false);
-            if (result.Error.Length != 0) throw new NetworkException(result.Error);
+            if (result.Error.Code != NetworkErrorCode.None) throw new NetworkException(result.Error);
         }
         catch (Exception e) when (e is TimeoutException or OperationCanceledException)
-        { lock (gate) End(current, "ManagementUnconfirmed"); throw; }
+        { lock (gate) End(current, NetworkErrorCode.ManagementUnconfirmed); throw; }
     }
 
     private Task<Control> Request(Session current, Control command)
@@ -149,9 +148,9 @@ public sealed class Client : IDisposable
         var pending = new TaskCompletionSource<Control>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (current.End != null) { pending.SetException(new NetworkException(current.End)); return pending.Task; }
         if (current.Pending.Count >= Protocol.QueueCapacity)
-        { End(current, "TooManyRequests"); pending.SetException(new NetworkException("TooManyRequests")); return pending.Task; }
+        { End(current, NetworkErrorCode.TooManyRequests); pending.SetException(new NetworkException(NetworkErrorCode.TooManyRequests)); return pending.Task; }
         current.Pending.Add(command.Request, pending);
-        if (!current.Wire!.Send(new(Kind.Command, Protocol.Pack(command)))) End(current, "SendFailed");
+        if (!current.Wire!.Send(new(Kind.Command, Protocol.Pack(command)))) End(current, NetworkErrorCode.SendFailed);
         return pending.Task;
     }
 
@@ -160,7 +159,7 @@ public sealed class Client : IDisposable
         lock (gate)
         {
             var current = Require();
-            if (current.Joining) { End(current, "LeftDuringJoin"); return; }
+            if (current.Joining) { End(current, NetworkErrorCode.LeftDuringJoin); return; }
             if (state.Room == null) return;
             long membership = MyMembership();
             var command = new Control { Command = Command.Leave, Request = checked(++nextRequest), Room = state.Room.Id, Membership = membership };
@@ -175,7 +174,7 @@ public sealed class Client : IDisposable
     private async Task FinishLeave(Session current, Task<Control> task)
     {
         try { await task.WaitAsync(OperationTimeout).ConfigureAwait(false); }
-        catch { lock (gate) End(current, "LeaveUnconfirmed"); }
+        catch { lock (gate) End(current, NetworkErrorCode.LeaveUnconfirmed); }
         finally { lock (gate) current.Leaving = false; }
     }
 
@@ -252,7 +251,7 @@ public sealed class Client : IDisposable
                     count++;
                     try { Apply(current, frame); }
                     catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException or MemoryPack.MemoryPackSerializationException)
-                    { End(current, "InvalidServerMessage"); break; }
+                    { End(current, NetworkErrorCode.InvalidServerMessage); break; }
                 }
                 if (current.End != null && !current.Incoming.Reader.TryPeek(out _) && !current.EndNotified)
                 {
@@ -271,7 +270,7 @@ public sealed class Client : IDisposable
         switch (f.Kind)
         {
             case Kind.Rejected:
-                var error = Encoding.UTF8.GetString(f.Body);
+                var error = Protocol.ReadError(f.Body);
                 current.Connected.TrySetException(new NetworkException(error)); End(current, error); break;
             case Kind.Welcome:
                 uid = f.Sender;
@@ -339,7 +338,7 @@ public sealed class Client : IDisposable
     private Session Require() => session is { End: null } s && uid != 0 ? s : throw new InvalidOperationException("Not connected");
     private void Invoke(Action callback)
     { try { callback(); } catch (Exception e) { try { CallbackError?.Invoke(e); } catch { } } }
-    private void End(Session current, string reason)
+    private void End(Session current, NetworkError reason)
     {
         current.End ??= reason;
         current.Wire?.Close(reason);
@@ -349,6 +348,6 @@ public sealed class Client : IDisposable
         while (current.Incoming.Reader.TryRead(out _)) { }
         if (session == current) { uid = 0; state = new(); }
     }
-    public void Disconnect() { lock (gate) { if (session != null) End(session, "Disconnected"); } }
+    public void Disconnect() { lock (gate) { if (session != null) End(session, NetworkErrorCode.Disconnected); } }
     public void Dispose() => Disconnect();
 }
