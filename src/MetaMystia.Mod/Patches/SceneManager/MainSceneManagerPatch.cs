@@ -3,7 +3,9 @@ using HarmonyLib;
 using Common.UI;
 using MainScene;
 
+using MetaMystia.Patch;
 using MetaMystia.UI;
+using SgrYuki;
 
 namespace MetaMystia;
 
@@ -23,7 +25,15 @@ public partial class MainSceneManagerPatch
         if (FirstEnterMain)
         {
             Log.Info("First time entering Main Scene.");
-            Plugin.OnFirstEnterMainScene();
+            Log.Info($"Game Version: {Plugin.GameVersion}");
+            if (Plugin.GameVersion != Plugin.TargetGameVersion)
+            {
+                Log.Warning($"Game version does not match target version! Expected: {Plugin.TargetGameVersion}");
+                InGameConsole.LogToConsole($"<color=#FF6666>{TextId.GameVersionMismatchNotify.Get(Plugin.TargetGameVersion, Plugin.GameVersion)}</color>");
+            }
+            Il2CppInteropPatcher.NotifyIfPatched();
+            MetricsReporter.OnEnterMainScene();
+            Log.Info(MultiplayerStatus.DebugText);
         }
         FirstEnterMain = false;
 

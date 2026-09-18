@@ -99,19 +99,6 @@ public class Plugin : BasePlugin
         }
     }
 
-    public static void OnFirstEnterMainScene()
-    {
-        Instance?.Log.LogInfo($"Game Version: {GameVersion}");
-        if (GameVersion != TargetGameVersion)
-        {
-            Instance?.Log.LogWarning($"Game version does not match target version! Expected: {TargetGameVersion}");
-            InGameConsole.LogToConsole($"<color=#FF6666>{UI.TextId.GameVersionMismatchNotify.Get(TargetGameVersion, GameVersion)}</color>");
-        }
-        Il2CppInteropPatcher.NotifyIfPatched();
-        MetricsReporter.OnEnterMainScene();
-        Instance?.Log.LogInfo(MetaMystia.UI.MultiplayerStatus.DebugText);
-    }
-
     class BootstrapPatch
     {
         [HarmonyPostfix]
