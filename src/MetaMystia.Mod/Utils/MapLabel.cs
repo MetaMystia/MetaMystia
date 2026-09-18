@@ -47,10 +47,7 @@ public static class MapLabelExtensions
         if (MapKeyToLabel.TryGetValue(mapKey, out label))
             return true;
 
-        const string customPrefix = "_ResourceEx_Map_";
-        if (mapKey.StartsWith(customPrefix, StringComparison.Ordinal)
-            && int.TryParse(mapKey.AsSpan(customPrefix.Length), out var id)
-            && DayMapRegistry.IsRegistered(id))
+        if (DayMapRegistry.TryGetId(mapKey, out var id))
         {
             label = (MapLabel)id;
             return true;
