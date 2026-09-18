@@ -22,7 +22,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void Initialize_Postfix(EventManager __instance)
     {
-        if (!GameSession.HasPeers) return;
+        if (!GameSession.HasRoomPeers) return;
 
         Func<int> getWholeNightTime = () => GameFlow.WorkTimeSecondOverride;
         __instance.GetWholeNightTime = getWholeNightTime;
@@ -46,7 +46,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void StartGuestInstantiateLoop_Postfix(EventManager __instance)
     {
-        if ((GameSession.IsRoomClient && GameSession.HasPeers) && __instance.onCreatorBoxGuestInstantiateLoop != null)
+        if ((GameSession.IsRoomClient && GameSession.HasRoomPeers) && __instance.onCreatorBoxGuestInstantiateLoop != null)
         {
             __instance.onCreatorBoxGuestInstantiateLoop = null;
             Log.Warning("已临时禁用造物者之盒协程。");
@@ -69,7 +69,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool StartGuestSpawningAndTiming_Prefix(EventManager __instance, ref int gameTotalSeconds)
     {
-        if (GameSession.HasPeers)
+        if (GameSession.HasRoomPeers)
         {
             gameTotalSeconds = GameFlow.WorkTimeSecondOverride;
             Log.InfoCaller($"gameTotalSeconds set to {gameTotalSeconds}s");
@@ -106,7 +106,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool FundEdit_Prefix()
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost) return RunOriginal;
         if (GameSession.IsRoomClient) return SkipOriginal;
         return RunOriginal;
@@ -124,7 +124,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void FundEdit_Postfix(float value, EventManager.MathOperation mathOperation)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         if (GameSession.IsRoomHost)
         {
             FundEditMessage.Send(value, mathOperation);
@@ -135,7 +135,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool TipEdit_Prefix()
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost) return RunOriginal;
         if (GameSession.IsRoomClient) return SkipOriginal;
         return RunOriginal;
@@ -156,7 +156,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void TipEdit_Postfix(int value, EventManager.ServeType serveType, float comboBuff, float moodBuff, float extraBuff)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         if (GameSession.IsRoomHost)
         {
             TipEditMessage.Send(value, serveType, comboBuff, moodBuff, extraBuff);
@@ -167,7 +167,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool ExpEdit_Prefix()
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost) return RunOriginal;
         if (GameSession.IsRoomClient) return SkipOriginal;
         return RunOriginal;
@@ -186,7 +186,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void ExpEdit_Postfix(float value, EventManager.MathOperation mathOperation)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         if (GameSession.IsRoomHost)
         {
             ExpEditMessage.Send(value, mathOperation);
@@ -197,7 +197,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool PassionEdit_Prefix()
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost) return RunOriginal;
         if (GameSession.IsRoomClient) return SkipOriginal;
         return RunOriginal;
@@ -216,7 +216,7 @@ public static partial class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void PassionEdit_Postfix(float value, EventManager.MathOperation mathOperation)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         if (GameSession.IsRoomHost)
         {
             PassionEditMessage.Send(value, mathOperation);

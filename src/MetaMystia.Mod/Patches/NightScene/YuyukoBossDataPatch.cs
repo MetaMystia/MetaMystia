@@ -43,7 +43,7 @@ public partial class YuyukoBossDataPatch
     [HarmonyPostfix]
     public static void MainChallengeLoop_Postfix(Il2CppSystem.Collections.IEnumerator __result)
     {
-        currentLoop = GameSession.HasPeers ? __result.Cast<GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16>() : null;
+        currentLoop = GameSession.HasRoomPeers ? __result.Cast<GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16>() : null;
         failureStarted = false;
         failurePending = false;
         IncomeControllerYuyukoPatch.ResetProgress();
@@ -51,7 +51,7 @@ public partial class YuyukoBossDataPatch
 
     internal static void OnFailureStarted()
     {
-        if (!GameSession.HasPeers || failureStarted) return;
+        if (!GameSession.HasRoomPeers || failureStarted) return;
         failureStarted = true;
         if (GameSession.IsRoomHost) YuyukoFailedMessage.Send();
     }
@@ -87,11 +87,11 @@ public partial class YuyukoBossDataPatch
         // 不把失败消息按 DiscardOnStory 丢弃，也不强行打断正在播放的剧情。
         while (GameFlow.InStory)
         {
-            if (!GameSession.HasPeers || currentLoop?.Pointer != loop.Pointer || !PrepSceneManager.IsYuyukoChallenge)
+            if (!GameSession.HasRoomPeers || currentLoop?.Pointer != loop.Pointer || !PrepSceneManager.IsYuyukoChallenge)
                 yield break;
             yield return null;
         }
-        if (!GameSession.HasPeers || currentLoop?.Pointer != loop.Pointer || !PrepSceneManager.IsYuyukoChallenge)
+        if (!GameSession.HasRoomPeers || currentLoop?.Pointer != loop.Pointer || !PrepSceneManager.IsYuyukoChallenge)
             yield break;
 
         var context = loop.__8__1;
@@ -117,7 +117,7 @@ public partial class YuyukoBossDataPatch
                 panel.ClosePanel();
                 while (!closed.IsCancellationRequested)
                 {
-                    if (currentLoop?.Pointer != loop.Pointer || !GameSession.HasPeers) yield break;
+                    if (currentLoop?.Pointer != loop.Pointer || !GameSession.HasRoomPeers) yield break;
                     yield return null;
                 }
             }

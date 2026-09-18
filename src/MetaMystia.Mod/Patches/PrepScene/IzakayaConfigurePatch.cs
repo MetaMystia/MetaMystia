@@ -54,7 +54,7 @@ public partial class IzakayaConfigurePatch
     {
         __state = CaptureEdit();
 
-        if (GameSession.HasPeers && !PlayerManager.RecipeAvailable(id))
+        if (GameSession.HasRoomPeers && !PlayerManager.RecipeAvailable(id))
         {
             Log.LogWarning($"Peer does not have recipe {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerRecipeNotAvailable.Get(id));
@@ -69,7 +69,7 @@ public partial class IzakayaConfigurePatch
     public static bool RegisterToDailyBeverages_Prefix(int id, out UpdatePrepMessage.Table __state)
     {
         __state = CaptureEdit();
-        if (GameSession.HasPeers && !PlayerManager.BeverageAvailable(id))
+        if (GameSession.HasRoomPeers && !PlayerManager.BeverageAvailable(id))
         {
             Log.LogWarning($"Peer does not have beverage {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerBeverageNotAvailable.Get(id));
@@ -90,7 +90,7 @@ public partial class IzakayaConfigurePatch
             return SkipOriginal;
         }
 
-        if (id != -1 && GameSession.HasPeers && !PlayerManager.CookerAvailable(id))
+        if (id != -1 && GameSession.HasRoomPeers && !PlayerManager.CookerAvailable(id))
         {
             Log.LogWarning($"Peer does not have cooker {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerCookerNotAvailable.Get(id));
@@ -145,7 +145,7 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"StoreFood: {sellable.Text.Name}");
         if (_skipPatchStoreFood) return;
-        if (!GameSession.HasPeers) return;
+        if (!GameSession.HasRoomPeers) return;
 
         var food = SellableFood.FromSellable(sellable);
         StoreFoodMessage.Send(food);

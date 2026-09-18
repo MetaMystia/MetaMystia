@@ -38,7 +38,7 @@ public partial class WorkSceneSustainedPannelPatch
 
         bool IsCurrentOrder() => currentGuestController.AllOrdersCount > 0
             && fsm.CurrentOrder?.Pointer == order.Pointer
-            && (!GameSession.HasPeers || (YuyukoGuestSync.IsBody(currentGuestController)
+            && (!GameSession.HasRoomPeers || (YuyukoGuestSync.IsBody(currentGuestController)
                 && fsm.OrderSeq == seq && fsm.CurrentState == GuestFSM.State.WaitingServe));
 
         onOrderEvaluate = (Action)(() =>

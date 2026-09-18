@@ -56,7 +56,7 @@ public static class MpCommands
         connect.AddArgument(port);
         connect.SetHandler(ctx =>
         {
-            if (GameSession.IsConnecting || GameSession.HasPeers) { ctx.Log(TextId.MpConnectInProgress.Get()); return; }
+            if (GameSession.IsConnecting || GameSession.HasRoomPeers) { ctx.Log(TextId.MpConnectInProgress.Get()); return; }
             var value = ctx.ParseResult.GetValueForArgument(address);
             if (!Uri.TryCreate("tcp://" + value, UriKind.Absolute, out var endpoint))
             { ctx.Log(TextId.ConnectCommandFail.Get(value)); return; }
@@ -150,9 +150,9 @@ public static class MpCommands
         ipv6.AddArgument(enabled);
         ipv6.SetHandler(ctx =>
         {
-            if (GameSession.HasPeers) { ctx.Log(TextId.MpIpv6RejectConnected.Get()); return; }
+            if (GameSession.HasRoomPeers) { ctx.Log(TextId.MpIpv6RejectConnected.Get()); return; }
             ConfigManager.EnableIPv6.Value = ctx.ParseResult.GetValueForArgument(enabled) == "enable";
-            if (GameSession.IsLanHost) GameSession.Restart();
+            if (GameSession.HasLocalServer) GameSession.Restart();
         });
         mp.AddCommand(ipv6);
         mp.SetHandler(ctx => ctx.Log(TextId.NetworkCommands.Get()));

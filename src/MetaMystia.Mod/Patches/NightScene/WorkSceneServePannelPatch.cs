@@ -35,7 +35,7 @@ public partial class WorkSceneServePannelPatch
     {
         instanceRef = __instance;
         
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         
         var panelDeskCode = WorkSceneServePannelPatch.instanceRef?.currentGuestController?.DeskCode
                             ?? WorkSceneServePannelPatch.instanceRef?.operatingOrder?.DeskCode
@@ -78,7 +78,7 @@ public partial class WorkSceneServePannelPatch
             return RunOriginal;
         }
 
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost)
         {
             GuestFSM.OnConfirmServe(__instance.currentGuestController, __instance.willServeFood, __instance.willServeBeverage);
@@ -96,7 +96,7 @@ public partial class WorkSceneServePannelPatch
     [HarmonyPrefix]
     public static bool Send_Prefix(ref WorkSceneServePannel __instance, Sellable toSend)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
 
         if ((toSend.Type == Sellable.SellableType.Food && __instance.operatingOrder.ServFood != null) ||
             (toSend.Type == Sellable.SellableType.Beverage && __instance.operatingOrder.ServBeverage != null))
@@ -125,7 +125,7 @@ public partial class WorkSceneServePannelPatch
     [HarmonyPrefix]
     public static bool Cancel_Prefix(ref WorkSceneServePannel __instance, Sellable toCancel)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
 
         if ((toCancel.Type == Sellable.SellableType.Food && __instance.willServeFood == null) ||
             (toCancel.Type == Sellable.SellableType.Beverage && __instance.willServeBeverage == null) ||

@@ -43,10 +43,10 @@ public static partial class PrepSceneManager
     private static IEnumerator FinishPrep()
     {
         var client = GameSession.Client;
-        var membership = GameSession.Membership;
+        var membership = GameSession.RoomMembershipId;
         var scene = GameFlow.LocalScene;
         yield return null;
-        if (client == GameSession.Client && membership == GameSession.Membership && GameSession.IsRoomHost
+        if (client == GameSession.Client && membership == GameSession.RoomMembershipId && GameSession.IsRoomHost
             && scene == GameFlow.LocalScene && PlayerManager.LocalIsPrepOver)
             IzakayaConfigPannelPatch.PrepOver();
     }

@@ -23,7 +23,7 @@ public partial class CookControllerPatch
     {
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
         // Log.Debug($"SetCook_Prefix called");
-        if (GameSession.HasPeers && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
+        if (GameSession.HasRoomPeers && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
         {
             Log.LogWarning($"Peer does not have recipe {recipe.Id}, skipping SetCook.");
             InGameConsole.ShowPassive(TextId.DLCPeerRecipeNotAvailable.Get(recipe.Id));

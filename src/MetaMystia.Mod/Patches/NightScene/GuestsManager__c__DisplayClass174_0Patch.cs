@@ -28,7 +28,7 @@ public partial class GuestsManager__c__DisplayClass174_0Patch
     [HarmonyPrefix]
     public static bool GenerateOrderInternal_Prefix(ref OrderGenerationResult __result, GuestGroupController toGenerate, ref GuestsManager.OrderBase orderData)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost)
         {
             return RunOriginal;
@@ -58,7 +58,7 @@ public partial class GuestsManager__c__DisplayClass174_0Patch
     [HarmonyPostfix]
     public static void GenerateOrderInternal_Postfix(GuestsManager.OrderGenerationResult __result, GuestGroupController toGenerate, ref GuestsManager.OrderBase orderData)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         if (GameSession.IsRoomHost)
         {
             GuestFSM.OnGenerateOrderInternal(__result, toGenerate, orderData);
@@ -73,7 +73,7 @@ public partial class GuestsManager__c__DisplayClass174_0Patch
     [HarmonyPostfix]
     public static void CheckRemainingFund_Postfix(ref OrderGenerationResult __result, SpecialGuestsController toGenerate)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         if (GameSession.IsRoomClient)
         {
             var pending = GuestsMap.GetGuestFsm(toGenerate)?.PendingOrder;

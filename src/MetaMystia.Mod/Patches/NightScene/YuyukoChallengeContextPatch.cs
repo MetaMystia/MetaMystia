@@ -47,7 +47,7 @@ public partial class YuyukoChallengeContextPatch
     [HarmonyPrefix]
     public static void Method_Internal_IEnumerator_Func_1_Boolean_0_Prefix(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0 __instance)
     {
-        if (!GameSession.HasPeers) return;
+        if (!GameSession.HasRoomPeers) return;
 
         if (PrepSceneManager.YuyukoPrepRound == 3)
             InGameConsole.ShowPassive(TextId.YuyukoPhase3PatientExtended.Get());

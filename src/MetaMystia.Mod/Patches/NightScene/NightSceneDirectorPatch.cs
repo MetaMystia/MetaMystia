@@ -28,7 +28,7 @@ public static partial class NightSceneDirectorPatch
     [HarmonyPostfix]
     public static void SpawnManualControlledSpecialGuest_Postfix(NightSceneDirector __instance, string label)
     {
-        if (label == YuyukoGuestLabel && GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge)
+        if (label == YuyukoGuestLabel && GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge)
             YuyukoGuestSync.Capture(__instance.GetControlled(label));
     }
 

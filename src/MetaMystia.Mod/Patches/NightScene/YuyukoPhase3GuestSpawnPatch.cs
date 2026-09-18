@@ -30,7 +30,7 @@ public static partial class YuyukoPhase3GuestSpawnPatch
     [HarmonyPrefix]
     public static bool MoveNext_Prefix(SpawnLoop __instance, ref bool __result)
     {
-        if (!GameSession.HasPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge) return RunOriginal;
+        if (!GameSession.HasRoomPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge) return RunOriginal;
         // 本体可提前准备本地回调，真正安装哪一单仍由主机消息决定。
         __instance.__4__this.ifYuyukoCouldOrder = true;
         __instance.__2__current ??= new WaitForSeconds(1f);

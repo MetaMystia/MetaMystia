@@ -48,7 +48,7 @@ public static partial class YuyukoGuestSync
     /// 判断顾客是否为当前联机挑战已捕获的本体。按底层对象地址比较，避免将同角色的其他实体纳入同步。
     /// </summary>
     internal static bool IsBody(GuestGroupController controller) =>
-        GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge && controller != null
+        GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge && controller != null
         && body?.Pointer == controller.Pointer;
 
     /// <summary>判断网络编号是否属于已绑定本体，供上菜消息在剧情期间接收并暂存。</summary>
@@ -65,7 +65,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void Capture(GuestGroupController controller)
     {
-        if (!GameSession.HasPeers || !PrepSceneManager.IsYuyukoChallenge || controller == null) return;
+        if (!GameSession.HasRoomPeers || !PrepSceneManager.IsYuyukoChallenge || controller == null) return;
         if (body?.Pointer == controller.Pointer) return;
         body = controller;
         if (GameSession.IsRoomHost)
@@ -201,7 +201,7 @@ public static partial class YuyukoGuestSync
     /// </remarks>
     private static IEnumerator Process(int generation)
     {
-        while (generation == lifetime && GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge)
+        while (generation == lifetime && GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge)
         {
             TryBind();
             if (fsm != null && !GameFlow.InStory)
@@ -239,7 +239,7 @@ public static partial class YuyukoGuestSync
             yield return null;
         }
         if (generation != lifetime) yield break;
-        if (!GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge)
+        if (!GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge)
         {
             // 断线后交回原版；已启动的评价仍持有包装回调，等它实际完成再继续。
             running = false;
@@ -436,7 +436,7 @@ public static partial class YuyukoGuestSync
         if (generation != lifetime || version != orderVersion || fsm == null
             || fsm.OrderSeq != seq || localCompleted.HasValue) return;
         localCompleted = result;
-        if (!GameSession.HasPeers)
+        if (!GameSession.HasRoomPeers)
         {
             ContinueOrder(result);
             return;

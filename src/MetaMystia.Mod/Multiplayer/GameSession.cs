@@ -24,13 +24,13 @@ public static partial class GameSession
     public static Room Room => State.Room;
     public static bool IsOnline => Client?.IsConnected == true;
     public static bool IsConnecting { get; private set; }
-    public static bool IsRunning => IsConnecting || IsOnline;
+    public static bool IsConnectingOrOnline => IsConnecting || IsOnline;
     public static bool IsRoomHost => IsOnline && Room?.Host == Client.Uid;
     public static bool IsRoomClient => IsOnline && Room != null && !IsRoomHost;
     public static bool IsInRoom => IsOnline && Room != null;
-    public static bool HasPeers => IsInRoom && Room.Members.Length > 1;
-    public static bool IsLanHost => lan != null;
-    public static long Membership => Room?.Members.FirstOrDefault(p => p.Uid == Client?.Uid)?.Membership ?? 0;
+    public static bool HasRoomPeers => IsInRoom && Room.Members.Length > 1;
+    public static bool HasLocalServer => lan != null;
+    public static long RoomMembershipId => Room?.Members.FirstOrDefault(p => p.Uid == Client?.Uid)?.Membership ?? 0;
     private static LanSession lan;
     private static CancellationTokenSource cancellation;
     private static Task shutdown = Task.CompletedTask;
@@ -40,7 +40,7 @@ public static partial class GameSession
 
     public static void StartHost(int port = -1)
     {
-        if (IsLanHost && IsRunning) { InGameConsole.ShowPassive(TextId.MpAlreadyStarted.Get("Host")); return; }
+        if (HasLocalServer && IsConnectingOrOnline) { InGameConsole.ShowPassive(TextId.MpAlreadyStarted.Get("Host")); return; }
         if (!CanStart()) return;
         Stop();
         CurrentPort = port < 0 ? ConfigPort : port;
@@ -62,7 +62,7 @@ public static partial class GameSession
 
     public static void Connect(string host, int port = -1)
     {
-        if (IsConnecting || HasPeers || !CanStart()) return;
+        if (IsConnecting || HasRoomPeers || !CanStart()) return;
         Stop();
         CurrentPort = port < 0 ? ConfigPort : port;
         var client = new Client(new(Versions.Current.Protocol, Plugin.GameVersion, Plugin.ModVersion));
@@ -118,19 +118,19 @@ public static partial class GameSession
     private static void ApplyState(Client client)
     {
         if (Client != client) return;
-        var previous = Membership;
+        var previous = RoomMembershipId;
         State = client.State;
         PlayerManager.Local.Uid = client.Uid;
         PlayerManager.Local.Id = PlayerIdentity.Name;
-        if (previous != Membership)
+        if (previous != RoomMembershipId)
         {
-            BusinessStart.Reset(resume: previous != 0 && Membership == 0);
+            BusinessStart.Reset(resume: previous != 0 && RoomMembershipId == 0);
             GameFlow.ResetGameplay();
             DayDestinationManager.ResetSession();
             YuyukoGuestSync.Reset();
             RoomClock.Reset();
         }
-        PlayerManager.ApplyNetworkState(State, previous != Membership);
+        PlayerManager.ApplyNetworkState(State, previous != RoomMembershipId);
     }
 
     public static void Tick()

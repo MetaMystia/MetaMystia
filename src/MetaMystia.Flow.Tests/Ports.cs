@@ -62,7 +62,7 @@ namespace MetaMystia.Multiplayer
     static class GameSession
     {
         public static object Client = new();
-        public static long Membership = 1;
+        public static long RoomMembershipId = 1;
         public static Room Room = new();
         public static bool IsInRoom = true;
         public static bool IsRoomHost = true;

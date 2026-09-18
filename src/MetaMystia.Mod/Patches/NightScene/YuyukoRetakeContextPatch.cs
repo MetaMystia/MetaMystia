@@ -44,6 +44,6 @@ public static partial class YuyukoRetakeContextPatch
     [HarmonyPostfix]
     public static void Method_Internal_Void_PDM_0_Postfix()
     {
-        if (GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge) YuyukoGuestSync.EndPhase3();
+        if (GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge) YuyukoGuestSync.EndPhase3();
     }
 }

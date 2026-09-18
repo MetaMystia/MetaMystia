@@ -49,7 +49,7 @@ public partial class IncomeControllerYuyukoPatch
     }
 
     private static bool IsPhase3Panel(IncomeControllerYuyuko panel) =>
-        GameSession.HasPeers && PrepSceneManager.IsYuyukoChallenge && panel != null && panel.invert
+        GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge && panel != null && panel.invert
         && YuyukoBossDataPatch.CurrentContext?.statusDisplayer?.Pointer == panel.Pointer;
 
     private static void SendProgress()

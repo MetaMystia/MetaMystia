@@ -24,7 +24,7 @@ public static partial class NightSceneManagerPatch
         GameFlow.OnSceneTransit(Scene.WorkScene);
         CheatManager.TryApplyFever();
         PlayerManager.Local.ResetState();
-        if (GameSession.HasPeers)
+        if (GameSession.HasRoomPeers)
         {
             if (!PrepSceneManager.IsYuyukoPrepActive) PrepSceneManager.ClearPrepTable();
             PlayerManager.ResetState();

@@ -24,7 +24,7 @@ public static partial class YuyukoTimingPatch
     [HarmonyPrefix]
     public static bool MoveNext_Prefix(TimingLoop __instance, ref bool __result)
     {
-        if (!GameSession.HasPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge
+        if (!GameSession.HasRoomPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge
             || !YuyukoGuestSync.HasPhaseEnd(YuyukoBossDataPatch.CurrentState)) return RunOriginal;
         __instance.__2__current = null;
         __result = false;
@@ -40,7 +40,7 @@ public static partial class YuyukoTimingPatch
     [HarmonyPostfix]
     public static void MoveNext_Postfix(TimingLoop __instance, ref bool __result)
     {
-        if (!GameSession.HasPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge || __result
+        if (!GameSession.HasRoomPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge || __result
             || YuyukoGuestSync.HasPhaseEnd(YuyukoBossDataPatch.CurrentState)) return;
         __instance.__2__current = null;
         __result = true;

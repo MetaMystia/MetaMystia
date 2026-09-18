@@ -35,7 +35,7 @@ public static partial class GameFlow
     public static bool CanOpenRoom => CanJoin && !DayDestinationManager.HasLocalIntent
         && GameSession.Room?.Members.All(p => p.Uid == GameSession.Client.Uid
             || p.Stage is GameStage.MainMenu or GameStage.Day) == true;
-    public static bool IsGameplaySyncActive => GameSession.HasPeers && !InStory;
+    public static bool IsGameplaySyncActive => GameSession.HasRoomPeers && !InStory;
     public static bool ShouldSkipAction => !IsGameplaySyncActive;
     public static bool IsPureDay => LocalScene == Scene.DayScene && CharactersReady && !InStory
         && !DayDestinationManager.IsEntering && !DayDestinationManager.HasLocalIntent
@@ -114,7 +114,7 @@ public static partial class GameFlow
 
     public static void DisconnectForTransition()
     {
-        if (GameSession.IsRunning)
+        if (GameSession.IsConnectingOrOnline)
         {
             GameSession.Stop(resumeGameplay: false);
             InGameConsole.ShowPassive(TextId.NetworkFlowInterrupted.Get());
@@ -126,7 +126,7 @@ public static partial class GameFlow
     {
         bool supported = CanKeepConnection(LocalScene, target, Destination,
             DayDestinationManager.ReplayingChallenge, Patch.NightSceneDirectorPatch.ReturningFromTrial);
-        if (GameSession.IsRunning && !supported) DisconnectForTransition();
+        if (GameSession.IsConnectingOrOnline && !supported) DisconnectForTransition();
         if (!IsCooperative) DayDestinationManager.WithdrawLocal();
         OnSceneTransit(Scene.LoadScene);
     }

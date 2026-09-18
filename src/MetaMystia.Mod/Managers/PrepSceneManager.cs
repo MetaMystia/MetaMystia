@@ -25,7 +25,7 @@ public static partial class PrepSceneManager
 
     public static void Initialize()
     {
-        if (GameSession.HasPeers)
+        if (GameSession.HasRoomPeers)
             GameData.RunTime.Common.StatusTracker.Instance.partners.Clear();
     }
 

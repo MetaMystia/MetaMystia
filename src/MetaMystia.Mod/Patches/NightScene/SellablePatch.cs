@@ -16,7 +16,7 @@ public partial class SellablePatch
     [HarmonyPrefix]
     public static bool GetPopTag_Prefix(Il2CppSystem.Collections.Generic.IEnumerable<int> sourceTag, ref Il2CppSystem.Collections.Generic.IEnumerable<int> __result)
     {
-        if (GameSession.HasPeers)
+        if (GameSession.HasRoomPeers)
         {
             __result = sourceTag;
             return SkipOriginal;

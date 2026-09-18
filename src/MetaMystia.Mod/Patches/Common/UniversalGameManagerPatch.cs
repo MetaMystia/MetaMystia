@@ -58,7 +58,7 @@ public partial class UniversalGameManagerPatch
 
         // Log.LogInfo($"OpenDialogMenu called with dialogPackage: {dialogPackage?.name}");
 
-        if (!GameSession.HasPeers || dialogPackage?.name != "OnTransitionToNight") // dialogPackage 可能为空
+        if (!GameSession.HasRoomPeers || dialogPackage?.name != "OnTransitionToNight") // dialogPackage 可能为空
         {
             return RunOriginal;
         }

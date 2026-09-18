@@ -28,7 +28,7 @@ public partial class SpecialGuestsControllerPatch
     public static void PostEvaluation_Postfix(SpecialGuestsController __instance)
     {
         if (YuyukoGuestSync.IsBody(__instance)) return;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         GuestFSM.OnPostEvaluation(__instance);
     }
 }

@@ -29,7 +29,7 @@ public static partial class PrepSceneManager
 
     public static void TryBeginYuyukoPrep()
     {
-        if (!GameSession.HasPeers || !IsYuyukoChallenge) return;
+        if (!GameSession.HasRoomPeers || !IsYuyukoChallenge) return;
 
         YuyukoPrepRound++;
         IsYuyukoPrepActive = true;
@@ -61,11 +61,11 @@ public static partial class PrepSceneManager
         PrepAllReadyMessage.Send();
         int confirmedRound = YuyukoPrepRound;
         var client = GameSession.Client;
-        var membership = GameSession.Membership;
+        var membership = GameSession.RoomMembershipId;
         // 离开当前按钮 Hook 后再重放提交，避免在同一次调用中重入面板。
         PluginManager.RunOnMainThread(() =>
         {
-            if (client == GameSession.Client && membership == GameSession.Membership
+            if (client == GameSession.Client && membership == GameSession.RoomMembershipId
                 && IsYuyukoChallenge && IsYuyukoPrepActive && YuyukoPrepRound == confirmedRound)
                 IzakayaConfigPannelPatch.PrepOver();
         });

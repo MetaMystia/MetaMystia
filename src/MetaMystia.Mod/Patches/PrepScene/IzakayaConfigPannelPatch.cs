@@ -56,7 +56,7 @@ public partial class IzakayaConfigPannelPatch
     [HarmonyPostfix]
     public static void IzakayaConfigPannel_GoToSpecific_Postfix()
     {
-        if (GameSession.HasPeers == false)
+        if (GameSession.HasRoomPeers == false)
         {
             Log.LogDebug($"Not in multiplayer session, skipping patch");
             return;
@@ -81,7 +81,7 @@ public partial class IzakayaConfigPannelPatch
     [HarmonyPrefix]
     public static bool _SolveDailyCompletion_b__64_7_Prefix()
     {
-        if (!GameSession.HasPeers)
+        if (!GameSession.HasRoomPeers)
         {
             Log.LogDebug($"Not in multiplayer session, skipping patch");
             return RunOriginal;

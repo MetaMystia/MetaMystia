@@ -57,7 +57,7 @@ public static partial class PlayerListPanel
     // ====================================================================
     public static void OnGUI()
     {
-        if (!GameSession.IsRunning || (!_visible && !InGameConsole.IsOpen))
+        if (!GameSession.IsConnectingOrOnline || (!_visible && !InGameConsole.IsOpen))
             return;
 
         InitStyles();
@@ -218,7 +218,7 @@ public static partial class PlayerListPanel
             Scene.DayScene or Scene.WorkScene when !hasMotion => name,
             Scene.DayScene => FormatDayLine(name, dim, mapLabel, pos, isDayOver, izakayaMapLabel, izakayaLevel, uid, scopeTag == null),
             Scene.IzakayaPrepScene => scopeTag == null ? $"{name}  {ReadyTag(isPrepOver)}" : name,
-            Scene.WorkScene when scopeTag == null && GameSession.HasPeers
+            Scene.WorkScene when scopeTag == null && GameSession.HasRoomPeers
                 && PrepSceneManager.IsYuyukoChallenge && PrepSceneManager.IsYuyukoPrepActive =>
                 $"{name}  {ReadyTag(PrepSceneManager.IsYuyukoPrepReady(uid))}",
             Scene.WorkScene => $"{name}  <color={dim}>({pos.x:F2}, {pos.y:F2})</color>",
@@ -233,7 +233,7 @@ public static partial class PlayerListPanel
         MapLabel mapLabel, Vector2 pos, bool isDayOver,
         MapLabel izakayaMapLabel, int izakayaLevel, int uid, bool inRoom)
     {
-        var destination = inRoom && GameSession.HasPeers ? DayDestinationManager.GetIntent(uid) : DayDestination.None;
+        var destination = inRoom && GameSession.HasRoomPeers ? DayDestinationManager.GetIntent(uid) : DayDestination.None;
         if (destination != DayDestination.None)
             return $"{name}  <color={dim}>{mapLabel.GetDisplayName()}  ({pos.x:F2}, {pos.y:F2})</color>  {DayDestinationManager.ReadyText(destination)}";
         if (!PlayerManager.AllDayOver)

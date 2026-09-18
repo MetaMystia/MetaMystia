@@ -42,7 +42,7 @@ public partial class IzakayaSelectorPanelPatch
 
         Log.Info($"_OnGuideMapInitialize_b__21_0 called");
 
-        if (!GameSession.HasPeers)
+        if (!GameSession.HasRoomPeers)
         {
             Log.Info($"Not in multiplayer session, skipping patch");
             return RunOriginal;

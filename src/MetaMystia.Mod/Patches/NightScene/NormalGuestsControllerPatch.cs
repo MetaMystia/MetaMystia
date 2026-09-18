@@ -19,7 +19,7 @@ public partial class NormalGuestsControllerPatch
     [HarmonyPostfix]
     public static void NormalGuest_PostEvaluation_Postfix(NormalGuestsController __instance)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         GuestFSM.OnPostEvaluation(__instance);
     }
 }

@@ -163,7 +163,7 @@ public static partial class DayDestinationManager
         if (!admissionClosed)
         {
             closing = true;
-            PluginHost.Instance.StartManagedCoroutine(CloseAdmission(generation, GameSession.Membership));
+            PluginHost.Instance.StartManagedCoroutine(CloseAdmission(generation, GameSession.RoomMembershipId));
             return;
         }
         foreach (var uid in PlayerManager.Peers.Keys)
@@ -203,7 +203,7 @@ public static partial class DayDestinationManager
     {
         var task = GameSession.SetJoinable(false);
         while (!task.IsCompleted) yield return null;
-        if (entryGeneration != generation || membership != GameSession.Membership) yield break;
+        if (entryGeneration != generation || membership != GameSession.RoomMembershipId) yield break;
         closing = false;
         if (!task.IsCompletedSuccessfully || !GameSession.IsRoomHost) yield break;
         admissionClosed = true;

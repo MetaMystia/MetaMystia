@@ -21,7 +21,7 @@ public partial class YuyukoTimedNegativeSpellPatch
     [HarmonyPrefix]
     public static bool MoveNext_Prefix(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb2 __instance, ref bool __result)
     {
-        if (!GameSession.HasPeers) return RunOriginal;
+        if (!GameSession.HasRoomPeers) return RunOriginal;
 
         // 原版收尾无条件 StopCoroutine，不能立即结束，否则 StartCoroutine 会返回 null。
         if (__instance.__2__current == null)
