@@ -18,8 +18,6 @@ public partial record Skin
     public int SkinIndex { get; init; }
     public string NetSkinName { get; init; } = "";
     public bool? RotateOverride { get; init; }
-    // 自定义角色在世界范围显示时所需的稳定资源身份。
-    public string ResourcePackId { get; init; } = "";
 }
 
 [MemoryPackable]
