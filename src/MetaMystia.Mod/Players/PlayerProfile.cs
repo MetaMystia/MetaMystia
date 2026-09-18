@@ -1,3 +1,5 @@
+using System.Linq;
+
 using Common.UI;
 
 using MetaMystia.Multiplayer;
@@ -8,14 +10,19 @@ namespace MetaMystia;
 
 public static class PlayerProfile
 {
-    public static Player Capture() => new()
+    public static Player Capture()
     {
-        Name = PlayerIdentity.Name,
-        Skin = CaptureSkin(),
-        Scene = GameFlow.LocalScene,
-        Stage = GameFlow.Stage,
-        Resources = PlayerManager.Local.IncrementalDataBase.ToNetwork()
-    };
+        var resources = PlayerManager.Local.IncrementalDataBase.Copy();
+        resources.PackIds = ResourceExManager.LoadedPackages.Select(p => p.PackageLabel).OrderBy(p => p).ToArray();
+        return new()
+        {
+            Name = PlayerIdentity.Name,
+            Skin = CaptureSkin(),
+            Scene = GameFlow.LocalScene,
+            Stage = GameFlow.Stage,
+            Resources = resources
+        };
+    }
 
     public static Skin CaptureSkin()
     {

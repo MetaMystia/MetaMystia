@@ -21,16 +21,6 @@ public partial record Skin
 }
 
 [MemoryPackable]
-public partial record Resources
-{
-    public bool Ready { get; init; }
-    public DlcPack DlcFlags { get; init; }
-    public string[] PackIds { get; init; } = [];
-    public int[][] ExtraIds { get; init; } = Enumerable.Range(0, 9).Select(_ => Array.Empty<int>()).ToArray();
-}
-
-
-[MemoryPackable]
 public partial record Motion
 {
     public float X { get; init; }
@@ -48,7 +38,7 @@ public partial record Player
     public int Uid { get; init; }
     public string Name { get; init; } = "";
     public Skin Skin { get; init; } = new();
-    public Resources? Resources { get; init; }
+    public ResourceDataBase? Resources { get; init; }
     public Motion Motion { get; init; } = new();
     public bool HasMotion { get; init; }
     public Scene Scene { get; init; }
@@ -94,11 +84,7 @@ public partial record Snapshot
 
     private static Player CopyPlayer(Player player) => player with
     {
-        Resources = player.Resources is { } resources ? resources with
-        {
-            PackIds = resources.PackIds.ToArray(),
-            ExtraIds = resources.ExtraIds.Select(ids => ids.ToArray()).ToArray()
-        } : null
+        Resources = player.Resources?.Copy()
     };
 }
 

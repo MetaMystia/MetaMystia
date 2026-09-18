@@ -138,9 +138,10 @@ internal static class Protocol
         Validate(p.Motion);
         if (!resources) return;
         var res = p.Resources;
-        if (res == null || !res.Ready || res.PackIds == null || res.PackIds.Length > 128 ||
-            res.PackIds.Any(s => string.IsNullOrEmpty(s) || s.Length > 128) || res.ExtraIds == null ||
-            res.ExtraIds.Length != 9 || res.ExtraIds.Any(a => a == null || a.Length > 2048) ||
+        if (res == null || !res.IsIncrementalReady || res.PackIds == null || res.PackIds.Length > 128 ||
+            res.PackIds.Any(s => string.IsNullOrEmpty(s) || s.Length > 128) ||
+            new[] { res.Foods, res.Recipes, res.Beverages, res.Ingredients, res.Cookers,
+                res.Items, res.Izakayas, res.SpecialGuests, res.NormalGuests }.Any(a => a == null || a.Count > 2048) ||
             Pack(res).Length > 8192) throw new NetworkException(NetworkErrorCode.ResourcesNotReadyOrInvalid);
     }
 

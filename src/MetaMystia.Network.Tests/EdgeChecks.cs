@@ -100,7 +100,7 @@ static partial class Checks
     static async Task LargeSnapshots()
     {
         await using var server = new Server(new() { MaxPlayers = 64 }); await server.StartAsync();
-        var resources = new Resources { Ready = true, ExtraIds = [Enumerable.Range(0, 1900).ToArray(), [], [], [], [], [], [], [], []] };
+        var resources = new ResourceDataBase { DlcFlags = DlcPack.Core, Foods = Enumerable.Range(0, 1900).ToList() };
         var joined = new List<Client>(); string failure = "";
         for (int i = 0; i < 40; i++)
         {

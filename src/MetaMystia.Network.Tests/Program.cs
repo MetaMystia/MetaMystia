@@ -18,10 +18,10 @@ static partial class Checks
     static readonly List<Client> clients = [];
     static readonly MessageRule[] rules = [new(1, [Route.World], RoomScoped: false), new(2, [Route.Host]), new(3, [Route.Room, Route.Player], HostOnly: true), new(4, [Route.Room, Route.Player]), new(5, [Route.Server], RoomScoped: false)];
     static int checks;
-    static Player Player(string name, Resources? resources = null) => new()
+    static Player Player(string name, ResourceDataBase? resources = null) => new()
     {
         Name = name, Scene = Scene.DayScene, Stage = GameStage.Day, Skin = new() { SelectedType = CharacterSkinSets.SelectedType.Default },
-        Resources = resources ?? new() { Ready = true, DlcFlags = DlcPack.Core, PackIds = ["test.pack"] },
+        Resources = resources ?? new() { DlcFlags = DlcPack.Core, PackIds = ["test.pack"] },
         Motion = new() { X = 7, DirectionX = 1, Speed = 2, Map = MapLabel.Home }
     };
     static void Assert(bool value, string description)
@@ -42,7 +42,7 @@ static partial class Checks
         { foreach (var c in clients.ToArray()) c.DispatchPending(); await Task.Delay(2); }
         if (!condition()) throw new Exception("Condition timeout");
     }
-    static async Task<Client> Connect(Server server, string name, Versions? versions = null, Resources? resources = null)
+    static async Task<Client> Connect(Server server, string name, Versions? versions = null, ResourceDataBase? resources = null)
     {
         var c = new Client(versions); clients.Add(c);
         await Pump(c.ConnectAsync(new(IPAddress.Loopback, server.Endpoint.Port), Player(name, resources)));
@@ -71,6 +71,7 @@ static partial class Checks
 
     internal static async Task Run()
     {
+        ResourceTables();
         await ErrorDetails();
         await Stages();
         await StationaryHostSnapshot();
@@ -95,7 +96,7 @@ static partial class Checks
         Assert(outcomes.Count(s => s == "RoomFull") == 1 && outcomes.Count(s => s == "UnexpectedSuccess") == 1, "并发最后一个房间名额只成功一人");
         var guest = b.State.Room != null ? b : c;
         var outsider = guest == b ? c : b;
-        Assert(guest.State.Room!.Members.All(p => p.Resources?.Ready == true) && guest.State.World.Length == 3, "入房资源快照完整且仍属于 World");
+        Assert(guest.State.Room!.Members.All(p => p.Resources?.IsIncrementalReady == true) && guest.State.World.Length == 3, "入房资源快照完整且仍属于 World");
         await Pump(outsider.CreateRoomAsync(2)); await Pump(outsider.SetJoinableAsync(true));
         var receivedA = new List<ReceivedMessage>(); var receivedGuest = new List<ReceivedMessage>(); var receivedOutside = new List<ReceivedMessage>();
         a.MessageReceived += receivedA.Add; guest.MessageReceived += receivedGuest.Add; outsider.MessageReceived += receivedOutside.Add;

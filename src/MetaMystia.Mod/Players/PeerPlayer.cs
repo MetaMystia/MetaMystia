@@ -33,7 +33,7 @@ public partial class PeerPlayer : NetPlayer
     {
         Uid = uid;
         IncrementalDataBase = resources;
-        DataBase = ResourceDataBase.Expand(resources);
+        DataBase = resources.Expand();
     }
 
     public override CharacterControllerUnit GetCharacterUnit() => character;

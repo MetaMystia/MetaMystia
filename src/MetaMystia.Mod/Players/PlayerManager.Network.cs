@@ -23,14 +23,14 @@ public static partial class PlayerManager
             var data = member ?? player;
             bool wasInRoom = Peers.ContainsKey(player.Uid);
             if (!TryGetVisiblePeer(player.Uid, out var peer))
-                peer = new PeerPlayer(player.Uid, ResourceDataBase.FromNetwork(data.Resources));
+                peer = new PeerPlayer(player.Uid, data.Resources ?? new());
 
             bool joined = inRoom && (!wasInRoom || roomChanged || peer.NetworkState?.Membership != data.Membership);
             if (joined || (wasInRoom && (!inRoom || roomChanged))) peer.ResetState();
             if (joined)
             {
-                peer.IncrementalDataBase = ResourceDataBase.FromNetwork(data.Resources);
-                peer.DataBase = ResourceDataBase.Expand(peer.IncrementalDataBase);
+                peer.IncrementalDataBase = data.Resources ?? new();
+                peer.DataBase = peer.IncrementalDataBase.Expand();
             }
             Peers.TryRemove(player.Uid, out _);
             PublicPeers.TryRemove(player.Uid, out _);
