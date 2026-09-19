@@ -23,7 +23,6 @@ public partial class SteamPlatformProfilePatch
             flags |= DlcStandardTable.KeyToDlc(dlc);
             tags.Add(dlc);
         }
-        Plugin.DlcFlags = flags;
         ResourceExManager.SetActiveDlcTags(tags);
         ResourceExManager.OnDlcFlagsDetermined();
         Log.Warning($"Active DLC Flags: {flags}");

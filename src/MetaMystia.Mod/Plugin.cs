@@ -26,9 +26,6 @@ public class Plugin : BasePlugin
 
     public static bool AllPatched => PatchRegistry.AllPatched;
 
-    /// <summary>当前激活的 DLC（Core 恒激活），由 SteamPlatformProfile.GetActiveKeys 记录。</summary>
-    public static DlcPack DlcFlags { get; internal set; } = DlcPack.Core;
-
     public Plugin()
     {
         Instance = this;
