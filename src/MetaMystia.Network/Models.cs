@@ -38,6 +38,7 @@ public partial record Player
     public int Uid { get; init; }
     public string Name { get; init; } = "";
     public Skin Skin { get; init; } = new();
+    // 世界资料不含资源；房间增量快照中的 null 表示沿用同次入房的资源。
     public ResourceDataBase? Resources { get; init; }
     public Motion Motion { get; init; } = new();
     public bool HasMotion { get; init; }

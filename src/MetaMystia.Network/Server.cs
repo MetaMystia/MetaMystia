@@ -16,6 +16,7 @@ public sealed class Server : IAsyncDisposable
         internal DateTime Accepted = DateTime.UtcNow;
         internal bool Rejected;
         internal NetworkError? AdmissionError;
+        internal readonly HashSet<long> SentResources = [];
     }
     private readonly ServerOptions options;
     private readonly Dictionary<ushort, MessageRule> rules;
@@ -165,7 +166,7 @@ public sealed class Server : IAsyncDisposable
                     }
                     Join(p, lanRoom!, 0);
                 }
-                p.Wire.Send(new(Kind.Welcome, Protocol.Pack(Capture(p)), newUid));
+                p.Wire.Send(new(Kind.Welcome, Protocol.Pack(CaptureUpdate(p)), newUid));
                 Publish(p);
                 return;
             }
@@ -279,7 +280,7 @@ public sealed class Server : IAsyncDisposable
     }
 
     private void Join(Peer p, Room room, long request)
-    { p.Room = room.Id; p.MembershipRequest = request; p.Player = p.Player! with { Membership = checked(++nextMembership), Motion = new(), HasMotion = false }; }
+    { p.SentResources.Clear(); p.Room = room.Id; p.MembershipRequest = request; p.Player = p.Player! with { Membership = checked(++nextMembership), Motion = new(), HasMotion = false }; }
 
     private void Leave(Peer p)
     {
@@ -299,7 +300,7 @@ public sealed class Server : IAsyncDisposable
     }
 
     private static void ClearRoom(Peer p)
-    { p.Room = 0; p.MembershipRequest = 0; p.Player = p.Player! with { Membership = 0, Motion = new(), HasMotion = false }; }
+    { p.SentResources.Clear(); p.Room = 0; p.MembershipRequest = 0; p.Player = p.Player! with { Membership = 0, Motion = new(), HasMotion = false }; }
 
     private void Remove(Peer p)
     {
@@ -358,7 +359,17 @@ public sealed class Server : IAsyncDisposable
 
     private void Publish(Peer? except = null)
     {
-        foreach (var p in peers.Where(p => p.Player != null && p != except)) p.Wire.Send(new(Kind.Snapshot, Protocol.Pack(Capture(p))));
+        foreach (var p in peers.Where(p => p.Player != null && p != except)) p.Wire.Send(new(Kind.Snapshot, Protocol.Pack(CaptureUpdate(p))));
+    }
+
+    private Snapshot CaptureUpdate(Peer viewer)
+    {
+        var snapshot = Capture(viewer);
+        if (snapshot.Room is not { } room) return snapshot;
+        // 资源在连接期间固定；同一次入房只发送一次，成员关系仍发送完整快照。
+        viewer.SentResources.IntersectWith(room.Members.Select(p => p.Membership));
+        return snapshot with { Room = room with { Members = room.Members.Select(p =>
+            viewer.SentResources.Add(p.Membership) ? p : p with { Resources = null }).ToArray() } };
     }
     private void Broadcast(Frame frame, Peer except)
     {

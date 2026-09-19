@@ -281,6 +281,17 @@ public sealed class Client : IDisposable
                 var membership = snapshot.Room?.Members.FirstOrDefault(p => p.Uid == uid)?.Membership ?? 0;
                 if (current.Cancelled.Contains(snapshot.MembershipRequest) || (membership != 0 && membership == current.SuppressedMembership))
                     snapshot = snapshot with { Room = null, MembershipRequest = 0 };
+                if (snapshot.Room is { } nextRoom)
+                {
+                    var previous = state.Room?.Id == nextRoom.Id && MyMembership() == membership
+                        ? state.Room.Members.ToDictionary(p => p.Membership) : new Dictionary<long, Player>();
+                    snapshot = snapshot with { Room = nextRoom with { Members = nextRoom.Members.Select(p =>
+                        p.Resources != null ? p : p with
+                        {
+                            Resources = previous.TryGetValue(p.Membership, out var old) && old.Uid == p.Uid
+                                ? old.Resources : throw new InvalidDataException("Missing initial room resources")
+                        }).ToArray() } };
+                }
                 state = snapshot;
                 // 自己的资料与运动不回送；旧快照只更新服务器拥有的成员关系。
                 if (local != null) UpdatePlayer(uid, p => p with { Name = local.Name, Skin = local.Skin, Motion = local.Motion, HasMotion = local.HasMotion, Scene = local.Scene, Stage = local.Stage });
