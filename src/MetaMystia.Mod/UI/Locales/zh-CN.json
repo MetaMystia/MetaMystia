@@ -8,7 +8,7 @@
     "NetworkRoomCreated": "已创建并加入房间 {0}。",
     "NetworkRoomJoined": "已加入房间 {0}。",
     "NetworkPreparing": "房主尚未准备完成，请稍后连接。",
-    "NetworkFlowInterrupted": "当前操作将中断共同玩法，已断开联机。",
+    "NetworkFlowInterrupted": "当前操作将中断共同玩法，已退出房间。",
     "NetworkJoinUnavailable": "房间正在准备、共同游玩或等待成员返回，暂时无法加入。",
     "NetworkPlayerUnavailable": "请在主菜单或自由白天加入房间。",
     "NetworkRoomEnded": "房间不存在或本次入房已结束。",

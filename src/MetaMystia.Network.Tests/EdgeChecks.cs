@@ -130,8 +130,10 @@ static partial class Checks
             "普通连接局域网由服务端直接入房，不出现纯世界状态");
         await Pump(lan.Client.SetRoomPlayerLimitAsync(3));
         Assert(lan.Client.State.MaxPlayers == 3 && lan.Client.State.Room!.MaxPlayers == 3, "局域网容量一次操作同步服务器与默认房间");
-        guest.LeaveRoom(); await Until(() => !guest.IsConnected);
-        Assert(!guest.IsConnected, "局域网退房结束 World 连接");
+        guest.LeaveRoom();
+        Assert(!guest.IsConnected && !observedWorldOnly && lan.Client.State.IsLan,
+            "局域网退房立即结束连接，不出现在线但无房间状态");
+        await Until(() => lan.Client.State.Room!.Members.Length == 1);
         var other = new Client(); clients.Add(other);
         await Pump(lan.Client.SetJoinableAsync(false));
         Assert(await Failure(other.ConnectAsync(new(IPAddress.Loopback, lan.Server.Endpoint.Port), Player("too-early"))) == "JoinClosed", "局域网自动入房失败明确返回并断开");
@@ -140,7 +142,8 @@ static partial class Checks
         await Pump(lan.Client.SetJoinableAsync(true));
         var final = new Client(); clients.Add(final);
         await Pump(final.ConnectAsync(new(IPAddress.Loopback, lan.Server.Endpoint.Port), Player("last")));
-        lan.Client.Disconnect(); await Until(() => !final.IsConnected);
-        Assert(!final.IsConnected, "局域网本地房主结束关闭服务器及其他连接");
+        final.StateChanged += () => observedWorldOnly |= final.IsConnected && final.State.Room == null;
+        lan.Client.LeaveRoom(); await Until(() => !final.IsConnected);
+        Assert(!final.IsConnected && !observedWorldOnly, "局域网房主退房关闭服务器及其他连接，不发布无房间状态");
     }
 }

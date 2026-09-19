@@ -117,7 +117,7 @@ public static partial class GameSession
         };
     }
 
-    private static void ApplyState(Client client)
+    private static void ApplyState(Client client, bool resumeGameplay = true)
     {
         if (Client != client) return;
         var previous = RoomMembershipId;
@@ -126,7 +126,7 @@ public static partial class GameSession
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (previous != RoomMembershipId)
         {
-            BusinessStart.Reset(resume: previous != 0 && RoomMembershipId == 0);
+            BusinessStart.Reset(resume: resumeGameplay && previous != 0 && RoomMembershipId == 0);
             GameFlow.ResetGameplay();
             DayDestinationManager.ResetSession();
             YuyukoGuestSync.Reset();
@@ -187,11 +187,12 @@ public static partial class GameSession
     public static void SetPlayerLimit(int count) => Run(Client.SetRoomPlayerLimitAsync(count, cancellation.Token),
         () => ConfigManager.MaxPlayers.Value = count);
 
-    public static void LeaveRoom()
+    public static void LeaveRoom(bool resumeGameplay = true)
     {
         if (!IsInRoom) return;
+        if (State.IsLan) { Stop(resumeGameplay); return; }
         Client.LeaveRoom();
-        ApplyState(Client);
+        ApplyState(Client, resumeGameplay);
     }
 
     public static void Stop(bool resumeGameplay = true)

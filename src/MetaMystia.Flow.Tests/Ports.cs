@@ -30,6 +30,12 @@ namespace MetaMystia
             : LocalScene != Scene.DayScene ? GameStage.Loading
             : Destination == DayDestination.None ? GameStage.Day : GameStage.DayEnd;
         public static void BeginCooperative(DayDestination destination) => Destination = destination;
+        public static void ResetGameplay()
+        {
+            Destination = DayDestination.None;
+            BusinessStart.Reset();
+            DayDestinationManager.Reset();
+        }
     }
     sealed class FlowPlayer
     {
@@ -76,6 +82,14 @@ namespace MetaMystia.Multiplayer
         public static long RoomMembershipId = 1;
         public static Room Room = new();
         public static bool IsInRoom = true;
+        public static bool IsConnecting;
+        public static Snapshot State = new();
+        public static int Leaves, Stops;
+        public static bool Resumed;
+        public static void LeaveRoom(bool resumeGameplay = true)
+        { Leaves++; Resumed = resumeGameplay; IsInRoom = false; }
+        public static void Stop(bool resumeGameplay = true)
+        { Stops++; Resumed = resumeGameplay; IsConnecting = false; IsInRoom = false; }
         public static bool IsRoomHost = true;
         public static bool IsRoomClient => IsInRoom && !IsRoomHost;
         public static bool HasRoomPeers => IsInRoom && PlayerManager.Peers.Count > 0;
@@ -134,6 +148,7 @@ namespace MetaMystia.UI
         DestinationBusinessReady, DestinationFinalTrialReady, DestinationFinalTrialAgainReady,
         DestinationBusinessConfirmed, DestinationFinalTrialConfirmed, DestinationFinalTrialAgainConfirmed,
         WaitingForHostConfirm, SelectedIzakaya, SelectedIzakayaMismatch,
+        NetworkFlowInterrupted, MultiplayerDisconnected,
     }
     static class Text
     {

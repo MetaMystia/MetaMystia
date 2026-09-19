@@ -73,6 +73,7 @@ static partial class Checks
     {
         ResourceTables();
         await RoomCodes();
+        await RoomExits();
         await ForwardedMessageChecks();
         await IncrementalResources();
         await ErrorDetails();

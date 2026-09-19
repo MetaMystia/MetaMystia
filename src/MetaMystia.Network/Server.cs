@@ -295,6 +295,12 @@ public sealed class Server : IAsyncDisposable
     private void Leave(Peer p)
     {
         if (p.Room == 0) return;
+        if (options.LanKey != null)
+        {
+            if (p.Player!.Uid == lanHost) _ = StopAsync();
+            else p.Wire.Close(NetworkErrorCode.LeftDefaultRoom);
+            return;
+        }
         var room = rooms[p.Room];
         if (room.Host == p.Player!.Uid)
         {
@@ -302,11 +308,6 @@ public sealed class Server : IAsyncDisposable
             foreach (var other in peers.Where(x => x.Room == room.Id).ToArray()) ClearRoom(other);
         }
         else ClearRoom(p);
-        if (options.LanKey != null)
-        {
-            if (p.Player!.Uid == lanHost) _ = StopAsync();
-            else p.Wire.Close(NetworkErrorCode.LeftDefaultRoom);
-        }
     }
 
     private static void ClearRoom(Peer p)
@@ -352,6 +353,7 @@ public sealed class Server : IAsyncDisposable
 
     private Snapshot Capture(Peer? viewer) => new()
     {
+        IsLan = options.LanKey != null,
         MaxPlayers = maxPlayers,
         World = peers.Where(p => p.Player != null).Select(p => VisiblePlayer(p, viewer) with { Resources = null }).ToArray(),
         Rooms = rooms.Values.Select(r => new RoomSummary { Id = r.Id, Host = r.Host, MaxPlayers = r.MaxPlayers, Joinable = r.Joinable, Count = peers.Count(p => p.Room == r.Id) }).ToArray(),
@@ -369,6 +371,7 @@ public sealed class Server : IAsyncDisposable
 
     private void Publish(Peer? except = null)
     {
+        if (Volatile.Read(ref stopping) != 0) return;
         foreach (var p in peers.Where(p => p.Player != null && p != except)) p.Wire.Send(new(Kind.Snapshot, Protocol.Pack(CaptureUpdate(p))));
     }
 

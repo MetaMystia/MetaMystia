@@ -16,6 +16,10 @@ void Setup(bool host = true)
 {
     PluginHost.Instance.Clear();
     GameSession.IsInRoom = true;
+    GameSession.IsConnecting = false;
+    GameSession.State = new();
+    GameSession.Leaves = GameSession.Stops = 0;
+    GameSession.Resumed = false;
     GameSession.IsRoomHost = host;
     GameSession.Client = new();
     GameSession.Admission = Task.CompletedTask;
@@ -148,29 +152,29 @@ foreach (var (from, to) in new[]
 {
     (Scene.MainScene, Scene.DayScene), (Scene.DayScene, Scene.DayScene), (Scene.DayScene, Scene.MainScene),
     (Scene.MainScene, Scene.MainScene), (Scene.DayScene, Scene.ResultScene), (Scene.ResultScene, Scene.DayScene),
-}) Check(GameFlow.CanKeepConnection(from, to, DayDestination.None, false, false), $"自由转换保留连接：{from} → {to}");
+}) Check(GameFlow.CanKeepRoom(from, to, DayDestination.None, false, false), $"自由转换保留房间：{from} → {to}");
 
 foreach (var (from, to) in new[]
 {
     (Scene.DayScene, Scene.IzakayaPrepScene), (Scene.IzakayaPrepScene, Scene.WorkScene),
     (Scene.WorkScene, Scene.ResultScene), (Scene.ResultScene, Scene.DayScene),
-}) Check(GameFlow.CanKeepConnection(from, to, DayDestination.Business, false, false), $"常规营业保留连接：{from} → {to}");
+}) Check(GameFlow.CanKeepRoom(from, to, DayDestination.Business, false, false), $"常规营业保留房间：{from} → {to}");
 
 foreach (var destination in new[] { DayDestination.FinalTrial, DayDestination.FinalTrialAgain })
 {
-    Check(GameFlow.CanKeepConnection(Scene.DayScene, Scene.WorkScene, destination, true, false), $"已确认试炼入口保留连接：{destination}");
-    Check(GameFlow.CanKeepConnection(Scene.WorkScene, Scene.DayScene, destination, false, true), $"试炼正常返回保留连接：{destination}");
-    Check(!GameFlow.CanKeepConnection(Scene.WorkScene, Scene.DayScene, destination, false, false), $"试炼非正常返回断开：{destination}");
+    Check(GameFlow.CanKeepRoom(Scene.DayScene, Scene.WorkScene, destination, true, false), $"已确认试炼入口保留房间：{destination}");
+    Check(GameFlow.CanKeepRoom(Scene.WorkScene, Scene.DayScene, destination, false, true), $"试炼正常返回保留房间：{destination}");
+    Check(!GameFlow.CanKeepRoom(Scene.WorkScene, Scene.DayScene, destination, false, false), $"试炼非正常返回退房：{destination}");
 }
 
-Check(!GameFlow.CanKeepConnection(Scene.DayScene, Scene.WorkScene, DayDestination.None, false, false), "未接入同步的夜间入口断开");
-Check(!GameFlow.CanKeepConnection(Scene.DayScene, Scene.WorkScene, DayDestination.FinalTrial, false, false), "试炼不能绕过已确认的入口");
+Check(!GameFlow.CanKeepRoom(Scene.DayScene, Scene.WorkScene, DayDestination.None, false, false), "未接入同步的夜间入口退房");
+Check(!GameFlow.CanKeepRoom(Scene.DayScene, Scene.WorkScene, DayDestination.FinalTrial, false, false), "试炼不能绕过已确认的入口");
 foreach (var from in new[] { Scene.DayScene, Scene.IzakayaPrepScene, Scene.WorkScene })
 {
-    Check(!GameFlow.CanKeepConnection(from, Scene.MainScene, DayDestination.Business, false, false), $"共同阶段回菜单断开：{from}");
-    Check(!GameFlow.CanKeepConnection(from, Scene.DayScene, DayDestination.Business, false, false), $"共同阶段直接重载白天断开：{from}");
+    Check(!GameFlow.CanKeepRoom(from, Scene.MainScene, DayDestination.Business, false, false), $"共同阶段回菜单退房：{from}");
+    Check(!GameFlow.CanKeepRoom(from, Scene.DayScene, DayDestination.Business, false, false), $"共同阶段直接重载白天退房：{from}");
 }
-Check(!GameFlow.CanKeepConnection(Scene.ResultScene, Scene.StaffScene, DayDestination.Business, false, false), "共同流程中未接入的结局改道断开");
+Check(!GameFlow.CanKeepRoom(Scene.ResultScene, Scene.StaffScene, DayDestination.Business, false, false), "共同流程中未接入的结局改道退房");
 Setup();
 int immediateEntries = 0;
 Intent(DayDestination.Business, () => immediateEntries++);
@@ -218,4 +222,26 @@ Intent(DayDestination.Business, () => immediateEntries++);
 Check(immediateEntries == 1 && DayDestinationConfirmMessage.Sent.Count == 0,
     "关闭入房失败时不执行入口");
 IzakayaSelectionChecks.Run(Check);
+
+foreach (bool host in new[] { true, false })
+{
+    Setup(host);
+    GameFlow.Destination = DayDestination.Business;
+    GameFlow.LocalScene = Scene.WorkScene;
+    int continued = 0;
+    BusinessStart.Wait(() => continued++);
+    GameFlow.LeaveRoomForTransition();
+    BusinessStart.TryStart();
+    Check(GameSession.Leaves == 1 && GameSession.Stops == 0 && !GameSession.Resumed,
+        $"中断共同流程只请求退房并禁止续接，房主={host}");
+    Check(continued == 0 && GameFlow.Destination == DayDestination.None,
+        "退房中断清除旧营业回调与玩法状态");
+}
+Setup();
+GameSession.IsInRoom = false;
+GameFlow.LeaveRoomForTransition();
+Check(GameSession.Leaves == 0 && GameSession.Stops == 0, "独立服务器世界玩家切场景保留连接");
+GameSession.IsConnecting = true;
+GameFlow.LeaveRoomForTransition();
+Check(GameSession.Stops == 1 && !GameSession.Resumed, "场景中断取消尚未完成的连接");
 Console.WriteLine($"ALL PASS ({checks} assertions; game and transport ports simulated)");

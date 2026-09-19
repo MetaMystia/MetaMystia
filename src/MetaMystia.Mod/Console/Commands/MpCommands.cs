@@ -100,7 +100,7 @@ public static class MpCommands
         });
         mp.AddCommand(join);
         var leave = new Command("leave", "Leave the room; standalone servers retain the world connection");
-        leave.SetHandler(GameSession.LeaveRoom);
+        leave.SetHandler(() => GameSession.LeaveRoom());
         mp.AddCommand(leave);
 
         var kick = new Command("kick", "Remove a room member (host only)");

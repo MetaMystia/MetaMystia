@@ -70,6 +70,7 @@ public partial record RoomSummary
 [MemoryPackable]
 public partial record Snapshot
 {
+    public bool IsLan { get; init; }
     public int MaxPlayers { get; init; }
     public Player[] World { get; init; } = [];
     public RoomSummary[] Rooms { get; init; } = [];

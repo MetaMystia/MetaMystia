@@ -161,6 +161,7 @@ public sealed class Client : IDisposable
             var current = Require();
             if (current.Joining) { End(current, NetworkErrorCode.LeftDuringJoin); return; }
             if (state.Room == null) return;
+            if (state.IsLan) { End(current, NetworkErrorCode.LeftDefaultRoom); return; }
             long membership = MyMembership();
             var command = new Control { Command = Command.Leave, Request = checked(++nextRequest), Room = state.Room.Id, Membership = membership };
             current.SuppressedMembership = membership;

@@ -5,7 +5,6 @@ using GameData.RunTime.Common;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.Network;
-using MetaMystia.UI;
 
 namespace MetaMystia;
 
@@ -103,7 +102,7 @@ public static partial class GameFlow
     // 存档入口在 LoadScene 之前重置游戏状态，必须在入口处停止联机业务。
     public static void BeforeStateReset()
     {
-        if (IsCooperative) DisconnectForTransition();
+        if (IsCooperative) LeaveRoomForTransition();
         else DayDestinationManager.WithdrawLocal();
         PrepSceneManager.ClearPrepTable();
         PrepSceneManager.ResetYuyukoPrep();
@@ -114,21 +113,11 @@ public static partial class GameFlow
         PlayerProfile.SendProfile();
     }
 
-    public static void DisconnectForTransition()
-    {
-        if (GameSession.IsConnectingOrOnline)
-        {
-            GameSession.Stop(resumeGameplay: false);
-            InGameConsole.ShowPassive(TextId.NetworkFlowInterrupted.Get());
-        }
-        ResetGameplay();
-    }
-
     public static void BeforeSceneLoad(Scene target)
     {
-        bool supported = CanKeepConnection(LocalScene, target, Destination,
+        bool supported = CanKeepRoom(LocalScene, target, Destination,
             DayDestinationManager.ReplayingChallenge, Patch.NightSceneDirectorPatch.ReturningFromTrial);
-        if (GameSession.IsConnectingOrOnline && !supported) DisconnectForTransition();
+        if (GameSession.IsConnectingOrOnline && !supported) LeaveRoomForTransition();
         if (!IsCooperative) DayDestinationManager.WithdrawLocal();
         OnSceneTransit(Scene.LoadScene);
     }
