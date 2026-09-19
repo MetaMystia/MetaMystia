@@ -7,6 +7,8 @@ using HarmonyLib;
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 using TimingLoop = GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObFu1BoexSiInObObUnique;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 // 4.4.0e：<MainChallengeLoop>g__Timing|2。保留本地计时显示，由主机结束消息放行。
@@ -22,7 +24,7 @@ public static partial class YuyukoTimingPatch
     [HarmonyPrefix]
     public static bool MoveNext_Prefix(TimingLoop __instance, ref bool __result)
     {
-        if (!MpManager.IsConnected || !MpManager.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge
+        if (!GameSession.HasRoomPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge
             || !YuyukoGuestSync.HasPhaseEnd(YuyukoBossDataPatch.CurrentState)) return RunOriginal;
         __instance.__2__current = null;
         __result = false;
@@ -38,7 +40,7 @@ public static partial class YuyukoTimingPatch
     [HarmonyPostfix]
     public static void MoveNext_Postfix(TimingLoop __instance, ref bool __result)
     {
-        if (!MpManager.IsConnected || !MpManager.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge || __result
+        if (!GameSession.HasRoomPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge || __result
             || YuyukoGuestSync.HasPhaseEnd(YuyukoBossDataPatch.CurrentState)) return;
         __instance.__2__current = null;
         __result = true;

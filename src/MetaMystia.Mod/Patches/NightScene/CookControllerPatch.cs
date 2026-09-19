@@ -4,7 +4,8 @@ using HarmonyLib;
 using GameData.Core.Collections;
 using NightScene.CookingUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -22,7 +23,7 @@ public partial class CookControllerPatch
     {
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
         // Log.Debug($"SetCook_Prefix called");
-        if (MpManager.IsConnected && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
+        if (GameSession.HasRoomPeers && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
         {
             Log.LogWarning($"Peer does not have recipe {recipe.Id}, skipping SetCook.");
             InGameConsole.ShowPassive(TextId.DLCPeerRecipeNotAvailable.Get(recipe.Id));
@@ -42,11 +43,11 @@ public partial class CookControllerPatch
     public static void SetCook_Postfix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
     {
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return;
-        if (MpManager.ShouldSkipAction) return;
+        if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         var recipeId = recipe.Id;
         SellableFood food = SellableFood.FromSellable(thisResult);
-        NightCookAction.Send(gridIndex, food, recipeId);
+        NightCookMessage.Send(gridIndex, food, recipeId);
     }
 
     [HarmonyPatch(nameof(CookController.Extract))]
@@ -60,9 +61,9 @@ public partial class CookControllerPatch
     {
         // 吞食消息已让两端各执行一次原版中断，不能再把其内部 Extract 当作玩家取菜广播。
         if (YuyukoGuestSync.IsInterruptingCooker) return;
-        if (MpManager.ShouldSkipAction) return;
+        if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
-        ExtractFromCookerAction.Send(gridIndex);
+        ExtractFromCookerMessage.Send(gridIndex);
     }
 
     [HarmonyPatch(nameof(CookController.Store))]
@@ -74,9 +75,9 @@ public partial class CookControllerPatch
     [HarmonyPrefix]
     public static void Store_Prefix(CookController __instance, Sellable value)
     {
-        if (MpManager.ShouldSkipAction) return;
+        if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
-        StoreSellableAction.Send(gridIndex, value);
+        StoreSellableMessage.Send(gridIndex, value);
     }
 
 
@@ -92,7 +93,7 @@ public partial class CookControllerPatch
         // 联机下 QTE 期间时间继续推进，厨具可能已被吞食，需阻止 QTE 结束后再启动烹饪倒计时。
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
         var gridIndex = __instance.GridIndex;
-        QTEAction.Send(gridIndex, qteScore);
+        QTEMessage.Send(gridIndex, qteScore);
         return RunOriginal;
     }
 

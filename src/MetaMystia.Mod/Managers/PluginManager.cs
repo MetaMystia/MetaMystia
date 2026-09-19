@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using GameData.Profile;
+using MetaMystia.Multiplayer;
 using MetaMystia.Patch;
 using UnityEngine;
 
@@ -68,12 +69,12 @@ public static partial class PluginManager
         {
             if (Input.GetKeyDown(KeyCode.F1))
             {
-                MpManager.Start(MpManager.ROLE.Server);
+                GameSession.StartHost();
                 InGameConsole.ShowPassive("[DEBUG] Started as Host");
             }
             if (Input.GetKeyDown(KeyCode.F2))
             {
-                _ = MpManager.ConnectToPeerAsync("127.0.0.1");
+                GameSession.Connect("127.0.0.1");
                 InGameConsole.ShowPassive("[DEBUG] Connecting to Self");
             }
 
@@ -94,7 +95,7 @@ public static partial class PluginManager
 
         var info = new System.Text.StringBuilder();
         info.AppendLine(Label);
-        info.AppendLine(MpManager.BriefStatus);
+        info.AppendLine(MetaMystia.UI.MultiplayerStatus.BriefStatus);
         GUI.Label(new Rect(10, Screen.height - 50, 600, 50), info.ToString());
     }
 
@@ -102,6 +103,6 @@ public static partial class PluginManager
     {
         IsStatusVisible = !IsStatusVisible;
         Log.LogMessage($"Toggled text visibility: " + IsStatusVisible);
-        FloatingTextHelper.SetLabelsVisible(IsStatusVisible && MpManager.CanSeeOnlinePlayers);
+        FloatingTextHelper.SetLabelsVisible(IsStatusVisible && GameSession.IsOnline);
     }
 }

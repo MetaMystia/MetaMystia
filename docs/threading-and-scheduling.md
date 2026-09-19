@@ -5,7 +5,7 @@
 项目主要存在以下执行环境：
 
 - Unity 主线程：生命周期、场景、UI 和绝大多数游戏对象访问。
-- `MpWire` IO 线程：TCP 接收、发送和连接维护。
+- `Connection` 异步 IO：TCP 接收、发送和连接维护；`Server` 单一处理循环维护网络状态。
 - `Task` 或异步 IO：HTTP、文件等外部操作。
 - 协程：由 Unity 主线程推进的延迟、等待和周期逻辑。
 - `CommandScheduler`：计划弃用的旧条件调度。
@@ -14,23 +14,23 @@
 
 ## 网络线程
 
-`DirectTcp` 只由 `MpWire` IO 线程驱动。IO 线程负责：
+网络核心负责：
 
 - 接受或维护连接；
 - 读取和组装网络帧；
-- 将入站 Action 放入 `_inbox`；
-- 从 `_outbox` 取出数据并发送。
+- 将入站帧放入客户端有界队列；
+- 按连接发送队列的顺序写出数据。
 
-IO 线程不得直接修改玩家、场景、UI 或其他游戏状态。入站 Action 由主线程统一取出并调用 `OnReceived()`。
+IO 线程不得直接修改玩家、场景、UI 或其他游戏状态。`PluginHost.Update()` 调用 `GameSession.Tick()`，在主线程通过 `Client.DispatchPending()` 顺序安装快照、派发 Action 和连接通知。
 
-需要从连接事件更新游戏状态时，使用 `PluginManager.Instance?.RunOnMainThread(...)`。
+连接事件已经在派发线程执行。网络异步操作用协程等待完成后再更新游戏状态，不能同步阻塞主线程。跨连接、退房的延迟结果须检查客户端及入房代号，避免旧操作污染新会话。
 
 ## 主线程切换
 
-`PluginManager.RunOnMainThread(Action)` 将操作加入主线程队列，由 `PluginManager.Update()` 执行。
+`PluginManager.RunOnMainThread(Action)` 将操作加入主线程队列，由 `PluginHost.Update()` 调用 `TickMainThreadQueue()` 执行。
 
 ```csharp
-PluginManager.Instance?.RunOnMainThread(() =>
+PluginManager.RunOnMainThread(() =>
 {
     // 访问 Unity 或游戏对象
 });

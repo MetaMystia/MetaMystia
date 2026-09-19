@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../MetaMystia.local.props" />
+  <Import Project="../../Versions.props" />
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx.Core" HintPath="$(BepInExPath)/core/BepInEx.Core.dll" Private="false" />
+    <Reference Include="BepInEx.Preloader.Core" HintPath="$(BepInExPath)/core/BepInEx.Preloader.Core.dll" Private="false" />
+  </ItemGroup>
+  <Target Name="GenerateBuildVersion" BeforeTargets="BeforeCompile">
+    <WriteLinesToFile File="$(IntermediateOutputPath)BuildVersion.g.cs"
+      Lines="namespace MetaMystia.Preloader { internal static class BuildVersion { internal const string Value = &quot;$(Version)&quot;%3B } }"
+      Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)BuildVersion.g.cs" />
+    </ItemGroup>
+  </Target>
+  <Target Name="DeployPreloader" AfterTargets="Build" Condition="'$(DeployToGame)' != 'false'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExPath)/patchers/MetaMystia" />
+  </Target>
+</Project>

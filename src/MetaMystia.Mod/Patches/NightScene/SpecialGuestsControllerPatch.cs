@@ -4,6 +4,8 @@ using HarmonyLib;
 
 using NightScene.GuestManagementUtility;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.SpecialGuestsController))]
@@ -26,7 +28,7 @@ public partial class SpecialGuestsControllerPatch
     public static void PostEvaluation_Postfix(SpecialGuestsController __instance)
     {
         if (YuyukoGuestSync.IsBody(__instance)) return;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         GuestFSM.OnPostEvaluation(__instance);
     }
 }

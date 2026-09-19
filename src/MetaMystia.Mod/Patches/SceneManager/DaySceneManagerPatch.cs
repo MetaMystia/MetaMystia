@@ -3,7 +3,8 @@ using HarmonyLib;
 using Common.UI;
 using DayScene;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 using SgrYuki.Utils;
@@ -18,20 +19,24 @@ namespace MetaMystia.Patch;
 public partial class DaySceneManagerPatch
 {
     [HarmonyPatch(nameof(SceneManager.Awake))]
+    [HarmonyPrefix]
+    public static void Awake_Prefix()
+    {
+        RunTimeSchedulerPatch.ResetFirstTrialGuest();
+        GameFlow.OnSceneTransit(Scene.DayScene);
+        PlayerManager.Local.ResetState();
+    }
+
+    [HarmonyPatch(nameof(SceneManager.Awake))]
     [HarmonyPostfix]
     public static void Awake_Postfix()
     {
-        RunTimeSchedulerPatch.ResetFirstTrialGuest();
-        MpManager.OnSceneTransit(Scene.DayScene);
-        PlayerManager.Local.ResetState();
-        PlayerManager.InitLocalSkin();
-        PlayerManager.SpawnPeers();
         ResourceExManager.OnDaySceneAwake();
         PrepSceneManager.ClearPrepTable();
 
-        if (MpManager.CanSeeOnlinePlayers)
+        if (GameSession.IsOnline)
         {
-            PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+            PlayerProfile.SendProfile();
         }
 
         if (PatchRegistry.PatchedException != null)
@@ -39,35 +44,24 @@ public partial class DaySceneManagerPatch
             var warningMessage = TextId.ModPatchFailure.Get();
             InGameConsole.LogError(warningMessage);
         }
-
-
-        // if (MpManager.IsConnected)
-        // {
-        //     CommandScheduler.EnqueueKey(
-        //         key: MpManager.PeerGetCharacterUnitNotNullCommand,
-        //         executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,
-        //         execute: () =>
-        //         {
-        //             if (!MpManager.InStory)
-        //             {
-        //                 PlayerManager.EnablePeerCollision(true);
-        //             }
-        //             PlayerManager.Peer?.GetCharacterComponent()?.UpdateIcon(false);
-        //         },
-        //         timeoutSeconds: 120
-        //     );
-        // }
     }
 
 
     public static void OnDayOver()
     {
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
-            GuestInviteAction.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
+            GuestInviteMessage.Send(GameData.RunTime.Common.StatusTracker.Instance?.InvitedGuests.ToManagedList());
         }
         Panel.CloseActivePanelsBeforeSceneTransit();
         OnDayOver_ReversePatch(SceneManager.Instance);
+    }
+
+    [HarmonyPatch(nameof(SceneManager.OnFirstEnterDaySceneFinish))]
+    [HarmonyPostfix]
+    public static void OnFirstEnterDaySceneFinish_Postfix(SceneManager __instance)
+    {
+        if (__instance == SceneManager.Instance) GameFlow.OnCharactersReady(Scene.DayScene);
     }
 
     [HarmonyPatch(nameof(SceneManager.OnDayOver))]
@@ -76,7 +70,7 @@ public partial class DaySceneManagerPatch
     {
         Log.InfoCaller($"called");
 
-        if (!MpManager.IsConnected)
+        if (!GameSession.IsInRoom)
         {
             PlayerManager.LocalIsDayOver = true;
             return RunOriginal;
@@ -104,6 +98,12 @@ public partial class DaySceneManagerPatch
 
         var refreshAllDayNpcs = SpecialGuestRegistry.RefreshAllDayNpcs; // TODO: 以更优雅的方式实现 Day NPC 刷新
         onSwapFinish += refreshAllDayNpcs;
+        onSwapFinish += (System.Action)(() =>
+        {
+            if (__instance != SceneManager.Instance || GameFlow.LocalScene != Scene.DayScene || !GameFlow.CharactersReady) return;
+            PlayerManager.RefreshCharacters();
+            PlayerProfile.SendMotion();
+        });
 
         return RunOriginal;
     }

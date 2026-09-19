@@ -1,9 +1,10 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
 using Common.UI;
 
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
 using MetaMystia.Patch;
 using MetaMystia.UI;
@@ -30,10 +31,15 @@ public static partial class DayDestinationManager
     private static bool businessReleased;
     private static bool firstTrialPending;
     private static int generation;
+    private static bool closing;
+    private static bool admissionClosed;
+    private static System.Action pendingEntry;
+    private static bool pendingChallenge;
     public static bool ReplayingChallenge { get; private set; }
     public static bool ReplayingBusiness { get; private set; }
     public static bool IsStoryLocked => firstTrialPending;
     public static bool IsEntering => committed || businessReleased;
+    public static bool HasLocalIntent => localIntent != DayDestination.None || intents.Count != 0 || closing;
 
     public static DayDestination GetIntent(int uid) => intents.GetValueOrDefault(uid);
     public static Dictionary<int, DayDestination> Snapshot() => new(intents);
@@ -55,6 +61,10 @@ public static partial class DayDestinationManager
         committed = false;
         businessReleased = false;
         firstTrialPending = false;
+        closing = false;
+        admissionClosed = false;
+        pendingEntry = null;
+        pendingChallenge = false;
         ReplayingChallenge = false;
         ReplayingBusiness = false;
     }
@@ -68,14 +78,15 @@ public static partial class DayDestinationManager
 
     public static void InitializeSession(int round, Dictionary<int, DayDestination> state)
     {
-        Reset();
         Round = round;
         ApplyState(round, state);
+        if (localIntent != DayDestination.None && GameSession.IsRoomClient)
+            DayDestinationIntentMessage.Send(Round, localIntent);
     }
 
     public static void Submit(DayDestination destination, System.Action continuation)
     {
-        if (!MpManager.IsConnected || MpManager.LocalScene != Scene.DayScene) return;
+        if (!GameSession.IsInRoom || GameFlow.LocalScene != Scene.DayScene) return;
         // 白天结束剧情仍可能要求进入首次挑战，此时属于下一轮入口。
         if (committed && !(businessReleased && destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain)) return;
         if (businessReleased && destination == DayDestination.Business) return;
@@ -85,17 +96,23 @@ public static partial class DayDestinationManager
         if (localIntent == destination) return;
         localIntent = destination;
         firstTrialPending = destination == DayDestination.FinalTrial;
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
             ReceiveIntent(PlayerManager.Local.Uid, Round, destination);
         else
-            DayDestinationIntentAction.Send(Round, destination);
+            DayDestinationIntentMessage.Send(Round, destination);
     }
 
     public static void ReceiveIntent(int uid, int round, DayDestination destination)
     {
-        if (!MpManager.IsRoomHost || round != Round
-            || destination is < DayDestination.Business or > DayDestination.FinalTrialAgain) return;
+        if (!GameSession.IsRoomHost || round != Round
+            || destination is < DayDestination.None or > DayDestination.FinalTrialAgain) return;
         if (uid != PlayerManager.Local.Uid && !PlayerManager.Peers.ContainsKey(uid)) return;
+        if (destination == DayDestination.None)
+        {
+            intents.Remove(uid);
+            DayDestinationStateMessage.Send(Round, Snapshot());
+            return;
+        }
         if (committed && businessReleased && destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain) committed = false;
         if (committed) return;
         if (businessReleased && destination == DayDestination.Business) return;
@@ -103,7 +120,7 @@ public static partial class DayDestinationManager
         if (GetIntent(uid) == destination) return;
         intents[uid] = destination;
         Notify(uid, destination);
-        DayDestinationStateAction.Send(Round, Snapshot());
+        DayDestinationStateMessage.Send(Round, Snapshot());
         TryConfirm();
     }
 
@@ -132,16 +149,26 @@ public static partial class DayDestinationManager
     public static void OnPeerLeft(int uid)
     {
         intents.Remove(uid);
-        if (!MpManager.IsRoomHost || committed || MpManager.LocalScene != Scene.DayScene) return;
-        DayDestinationStateAction.Send(Round, Snapshot());
+        if (!GameSession.IsRoomHost || committed || GameFlow.LocalScene != Scene.DayScene) return;
+        DayDestinationStateMessage.Send(Round, Snapshot());
         TryConfirm();
     }
 
     public static void TryConfirm()
     {
-        if (!MpManager.IsRoomHost || !MpManager.IsConnected || committed) return;
+        if (!GameSession.IsRoomHost || !GameSession.IsInRoom || committed || closing
+            || GameFlow.LocalScene != Scene.DayScene) return;
         var target = GetIntent(PlayerManager.Local.Uid);
         if (target == DayDestination.None) return;
+        if (GameFlow.Stage != GameStage.Day && !(businessReleased && GameFlow.Stage == GameStage.DayEnd)) return;
+        if (GameSession.Room.Members.Any(p => p.Uid != PlayerManager.Local.Uid
+            && p.Stage != GameStage.Day && !(businessReleased && p.Stage == GameStage.DayEnd))) return;
+        if (!admissionClosed)
+        {
+            closing = true;
+            CloseAdmission(generation, GameSession.RoomMembershipId);
+            return;
+        }
         foreach (var uid in PlayerManager.Peers.Keys)
         {
             var peerTarget = GetIntent(uid);
@@ -157,8 +184,37 @@ public static partial class DayDestinationManager
         }
         // 在发送确认前锁定，后续改选不能改变本轮结果。
         committed = true;
-        DayDestinationConfirmAction.Send(Round, target);
+        DayDestinationConfirmMessage.Send(Round, target);
         ApplyConfirmation(Round, target);
+    }
+
+    public static void WithdrawLocal()
+    {
+        if (committed) return;
+        generation++;
+        continuations.Clear();
+        localIntent = DayDestination.None;
+        firstTrialPending = false;
+        closing = false;
+        admissionClosed = false;
+        pendingEntry = null;
+        pendingChallenge = false;
+        intents.Remove(PlayerManager.Local.Uid);
+        if (GameSession.IsRoomHost) DayDestinationStateMessage.Send(Round, Snapshot());
+        else if (GameSession.IsRoomClient) DayDestinationIntentMessage.Send(Round, DayDestination.None);
+    }
+
+    private static void CloseAdmission(int entryGeneration, long membership)
+    {
+        GameSession.SetJoinable(false, succeeded =>
+        {
+            if (entryGeneration != generation || membership != GameSession.RoomMembershipId) return;
+            closing = false;
+            if (!succeeded || !GameSession.IsRoomHost) return;
+            admissionClosed = true;
+            // 网络状态已安装，按实际房间成员继续检查意向。
+            TryConfirm();
+        });
     }
 
     public static void ApplyConfirmation(int round, DayDestination destination)
@@ -175,6 +231,7 @@ public static partial class DayDestinationManager
             }
         }
         committed = true;
+        GameFlow.BeginCooperative(destination);
         Round++;
         localIntent = DayDestination.None;
         firstTrialPending = destination == DayDestination.FinalTrial;
@@ -194,51 +251,30 @@ public static partial class DayDestinationManager
             _ => TextId.DestinationFinalTrialAgainConfirmed,
         };
         InGameConsole.ShowPassive(notice.Get());
-        PluginHost.Instance.StartManagedCoroutine(ContinueEntry(continuation, generation, destination != DayDestination.Business));
+        pendingEntry = continuation;
+        pendingChallenge = destination != DayDestination.Business;
+        ContinueEntry();
     }
 
     public static void FinishDayEnd(Il2CppSystem.Action continuation)
     {
-        if (!firstTrialPending)
-        {
-            continuation?.Invoke();
-            return;
-        }
-        PluginHost.Instance.StartManagedCoroutine(WaitForDayEnd(continuation, generation));
+        // 首次挑战接管后不再继续旧白天的选店流程。
+        if (!firstTrialPending) continuation?.Invoke();
     }
 
-    private static IEnumerator WaitForDayEnd(Il2CppSystem.Action continuation, int entryGeneration)
+    public static void ContinueEntry()
     {
-        while (firstTrialPending)
-        {
-            if (generation != entryGeneration) yield break;
-            yield return null;
-        }
-        // 挑战已接管并离开白天时，旧白天的选店流程不能继续。
-        if (generation == entryGeneration && MpManager.LocalScene == Scene.DayScene) continuation?.Invoke();
-    }
-
-    private static IEnumerator ContinueEntry(System.Action continuation, int entryGeneration, bool challenge)
-    {
-        // 不在确认按钮或剧情奖励的调用栈内递归切场景。
-        yield return null;
-        while (MpManager.InStory)
-        {
-            if (generation != entryGeneration || !MpManager.IsConnected) yield break;
-            yield return null;
-        }
-        if (generation != entryGeneration || !MpManager.IsConnected || MpManager.LocalScene != Scene.DayScene) yield break;
+        if (pendingEntry == null || GameFlow.InStory) return;
+        var continuation = pendingEntry;
+        bool challenge = pendingChallenge;
+        pendingEntry = null;
+        pendingChallenge = false;
+        if (!GameSession.IsInRoom || GameFlow.LocalScene != Scene.DayScene) return;
         if (challenge) SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
         ReplayingChallenge = challenge;
         ReplayingBusiness = !challenge;
-        try
-        {
-            continuation();
-        }
-        finally
-        {
-            ReplayingChallenge = false;
-            ReplayingBusiness = false;
-        }
+        continuation();
+        ReplayingChallenge = false;
+        ReplayingBusiness = false;
     }
 }

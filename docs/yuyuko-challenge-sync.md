@@ -20,7 +20,7 @@ NS_MGuest_MVT_Spawn_Behaviour
 | --- | --- | --- |
 | 本体生成 | `SpawnManualControlledSpecialGuest`、`GetControlled` | 给两端原有实体绑定同一个 RuntimeId；绑定确认后主机才安装订单，支持晚进场景补发绑定 |
 | 手动点单 | `SetManualControllerOrderInternal` | 主机确定料理、酒水或标签；客机保留自己的原版完成回调，等待对应订单 |
-| 上菜、撤回、确认 | 现有 `ServeSellableAction`、`ConfirmServeAction` | 复用主机冲突裁定，订单使用独立递增序号；未来订单消息等待，过期消息丢弃 |
+| 上菜、撤回、确认 | 现有 `ServeSellableMessage`、`ConfirmServeMessage` | 复用主机冲突裁定，订单使用独立递增序号；未来订单消息等待，过期消息丢弃 |
 | 手动评价 | `EvaulateManualOrder`、本体改判回调、`PostEvaluation` | 主机决定最终评价、心情、连击保护、覆盖台词和倍率；客机重放表现，跳过重复扣血和吞食判定 |
 | 评价完成 | 包装原版 `onEvaluate` | 客机必须同时收到主机完成消息且本地异步评价完成，才继续原版订单循环 |
 | 三阶段分身 | `Phase3GuestSpawnLoop\|43.MoveNext` | 只让主机运行生成及专用回调安装；客机等待现有普通顾客消息，避免禁止生成后继续访问空对象 |
@@ -112,15 +112,15 @@ sequenceDiagram
 - `Managers/YuyukoGuestSync.cs`：绑定、订单、评价与回调生命周期。
 - `Managers/YuyukoGuestSync.Challenge.cs`：阶段数据、吞食重放和收尾；与上一个文件属于同一个类。
 - `Patches/NightScene/GuestsManagerPatch.cs`：同一原版管理类的手动订单、评价、清理和离场 Hook。
-- `Network/Actions/WorkScene/YuyukoGuestAction.cs`：主机权威事件。
-- `Network/Actions/WorkScene/YuyukoGuestBoundAction.cs`：客机绑定确认及补发请求。
-- `Network/Actions/WorkScene/YuyukoGuestEvent.cs`：事件枚举，数值顺序属于协议。
+- `Multiplayer/Messages/WorkScene/YuyukoGuestMessage.cs`：主机权威事件。
+- `Multiplayer/Messages/WorkScene/YuyukoGuestBoundMessage.cs`：客机绑定确认及补发请求。
+- `Multiplayer/Messages/WorkScene/YuyukoGuestEvent.cs`：事件枚举，数值顺序属于协议。
 
 以上路径相对 `src/MetaMystia.Mod/`。编译器生成类型和状态编号的解释见对应方法 XML 注释。游戏版本变化时，需要重新核对这些映射及调用时序；能通过 Interop 编译不足以证明行为兼容。
 
 ## 版本与还原代码的差异
 
-游戏目标版本统一配置在 `src/MetaMystia.Mod/MetaMystia.csproj` 的 `TargetGameVersion`，同时生成运行时版本字符串和编译宏，如 `RELEASE 4.4.0e` 对应 `TMI_RELEASE_4_4_0E`。
+游戏目标版本统一配置在根目录 `Versions.props` 的 `TargetGameVersion`，模组项目据此生成运行时版本字符串和编译宏，如 `RELEASE 4.4.0e` 对应 `TMI_RELEASE_4_4_0E`。
 
 依赖协程状态、闭包类型和生成回调的文件使用 `#if !TMI_RELEASE_4_4_0E` 与 `#error` 标记。升级目标版本后，这些文件会直接编译报错；逐个核对新版本行为与 Interop 接口后，再更新对应文件的标记，不要保留旧宏绕过检查。
 

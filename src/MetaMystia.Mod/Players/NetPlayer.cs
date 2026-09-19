@@ -19,9 +19,9 @@ public abstract partial class NetPlayer
     public string Id { get; set; } = "";
 
     /// <summary>
-    /// 玩家的唯一标识符（主机=0，客机=1,2,3...），由主机在 HelloAck 中分配
+    /// 服务器分配的玩家身份，0 表示尚未连接。
     /// </summary>
-    public int Uid { get; set; } = -1;
+    public int Uid { get; set; }
 
     #endregion
 

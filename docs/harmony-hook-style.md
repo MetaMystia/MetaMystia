@@ -38,16 +38,16 @@ public partial class UniversalGameManagerPatch
 返回 `bool` 的 Prefix 必须使用 `HarmonyPrefixFlow` 中的 `RunOriginal` 和 `SkipOriginal`，不得直接返回含义不明确的 `true` 或 `false`。
 
 ```csharp
-if (MpManager.ShouldSkipAction || !MpManager.IsConnected)
+if (GameFlow.ShouldSkipAction)
     return RunOriginal;
 
-if (MpManager.IsRoomHost)
+if (GameSession.IsRoomHost)
 {
     // 捕获或广播行为
     return RunOriginal;
 }
 
-if (MpManager.IsRoomClient)
+if (GameSession.IsRoomClient)
 {
     // 重放主机权威状态
     return SkipOriginal;

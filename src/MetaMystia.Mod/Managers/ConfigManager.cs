@@ -108,7 +108,7 @@ public static partial class ConfigManager
         MaxPlayers = Config.Bind("Multiplayer", "MaxPlayers", 2,
             new BepInEx.Configuration.ConfigDescription(
                 "Maximum number of players allowed (including host)\n最大玩家数（含主机）",
-                new BepInEx.Configuration.AcceptableValueRange<int>(2, int.MaxValue)));
+                new BepInEx.Configuration.AcceptableValueRange<int>(1, 256)));
 
         DefaultPort = Config.Bind("Multiplayer", "DefaultPort", 40815,
             new BepInEx.Configuration.ConfigDescription(
@@ -182,11 +182,11 @@ public static partial class ConfigManager
     {
         if (string.IsNullOrEmpty(PlayerId.Value))
         {
-            return MpManager.SanitizePlayerId(Environment.MachineName);
+            return PlayerIdentity.Sanitize(Environment.MachineName);
         }
-        if (!MpManager.IsValidPlayerId(PlayerId.Value))
+        if (!PlayerIdentity.IsValid(PlayerId.Value))
         {
-            var sanitized = MpManager.SanitizePlayerId(PlayerId.Value);
+            var sanitized = PlayerIdentity.Sanitize(PlayerId.Value);
             Log.Warning($"PlayerId '{PlayerId.Value}' contains illegal characters, sanitized to '{sanitized}'");
             PlayerId.Value = sanitized;
         }

@@ -4,6 +4,8 @@ using NightScene.GuestManagementUtility;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.GuestGroupController))]
@@ -42,8 +44,8 @@ public partial class GuestGroupControllerPatch
     public static void RefreshCurrentFundAndOrder_Prefix(GuestGroupController __instance)
     {
         if (YuyukoGuestSync.IsBody(__instance)) return;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnRefreshCurrentFundAndOrder(__instance);
         }
@@ -61,8 +63,8 @@ public partial class GuestGroupControllerPatch
     {
         if (YuyukoGuestSync.IsBody(__instance)) return;
         if (GuestsManagerPatch.IsReimuProtectionGuest(__instance)) return;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnMoveToDesk(__instance, deskCode);
         }
@@ -78,8 +80,8 @@ public partial class GuestGroupControllerPatch
     {
         // 注：有且只有在 Spell_Orin 的负面符卡中会有 tryToJumpQueue = true
         // TODO(Spell)
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnMoveToQueue(__instance);
         }
@@ -95,16 +97,16 @@ public partial class GuestGroupControllerPatch
     [HarmonyPostfix]
     public static void TryOverrideEvaluateByBuff_Postfix(GuestGroupController __instance, ref int __result)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
 
         var fsm = GuestsMap.GetGuestFsm(__instance);
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             var evalResult = GuestsManager.Instance.EvaluationTrans(__result);
             GuestFSM.OnEvaluateOrder(__instance, evalResult);
             return;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             if (fsm.OverrideEvalResult == GuestGroupController.EvaluationResult.Null)
                 return;

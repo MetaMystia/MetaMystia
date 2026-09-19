@@ -18,12 +18,12 @@ public static partial class PatchRegistry
         typeof(ResultSceneManagerPatch),
         typeof(StaffSceneManagerPatch),
         typeof(UniversalGameManagerPatch),
+        typeof(SaveManagementPatch),
 
         // DayScene Patches
         typeof(DaySceneSustainedPannelPatch),
         typeof(YuyukoExtraDialogData__c__DisplayClass4_0Patch),
         typeof(StatusTrackerPatch),
-        typeof(CharacterControllerUnitPatch),
         typeof(CharacterControllerInputGeneratorComponentPatch),
         typeof(DayScenePlayerInputPatch),
         typeof(DaySceneMapPatch),
@@ -37,6 +37,7 @@ public static partial class PatchRegistry
 
         // WorkScene Patches
         typeof(CookControllerPatch),
+        typeof(CookSystemManagerPatch),
         typeof(SellablePatch),
         typeof(GuestsManagerPatch),
         typeof(GuestGroupControllerPatch),

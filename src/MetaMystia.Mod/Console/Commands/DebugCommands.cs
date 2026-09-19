@@ -29,7 +29,7 @@ public static class DebugCommands
 
         debugCmd.SetHandler(ctx =>
         {
-            ctx.Log(MpManager.DebugText);
+            ctx.Log(MetaMystia.UI.MultiplayerStatus.DebugText);
         });
         root.AddCommand(debugCmd);
 

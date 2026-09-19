@@ -6,7 +6,8 @@ using HarmonyLib;
 
 using PrepNightScene.UI;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 using SgrYuki.Utils;
 
@@ -22,43 +23,35 @@ public partial class IzakayaConfigPannelPatch
     public static IzakayaConfigPannel instanceRef = null;
 
     [HarmonyPatch(nameof(IzakayaConfigPannel.OnPanelOpen))]
+    [HarmonyPrefix]
+    public static void OnPanelOpen_Prefix() => PrepSceneManager.IsOpeningPanel = true;
+
+    [HarmonyPatch(nameof(IzakayaConfigPannel.OnPanelOpen))]
     [HarmonyPostfix]
     public static void IzakayaConfigPannel_OnPanelOpen_Postfix(IzakayaConfigPannel __instance)
     {
         instanceRef = __instance;
+        PrepSceneManager.IsOpeningPanel = false;
         PrepSceneManager.TryBeginYuyukoPrep();
+        if (!PrepSceneManager.IsYuyukoChallenge) PrepSceneManager.BeginPrep();
     }
 
     [HarmonyPatch(nameof(IzakayaConfigPannel.GoToSpecific))]
     [HarmonyPostfix]
-    public static void IzakayaConfigPannel_GoToSpecific_Postfix()
+    public static void GoToSpecific_Postfix()
     {
-        if (MpManager.IsConnected == false)
-        {
-            Log.LogDebug($"Not in multiplayer session, skipping patch");
-            return;
-        }
-
-        if (PrepSceneManager.IsYuyukoChallenge && !PrepSceneManager.IsYuyukoPrepActive) return;
-
-        // MetaMiku 注:
-        //     游戏原生的 GoToSpecific 会变更玩家的活跃选项面板，即 菜谱/酒水/厨具 三选一
-        //     但是还会附带检查除去不合法的 厨具 选项
-        //     如果在联机中直接调用该方法，可能会导致 厨具 选项出现不同步的问题
-        //     因此这里做了一个补丁，强制在调用 GoToSpecific 之后再重新更新厨具选项
-        PluginManager.RunOnMainThread(() =>
-        {
-            PrepSceneManager.UpdateCookers();
-            PrepSceneManager.UpdateUI();
-        });
-
+        if (!PrepSceneManager.CanSyncEdits) return;
+        // 切页会按本机库存清理厨具，随后恢复联机配置；不产生新的修改请求。
+        if (GameSession.IsRoomHost) PrepSceneManager.UpdateGroups();
+        else PrepSceneManager.UpdateCookers();
+        PrepSceneManager.UpdateUI();
     }
 
     [HarmonyPatch(nameof(IzakayaConfigPannel._SolveDailyCompletion_b__64_7))]
     [HarmonyPrefix]
     public static bool _SolveDailyCompletion_b__64_7_Prefix()
     {
-        if (!MpManager.IsConnected)
+        if (!GameSession.HasRoomPeers)
         {
             Log.LogDebug($"Not in multiplayer session, skipping patch");
             return RunOriginal;
@@ -70,10 +63,10 @@ public partial class IzakayaConfigPannelPatch
         }
         PlayerManager.LocalIsPrepOver = true;
         InGameConsole.ShowPassive(TextId.MystiaReadyForWork.Get());
-        PrepReadyAction.Send();
-        if (MpManager.IsRoomHost)
+        PrepReadyMessage.Send();
+        if (GameSession.IsRoomHost)
         {
-            MpManager.PrepOver();
+            PrepSceneManager.TryCompletePrep();
         }
         return SkipOriginal;
     }

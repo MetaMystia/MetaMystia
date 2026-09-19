@@ -4,6 +4,8 @@ using GameData.Core.Collections;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Core.Collections.Sellable))]
@@ -14,7 +16,7 @@ public partial class SellablePatch
     [HarmonyPrefix]
     public static bool GetPopTag_Prefix(Il2CppSystem.Collections.Generic.IEnumerable<int> sourceTag, ref Il2CppSystem.Collections.Generic.IEnumerable<int> __result)
     {
-        if (MpManager.IsConnected)
+        if (GameSession.HasRoomPeers)
         {
             __result = sourceTag;
             return SkipOriginal;

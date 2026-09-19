@@ -6,7 +6,8 @@ using UnityEngine;
 using GameData.Core.Collections;
 using GameData.RunTime.NightSceneUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -27,7 +28,7 @@ public partial class IzakayaConfigurePatch
 
     private static void ApplyConfiguredFlowRate()
     {
-        if (MpManager.IsRoomClient) return;
+        if (GameSession.IsRoomClient) return;
 
         float rate = ConfigManager.CheatFlowRate.Value;
         if (rate == 0f || rate == 1f || float.IsNaN(rate) || rate < 0f || rate >= 16f) return;
@@ -43,25 +44,20 @@ public partial class IzakayaConfigurePatch
         InGameConsole.ShowPassiveFromAnyThread(TextId.CheatFlowRateActive.Get(rateText));
     }
 
-    // MetaMiku 注:
-    //     下面分别是 IzakayaConfigure 中 菜单/酒水/厨具 注册与注销 的 hook
-    //     但是其中对于 厨具，厨具无论是注册还是注销，都会触发 RegisterToCookers，而只有在注销时才会触发 LogOffFromCookers
+    // 菜谱、酒水和厨具逐项同步；厨具注销也会经过 RegisterToCookers。
 
     [HarmonyPatch(nameof(IzakayaConfigure.RegisterToDailyRecipes))]
     [HarmonyPrefix]
     public static bool RegisterToDailyRecipes_Prefix(int id)
     {
-        Log.LogInfo($"RegisterToDailyRecipes: {id}");
-
-        if (MpManager.IsConnected && !PlayerManager.RecipeAvailable(id))
+        if (GameSession.HasRoomPeers && !PlayerManager.RecipeAvailable(id))
         {
             Log.LogWarning($"Peer does not have recipe {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerRecipeNotAvailable.Get(id));
             return SkipOriginal;
         }
 
-        PrepSceneManager.localPrepTable.RecipeAdditions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        new UpdatePrepMessage { AddedRecipes = [id] }.Submit();
         return RunOriginal;
     }
 
@@ -69,16 +65,14 @@ public partial class IzakayaConfigurePatch
     [HarmonyPrefix]
     public static bool RegisterToDailyBeverages_Prefix(int id)
     {
-        Log.LogInfo($"RegisterToDailyBeverages: {id}");
-        if (MpManager.IsConnected && !PlayerManager.BeverageAvailable(id))
+        if (GameSession.HasRoomPeers && !PlayerManager.BeverageAvailable(id))
         {
             Log.LogWarning($"Peer does not have beverage {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerBeverageNotAvailable.Get(id));
             return SkipOriginal;
         }
 
-        PrepSceneManager.localPrepTable.BeverageAdditions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        new UpdatePrepMessage { AddedBeverages = [id] }.Submit();
         return RunOriginal;
     }
 
@@ -86,55 +80,32 @@ public partial class IzakayaConfigurePatch
     [HarmonyPrefix]
     public static bool RegisterToCookers_Prefix(int id, int index, bool checkPlayerHaveCooker)
     {
-        var slots = PrepSceneManager.GetLocalCookerSlots();
-        if (index < 0 || index >= slots.Length)
+        if (index < 0 || index >= IzakayaConfigure.Instance.CookerConfigure.Length)
         {
             Log.LogWarning($"RegisterToCookers out of range: id={id}, index={index}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
             return SkipOriginal;
         }
 
-        if (id != -1 && MpManager.IsConnected && !PlayerManager.CookerAvailable(id))
+        if (id != -1 && GameSession.HasRoomPeers && !PlayerManager.CookerAvailable(id))
         {
             Log.LogWarning($"Peer does not have cooker {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerCookerNotAvailable.Get(id));
             return SkipOriginal;
         }
 
-        long timestamp = MpManager.GetSynchronizedTimestampNow;
-        slots[index].Id = id;
-        slots[index].Timestamp = timestamp;
-
-        Log.LogInfo($"RegisterToCookers: id={id}, index={index}, ts={timestamp}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
-
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
+        new UpdatePrepMessage { ChangedCookers = new() { [index] = id } }.Submit();
         return RunOriginal;
     }
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyRecipes))]
     [HarmonyPrefix]
-    public static void LogoffFromDailyRecipes_Prefix(int id)
-    {
-        Log.LogInfo($"LogoffFromDailyRecipes: {id}");
-        PrepSceneManager.localPrepTable.RecipeDeletions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
-    }
+    public static void LogoffFromDailyRecipes_Prefix(int id) =>
+        new UpdatePrepMessage { RemovedRecipes = [id] }.Submit();
 
     [HarmonyPatch(nameof(IzakayaConfigure.LogoffFromDailyBeverages))]
     [HarmonyPrefix]
-    public static void LogoffFromDailyBeverages_Prefix(int id)
-    {
-        Log.LogInfo($"LogoffFromDailyBeverages: {id}");
-        PrepSceneManager.localPrepTable.BeverageDeletions[id] = MpManager.GetSynchronizedTimestampNow;
-        UpdatePrepAction.Send(PrepSceneManager.localPrepTable);
-    }
-
-    [HarmonyPatch(nameof(IzakayaConfigure.LogOffFromCookers))]
-    [HarmonyPrefix]
-    public static void LogOffFromCookers_Prefix(int index)
-    {
-        Log.LogInfo($"LogOffFromCookers: {index}");
-    }
-
+    public static void LogoffFromDailyBeverages_Prefix(int id) =>
+        new UpdatePrepMessage { RemovedBeverages = [id] }.Submit();
 
     private static bool _skipPatchStoreFood = false;
     public static void StoreFood_Original(Sellable sellable, int messageSender = -1)
@@ -150,10 +121,10 @@ public partial class IzakayaConfigurePatch
     {
         Log.LogInfo($"StoreFood: {sellable.Text.Name}");
         if (_skipPatchStoreFood) return;
-        if (!MpManager.IsConnected) return;
+        if (!GameSession.HasRoomPeers) return;
 
         var food = SellableFood.FromSellable(sellable);
-        StoreFoodAction.Send(food);
+        StoreFoodMessage.Send(food);
     }
 
 }

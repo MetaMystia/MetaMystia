@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../MetaMystia.Network/Network.props" />
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" /></ItemGroup>
+  <ItemGroup><Compile Include="../MetaMystia.Mod/Multiplayer/GameMessages.cs" Link="GameMessages.cs" /></ItemGroup>
+</Project>

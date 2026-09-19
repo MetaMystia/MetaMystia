@@ -10,7 +10,7 @@ public partial class GameTimeManagerPatch
     [HarmonyPrefix]
     public static void SetGameTimeMode_Prefix(Common.TimelineExtestion.GameTimeManager __instance, ref Common.TimelineExtestion.GameTimeManager.TimeMode mode)
     {
-        if (MpManager.LocalScene == Common.UI.Scene.WorkScene && !MpManager.ShouldSkipAction)
+        if (GameFlow.LocalScene == Common.UI.Scene.WorkScene && !GameFlow.ShouldSkipAction)
         {
             mode = Common.TimelineExtestion.GameTimeManager.TimeMode.Resume;
         }

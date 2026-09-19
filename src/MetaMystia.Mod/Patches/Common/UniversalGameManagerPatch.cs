@@ -1,8 +1,11 @@
-using HarmonyLib;
 using System.Collections.Generic;
+
+using HarmonyLib;
 
 using Common.UI;
 using GameData.Core.Collections.DaySceneUtility;
+
+using MetaMystia.Multiplayer;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 
@@ -55,7 +58,7 @@ public partial class UniversalGameManagerPatch
 
         // Log.LogInfo($"OpenDialogMenu called with dialogPackage: {dialogPackage?.name}");
 
-        if (!MpManager.IsConnected || dialogPackage?.name != "OnTransitionToNight") // dialogPackage 可能为空
+        if (!GameSession.HasRoomPeers || dialogPackage?.name != "OnTransitionToNight") // dialogPackage 可能为空
         {
             return RunOriginal;
         }
@@ -74,14 +77,7 @@ public partial class UniversalGameManagerPatch
     [HarmonyPrefix]
     public static void LoadScene_Prefix(Scene scene)
     {
-        if (MpManager.IsConnected)
-        {
-            if (MpManager.LocalScene == Scene.DayScene && scene == Scene.WorkScene)
-            {
-                InGameConsole.ShowPassive(TextId.ChallengeWarning.Get());
-            }
-        }
-        MpManager.OnSceneTransit(Scene.LoadScene);
+        GameFlow.BeforeSceneLoad(scene);
         Log.LogInfo($"LoadScene called, scene {scene}");
     }
 }

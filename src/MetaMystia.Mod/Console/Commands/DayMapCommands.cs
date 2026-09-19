@@ -6,6 +6,7 @@ using Common;
 using Common.UI;
 using GameData.Core.Collections.DaySceneUtility;
 
+using MetaMystia.Multiplayer;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 
@@ -42,7 +43,7 @@ public static class DayMapCommands
     private static bool Ready(InvocationContext ctx)
     {
         var scene = DayScene.SceneManager.Instance;
-        if (MpManager.LocalScene == Scene.DayScene && !MpManager.IsConnected && scene != null &&
+        if (GameFlow.LocalScene == Scene.DayScene && !GameSession.HasRoomPeers && scene != null &&
             scene.CurrentActiveMap != null && !scene.IsMapSwapping && !SceneDirector.IsInEvent && !PlayerManager.LocalIsDayOver)
             return true;
         ctx.Log(ConsoleFormat.Warn(TextId.DayMapUnavailable.Get()));

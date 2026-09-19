@@ -10,7 +10,8 @@ using GameData.Core.Collections.NightSceneUtility;
 using GameData.RunTime.NightSceneUtility;
 using NightScene.GuestManagementUtility;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using SgrYuki.Utils;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -189,9 +190,9 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool SpawnNormalGuestGroup_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
 
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             var cook = NightScene.CookingUtility.CookSystemManager.Instance;
             for (var attempt = 0; attempt < MaxNormalGuestRerollAttempts; attempt++)
@@ -219,7 +220,7 @@ public partial class GuestsManagerPatch
             return SkipOriginal;
         }
 
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             // 客机不生成顾客，应由主机通过联机 OnSpawn 通知生成
             Log.Info("Skipping SpawnNormalGuestGroup on client");
@@ -248,14 +249,14 @@ public partial class GuestsManagerPatch
         bool shouldFade,
         ref NormalGuestsController __result)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomClient)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomClient)
         {
             __result = null;
             return SkipOriginal;
         }
 
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             if (!TryReplaceUnavailableNormalGuests(ref normalGuests))
             {
@@ -318,13 +319,13 @@ public partial class GuestsManagerPatch
         ref SpecialGuestsController __result)
     {
         if (IsReimuProtectionGuest(id)) return RunOriginal;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomClient)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomClient)
         {
             __result = null;
             return SkipOriginal;
         }
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             if (TryResolveAvailableSpecialGuest(ref id))
             {
@@ -393,8 +394,8 @@ public partial class GuestsManagerPatch
     public static void PostInitializeGuestGroup_Prefix(GuestGroupController initializedController)
     {
         if (IsReimuProtectionGuest(initializedController)) return;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameSession.IsRoomHost)
         {
             // 将主机生成的顾客信息广播给客机
             var spawnArgs = initializedController.ControllType switch
@@ -417,8 +418,8 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool PlayerRepell_Prefix(int deskCode)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomClient)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomClient)
         {
             GuestFSM.OnPlayerRepell(deskCode);
             return SkipOriginal;
@@ -441,13 +442,13 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool EvaluateOrder_Prefix(GuestGroupController toEvaluate)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GuestsMap.GetGuestFsm(toEvaluate)?.IsRepelling == true) return SkipOriginal;
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             return RunOriginal;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             var fsm = GuestsMap.GetGuestFsm(toEvaluate);
             return fsm.OverrideEvalResult != GuestGroupController.EvaluationResult.Null
@@ -467,15 +468,15 @@ public partial class GuestsManagerPatch
     [HarmonyPostfix]
     public static void EvaluateOrder_Postfix(GuestGroupController toEvaluate, bool isTriggerByPartner)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         if (GuestsMap.GetGuestFsm(toEvaluate)?.IsRepelling == true) return;
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             // 主机端直接记录评价结束，推进 Evaluating -> EatingDelay
             GuestFSM.OnEatingDelay(toEvaluate);
             return;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             var fsm = GuestsMap.GetGuestFsm(toEvaluate);
             if (fsm?.CurrentState == GuestFSM.State.Evaluating &&
@@ -506,8 +507,8 @@ public partial class GuestsManagerPatch
             SkipLeaveFromDeskPatch.Grant();
             return RunOriginal;
         }
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomHost && guestGroupController.DeskCode >= 0)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomHost && guestGroupController.DeskCode >= 0)
         {
             GuestFSM.OnRepell(guestGroupController);
         }
@@ -526,8 +527,8 @@ public partial class GuestsManagerPatch
     public static bool TrySendToSeat_Prefix(GuestGroupController toTry, ref bool __result)
     {
         if (IsReimuProtectionGuest(toTry)) return RunOriginal;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomClient)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomClient)
         {
             // 客机需要返回 true 并跳过原逻辑以短路 PostInitializeGuestGroup
             __result = true;
@@ -546,8 +547,8 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool GenerateOrderSession_Prefix(GuestGroupController guestGroup)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomClient)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomClient)
         {
             // 客机在 DoGenerateOrderSession 中直接调用 GenerateOrderSession 或通过调用 FirstOrder 而间接调用 DoGenerateOrderSession 前
             // 将订单结果暂存至 PendingOrder，若此处检查到 PendingOrder 则认定为是重放状态
@@ -570,12 +571,12 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool MainOrderCycle_Prefix(GuestGroupController toCycle)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomHost)
         {
             return RunOriginal;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             // 客机的 MainOrderCycle 当被跳过，只有主机有权主动推进
             return SkipOriginal;
@@ -592,15 +593,15 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool CheckAndSendFromQueue_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomHost)
         {
             // 主机需要精准捕获成功出队入座的顾客，因此劫持到 HijackCheckAndSendFromQueue 进行精准捕获与同步
             GuestService.HijackCheckAndSendFromQueue();
             return SkipOriginal;
         }
 
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             return SkipOriginal;
         }
@@ -617,13 +618,13 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool OnPatientDepleted_Prefix(GuestGroupController guest)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnPatientDepletedInQueue(guest);
         }
 
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             return SkipOriginal;
         }
@@ -639,15 +640,15 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool TryCloseIzakaya_Prefix()
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (NightSceneEventManagerPatch.IsHostCloseReplay) return RunOriginal;
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
-            IzakayaCloseAction.Send();
+            IzakayaCloseMessage.Send();
             return RunOriginal;
         }
 
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             return SkipOriginal;
         }
@@ -674,7 +675,7 @@ public partial class GuestsManagerPatch
 
     private static void ExtendYuyukoPhase3Patient(GuestGroupController controller)
     {
-        if (!MpManager.IsConnected || !PrepSceneManager.IsYuyukoChallenge
+        if (!GameSession.HasRoomPeers || !PrepSceneManager.IsYuyukoChallenge
             || PrepSceneManager.YuyukoPrepRound != 3 || PrepSceneManager.IsYuyukoPrepActive) return;
         if (!controller.GetAllGuests().ToArray().Any(guest => guest.Id is 23 or 40)) return;
 
@@ -700,16 +701,16 @@ public partial class GuestsManagerPatch
             SkipLeaveFromDeskPatch.Grant();
             return RunOriginal;
         }
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomHost)
         {
-            // 上游 PatientDepletedDeskAction 已会让客机完整重放 PatientDepletedLeave 链路
-            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Prefix 再发 GuestLeaveAction。
+            // 上游 PatientDepletedDeskMessage 已会让客机完整重放 PatientDepletedLeave 链路
+            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Prefix 再发 GuestLeaveMessage。
             SkipLeaveFromDeskPatch.Grant();
             GuestFSM.OnPatientDepletedAtDesk(toPatientDepletedLeave);
             return RunOriginal;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             return SkipOriginal;
         }
@@ -739,8 +740,8 @@ public partial class GuestsManagerPatch
             return RunOriginal;
         }
 
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return RunOriginal;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnLeaveFromDesk(
                 toLeave,
@@ -749,7 +750,7 @@ public partial class GuestsManagerPatch
             return RunOriginal;
         }
 
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             return SkipOriginal;
         }
