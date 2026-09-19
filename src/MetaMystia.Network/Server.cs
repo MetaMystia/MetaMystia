@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading.Channels;
 
 using Common.UI;
@@ -12,7 +13,8 @@ public sealed class Server : IAsyncDisposable
     {
         internal Connection Wire = null!;
         internal Player? Player;
-        internal long Room, MembershipRequest, LastRequest;
+        internal ushort Room;
+        internal long MembershipRequest, LastRequest;
         internal DateTime Accepted = DateTime.UtcNow;
         internal bool Rejected;
         internal NetworkError? AdmissionError;
@@ -22,16 +24,16 @@ public sealed class Server : IAsyncDisposable
     private readonly Dictionary<ushort, MessageRule> rules;
     private readonly Channel<Action> events = Channel.CreateBounded<Action>(1024);
     private readonly HashSet<Peer> peers = [];
-    private readonly Dictionary<long, Room> rooms = [];
+    private readonly Dictionary<ushort, Room> rooms = [];
     private readonly CancellationTokenSource stop = new();
     private readonly TcpListener listener;
     private Task actor = Task.CompletedTask, accept = Task.CompletedTask, clock = Task.CompletedTask;
     private static int lastUid;
     private int maxPlayers;
-    private long nextRoom, nextMembership;
+    private long nextMembership;
     private int started, stopping;
     private int lanHost;
-    private long defaultRoom;
+    private ushort defaultRoom;
     public IPEndPoint Endpoint => (IPEndPoint)listener.LocalEndpoint;
     public event Action<ReceivedMessage>? MessageReceived;
     public event Action<Exception>? CallbackError;
@@ -160,7 +162,7 @@ public sealed class Server : IAsyncDisposable
                     if (lanHost == 0)
                     {
                         lanHost = newUid;
-                        lanRoom = new Room { Id = checked(++nextRoom), Host = newUid, MaxPlayers = maxPlayers };
+                        lanRoom = new Room { Id = AllocateRoomId(), Host = newUid, MaxPlayers = maxPlayers };
                         rooms.Add(lanRoom.Id, lanRoom);
                         defaultRoom = lanRoom.Id;
                     }
@@ -232,7 +234,7 @@ public sealed class Server : IAsyncDisposable
                 if (p.Player!.Stage is not (GameStage.MainMenu or GameStage.Day)) { error = NetworkErrorCode.PlayerNotAvailable; break; }
                 if (options.LanKey != null && p.Player!.Uid != lanHost) { error = NetworkErrorCode.DefaultRoomOnly; break; }
                 if (c.Value < 1 || c.Value > maxPlayers) { error = NetworkErrorCode.InvalidLimit; break; }
-                var created = new Room { Id = checked(++nextRoom), Host = p.Player!.Uid, MaxPlayers = options.LanKey == null ? c.Value : maxPlayers };
+                var created = new Room { Id = AllocateRoomId(), Host = p.Player!.Uid, MaxPlayers = options.LanKey == null ? c.Value : maxPlayers };
                 rooms.Add(created.Id, created);
                 Join(p, created, c.Request);
                 if (options.LanKey != null) defaultRoom = created.Id;
@@ -279,6 +281,14 @@ public sealed class Server : IAsyncDisposable
         if (options.LanKey != null && c.Command == Command.Join && error.Code != NetworkErrorCode.None) p.Wire.Finish();
     }
 
+    private ushort AllocateRoomId()
+    {
+        var id = (ushort)RandomNumberGenerator.GetInt32(1, ushort.MaxValue + 1);
+        // 房间数不超过玩家上限 256，编号空间始终有空位；0 表示未入房。
+        while (rooms.ContainsKey(id)) id = id == ushort.MaxValue ? (ushort)1 : (ushort)(id + 1);
+        return id;
+    }
+
     private void Join(Peer p, Room room, long request)
     { p.SentResources.Clear(); p.Room = room.Id; p.MembershipRequest = request; p.Player = p.Player! with { Membership = checked(++nextMembership), Motion = new(), HasMotion = false }; }
 
@@ -317,7 +327,7 @@ public sealed class Server : IAsyncDisposable
         if (rule.RoomScoped && (room == null || f.Room != room.Id || f.Membership != p.Player!.Membership)) return;
         if (rule.HostOnly && (room == null || room.Host != p.Player!.Uid)) return;
         if (rule.HostBroadcastOnly && f.Route != Route.Host && room?.Host != p.Player!.Uid) return;
-        var source = f with { Sender = p.Player!.Uid, Room = rule.RoomScoped ? p.Room : 0, Membership = rule.RoomScoped ? p.Player.Membership : 0 };
+        var source = f with { Sender = p.Player!.Uid, Room = rule.RoomScoped ? p.Room : (ushort)0, Membership = rule.RoomScoped ? p.Player.Membership : 0 };
         if (f.Route == Route.Server)
         {
             try { MessageReceived?.Invoke(new(f.Type, new(source.Sender, source.Room, source.Membership, 0, f.Request), f.Body)); }

@@ -50,7 +50,7 @@ public partial record Player
 [MemoryPackable]
 public partial record Room
 {
-    public long Id { get; init; }
+    public ushort Id { get; init; }
     public int Host { get; init; }
     public int MaxPlayers { get; init; }
     public bool Joinable { get; init; }
@@ -60,7 +60,7 @@ public partial record Room
 [MemoryPackable]
 public partial record RoomSummary
 {
-    public long Id { get; init; }
+    public ushort Id { get; init; }
     public int Host { get; init; }
     public int Count { get; init; }
     public int MaxPlayers { get; init; }
@@ -101,7 +101,7 @@ public static class Messages
         new(GameplayResult, [Route.Room, Route.Player], HostOnly: true)
     ];
 }
-public sealed record MessageContext(int Sender, long Room, long SenderMembership, long RecipientMembership, long Request);
+public sealed record MessageContext(int Sender, ushort Room, long SenderMembership, long RecipientMembership, long Request);
 public sealed record ReceivedMessage(ushort Type, MessageContext Context, byte[] Body);
 public sealed record ServerOptions
 {

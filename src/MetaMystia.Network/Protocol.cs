@@ -13,7 +13,7 @@ internal partial record Control
 {
     public Command Command { get; init; }
     public long Request { get; init; }
-    public long Room { get; init; }
+    public ushort Room { get; init; }
     public long Membership { get; init; }
     public long CancelRequest { get; init; }
     public int Value { get; init; }
@@ -21,7 +21,7 @@ internal partial record Control
 }
 
 internal sealed record Frame(Kind Kind, byte[] Body, int Sender = 0, ushort Type = 0,
-    Route Route = Route.Server, int Target = 0, long Room = 0, long Membership = 0,
+    Route Route = Route.Server, int Target = 0, ushort Room = 0, long Membership = 0,
     long RecipientMembership = 0, long Request = 0);
 
 internal static class Protocol
@@ -87,16 +87,16 @@ internal static class Protocol
         var kind = (Kind)r.ReadByte();
         if (!Enum.IsDefined(typeof(Kind), kind)) throw new InvalidDataException("Unknown kind");
         int sender = 0, target = 0;
-        ushort type = 0;
-        long room = 0, member = 0, recipient = 0, request = 0;
+        ushort type = 0, room = 0;
+        long member = 0, recipient = 0, request = 0;
         var route = Route.Server;
         if (kind is Kind.Motion or Kind.RoomMotion or Kind.Profile or Kind.Welcome) sender = r.ReadInt32();
-        if (kind == Kind.RoomMotion) { room = r.ReadInt64(); member = r.ReadInt64(); recipient = r.ReadInt64(); }
+        if (kind == Kind.RoomMotion) { room = r.ReadUInt16(); member = r.ReadInt64(); recipient = r.ReadInt64(); }
         if (kind == Kind.Data)
         {
             type = r.ReadUInt16(); route = (Route)r.ReadByte(); sender = r.ReadInt32(); request = r.ReadInt64();
             if (route == Route.Player) target = r.ReadInt32();
-            if (route != Route.World) { room = r.ReadInt64(); member = r.ReadInt64(); recipient = r.ReadInt64(); }
+            if (route != Route.World) { room = r.ReadUInt16(); member = r.ReadInt64(); recipient = r.ReadInt64(); }
         }
         return new(kind, r.ReadBytes((int)(stream.Length - stream.Position)), sender, type, route, target, room, member, recipient, request);
     }

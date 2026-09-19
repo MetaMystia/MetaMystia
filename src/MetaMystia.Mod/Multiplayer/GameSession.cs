@@ -179,8 +179,10 @@ public static partial class GameSession
         }
     }
 
-    public static void CreateRoom(int maxPlayers) => Run(Client.CreateRoomAsync(maxPlayers, cancellation.Token));
-    public static void JoinRoom(long room) => Run(Client.JoinRoomAsync(room, cancellation.Token));
+    public static void CreateRoom(int maxPlayers) => Run(Client.CreateRoomAsync(maxPlayers, cancellation.Token),
+        () => InGameConsole.LogSuccess(TextId.NetworkRoomCreated.Get(RoomCode.Format(Room.Id))));
+    public static void JoinRoom(ushort room) => Run(Client.JoinRoomAsync(room, cancellation.Token),
+        () => InGameConsole.LogSuccess(TextId.NetworkRoomJoined.Get(RoomCode.Format(Room.Id))));
     public static void Kick(int uid) => Run(Client.KickAsync(uid, cancellation.Token));
     public static void SetPlayerLimit(int count) => Run(Client.SetRoomPlayerLimitAsync(count, cancellation.Token),
         () => ConfigManager.MaxPlayers.Value = count);

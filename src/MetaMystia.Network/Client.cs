@@ -78,9 +78,9 @@ public sealed class Client : IDisposable
     }
 
     public Task<Room> CreateRoomAsync(int maxPlayers = 2, CancellationToken token = default) => Enter(Command.Create, maxPlayers, 0, token);
-    public Task<Room> JoinRoomAsync(long roomId, CancellationToken token = default) => Enter(Command.Join, 0, roomId, token);
+    public Task<Room> JoinRoomAsync(ushort roomId, CancellationToken token = default) => Enter(Command.Join, 0, roomId, token);
 
-    private async Task<Room> Enter(Command command, int value, long roomId, CancellationToken token)
+    private async Task<Room> Enter(Command command, int value, ushort roomId, CancellationToken token)
     {
         Session current;
         long request;

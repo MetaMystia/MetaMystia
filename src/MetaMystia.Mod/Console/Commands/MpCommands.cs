@@ -4,6 +4,7 @@ using System.CommandLine.Invocation;
 using System.Linq;
 
 using MetaMystia.Multiplayer;
+using MetaMystia.Network;
 using MetaMystia.UI;
 
 namespace MetaMystia.ConsoleSystem.Commands;
@@ -71,10 +72,10 @@ public static class MpCommands
         rooms.SetHandler(ctx =>
         {
             foreach (var room in GameSession.State.Rooms)
-                ctx.Log(TextId.NetworkRoomLine.Get(room.Id, room.Host, room.Count, room.MaxPlayers, (room.Joinable ? TextId.NetworkRoomOpen : TextId.NetworkRoomClosed).Get()));
+                ctx.Log(TextId.NetworkRoomLine.Get(RoomCode.Format(room.Id), room.Host, room.Count, room.MaxPlayers, (room.Joinable ? TextId.NetworkRoomOpen : TextId.NetworkRoomClosed).Get()));
         });
         mp.AddCommand(rooms);
-        var create = new Command("create", "Create a room on the connected server");
+        var create = new Command("create", "Create a room with a server-assigned code; count sets player capacity");
         var capacity = new Argument<int>("count", () => ConfigManager.MaxPlayers.Value);
         create.AddArgument(capacity);
         create.SetHandler(ctx =>
@@ -87,13 +88,15 @@ public static class MpCommands
         });
         mp.AddCommand(create);
         var join = new Command("join", "Join a room on the connected server");
-        var roomId = new Argument<long>("room");
+        var roomId = new Argument<string>("room", "Four-digit hexadecimal room code (case-insensitive)");
         join.AddArgument(roomId);
         join.SetHandler(ctx =>
         {
             if (!GameSession.IsOnline) { ctx.Log(TextId.NetworkWorldFirst.Get()); return; }
             if (GameSession.IsInRoom) { ctx.Log(TextId.NetworkLeaveRoomFirst.Get()); return; }
-            GameSession.JoinRoom(ctx.ParseResult.GetValueForArgument(roomId));
+            if (!RoomCode.TryParse(ctx.ParseResult.GetValueForArgument(roomId), out var code))
+            { ctx.Log(TextId.NetworkRoomCodeInvalid.Get()); return; }
+            GameSession.JoinRoom(code);
         });
         mp.AddCommand(join);
         var leave = new Command("leave", "Leave the room; standalone servers retain the world connection");
@@ -163,7 +166,7 @@ public static class MpCommands
         CommandRegistry.RegisterCompletions("mp kick", 0, "id", "uid");
         CommandRegistry.RegisterDynamicCompletions("mp kick id", 0, () => PlayerManager.Peers.Values.Select(p => p.Id).ToArray());
         CommandRegistry.RegisterDynamicCompletions("mp kick uid", 0, () => PlayerManager.Peers.Keys.Select(p => p.ToString()).ToArray());
-        CommandRegistry.RegisterDynamicCompletions("mp join", 0, () => GameSession.State.Rooms.Select(r => r.Id.ToString()).ToArray());
+        CommandRegistry.RegisterDynamicCompletions("mp join", 0, () => GameSession.State.Rooms.Select(r => RoomCode.Format(r.Id)).ToArray());
     }
 
     private static bool ValidPort(int port)
