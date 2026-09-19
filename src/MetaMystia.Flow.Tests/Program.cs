@@ -19,6 +19,7 @@ void Setup(bool host = true)
     GameSession.IsRoomHost = host;
     GameSession.Client = new();
     GameSession.Admission = Task.CompletedTask;
+    GameSession.AdmissionCompleted = null;
     GameSession.Room = new() { Host = 1, Members = [new() { Uid = 1, Stage = GameStage.Day }, new() { Uid = 2, Stage = GameStage.Day }] };
     PlayerManager.Local = new() { Uid = host ? 1 : 2 };
     PlayerManager.Peers = new() { [host ? 2 : 1] = new() { Uid = host ? 2 : 1 } };
@@ -170,4 +171,50 @@ foreach (var from in new[] { Scene.DayScene, Scene.IzakayaPrepScene, Scene.WorkS
     Check(!GameFlow.CanKeepConnection(from, Scene.DayScene, DayDestination.Business, false, false), $"共同阶段直接重载白天断开：{from}");
 }
 Check(!GameFlow.CanKeepConnection(Scene.ResultScene, Scene.StaffScene, DayDestination.Business, false, false), "共同流程中未接入的结局改道断开");
+Setup();
+int immediateEntries = 0;
+Intent(DayDestination.Business, () => immediateEntries++);
+Check(immediateEntries == 1, "条件齐备时在当前调用中直接执行入口，不等下一帧");
+
+Setup(false);
+int storyEntries = 0;
+bool replaying = false;
+DayDestinationManager.Submit(DayDestination.Business, () =>
+{
+    storyEntries++;
+    replaying = DayDestinationManager.ReplayingBusiness;
+    DayDestinationManager.ContinueEntry();
+});
+GameFlow.InStory = true;
+DayDestinationManager.ApplyConfirmation(1, DayDestination.Business);
+Check(storyEntries == 0, "剧情未结束时保留入口");
+GameFlow.InStory = false;
+DayDestinationManager.ContinueEntry();
+DayDestinationManager.ContinueEntry();
+Check(storyEntries == 1 && replaying && !DayDestinationManager.ReplayingBusiness,
+    "剧情结束后只续接一次，执行前取走回调，正常返回后清除重放标记");
+
+Setup(false);
+DayDestinationManager.Submit(DayDestination.Business, () => storyEntries++);
+GameFlow.InStory = true;
+DayDestinationManager.ApplyConfirmation(1, DayDestination.Business);
+DayDestinationManager.ResetSession();
+GameFlow.InStory = false;
+DayDestinationManager.ContinueEntry();
+Check(storyEntries == 1, "重置后剧情结束不能执行旧入口");
+
+Setup();
+GameSession.Admission = new TaskCompletionSource().Task;
+Intent(DayDestination.Business, () => immediateEntries++);
+var oldAdmissionCompleted = GameSession.AdmissionCompleted;
+DayDestinationManager.WithdrawLocal();
+oldAdmissionCompleted(true);
+Check(immediateEntries == 1 && DayDestinationConfirmMessage.Sent.Count == 0,
+    "撤回后迟到的关闭入房回调不能确认旧入口");
+
+Setup();
+GameSession.Admission = Task.FromException(new InvalidOperationException());
+Intent(DayDestination.Business, () => immediateEntries++);
+Check(immediateEntries == 1 && DayDestinationConfirmMessage.Sent.Count == 0,
+    "关闭入房失败时不执行入口");
 Console.WriteLine($"ALL PASS ({checks} assertions; game and transport ports simulated)");

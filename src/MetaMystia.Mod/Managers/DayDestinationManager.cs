@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -34,6 +33,8 @@ public static partial class DayDestinationManager
     private static int generation;
     private static bool closing;
     private static bool admissionClosed;
+    private static System.Action pendingEntry;
+    private static bool pendingChallenge;
     public static bool ReplayingChallenge { get; private set; }
     public static bool ReplayingBusiness { get; private set; }
     public static bool IsStoryLocked => firstTrialPending;
@@ -62,6 +63,8 @@ public static partial class DayDestinationManager
         firstTrialPending = false;
         closing = false;
         admissionClosed = false;
+        pendingEntry = null;
+        pendingChallenge = false;
         ReplayingChallenge = false;
         ReplayingBusiness = false;
     }
@@ -163,7 +166,7 @@ public static partial class DayDestinationManager
         if (!admissionClosed)
         {
             closing = true;
-            PluginHost.Instance.StartManagedCoroutine(CloseAdmission(generation, GameSession.RoomMembershipId));
+            CloseAdmission(generation, GameSession.RoomMembershipId);
             return;
         }
         foreach (var uid in PlayerManager.Peers.Keys)
@@ -194,21 +197,24 @@ public static partial class DayDestinationManager
         firstTrialPending = false;
         closing = false;
         admissionClosed = false;
+        pendingEntry = null;
+        pendingChallenge = false;
         intents.Remove(PlayerManager.Local.Uid);
         if (GameSession.IsRoomHost) DayDestinationStateMessage.Send(Round, Snapshot());
         else if (GameSession.IsRoomClient) DayDestinationIntentMessage.Send(Round, DayDestination.None);
     }
 
-    private static IEnumerator CloseAdmission(int entryGeneration, long membership)
+    private static void CloseAdmission(int entryGeneration, long membership)
     {
-        var task = GameSession.SetJoinable(false);
-        while (!task.IsCompleted) yield return null;
-        if (entryGeneration != generation || membership != GameSession.RoomMembershipId) yield break;
-        closing = false;
-        if (!task.IsCompletedSuccessfully || !GameSession.IsRoomHost) yield break;
-        admissionClosed = true;
-        // 关闭确认之前接纳的新成员已经安装，重新检查全员意向。
-        TryConfirm();
+        GameSession.SetJoinable(false, succeeded =>
+        {
+            if (entryGeneration != generation || membership != GameSession.RoomMembershipId) return;
+            closing = false;
+            if (!succeeded || !GameSession.IsRoomHost) return;
+            admissionClosed = true;
+            // 网络状态已安装，按实际房间成员继续检查意向。
+            TryConfirm();
+        });
     }
 
     public static void ApplyConfirmation(int round, DayDestination destination)
@@ -245,51 +251,30 @@ public static partial class DayDestinationManager
             _ => TextId.DestinationFinalTrialAgainConfirmed,
         };
         InGameConsole.ShowPassive(notice.Get());
-        PluginHost.Instance.StartManagedCoroutine(ContinueEntry(continuation, generation, destination != DayDestination.Business));
+        pendingEntry = continuation;
+        pendingChallenge = destination != DayDestination.Business;
+        ContinueEntry();
     }
 
     public static void FinishDayEnd(Il2CppSystem.Action continuation)
     {
-        if (!firstTrialPending)
-        {
-            continuation?.Invoke();
-            return;
-        }
-        PluginHost.Instance.StartManagedCoroutine(WaitForDayEnd(continuation, generation));
+        // 首次挑战接管后不再继续旧白天的选店流程。
+        if (!firstTrialPending) continuation?.Invoke();
     }
 
-    private static IEnumerator WaitForDayEnd(Il2CppSystem.Action continuation, int entryGeneration)
+    public static void ContinueEntry()
     {
-        while (firstTrialPending)
-        {
-            if (generation != entryGeneration) yield break;
-            yield return null;
-        }
-        // 挑战已接管并离开白天时，旧白天的选店流程不能继续。
-        if (generation == entryGeneration && GameFlow.LocalScene == Scene.DayScene) continuation?.Invoke();
-    }
-
-    private static IEnumerator ContinueEntry(System.Action continuation, int entryGeneration, bool challenge)
-    {
-        // 不在确认按钮或剧情奖励的调用栈内递归切场景。
-        yield return null;
-        while (GameFlow.InStory)
-        {
-            if (generation != entryGeneration || !GameSession.IsInRoom) yield break;
-            yield return null;
-        }
-        if (generation != entryGeneration || !GameSession.IsInRoom || GameFlow.LocalScene != Scene.DayScene) yield break;
+        if (pendingEntry == null || GameFlow.InStory) return;
+        var continuation = pendingEntry;
+        bool challenge = pendingChallenge;
+        pendingEntry = null;
+        pendingChallenge = false;
+        if (!GameSession.IsInRoom || GameFlow.LocalScene != Scene.DayScene) return;
         if (challenge) SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
         ReplayingChallenge = challenge;
         ReplayingBusiness = !challenge;
-        try
-        {
-            continuation();
-        }
-        finally
-        {
-            ReplayingChallenge = false;
-            ReplayingBusiness = false;
-        }
+        continuation();
+        ReplayingChallenge = false;
+        ReplayingBusiness = false;
     }
 }

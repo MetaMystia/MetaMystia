@@ -16,8 +16,11 @@ public static partial class PrepSceneManager
     public static UpdatePrepMessage.Table localPrepTable = new();
     private static bool prepInitialized;
     private static readonly List<UpdatePrepMessage> bufferedPrepUpdates = new();
-    public static bool IsEditingPreset { get; set; }
     public static bool IsOpeningPanel { get; set; }
+    public static bool CanSubmitEdits => GameSession.IsInRoom
+        && (IsYuyukoChallenge ? IsOpeningPanel || (IsYuyukoPrepActive && !yuyukoPrepConfirmed)
+            : GameFlow.Destination == DayDestination.Business && !completingPrep
+                && (IsOpeningPanel || GameFlow.LocalScene is Common.UI.Scene.DayScene or Common.UI.Scene.LoadScene or Common.UI.Scene.IzakayaPrepScene));
     public static bool CanSyncEdits => GameSession.IsInRoom && prepInitialized && !IsOpeningPanel
         && (IsYuyukoChallenge ? IsYuyukoPrepActive && !yuyukoPrepConfirmed
             : GameFlow.Destination == DayDestination.Business
@@ -33,34 +36,28 @@ public static partial class PrepSceneManager
     {
         completingPrep = false;
         prepInitialized = false;
-        IsEditingPreset = false;
         IsOpeningPanel = false;
         localPrepTable = new();
         bufferedPrepUpdates.Clear();
-    }
-
-    public static UpdatePrepMessage.Table CaptureTable()
-    {
-        var configure = IzakayaConfigure.Instance;
-        var table = new UpdatePrepMessage.Table();
-        foreach (var recipe in configure.DailyRecipes) table.Recipes.Add(recipe.Id);
-        foreach (var beverage in configure.DailyBeverages) table.Beverages.Add(beverage.Id);
-        for (int i = 0; i < Math.Min(configure.CookerConfigure.Length, table.Cookers.Length); i++)
-            table.Cookers[i].Id = configure.CookerConfigure[i];
-        return table;
     }
 
     public static void BeginPrep()
     {
         if (!GameSession.IsInRoom || (!IsYuyukoChallenge && GameFlow.Destination != DayDestination.Business)) return;
         prepInitialized = true;
-        if (GameSession.IsRoomHost)
+        // 最终试炼沿用本轮开始前的配置，再处理本轮逐项修改。
+        if (IsYuyukoChallenge && GameSession.IsRoomHost)
         {
-            localPrepTable = CaptureTable();
+            var configure = IzakayaConfigure.Instance;
+            localPrepTable = new();
+            foreach (var recipe in configure.DailyRecipes) localPrepTable.Recipes.Add(recipe.Id);
+            foreach (var beverage in configure.DailyBeverages) localPrepTable.Beverages.Add(beverage.Id);
+            for (int i = 0; i < Math.Min(configure.CookerConfigure.Length, localPrepTable.Cookers.Length); i++)
+                localPrepTable.Cookers[i].Id = configure.CookerConfigure[i];
             UpdatePrepMessage.Send(localPrepTable);
         }
-        else UpdatePrepMessage.RequestState();
         FlushBufferedTables();
+        if (!GameSession.IsRoomHost) UpdatePrepMessage.RequestState();
     }
 
     public static void FlushBufferedTables()
@@ -71,7 +68,7 @@ public static partial class PrepSceneManager
         foreach (var message in pending) ReceivePrepUpdate(message);
     }
 
-    public static void ReceivePrepUpdate(UpdatePrepMessage message)
+    public static void ReceivePrepUpdate(UpdatePrepMessage message, bool updateMenu = true)
     {
         if (message.PrepRound > 0)
         {
@@ -93,7 +90,7 @@ public static partial class PrepSceneManager
                 return;
             }
         }
-        if (!prepInitialized)
+        if (!prepInitialized || IsOpeningPanel)
         {
             bufferedPrepUpdates.Add(message);
             return;
@@ -114,7 +111,7 @@ public static partial class PrepSceneManager
                 && pair.Key < localPrepTable.Cookers.Length
                 && (pair.Value == -1 || PlayerManager.CookerAvailable(pair.Value)))
                 localPrepTable.Cookers[pair.Key].Id = pair.Value;
-        UpdateAll();
+        if (updateMenu) UpdateAll();
         UpdatePrepMessage.Send(localPrepTable);
     }
 
@@ -125,15 +122,6 @@ public static partial class PrepSceneManager
                 || !GameData.RunTime.Common.RunTimePlayerData.CheckRecipeIsLocked(id)) items.Remove(id);
         foreach (int id in added)
             if (items.Count < limit && !items.Contains(id) && available(id)) items.Add(id);
-    }
-
-    public static void FinishLocalEdit(UpdatePrepMessage.Table before, bool preset = false)
-    {
-        if (before == null) return;
-        var after = CaptureTable();
-        // 原游戏负责库存和锁定检查，实际配置由主机结果覆盖。
-        UpdateGroups();
-        UpdatePrepMessage.Submit(before, after, preset);
     }
 
     public static UpdatePrepMessage.Table GetLocalPrepTableSnapshot() => localPrepTable.Clone();

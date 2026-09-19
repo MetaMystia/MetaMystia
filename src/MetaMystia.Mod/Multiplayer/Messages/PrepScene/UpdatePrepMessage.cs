@@ -46,24 +46,14 @@ public partial class UpdatePrepMessage : MultiplayerMessage
         PrepSceneManager.ReceivePrepUpdate(this);
     }
 
-    public static void Submit(Table before, Table after, bool preset)
+    public void Submit()
     {
-        var message = new UpdatePrepMessage
-        {
-            PrepRound = PrepSceneManager.IsYuyukoChallenge ? PrepSceneManager.YuyukoPrepRound : 0,
-            AddedRecipes = preset ? after.Recipes.ToArray() : after.Recipes.Except(before.Recipes).ToArray(),
-            RemovedRecipes = preset ? before.Recipes.ToArray() : before.Recipes.Except(after.Recipes).ToArray(),
-            AddedBeverages = preset ? after.Beverages.ToArray() : after.Beverages.Except(before.Beverages).ToArray(),
-            RemovedBeverages = preset ? before.Beverages.ToArray() : before.Beverages.Except(after.Beverages).ToArray(),
-        };
-        for (int i = 0; i < after.Cookers.Length; i++)
-            if (before.Cookers[i].Id != after.Cookers[i].Id)
-                message.ChangedCookers[i] = after.Cookers[i].Id;
-        if (message.AddedRecipes.Length + message.RemovedRecipes.Length
-            + message.AddedBeverages.Length + message.RemovedBeverages.Length
-            + message.ChangedCookers.Count == 0) return;
-        if (GameSession.IsRoomHost) PrepSceneManager.ReceivePrepUpdate(message);
-        else message.Enqueue();
+        if (!PrepSceneManager.CanSubmitEdits) return;
+        PrepRound = PrepSceneManager.IsYuyukoChallenge
+            ? PrepSceneManager.YuyukoPrepRound + (PrepSceneManager.IsOpeningPanel ? 1 : 0) : 0;
+        // 本机原注册方法尚未返回，只更新主机记录，不在这里回写游戏配置。
+        if (GameSession.IsRoomHost) PrepSceneManager.ReceivePrepUpdate(this, false);
+        else Enqueue();
     }
 
     public static void Send(Table table) => new UpdatePrepMessage

@@ -49,8 +49,10 @@ public static partial class GameFlow
 
     public static void RefreshInStoryCache()
     {
+        bool wasInStory = InStory;
         var director = Common.SceneDirector.Instance?.playableDirector;
         InStory = director != null && director.state is UnityEngine.Playables.PlayState.Playing or UnityEngine.Playables.PlayState.Delayed;
+        if (wasInStory && !InStory) DayDestinationManager.ContinueEntry();
     }
 
     public static void OnSceneTransit(Scene scene)

@@ -36,45 +36,15 @@ public partial class IzakayaConfigPannelPatch
         if (!PrepSceneManager.IsYuyukoChallenge) PrepSceneManager.BeginPrep();
     }
 
-    [HarmonyPatch(nameof(IzakayaConfigPannel.LoadPresetInternal))]
-    [HarmonyPrefix]
-    public static void LoadPreset_Prefix(out UpdatePrepMessage.Table __state)
-    {
-        __state = PrepSceneManager.CanSyncEdits ? PrepSceneManager.CaptureTable() : null;
-        PrepSceneManager.IsEditingPreset = true;
-    }
-
-    [HarmonyPatch(nameof(IzakayaConfigPannel.LoadPresetInternal))]
-    [HarmonyPostfix]
-    public static void LoadPreset_Postfix(UpdatePrepMessage.Table __state)
-    {
-        PrepSceneManager.IsEditingPreset = false;
-        PrepSceneManager.FinishLocalEdit(__state, true);
-    }
-
     [HarmonyPatch(nameof(IzakayaConfigPannel.GoToSpecific))]
     [HarmonyPostfix]
-    public static void IzakayaConfigPannel_GoToSpecific_Postfix()
+    public static void GoToSpecific_Postfix()
     {
-        if (GameSession.HasRoomPeers == false)
-        {
-            Log.LogDebug($"Not in multiplayer session, skipping patch");
-            return;
-        }
-
         if (!PrepSceneManager.CanSyncEdits) return;
-
-        // MetaMiku 注:
-        //     游戏原生的 GoToSpecific 会变更玩家的活跃选项面板，即 菜谱/酒水/厨具 三选一
-        //     但是还会附带检查除去不合法的 厨具 选项
-        //     如果在联机中直接调用该方法，可能会导致 厨具 选项出现不同步的问题
-        //     因此这里做了一个补丁，强制在调用 GoToSpecific 之后再重新更新厨具选项
-        PluginManager.RunOnMainThread(() =>
-        {
-            PrepSceneManager.UpdateCookers();
-            PrepSceneManager.UpdateUI();
-        });
-
+        // 切页会按本机库存清理厨具，随后恢复联机配置；不产生新的修改请求。
+        if (GameSession.IsRoomHost) PrepSceneManager.UpdateGroups();
+        else PrepSceneManager.UpdateCookers();
+        PrepSceneManager.UpdateUI();
     }
 
     [HarmonyPatch(nameof(IzakayaConfigPannel._SolveDailyCompletion_b__64_7))]

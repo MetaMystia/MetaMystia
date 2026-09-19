@@ -160,14 +160,14 @@ public static partial class GameSession
         RoomClock.Tick();
     }
 
-    public static Task SetJoinable(bool allowed)
+    public static Task SetJoinable(bool allowed, System.Action<bool> completed = null)
     {
         if (!IsRoomHost) return Task.CompletedTask;
         var client = Client;
         var token = cancellation.Token;
         var previous = joinability;
         joinability = Change();
-        Run(joinability);
+        Run(joinability, () => completed?.Invoke(true), failed: () => completed?.Invoke(false));
         return joinability;
         async Task Change()
         {
@@ -216,10 +216,10 @@ public static partial class GameSession
         StartHost(port);
     }
 
-    private static void Run(Task operation, System.Action completed = null, bool connecting = false) =>
-        PluginHost.Instance.StartManagedCoroutine(Observe(Client, operation, completed, connecting));
+    private static void Run(Task operation, System.Action completed = null, bool connecting = false, System.Action failed = null) =>
+        PluginHost.Instance.StartManagedCoroutine(Observe(Client, operation, completed, connecting, failed));
 
-    private static IEnumerator Observe(Client client, Task operation, System.Action completed, bool connecting)
+    private static IEnumerator Observe(Client client, Task operation, System.Action completed, bool connecting, System.Action failed)
     {
         while (!operation.IsCompleted) yield return null;
         var error = operation.Exception?.GetBaseException();
@@ -229,6 +229,7 @@ public static partial class GameSession
         {
             Log.Error($"Network operation failed: {error?.Message ?? "Cancelled"}");
             InGameConsole.LogError(NetworkNotice.Describe(error));
+            failed?.Invoke();
             if (!client.IsConnected) Stop();
             yield break;
         }

@@ -59,16 +59,7 @@ public static partial class PrepSceneManager
 
         yuyukoPrepConfirmed = true;
         PrepAllReadyMessage.Send();
-        int confirmedRound = YuyukoPrepRound;
-        var client = GameSession.Client;
-        var membership = GameSession.RoomMembershipId;
-        // 离开当前按钮 Hook 后再重放提交，避免在同一次调用中重入面板。
-        PluginManager.RunOnMainThread(() =>
-        {
-            if (client == GameSession.Client && membership == GameSession.RoomMembershipId
-                && IsYuyukoChallenge && IsYuyukoPrepActive && YuyukoPrepRound == confirmedRound)
-                IzakayaConfigPannelPatch.PrepOver();
-        });
+        IzakayaConfigPannelPatch.PrepOver();
     }
 
     public static bool CanFinishYuyukoPrep(int round) =>

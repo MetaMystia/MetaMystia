@@ -51,6 +51,7 @@ namespace MetaMystia
         }
         public void Tick()
         {
+            Multiplayer.GameSession.DispatchAdmission();
             foreach (var routine in routines.ToArray())
                 if (!routine.MoveNext()) routines.Remove(routine);
         }
@@ -68,7 +69,20 @@ namespace MetaMystia.Multiplayer
         public static bool IsRoomHost = true;
         public static bool IsRoomClient => IsInRoom && !IsRoomHost;
         public static Task Admission = Task.CompletedTask;
-        public static Task SetJoinable(bool allowed) => Admission;
+        public static System.Action<bool> AdmissionCompleted;
+        public static Task SetJoinable(bool allowed, System.Action<bool> completed = null)
+        {
+            AdmissionCompleted = completed;
+            DispatchAdmission();
+            return Admission;
+        }
+        public static void DispatchAdmission()
+        {
+            if (!Admission.IsCompleted) return;
+            var completed = AdmissionCompleted;
+            AdmissionCompleted = null;
+            completed?.Invoke(Admission.IsCompletedSuccessfully);
+        }
     }
 }
 namespace MetaMystia.Multiplayer.Messages

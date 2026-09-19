@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Linq;
 
 using Common.UI;
@@ -24,7 +23,7 @@ public static partial class PrepSceneManager
         {
             completingPrep = true;
             PrepAllReadyMessage.Send();
-            PluginHost.Instance.StartManagedCoroutine(FinishPrep());
+            IzakayaConfigPannelPatch.PrepOver();
         }
     }
 
@@ -36,18 +35,8 @@ public static partial class PrepSceneManager
         foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;
         completingPrep = true;
         PrepAllReadyMessage.Send();
-        PluginHost.Instance.StartManagedCoroutine(FinishPrep());
+        IzakayaConfigPannelPatch.PrepOver();
         return true;
     }
 
-    private static IEnumerator FinishPrep()
-    {
-        var client = GameSession.Client;
-        var membership = GameSession.RoomMembershipId;
-        var scene = GameFlow.LocalScene;
-        yield return null;
-        if (client == GameSession.Client && membership == GameSession.RoomMembershipId && GameSession.IsRoomHost
-            && scene == GameFlow.LocalScene && PlayerManager.LocalIsPrepOver)
-            IzakayaConfigPannelPatch.PrepOver();
-    }
 }
