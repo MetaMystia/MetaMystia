@@ -22,7 +22,7 @@
     "NetworkRoomOpen": "Open",
     "NetworkRoomClosed": "Closed",
     "NetworkConnecting": "MP: Connecting",
-    "NetworkOffline": "Multiplayer: Off",
+    "NetworkOffline": "Connection closed",
     "NetworkStatus": "{0} UID {1} | World {2}/{3} | Room {4} ({5} players) | Latency {6}ms",
     "NetworkCommands": "/mp start [port] | connect <address> [port] | rooms | create [count] | join <room> | leave | disconnect | stop | restart | status | id <name> | kick id|uid <target> | maxplayers [count] | continue day|prep | ipv6 enable|disable",
     "DayMapHelp": "/resourceex map list | goto <mapID> [spawn] | back",
