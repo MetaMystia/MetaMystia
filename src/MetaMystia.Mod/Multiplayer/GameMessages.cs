@@ -82,8 +82,8 @@ public static class GameMessages
     {
         MultiplayerMessage message;
         try { message = MemoryPackSerializer.Deserialize<MultiplayerMessage>(received.Body); }
-        catch (MemoryPackSerializationException) { GameSession.Stop(); return; }
-        if (message == null || (ushort)TypeOf(message) != received.Type) { GameSession.Stop(); return; }
+        catch (MemoryPackSerializationException) { return; }
+        if (message == null || (ushort)TypeOf(message) != received.Type) return;
         message.SenderUid = received.Context.Sender;
         message.Context = received.Context;
         message.Connection = GameSession.Client;

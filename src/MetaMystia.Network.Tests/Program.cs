@@ -72,6 +72,7 @@ static partial class Checks
     internal static async Task Run()
     {
         ResourceTables();
+        await ForwardedMessageChecks();
         await IncrementalResources();
         await ErrorDetails();
         await Stages();
