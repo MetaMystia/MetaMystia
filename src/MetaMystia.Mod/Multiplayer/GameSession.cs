@@ -109,9 +109,11 @@ public static partial class GameSession
         client.ConnectionEnded += reason =>
         {
             if (Client != client) return;
-            Stop();
             Log.Info($"Connection ended: {reason}");
-            InGameConsole.ShowPassive(NetworkNotice.Describe(reason));
+            if (reason.Code is NetworkErrorCode.ServerFull or NetworkErrorCode.RoomFull)
+                InGameConsole.LogError(NetworkNotice.Describe(reason));
+            else InGameConsole.ShowPassive(NetworkNotice.Describe(reason));
+            Stop();
         };
     }
 

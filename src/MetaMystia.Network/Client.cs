@@ -271,6 +271,8 @@ public sealed class Client : IDisposable
         {
             case Kind.Rejected:
                 var error = Protocol.ReadError(f.Body);
+                // 拒绝原因优先于随后到达的 TCP 关闭通知。
+                current.End = error;
                 current.Connected.TrySetException(new NetworkException(error)); End(current, error); break;
             case Kind.Welcome:
                 uid = f.Sender;
