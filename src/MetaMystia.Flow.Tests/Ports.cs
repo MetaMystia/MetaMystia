@@ -1,3 +1,8 @@
+extern alias GameInterop;
+
+global using Scene = GameInterop::Common.UI.Scene;
+global using IzakayaLevel = GameInterop::Common.UI.IzakayaLevel;
+
 using System.Collections;
 
 using Common.UI;
@@ -30,12 +35,17 @@ namespace MetaMystia
     {
         public int Uid;
         public bool IsDayOver;
+        public MapLabel IzakayaMapLabel;
+        public int IzakayaLevel;
     }
     static class PlayerManager
     {
         public static FlowPlayer Local = new() { Uid = 1 };
         public static Dictionary<int, FlowPlayer> Peers = new();
         public static bool LocalIsDayOver;
+        public static bool AllPeersSelectedSameIzakaya(MapLabel map, int level) =>
+            Peers.Values.All(peer => peer.IzakayaMapLabel == map && peer.IzakayaLevel == level);
+        public static string GetFirstMismatchSelection(MapLabel map, int level) => "mismatch";
     }
     static class LiveModeManager
     {
@@ -68,6 +78,7 @@ namespace MetaMystia.Multiplayer
         public static bool IsInRoom = true;
         public static bool IsRoomHost = true;
         public static bool IsRoomClient => IsInRoom && !IsRoomHost;
+        public static bool HasRoomPeers => IsInRoom && PlayerManager.Peers.Count > 0;
         public static Task Admission = Task.CompletedTask;
         public static System.Action<bool> AdmissionCompleted;
         public static Task SetJoinable(bool allowed, System.Action<bool> completed = null)
@@ -122,6 +133,7 @@ namespace MetaMystia.UI
         DestinationBusiness, DestinationFinalTrial, DestinationFinalTrialAgain,
         DestinationBusinessReady, DestinationFinalTrialReady, DestinationFinalTrialAgainReady,
         DestinationBusinessConfirmed, DestinationFinalTrialConfirmed, DestinationFinalTrialAgainConfirmed,
+        WaitingForHostConfirm, SelectedIzakaya, SelectedIzakayaMismatch,
     }
     static class Text
     {

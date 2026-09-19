@@ -217,4 +217,5 @@ GameSession.Admission = Task.FromException(new InvalidOperationException());
 Intent(DayDestination.Business, () => immediateEntries++);
 Check(immediateEntries == 1 && DayDestinationConfirmMessage.Sent.Count == 0,
     "关闭入房失败时不执行入口");
+IzakayaSelectionChecks.Run(Check);
 Console.WriteLine($"ALL PASS ({checks} assertions; game and transport ports simulated)");

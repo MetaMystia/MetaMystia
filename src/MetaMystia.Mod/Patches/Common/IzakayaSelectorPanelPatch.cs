@@ -1,5 +1,6 @@
-using HarmonyLib;
 using System.Collections.Generic;
+
+using HarmonyLib;
 
 using Common.UI;
 
@@ -55,6 +56,7 @@ public partial class IzakayaSelectorPanelPatch
         // 记录自己的选择
         PlayerManager.Local.IzakayaMapLabel = izakayaMapLabel;
         PlayerManager.Local.IzakayaLevel = izakayaLevel;
+        cachedSpots[izakayaMapLabel] = __instance.m_CurrentSelectedSpot;
 
         // 广播自己的选择
         SelectIzakayaMessage.Send(izakayaMapLabel, izakayaLevel);
@@ -128,22 +130,19 @@ public partial class IzakayaSelectorPanelPatch
     public static void TryProceedWithConfirmedSelection(MapLabel mapLabel, IzakayaLevel mapLevel)
     {
         SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
-
-        if (instanceRef != null)
-        {
-            instanceRef.m_CurrentSelectedIzakayaLevel = mapLevel;
-            if (cachedSpots.TryGetValue(mapLabel, out var mapSpot))
-            {
-                OnGuideMapSpotSelected_ReversePatch(instanceRef, mapSpot);
-            }
-            _OnGuideMapInitialize_b__21_0_ReversePatch(instanceRef);
-        }
-        else
+        if (instanceRef == null)
         {
             Log.Error("instanceRef is null, cannot call original method");
+            return;
         }
-    }
 
+        // 提交时已缓存地图；直接恢复原入口读取的字段，避免选点回调重置等级。
+        instanceRef.m_CurrentSelectedSpot = cachedSpots[mapLabel];
+        instanceRef.m_CurrentSelectedIzakayaLevel = mapLevel;
+        instanceRef.UpdateCurrentIzakaya();
+        instanceRef.UpdateToggleStatus(mapLevel);
+        _OnGuideMapInitialize_b__21_0_ReversePatch(instanceRef);
+    }
 
     [HarmonyPatch(nameof(IzakayaSelectorPanel_New._OnGuideMapInitialize_b__21_0))]
     [HarmonyReversePatch]
@@ -161,9 +160,4 @@ public partial class IzakayaSelectorPanelPatch
 
         Log.Info($"OnGuideMapSpotSelected called, guideMapSpot.PrimaryName: {guideMapSpot?.PrimaryName}");
     }
-
-    [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapSpotSelected))]
-    [HarmonyReversePatch]
-    public static void OnGuideMapSpotSelected_ReversePatch(IzakayaSelectorPanel_New __instance, Common.UI.GlobalMap.IGuideMapSpot guideMapSpot)
-    { }
 }
