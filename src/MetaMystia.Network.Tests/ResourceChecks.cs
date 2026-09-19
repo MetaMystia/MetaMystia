@@ -24,6 +24,8 @@ static partial class Checks
         var copy = resources.Copy();
         copy.PackIds[0] = "changed";
         copy.Clear();
+        Assert(!copy.IsIncrementalReady && copy.DlcFlags == DlcPack.None && copy.PackIds.Length == 0,
+            "清空资源表同时清除增量标识和资源包信息");
         Assert(resources.PackIds[0] == "shared.pack" && resources.Foods.Count == 1 && resources.Recipes.Count == 1
             && resources.Beverages.Count == 1 && resources.Ingredients.Count == 1 && resources.Cookers.Count == 1
             && resources.Items.Count == 1 && resources.Izakayas.Count == 1

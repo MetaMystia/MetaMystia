@@ -41,6 +41,8 @@ public partial class ResourceDataBase
 
     public void Clear()
     {
+        DlcFlags = DlcPack.None;
+        PackIds = [];
         Foods.Clear();
         Recipes.Clear();
         Beverages.Clear();
