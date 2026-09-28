@@ -171,6 +171,14 @@
       <HintPath>$(BepInExPath)\interop\UnityEngine.AudioModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(BepInExPath)\interop\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(BepInExPath)\interop\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.DirectorModule">
       <HintPath>$(BepInExPath)\interop\UnityEngine.DirectorModule.dll</HintPath>
       <Private>False</Private>

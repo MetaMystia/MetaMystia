@@ -54,6 +54,8 @@ ZIP 文件名形成 `PackageName`。`packInfo.label` 有效时形成 `PackageLab
 
 不得依赖目录扫描顺序解决同版本冲突。如需确定行为，应补充显式规则和测试。
 
+模组不要求最低资源包版本。资源包可在发布说明中注明最低模组版本；配置模型与加载器尚无对应字段或自动版本检查，`packInfo.version` 仅表示资源包版本。
+
 ## ID 范围
 
 当前 ID 范围为：
@@ -138,3 +140,45 @@ rex://example-pack/assets/image.png
 - `rex://` URI 是否规范化且不能路径逃逸。
 - IO 错误是否只影响当前包并有明确日志。
 - 新 Unity 资源是否在主线程创建。
+
+## 符卡、buff 与 AssetBundle
+
+顶层可选数组 `spells`、`buffs`、`assetBundles`。符卡行为由 Mod 代码实现，资源包只提供数据；设计方法见 [`spell-creation/`](spell-creation/README.md)。
+
+```json
+"spells": [
+  {
+    "id": 11001,
+    "implementation": "Mai",
+    "vfxBundle": "assets/Spell/11001",
+    "positive": { "name": "舞符「冰晶特调」", "description": "……", "portrait": "assets/Character/11001/Portrait/0.png" },
+    "negative": { "name": "舞符「冰封酒宴」", "description": "……", "portrait": "assets/Character/11001/Portrait/5.png" },
+    "portrayalPivot": [0.497, 0.644]
+  }
+],
+"buffs": [
+  { "id": 11002, "name": "冰晶特调", "description": "……剩余$c秒", "icon": "assets/Buff/11002.png" },
+  { "id": 11003, "name": "冰封酒宴", "description": "……剩余$c秒", "icon": "assets/Buff/11003.png" }
+],
+"assetBundles": [
+  { "path": "assets/Spell/11001" }
+]
+```
+
+| 字段 | 说明 |
+|---|---|
+| `spells[].id` | 所属角色 ID，须在 `characters` 中声明；归属角色标识取该角色的 `label` |
+| `spells[].implementation` | Mod 中的符卡实现名（`SpellRegistry.Implementations`）；不存在时跳过注册并记录警告 |
+| `spells[].vfxBundle` | 可选，关联 `assetBundles` 中的包路径；注册时赋给符卡实例的 `Vfx`。不使用特效包的实现可省略，Mai 需要配置 |
+| `positive` / `negative` | 红卡、黑卡的宣言名称、说明与立绘路径；立绘读取失败时跳过注册 |
+| `portrayalPivot` | 可选，宣言立绘的归一化 pivot；省略时取原版立绘平均值 |
+| `buffs[]` | 计时 buff 的显示数据，`id` 即 `BuffType` 值；`description` 中的占位符由使用方的回调替换 |
+| `assetBundles[].path` | 启动时同步预加载的 AssetBundle；代码按其 `rex://` URI 取用 |
+
+`spells` 与 `buffs` 的 `id` 参与 ID 范围校验。路径与其他资源一样按相对路径书写，加载时转换为 `rex://` URI。
+
+示例中的 `assets/Spell/11001` 是无扩展名的 AssetBundle 文件，不是目录；角色立绘位于 `assets/Character/11001/Portrait/`。
+
+未声明 `spells` 时，不注入符卡类型或创建实例。注册前检查角色、红黑卡名称与说明、立绘，以及具体实现的必要依赖；缺失时只跳过该符卡并记录原因，不要求整包升级。Mai 要求有效的 `vfxBundle`、六个命名预制件及 buff 11002/11003 的名称、说明和图标。无特效的实现可省略包引用，依赖检查明确返回通过。
+
+`SpellRegistry.Implementations` 保留手工工厂列表。泛型工厂要求实现纯托管接口 `ISpellDependencies`，无依赖的实现也须明确返回通过。只有检查通过的符卡才登记语言、角色符卡标记与实例。AssetBundle 加载失败不会缓存为成功，查询缺失包返回 `false`。

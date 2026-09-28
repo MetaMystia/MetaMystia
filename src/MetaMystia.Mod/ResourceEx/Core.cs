@@ -93,6 +93,8 @@ public static partial class ResourceExManager
         // 兜底：若 GetActiveKeys Hook 未触发（如非 Steam 平台），此时 DLC 状态已确定，补做加载
         OnDlcFlagsDetermined();
 
+        AssetBundleRegistry.LoadAll(); // 先于依赖特效的符卡
+        SpellRegistry.InitializeAll();
         SpecialGuestRegistry.RegisterAllSpawnConfigs();
         IngredientRegistry.RegisterAllIngredients();
         BeverageRegistry.RegisterAllBeverages();
@@ -121,6 +123,8 @@ public static partial class ResourceExManager
         FoodRegistry.RegisterAllFoodLanguages();
         MissionNodeRegistry.RegisterAllMissionNodeLanguages();
         ClothRegistry.RegisterAllClothLanguages();
+        SpellRegistry.RegisterAllLanguages();
+        BuffRegistry.RegisterAllBuffLanguages();
     }
 
     public static void OnDataBaseCharacterInitialized()
@@ -133,6 +137,16 @@ public static partial class ResourceExManager
         EventNodeRegistry.RegisterAllEventNodes(); // 依赖 Dialog
 
         ClothRegistry.RegisterAllClothPixelSprites(); // 依赖 DataBaseCharacter
+
+        SpellRegistry.RegisterAllCharacterHasSpell();
+    }
+
+    /// <summary>
+    /// 符卡实例与立绘：必须晚于 DataBaseNight.Initialize，见 DataBaseNightPatch。
+    /// </summary>
+    public static void OnDataBaseNightInitialized()
+    {
+        SpellRegistry.RegisterAllInstances();
     }
 
     public static void OnDataBaseAchievementInitialized()
@@ -277,12 +291,29 @@ public static partial class ResourceExManager
         EventNodeRegistry.Merge(config, packageName);
         MerchantRegistry.Merge(config, packageName);
         ClothRegistry.Merge(config, packageName);
+        SpellRegistry.Merge(config, packageName);
+        BuffRegistry.Merge(config, packageName);
+        AssetBundleRegistry.Merge(config, packageName);
     }
 
     private static void NormalizePackageResourceUris(ResourceConfig config, string packageLabel)
     {
         if (config == null)
             return;
+
+        foreach (var spell in config.spells ?? [])
+        {
+            spell.vfxBundle = ResolveAssetUriOrSelf(spell.vfxBundle, packageLabel);
+            foreach (var card in new[] { spell.positive, spell.negative })
+                if (card != null)
+                    card.portrait = ResolveAssetUriOrSelf(card.portrait, packageLabel);
+        }
+
+        foreach (var buff in config.buffs ?? [])
+            buff.icon = ResolveAssetUriOrSelf(buff.icon, packageLabel);
+
+        foreach (var bundle in config.assetBundles ?? [])
+            bundle.path = ResolveAssetUriOrSelf(bundle.path, packageLabel);
 
         if (config.characters != null)
         {

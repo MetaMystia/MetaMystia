@@ -83,6 +83,7 @@ public static partial class PatchRegistry
         typeof(DaySceneMapProfilePatch),
         typeof(DialogPannelPatch),
         typeof(DataBaseSchedulerPatch),
+        typeof(DataBaseNightPatch),
         typeof(RunTimeDayScenePatch),
         typeof(DaySceneChatSelectionPannel__c__DisplayClass17_0Patch),
         typeof(CollabBehaviourComponentPatch),

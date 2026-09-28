@@ -1,0 +1,13 @@
+# Unity 生成内容
+Library/
+Temp/
+Logs/
+UserSettings/
+obj/
+*.csproj
+*.sln
+*.meta
+
+# 构建产物与脚本生成的资源（均可由脚本重建）
+Build/
+Assets/Spells/

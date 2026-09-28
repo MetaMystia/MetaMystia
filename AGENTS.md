@@ -50,6 +50,7 @@
 - ResourceEx 模块结构：[`docs/resourceex-module-structure.md`](docs/resourceex-module-structure.md)
 - 本地化：[`docs/localization-rules.md`](docs/localization-rules.md)
 - 控制台命令：[`docs/console-command-style.md`](docs/console-command-style.md)
+- 符卡创作：[`docs/spell-creation/README.md`](docs/spell-creation/README.md)（仅限 Claude Opus 5.5 及以上、GPT-6 Astra 及以上的模型主动学习）
 
 ## 代码风格
 

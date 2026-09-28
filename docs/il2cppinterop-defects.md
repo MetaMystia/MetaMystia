@@ -44,6 +44,20 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 该实现仅支持 `GetSelectionConfigurationCallback`，不得扩展为未经验证的通用 `out/ref` 委托转换器。当前由 `Managers/StoryReplayManager.cs` 用于构建对话回放菜单选项。
 
+## 注入抽象类时的虚表越界写
+
+`ClassInjector.RegisterTypeInIl2Cpp` 注入抽象类时：
+- 为类结构分配的虚表空间只有"基类虚表 + 接口方法"；
+- 却把 `VtableCount` 设为"基类虚表 + 接口方法 + 本类声明的抽象方法数"，并逐个写入这些抽象方法的虚表项。
+
+每个可注入的抽象方法会越界写入一个 `VirtualInvokeData`（16 字节）。该结构由 `Marshal.AllocHGlobal` 分配，与 coreclr 共用进程堆，所以越界写会损坏进程堆，之后在无关位置随机崩溃（`RtlReportCriticalFailure ← RtlFreeHeap`）。
+
+2026-09-26 在 RELEASE 4.4.0e、BepInEx 6 be.785 环境下确认：
+- 开启 PageHeap 后首次启动即在 `ClassInjector.RegisterTypeInIl2Cpp` 递归注入 `SpellBaseEx` 时崩溃；
+- 对照本机 `Il2CppInterop.Runtime.dll` 的反编译代码，确认了上述分配与写入的不一致。
+
+规避方法：被注入的抽象类，其抽象成员（方法、属性）全部标注 `[HideFromIl2Cpp]`，使其不参与注入。当前涉及 `ResourceEx/SpellCollection/SpellBaseEx.cs`。抽象成员如需被游戏调用，应改为带默认实现的虚成员。
+
 ## 维护规则
 
 - 优先使用正常的强类型 Interop API，不得预先采用指针绕过。
