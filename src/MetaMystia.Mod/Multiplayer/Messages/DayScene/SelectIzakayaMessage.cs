@@ -9,6 +9,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 任何玩家 → 所有玩家：通告玩家所选店铺地点和等级
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 public partial class SelectIzakayaMessage : MultiplayerMessage
 {
     public MapLabel MapLabel { get; set; } = MapLabel.Unknown;

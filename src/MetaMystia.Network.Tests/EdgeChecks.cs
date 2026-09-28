@@ -67,25 +67,24 @@ static partial class Checks
     static async Task BadFrames(Server server, Client survivor)
     {
         int before = (await server.GetSnapshotAsync()).World.Length;
-        using (var raw = new TcpClient())
+        using (var raw = await RawPeer.Connect(server))
         {
-            await raw.ConnectAsync(server.Endpoint.Address, server.Endpoint.Port);
             var hello = Protocol.Encode(new(Kind.Hello, Protocol.Hello(Versions.Current, Player("fragment"), "")));
-            foreach (var value in hello) await raw.GetStream().WriteAsync(new byte[] { value });
-            var welcome = await Read(raw); Assert(welcome.Kind == Kind.Welcome, "逐字节分割帧头和正文完成握手");
+            foreach (var value in hello.Chunk(3)) raw.SendBytes(value);
+            var welcome = await raw.Read(); Assert(welcome.Kind == Kind.Welcome, "跨消息分割帧头和正文完成握手");
             var received = new List<ReceivedMessage>(); survivor.MessageReceived += received.Add;
             var frames = Enumerable.Range(0, 60).SelectMany(i => Protocol.Encode(new(Kind.Data, BitConverter.GetBytes(i), Sender: 9999, Type: 1, Route: Route.World))).ToArray();
-            await raw.GetStream().WriteAsync(frames);
+            raw.SendBytes(frames);
             await Until(() => received.Count == 60);
-            Assert(received.Select(m => BitConverter.ToInt32(m.Body)).SequenceEqual(Enumerable.Range(0, 60)) && received.All(m => m.Context.Sender == welcome.Sender), "粘连多帧有序，服务端覆盖伪造来源 UID");
+            Assert(received.Select(m => BitConverter.ToInt32(m.Body)).SequenceEqual(Enumerable.Range(0, 60)) && received.All(m => m.Context.Sender == welcome.Sender), "单条消息粘连多帧有序，服务端覆盖伪造来源 UID");
         }
         await WaitCount(server, before);
         foreach (var bad in new byte[][] { [0, 0, 0, 0], [255, 255, 255, 127], [1, 0, 0, 0, 255], Protocol.Encode(new(Kind.Motion, Protocol.Pack(new Motion { X = float.NaN }))) })
         {
-            using var raw = new TcpClient(); await raw.ConnectAsync(server.Endpoint.Address, server.Endpoint.Port);
-            await raw.GetStream().WriteAsync(Protocol.Encode(new(Kind.Hello, Protocol.Hello(Versions.Current, Player("bad-frame"), ""))));
-            await Read(raw);
-            await raw.GetStream().WriteAsync(bad);
+            using var raw = await RawPeer.Connect(server);
+            raw.Send(new(Kind.Hello, Protocol.Hello(Versions.Current, Player("bad-frame"), "")));
+            await raw.Read();
+            raw.SendBytes(bad);
             await WaitCount(server, before);
         }
         Assert(survivor.IsConnected, "坏长度、未知类型、非法运动仅清理对应连接并释放名额");
@@ -94,7 +93,7 @@ static partial class Checks
         var probe = await Connect(server, "after-bad");
         var got = false; survivor.MessageReceived += m => { if (m.Body.SequenceEqual(new byte[] { 123 })) got = true; };
         probe.SendToWorld(1, [123]); await Until(() => got); probe.Disconnect(); await WaitCount(server, before);
-        Assert(got, "未完成帧超时后仍可接纳新玩家并通信");
+        Assert(got, "未完成握手超时后仍可接纳新玩家并通信");
     }
 
     static async Task LargeSnapshots()
@@ -120,7 +119,7 @@ static partial class Checks
     {
         await using var lan = new LanSession(maxPlayers: 2, messages: rules); clients.Add(lan.Client);
         await Pump(lan.StartAsync(Player("LAN-host")));
-        Assert(lan.Client.State.Room != null && lan.Client.Uid > 0, "局域网同一客户端本机 TCP 自动建房");
+        Assert(lan.Client.State.Room != null && lan.Client.Uid > 0, "局域网同一客户端本机连接自动建房");
         await Pump(lan.Client.SetJoinableAsync(true));
         var guest = new Client(); clients.Add(guest);
         bool observedWorldOnly = false;

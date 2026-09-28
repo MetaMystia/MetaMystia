@@ -9,6 +9,7 @@ namespace MetaMystia.Multiplayer.Messages;
 
 
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class SellableFood
 {
@@ -25,7 +26,7 @@ public partial class SellableFood
         {
             return Id.AsNewBeverage();
         }
-        
+
         var food = Id.AsNewFood();
         food.level = Level;
         food.modifier = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<int>(ModifierIds);
@@ -48,7 +49,7 @@ public partial class SellableFood
     public static SellableFood FromSellable(Sellable sellable)
     {
         if (sellable == null) return null;
-        
+
         if (sellable.Type == Sellable.SellableType.Beverage)
         {
             return new SellableFood()
@@ -57,7 +58,7 @@ public partial class SellableFood
                 Type = Sellable.SellableType.Beverage
             };
         }
-        
+
         var res = new SellableFood
         {
             Type = Sellable.SellableType.Food,

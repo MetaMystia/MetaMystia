@@ -37,7 +37,7 @@ static partial class Checks
         NetworkError? ended = null;
         overflow.ConnectionEnded += error => ended = error;
         var connecting = overflow.ConnectAsync(server.Endpoint, Player("Overflow"));
-        // 延后主线程派发，让拒绝帧和随后到达的 TCP 关闭一起等待处理。
+        // 延后主线程派发，让拒绝帧和随后到达的连接关闭一起等待处理。
         for (int i = 0; i < 500 && overflow.PendingFrames == 0; i++) await Task.Delay(2);
         Assert(overflow.PendingFrames > 0, "服务器拒绝帧已到达并等待派发");
         await Task.Delay(100);
@@ -46,7 +46,7 @@ static partial class Checks
         Assert(full.Code == NetworkErrorCode.ServerFull && full.Count == 2 && full.Limit == 2,
             "服务器满员拒绝携带人数和上限");
         Assert(ended?.Code == NetworkErrorCode.ServerFull && ended.Count == 2 && ended.Limit == 2,
-            "拒绝后立即关闭 TCP 仍向界面派发服务器满员原因");
+            "拒绝后立即关闭连接仍向界面派发服务器满员原因");
         await Pump(host.CreateRoomAsync(1));
         await Pump(host.SetJoinableAsync(true));
         var roomFull = await ErrorFrom(guest.JoinRoomAsync(host.State.Room!.Id));

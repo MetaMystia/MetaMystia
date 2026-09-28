@@ -6,6 +6,7 @@ namespace MetaMystia;
 
 /// <summary>游戏端与网络端共用的玩家资源表。</summary>
 [MemoryPackable]
+[GenerateTypeScript]
 public partial class ResourceDataBase
 {
     /// <summary>None 表示全量，否则列表只保存未被完整 DLC 覆盖的资源。</summary>

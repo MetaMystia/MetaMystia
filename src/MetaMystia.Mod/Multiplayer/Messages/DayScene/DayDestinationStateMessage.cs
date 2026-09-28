@@ -5,6 +5,7 @@ using MemoryPack;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class DayDestinationStateMessage : MultiplayerMessage
 {

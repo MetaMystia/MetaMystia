@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
     <BepInExPath>/path/to/BepInEx</BepInExPath>
+    <MemoryPackGenerator_TypeScriptOutputDirectory>/path/to/meta-mystia-server</MemoryPackGenerator_TypeScriptOutputDirectory>
   </PropertyGroup>
 </Project>

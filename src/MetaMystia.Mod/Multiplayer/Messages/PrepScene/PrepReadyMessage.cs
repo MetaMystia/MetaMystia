@@ -6,6 +6,7 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>任何玩家 → 所有玩家：通告普通备菜或幽幽子试炼本轮备菜就绪。</summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class PrepReadyMessage : MultiplayerMessage
 {

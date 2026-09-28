@@ -3,6 +3,7 @@ using MemoryPack;
 namespace MetaMystia.Network;
 
 [MemoryPackable]
+[GenerateTypeScript]
 public sealed partial record ChatPayload
 {
     public const int MaxLength = 1024;

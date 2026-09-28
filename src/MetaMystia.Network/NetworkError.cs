@@ -55,6 +55,7 @@ public enum NetworkErrorCode : ushort
 
 /// <summary>协议错误及可选上下文；版本指拒绝连接的一端。</summary>
 [MemoryPackable]
+[GenerateTypeScript]
 public sealed partial record NetworkError
 {
     public NetworkErrorCode Code { get; init; }

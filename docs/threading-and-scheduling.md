@@ -5,7 +5,7 @@
 项目主要存在以下执行环境：
 
 - Unity 主线程：生命周期、场景、UI 和绝大多数游戏对象访问。
-- `Connection` 异步 IO：TCP 接收、发送和连接维护；`Server` 单一处理循环维护网络状态。
+- `Connection` 异步 IO：WebSocket 接收、发送和连接维护；`Server` 单一处理循环维护网络状态。
 - `Task` 或异步 IO：HTTP、文件等外部操作。
 - 协程：由 Unity 主线程推进的延迟、等待和周期逻辑。
 - `CommandScheduler`：计划弃用的旧条件调度。

@@ -16,6 +16,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 客机通过一次性放行调用原版 PatientDepletedLeave，完整执行清理与离桌。
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class PatientDepletedDeskMessage : MultiplayerMessage
 {

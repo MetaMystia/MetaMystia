@@ -10,6 +10,7 @@ using MetaMystia.Patch;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class StoreSellableMessage : MultiplayerMessage
 {

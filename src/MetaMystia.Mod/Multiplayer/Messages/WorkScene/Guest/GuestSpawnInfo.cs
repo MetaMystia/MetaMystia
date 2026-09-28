@@ -7,6 +7,7 @@ using static NightScene.GuestManagementUtility.GuestsManager;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial class GuestSpawnInfo
 {
     public GuestType GuestType { get; set; }

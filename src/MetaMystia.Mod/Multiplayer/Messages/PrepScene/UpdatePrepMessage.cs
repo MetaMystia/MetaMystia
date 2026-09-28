@@ -7,10 +7,12 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>客机提交备菜修改，主机按接收顺序处理并广播完整结果。</summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class UpdatePrepMessage : MultiplayerMessage
 {
     [MemoryPackable]
+[GenerateTypeScript]
     public partial class Table
     {
         public List<int> Recipes { get; set; } = [];

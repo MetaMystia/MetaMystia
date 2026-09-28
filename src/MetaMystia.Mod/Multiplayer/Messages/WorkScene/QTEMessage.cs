@@ -9,6 +9,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// QTE(Quick Time Event): 夜雀之歌
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class QTEMessage : MultiplayerMessage
 {

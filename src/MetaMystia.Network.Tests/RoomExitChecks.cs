@@ -1,6 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
-
 using Common.UI;
 
 using MetaMystia.Network;
@@ -35,23 +32,21 @@ static partial class Checks
         clients.Add(lan.Client);
         await Pump(lan.StartAsync(Player("raw-exit-host")));
         await Pump(lan.Client.SetJoinableAsync(true));
-        using var raw = new TcpClient();
-        await raw.ConnectAsync(IPAddress.Loopback, lan.Server.Endpoint.Port);
-        await raw.GetStream().WriteAsync(Protocol.Encode(new(Kind.Hello,
-            Protocol.Hello(Versions.Current, Player("raw-exit-guest"), ""))));
-        var welcome = await Read(raw);
+        using var raw = await RawPeer.Connect(lan.Server);
+        raw.Send(new(Kind.Hello, Protocol.Hello(Versions.Current, Player("raw-exit-guest"), "")));
+        var welcome = await raw.Read();
         var state = Protocol.Read<Snapshot>(welcome.Body);
-        await raw.GetStream().WriteAsync(Protocol.Encode(new(Kind.Command, Protocol.Pack(new Control
+        raw.Send(new(Kind.Command, Protocol.Pack(new Control
         {
             Command = Command.Leave, Request = 1, Room = state.Room!.Id,
             Membership = state.Room.Members.Single(p => p.Uid == welcome.Sender).Membership
-        }))));
+        })));
         bool worldOnly = false;
         try
         {
             while (true)
             {
-                var frame = await Read(raw);
+                var frame = await raw.Read();
                 if (frame.Kind == Kind.Snapshot) worldOnly |= Protocol.Read<Snapshot>(frame.Body).Room == null;
             }
         }

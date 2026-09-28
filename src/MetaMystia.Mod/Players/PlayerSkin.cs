@@ -15,6 +15,7 @@ using SgrYuki.Utils;
 namespace MetaMystia;
 
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class PlayerSkin
 {

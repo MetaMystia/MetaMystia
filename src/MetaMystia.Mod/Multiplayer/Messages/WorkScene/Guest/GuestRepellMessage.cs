@@ -7,6 +7,7 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>主机已进入驱赶清理；客机不重跑玩家赶客的判定与付款。</summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class GuestRepellMessage : MultiplayerMessage
 {

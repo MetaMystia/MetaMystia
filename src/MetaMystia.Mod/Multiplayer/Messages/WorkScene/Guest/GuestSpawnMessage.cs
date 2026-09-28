@@ -5,6 +5,7 @@ using NightScene.GuestManagementUtility;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class GuestSpawnMessage : MultiplayerMessage
 {

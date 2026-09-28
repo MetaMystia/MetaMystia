@@ -3,6 +3,7 @@ using MemoryPack;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial class CookerSlot
 {
     public const int SlotsLength = 16; // TODO: 根据实际情况调整最大值，重构 PrepSceneManager 相关代码

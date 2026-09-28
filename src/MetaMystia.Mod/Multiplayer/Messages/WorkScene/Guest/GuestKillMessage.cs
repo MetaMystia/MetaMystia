@@ -11,6 +11,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 不应反向污染主机权威)。
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class GuestKillMessage : MultiplayerMessage
 {

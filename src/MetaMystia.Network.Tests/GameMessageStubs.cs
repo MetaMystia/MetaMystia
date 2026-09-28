@@ -19,6 +19,7 @@ namespace MetaMystia.Multiplayer
 namespace MetaMystia.Multiplayer.Messages
 {
     [MemoryPackable]
+[GenerateTypeScript]
     [MemoryPackUnion((ushort)GameMessageType.Chat, typeof(ChatMessage))]
     [MemoryPackUnion((ushort)GameMessageType.Ping, typeof(PingMessage))]
     [MemoryPackUnion((ushort)GameMessageType.NightCook, typeof(NightCookMessage))]
@@ -33,9 +34,11 @@ namespace MetaMystia.Multiplayer.Messages
     }
 
     [MemoryPackable]
+[GenerateTypeScript]
     public partial class PingMessage : MultiplayerMessage {}
     public class PongMessage : MultiplayerMessage {}
     [MemoryPackable]
+[GenerateTypeScript]
     public partial class ChatMessage : MultiplayerMessage { public string Message { get; set; } = "hello"; }
     public class SelectIzakayaMessage : MultiplayerMessage {}
     public class ConfirmIzakayaMessage : MultiplayerMessage {}
@@ -43,6 +46,7 @@ namespace MetaMystia.Multiplayer.Messages
     public class PrepReadyMessage : MultiplayerMessage {}
     public class PrepAllReadyMessage : MultiplayerMessage {}
     [MemoryPackable]
+[GenerateTypeScript]
     public partial class NightCookMessage : MultiplayerMessage {}
     public class ExtractFromCookerMessage : MultiplayerMessage {}
     public class StoreFoodMessage : MultiplayerMessage {}

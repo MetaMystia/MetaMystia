@@ -10,7 +10,7 @@
 
 | 代码 | 职责 |
 |---|---|
-| `MetaMystia.Network/Connection`、`Protocol` | TCP 分帧、有序收发、容量限制和超时 |
+| `MetaMystia.Network/Connection`、`Protocol` | WebSocket 握手与分帧、有序收发、容量限制和超时 |
 | `MetaMystia.Network/Server` | 单一处理循环维护成员和房间，校验身份并路由 |
 | `MetaMystia.Network/Client` | 请求与确认、状态快照、调用线程上的有序派发 |
 | `MetaMystia.Network/LanSession` | 本地开服与房主连接；服务端在握手时创建或分配默认房间 |
@@ -61,7 +61,7 @@
 
 ## 命令
 
-默认 TCP 端口为 `40815`，可通过配置修改。
+默认端口为 `40815`，使用 WebSocket（`ws://地址:端口/`），可通过配置修改。
 
 房间码由服务器随机分配，范围为 `0001–FFFF`，显示为四位大写十六进制。`/mp create [count]` 的参数是人数上限，不是房间码；创建成功后显示房间码。加入时大小写不敏感，例如 `/mp join ab20`。
 
@@ -96,6 +96,6 @@ dotnet run --project src/MetaMystia.Server -c Release --no-build -- 40815 16
 
 普通构建同时部署主模组到 `BepInEx/plugins`、预加载组件到 `BepInEx/patchers/MetaMystia`。网络程序集由 Costura 嵌入主模组；预加载组件在插件发现前执行主模组的模块初始化，注册内嵌依赖解析。
 
-网络测试覆盖 TCP 顺序、阶段、房间管理、权限和消息隔离；流程测试覆盖入口确认、营业等待与场景转换，使用替代的游戏和传输入口。
+网络测试覆盖帧顺序、阶段、房间管理、权限和消息隔离；流程测试覆盖入口确认、营业等待与场景转换，使用替代的游戏和传输入口。
 
 已完成源码审计、编译和离线检查，预加载启动验证通过。双机验证按具体场景记录，启动与离线检查不代表完整营业／试炼已实测通过。

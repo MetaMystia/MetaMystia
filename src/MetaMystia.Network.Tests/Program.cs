@@ -1,6 +1,4 @@
-using System.Buffers.Binary;
 using System.Net;
-using System.Net.Sockets;
 
 using MemoryPack;
 
@@ -54,13 +52,6 @@ static partial class Checks
         catch (NetworkException e) { return e.Code.ToString(); }
         catch (OperationCanceledException) { return "Cancelled"; }
         catch (TimeoutException) { return "Timeout"; }
-    }
-    static async Task<Frame> Read(TcpClient tcp)
-    {
-        using var deadline = new CancellationTokenSource(3000);
-        var head = new byte[4]; await Connection.ReadExactly(tcp.GetStream(), head, deadline.Token);
-        var body = new byte[BinaryPrimitives.ReadInt32LittleEndian(head)];
-        await Connection.ReadExactly(tcp.GetStream(), body, deadline.Token); return Protocol.Decode(body);
     }
     static async Task WaitCount(Server server, int count)
     {

@@ -12,6 +12,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 客机重放仅做 RemoveFromPatientCountdown + MoveToSpawn 这条最小副作用。
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class PatientDepletedQueueMessage : MultiplayerMessage
 {

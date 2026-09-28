@@ -10,6 +10,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 任何玩家 → 全体玩家：通告锁定某个厨具以准备烹饪某个料理，总是在 QTEMessage 之前触发。
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class NightCookMessage : MultiplayerMessage
 {

@@ -11,6 +11,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 那次变更的广播已在主机→sender 的 TCP 流中（队列或在途），sender 早晚会处理并自然回滚。
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class ServeSellableMessage : MultiplayerMessage
 {

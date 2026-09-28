@@ -36,6 +36,7 @@ public static class QTEBuffExtension
 /// 任何玩家 → 全体玩家：通告触发 QTE Buff
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class BuffMessage : MultiplayerMessage
 {

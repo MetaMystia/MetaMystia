@@ -5,6 +5,7 @@ using GameData.Core.Collections;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class ConfirmServeMessage : MultiplayerMessage
 {

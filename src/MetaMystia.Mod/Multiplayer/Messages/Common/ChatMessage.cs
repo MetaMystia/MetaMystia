@@ -10,6 +10,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 玩家或服务端 → 所有玩家：发送聊天消息
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 public partial class ChatMessage : MultiplayerMessage
 {
 

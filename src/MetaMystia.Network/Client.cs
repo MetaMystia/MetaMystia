@@ -64,7 +64,7 @@ public sealed class Client : IDisposable
             lock (gate)
             {
                 if (current.End != null) throw new NetworkException(current.End);
-                current.Wire = new(tcp, ConnectionTimeout, frame =>
+                current.Wire = new(tcp, server: false, ConnectionTimeout, frame =>
                 {
                     if (frame.Kind == Kind.Ping)
                     {
@@ -292,7 +292,7 @@ public sealed class Client : IDisposable
                 Invoke(() => ChatRejected?.Invoke(chatError)); break;
             case Kind.Rejected:
                 var error = Protocol.ReadError(f.Body);
-                // 拒绝原因优先于随后到达的 TCP 关闭通知。
+                // 拒绝原因优先于随后到达的连接关闭通知。
                 current.End = error;
                 current.Connected.TrySetException(new NetworkException(error)); End(current, error); break;
             case Kind.Welcome:

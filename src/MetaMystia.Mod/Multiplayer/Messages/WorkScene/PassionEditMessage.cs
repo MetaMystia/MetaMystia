@@ -10,6 +10,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 任何玩家 → 全体玩家: NightScene.EventUtility.EventManager.PassionEdit 的网络同步
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 
 public partial class PassionEditMessage : MultiplayerMessage

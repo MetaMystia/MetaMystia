@@ -11,6 +11,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 主机 → 全体客机：确认全员选店一致，客机收到后执行场景切换。
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class ConfirmIzakayaMessage : MultiplayerMessage
 {

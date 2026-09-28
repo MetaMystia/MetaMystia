@@ -12,6 +12,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 主机 → 所有客机：广播打烊
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class IzakayaCloseMessage : MultiplayerMessage
 {

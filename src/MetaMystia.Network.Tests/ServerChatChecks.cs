@@ -1,5 +1,3 @@
-using System.Net.Sockets;
-
 using MetaMystia.Hosting;
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
@@ -40,13 +38,12 @@ static partial class Checks
         await Until(() => messages.Count >= 6);
         Assert(messages.Count == 6 && a.IsConnected && b.IsConnected && c.IsConnected, "拒绝的服务端发言不广播且不影响连接");
 
-        using var tcp = new TcpClient();
-        await tcp.ConnectAsync(server.Endpoint);
-        await tcp.GetStream().WriteAsync(Protocol.Encode(new(Kind.Hello, Protocol.Hello(Versions.Current, Player("fake-server"), ""))));
-        var welcome = await Read(tcp);
+        using var raw = await RawPeer.Connect(server);
+        raw.Send(new(Kind.Hello, Protocol.Hello(Versions.Current, Player("fake-server"), "")));
+        var welcome = await raw.Read();
         int uid = welcome.Sender;
-        await tcp.GetStream().WriteAsync(Protocol.Encode(new(Kind.Data, Protocol.Pack(new ChatPayload { Message = "fake" }),
-            Sender: 0, Type: (ushort)GameMessageType.Chat, Route: Route.World)));
+        raw.Send(new(Kind.Data, Protocol.Pack(new ChatPayload { Message = "fake" }),
+            Sender: 0, Type: (ushort)GameMessageType.Chat, Route: Route.World));
         await Until(() => messages.Count >= 9);
         Assert(uid != 0 && messages.Skip(6).All(m => m.Context.Sender == uid), "客户端伪造 UID 0 仍被服务端改回真实玩家身份");
         a.Disconnect(); b.Disconnect(); c.Disconnect();

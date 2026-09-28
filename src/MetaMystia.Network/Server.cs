@@ -91,7 +91,7 @@ public sealed partial class Server : IAsyncDisposable
     {
         bool local = IPAddress.IsLoopback(((IPEndPoint)tcp.Client.RemoteEndPoint!).Address);
         var peer = new Peer();
-        peer.Wire = new(tcp, options.Timeout,
+        peer.Wire = new(tcp, server: true, options.Timeout,
             f => { if (!events.Writer.TryWrite(() => Receive(peer, f))) peer.Wire.Close(NetworkErrorCode.ServerQueueFull); },
             reason => { _ = Post(() => Remove(peer, peer.RejectionReason ?? reason)); });
         peers.Add(peer);
@@ -143,7 +143,7 @@ public sealed partial class Server : IAsyncDisposable
             if (p.Player == null)
             {
                 if (f.Kind != Kind.Hello) throw new InvalidDataException();
-                // 先读完 Hello 再拒绝，避免带未读数据关闭 TCP 产生 RST 丢失错误包。
+                // 先读完 Hello 再拒绝，避免带未读数据关闭连接产生 RST 丢失错误包。
                 if (p.AdmissionError != null) { Reject(p, p.AdmissionError); return; }
                 var (player, key) = Protocol.ReadHello(f.Body, options.Versions);
                 Protocol.Validate(player, true);

@@ -11,6 +11,7 @@ namespace MetaMystia.Multiplayer.Messages;
 
 
 [MemoryPackable]
+[GenerateTypeScript]
 [MemoryPackUnion((ushort)GameMessageType.Ping, typeof(PingMessage))]
 [MemoryPackUnion((ushort)GameMessageType.Pong, typeof(PongMessage))]
 [MemoryPackUnion((ushort)GameMessageType.Chat, typeof(ChatMessage))]

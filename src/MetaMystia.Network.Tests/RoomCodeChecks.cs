@@ -1,5 +1,3 @@
-using System.Net.Sockets;
-
 using MetaMystia.Network;
 
 static partial class Checks
@@ -40,14 +38,12 @@ static partial class Checks
         RoomCode.TryParse(RoomCode.Format(ids[0]).ToLowerInvariant(), out var target);
         await Pump(guest.JoinRoomAsync(target));
         Assert(guest.State.Room?.Id == ids[0], "小写房间码解析后可加入服务器分配的房间");
-        using var raw = new TcpClient();
-        await raw.ConnectAsync(server.Endpoint.Address, server.Endpoint.Port);
-        await raw.GetStream().WriteAsync(Protocol.Encode(new(Kind.Hello, Protocol.Hello(Versions.Current, Player("raw-creator"), ""))));
-        var welcome = await Read(raw);
-        await raw.GetStream().WriteAsync(Protocol.Encode(new(Kind.Command,
-            Protocol.Pack(new Control { Command = Command.Create, Request = 1, Value = 2, Room = ids[0] }))));
+        using var raw = await RawPeer.Connect(server);
+        raw.Send(new(Kind.Hello, Protocol.Hello(Versions.Current, Player("raw-creator"), "")));
+        var welcome = await raw.Read();
+        raw.Send(new(Kind.Command, Protocol.Pack(new Control { Command = Command.Create, Request = 1, Value = 2, Room = ids[0] })));
         Frame reply;
-        do { reply = await Read(raw); } while (reply.Kind != Kind.Ack);
+        do { reply = await raw.Read(); } while (reply.Kind != Kind.Ack);
         var created = (await server.GetSnapshotAsync()).Rooms.Single(r => r.Host == welcome.Sender);
         Assert(created.Id != ids[0] && created.Id != 0 && Protocol.Read<Control>(reply.Body).Error.Code == NetworkErrorCode.None,
             "创建请求携带已有房间码也不能指定或覆盖服务器编号");

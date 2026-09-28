@@ -11,6 +11,7 @@ public enum GameStage : byte { Loading, MainMenu, Day, DayEnd, Preparation, Work
 
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial record Skin
 {
     public int CharacterId { get; init; } = -1;
@@ -21,6 +22,7 @@ public partial record Skin
 }
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial record Motion
 {
     public float X { get; init; }
@@ -33,6 +35,7 @@ public partial record Motion
 }
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial record Player
 {
     public int Uid { get; init; }
@@ -48,6 +51,7 @@ public partial record Player
 }
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial record Room
 {
     public ushort Id { get; init; }
@@ -58,6 +62,7 @@ public partial record Room
 }
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial record RoomSummary
 {
     public ushort Id { get; init; }
@@ -68,6 +73,7 @@ public partial record RoomSummary
 }
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial record Snapshot
 {
     public bool IsLan { get; init; }

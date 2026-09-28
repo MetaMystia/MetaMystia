@@ -3,6 +3,7 @@ using MemoryPack;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
+[GenerateTypeScript]
 public partial class PingMessage : MultiplayerMessage
 {
     public int Id { get; set; }

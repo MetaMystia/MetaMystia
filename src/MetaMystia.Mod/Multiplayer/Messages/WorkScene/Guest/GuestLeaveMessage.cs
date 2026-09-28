@@ -14,6 +14,7 @@ namespace MetaMystia.Multiplayer.Messages;
 /// triggerLeaveBuff 客机端强制 false 以避免 Special 顾客的负面 buff 在双端各触发一次。
 /// </summary>
 [MemoryPackable]
+[GenerateTypeScript]
 [AutoLog]
 public partial class GuestLeaveMessage : MultiplayerMessage
 {
