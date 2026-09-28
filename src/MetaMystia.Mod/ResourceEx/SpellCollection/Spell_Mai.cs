@@ -228,6 +228,13 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
     [HideFromIl2Cpp]
     protected override IEnumerator NegativeBuffRoutine(SpellExecutionContext spellExecutionContext)
     {
+        // 已生效时只追加剩余时间，保留原有评价限制、特效与结束回调。
+        if (Manager.CheckTimedBuffExists(PunishmentBuff))
+        {
+            Manager.SetExtraBuffRemainingTime(PunishmentBuff, BuffSeconds);
+            yield break;
+        }
+
         var frost = Vfx.PlayScreenOverlay(FrostFieldVfx);
         var coolDown = Vfx.Play(CoolDownVfx, GetPlayerPosition());
         EventCoroutineDelegation.Schedule(SetCameraShake(0.35f, 0.35f, 0.4f));
