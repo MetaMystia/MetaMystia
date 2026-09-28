@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
@@ -18,6 +19,7 @@ public sealed class Client : IDisposable
         internal NetworkError? End;
         internal bool EndNotified, Joining, Leaving;
         internal long SuppressedMembership;
+        internal long Latency;
     }
     private readonly object gate = new();
     private Session? session;
@@ -31,6 +33,8 @@ public sealed class Client : IDisposable
     public int Uid { get { lock (gate) return uid; } }
     internal int PendingFrames { get { lock (gate) return session?.Incoming.Reader.Count ?? 0; } }
     public bool IsConnected { get { lock (gate) return uid != 0 && session?.End == null; } }
+    /// <summary>到服务器的单程延迟估算（毫秒），尚未测得或断开时为 0。</summary>
+    public long Latency { get { lock (gate) return session is { End: null } current ? current.Latency : 0; } }
     public Snapshot State { get { lock (gate) return state.Copy(); } }
     public event Action? StateChanged;
     public event Action<ReceivedMessage>? MessageReceived;
@@ -62,7 +66,19 @@ public sealed class Client : IDisposable
                 if (current.End != null) throw new NetworkException(current.End);
                 current.Wire = new(tcp, ConnectionTimeout, frame =>
                 {
-                    if (frame.Kind == Kind.Ping) { current.Wire!.Send(new(Kind.Pong, [])); return; }
+                    if (frame.Kind == Kind.Ping)
+                    {
+                        current.Wire!.Send(new(Kind.Pong, []));
+                        current.Wire.Send(new(Kind.Ping, BitConverter.GetBytes(Stopwatch.GetTimestamp())));
+                        return;
+                    }
+                    if (frame.Kind == Kind.Pong)
+                    {
+                        if (frame.Body.Length != sizeof(long)) throw new InvalidDataException("Invalid Pong timestamp");
+                        long elapsed = Stopwatch.GetTimestamp() - BitConverter.ToInt64(frame.Body);
+                        lock (gate) current.Latency = Math.Max(0, elapsed * 500 / Stopwatch.Frequency);
+                        return;
+                    }
                     if (!current.Incoming.Writer.TryWrite(frame)) current.Wire!.Close(NetworkErrorCode.ReceiveQueueFull);
                 }, reason => { lock (gate) current.End ??= reason; });
                 current.Wire.Send(new(Kind.Hello, hello));
