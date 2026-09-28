@@ -107,6 +107,9 @@ public enum TextId
     MpConnected,
     PeerJoined,
     PeerLeft,
+    PeerConnected,
+    PeerDisconnected,
+    NetworkRoomLeft,
     ChallengeWarning,
 
     // Peer Disconnect & Continue

@@ -12,5 +12,6 @@
     <Compile Include="../MetaMystia.Mod/Managers/GameFlow.Transitions.cs" Link="GameFlow.Transitions.cs" />
     <Compile Include="../MetaMystia.Mod/Patches/Common/IzakayaSelectorPanelPatch.cs" Link="IzakayaSelectorPanelPatch.cs" />
     <Compile Include="../MetaMystia.Mod/Patches/HarmonyPrefixFlow.cs" Link="HarmonyPrefixFlow.cs" />
+    <Compile Include="../MetaMystia.Mod/UI/PlayerPresenceNotice.cs" Link="PlayerPresenceNotice.cs" />
   </ItemGroup>
 </Project>

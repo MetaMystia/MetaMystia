@@ -315,7 +315,7 @@ public sealed partial class Server : IAsyncDisposable
     {
         p.SentResources.Clear(); p.Room = room.Id; p.MembershipRequest = request;
         p.Player = p.Player! with { Membership = checked(++nextMembership), Motion = new(), HasMotion = false };
-        Log(ServerLogLevel.Info, $"玩家加入房间 room={RoomCode.Format(room.Id)} uid={p.Player.Uid}，人数 {peers.Count(x => x.Room == room.Id)}/{room.MaxPlayers}");
+        Log(ServerLogLevel.Info, $"玩家加入房间 room={RoomCode.Format(room.Id)} uid={p.Player.Uid} name={ServerLogEntry.Quote(p.Player.Name)}，人数 {peers.Count(x => x.Room == room.Id)}/{room.MaxPlayers}");
     }
 
     private void Leave(Peer p)
@@ -328,7 +328,6 @@ public sealed partial class Server : IAsyncDisposable
             return;
         }
         var room = rooms[p.Room];
-        Log(ServerLogLevel.Info, $"玩家离开房间 room={RoomCode.Format(room.Id)} uid={p.Player!.Uid}");
         if (room.Host == p.Player!.Uid)
         {
             rooms.Remove(room.Id);
@@ -338,13 +337,19 @@ public sealed partial class Server : IAsyncDisposable
         else ClearRoom(p);
     }
 
-    private static void ClearRoom(Peer p)
-    { p.SentResources.Clear(); p.Room = 0; p.MembershipRequest = 0; p.Player = p.Player! with { Membership = 0, Motion = new(), HasMotion = false }; }
+    private void ClearRoom(Peer p)
+    {
+        if (p.Room == 0) return;
+        Log(ServerLogLevel.Info, $"玩家离开房间 room={RoomCode.Format(p.Room)} uid={p.Player!.Uid} name={ServerLogEntry.Quote(p.Player.Name)}");
+        p.SentResources.Clear(); p.Room = 0; p.MembershipRequest = 0; p.Player = p.Player! with { Membership = 0, Motion = new(), HasMotion = false };
+    }
 
     private void Remove(Peer p, NetworkError reason)
     {
         if (!peers.Contains(p)) return;
-        Leave(p); peers.Remove(p);
+        if (options.LanKey != null) ClearRoom(p);
+        else Leave(p);
+        peers.Remove(p);
         if (p.Player != null)
         {
             Log(reason.Code is NetworkErrorCode.ReceiveTimeout or NetworkErrorCode.InvalidMessage ? ServerLogLevel.Warning : ServerLogLevel.Info,
@@ -470,7 +475,11 @@ public sealed partial class Server : IAsyncDisposable
         await Post(() =>
         {
             var connections = peers.Select(p => p.Wire.Completion).ToArray();
-            foreach (var p in peers.ToArray()) p.Wire.Close(NetworkErrorCode.ServerStopped);
+            foreach (var p in peers.ToArray())
+            {
+                p.Wire.Close(NetworkErrorCode.ServerStopped);
+                Remove(p, NetworkErrorCode.ServerStopped);
+            }
             peers.Clear(); rooms.Clear();
             drained.TrySetResult(connections);
         }).ConfigureAwait(false);

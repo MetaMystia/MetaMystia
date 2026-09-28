@@ -75,6 +75,7 @@ static partial class Checks
         ResourceTables();
         await RoomCodes();
         await RoomExits();
+        await PresenceLogs();
         await ForwardedMessageChecks();
         await ChatFiltering();
         await Administration();

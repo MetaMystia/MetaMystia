@@ -244,4 +244,5 @@ Check(GameSession.Leaves == 0 && GameSession.Stops == 0, "独立服务器世界�
 GameSession.IsConnecting = true;
 GameFlow.LeaveRoomForTransition();
 Check(GameSession.Stops == 1 && !GameSession.Resumed, "场景中断取消尚未完成的连接");
+PlayerPresenceChecks.Run(Check);
 Console.WriteLine($"ALL PASS ({checks} assertions; game and transport ports simulated)");

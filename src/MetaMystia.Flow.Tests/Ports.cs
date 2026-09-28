@@ -55,7 +55,8 @@ namespace MetaMystia
     }
     static class LiveModeManager
     {
-        public static string GetDisplayName(int uid) => uid.ToString();
+        public static bool IsActive;
+        public static string GetDisplayName(int uid, string fallback = null) => IsActive ? $"UID-{uid}" : fallback ?? uid.ToString();
     }
     sealed class PluginHost
     {
@@ -149,14 +150,18 @@ namespace MetaMystia.UI
         DestinationBusinessConfirmed, DestinationFinalTrialConfirmed, DestinationFinalTrialAgainConfirmed,
         WaitingForHostConfirm, SelectedIzakaya, SelectedIzakayaMismatch,
         NetworkFlowInterrupted, MultiplayerDisconnected,
+        PeerConnected, PeerDisconnected, PeerJoined, PeerLeft, NetworkRoomLeft,
     }
     static class Text
     {
-        public static string Get(this TextId text, params object[] args) => text.ToString();
+        public static string Get(this TextId text, params object[] args) => text is
+            TextId.PeerConnected or TextId.PeerDisconnected or TextId.PeerJoined or TextId.PeerLeft or TextId.NetworkRoomLeft
+            ? $"{text}: {string.Join(", ", args)}" : text.ToString();
     }
     static class InGameConsole
     {
-        public static void ShowPassive(string text) { }
+        public static readonly List<string> Messages = new();
+        public static void ShowPassive(string text) => Messages.Add(text);
     }
 }
 namespace SgrYuki.Utils

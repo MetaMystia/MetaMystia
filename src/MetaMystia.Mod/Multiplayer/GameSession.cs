@@ -122,7 +122,9 @@ public static partial class GameSession
     {
         if (Client != client) return;
         var previous = RoomMembershipId;
+        var previousState = State;
         State = client.State;
+        PlayerPresenceNotice.ShowChanges(previousState, State, client.Uid);
         PlayerManager.Local.Uid = client.Uid;
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (previous != RoomMembershipId)
@@ -198,6 +200,7 @@ public static partial class GameSession
 
     public static void Stop(bool resumeGameplay = true)
     {
+        var wasOnline = IsOnline;
         cancellation?.Cancel();
         cancellation?.Dispose();
         cancellation = null;
@@ -213,6 +216,7 @@ public static partial class GameSession
         PlayerManager.Local.Uid = 0;
         YuyukoGuestSync.Reset();
         RoomClock.Reset();
+        if (wasOnline) InGameConsole.ShowPassive(TextId.MultiplayerDisconnected.Get());
     }
 
     public static void Restart()
