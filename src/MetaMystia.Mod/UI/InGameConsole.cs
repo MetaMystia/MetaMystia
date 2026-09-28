@@ -380,6 +380,12 @@ public static partial class InGameConsole
     // ====================================================================
     public static void OnGUI()
     {
+        if (ConfigManager.ConsoleX.Value > Screen.width * 0.95f || ConfigManager.ConsoleY.Value > Screen.height * 0.95f)
+        {
+            ConfigManager.ConsoleX.Value = (float)ConfigManager.ConsoleX.DefaultValue;
+            ConfigManager.ConsoleY.Value = (float)ConfigManager.ConsoleY.DefaultValue;
+        }
+
         InitStyles();
 
         // Drain pending logs only during Layout pass so that control count is stable

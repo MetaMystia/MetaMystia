@@ -60,6 +60,12 @@ public static partial class PlayerListPanel
         if (!GameSession.IsConnectingOrOnline || (!_visible && !InGameConsole.IsOpen))
             return;
 
+        if (ConfigManager.PlayerListX.Value > Screen.width * 0.95f || ConfigManager.PlayerListY.Value > Screen.height * 0.95f)
+        {
+            ConfigManager.PlayerListX.Value = (float)ConfigManager.PlayerListX.DefaultValue;
+            ConfigManager.PlayerListY.Value = (float)ConfigManager.PlayerListY.DefaultValue;
+        }
+
         InitStyles();
 
         Event e = Event.current;
