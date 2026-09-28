@@ -40,7 +40,7 @@ public partial class DayScenePlayerInputPatch
     {
         if (InGameConsole.IsOpen)
         {
-            Log.Warning($"Console is open, skipping interaction");
+            Log.Debug($"Console is open, skipping interaction");
             return SkipOriginal;
         }
         if (!GameSession.HasRoomPeers)
