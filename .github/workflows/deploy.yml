@@ -1,0 +1,84 @@
+name: Deploy server
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 编译与测试服务端
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            6.0.x
+            10.0.303
+      - name: 下载并校验编译依赖
+        run: |
+          New-Item -ItemType Directory -Force .tmp | Out-Null
+          Invoke-WebRequest https://github.com/MetaMystia/TouhouMystiaIzakaya-deps/releases/download/Release4.4.0e/deps-Release4.4.0e.zip -OutFile .tmp/deps.zip
+          if ((Get-FileHash .tmp/deps.zip -Algorithm SHA256).Hash -ne '427951e119e6f0d5547ab36d566d03fe6969c9677e141e6b82b24c62730193d8') {
+            throw '编译依赖 SHA-256 不匹配'
+          }
+          Expand-Archive .tmp/deps.zip -DestinationPath .tmp/deps
+          '<Project><PropertyGroup><BepInExPath>$(MSBuildThisFileDirectory).tmp/deps</BepInExPath></PropertyGroup></Project>' |
+            Set-Content MetaMystia.local.props -Encoding utf8
+          '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' |
+            Set-Content global.json -Encoding utf8
+      - name: 网络测试
+        run: dotnet run --project src/MetaMystia.Network.Tests -c Release
+      - name: 流程测试
+        run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
+      - name: 构建 Linux 服务端（包含运行时）
+        run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release -r linux-x64 --self-contained true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: server-linux-x64
+          path: src/MetaMystia.Server/bin/Release/net6.0/linux-x64/publish/
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    name: 停止并部署服务端
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: server-linux-x64
+          path: server
+      - name: 上传并部署
+        shell: bash
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$SERVER_HOST"
+          test -n "$SERVER_SSH_KEY"
+          test -n "$SERVER_KNOWN_HOSTS"
+          umask 077
+          mkdir -p ~/.ssh
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod +x server/MetaMystia.Server
+          tar -czf server.tar.gz -C server .
+          ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "metamystia-cd@$SERVER_HOST" deploy < server.tar.gz

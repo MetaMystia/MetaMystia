@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -36,6 +37,14 @@ jobs:
           dotnet-version: |
             6.0.x
             10.0.303
+
+      - name: 校验发布版本
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          [xml]$versions = Get-Content Versions.props
+          if ($env:GITHUB_REF_NAME -cne "v$($versions.Project.PropertyGroup.Version)") {
+            throw '标签必须与 Versions.props 中的版本一致'
+          }
 
       - name: 下载并校验编译依赖
         run: |
@@ -88,3 +97,33 @@ jobs:
           path: src/MetaMystia.Server/bin/Release/net6.0/publish/
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    name: 创建发布草稿
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: MetaMystia-${{ github.sha }}
+          path: package
+      - name: 上传模组草稿
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="MetaMystia-${TAG}.dll"
+          mv "package/$file" "$file"
+          sha256sum "$file" > "$file.sha256"
+          if gh release view "$TAG" --json isDraft > release.json; then
+            test "$(jq -r .isDraft release.json)" = true
+          else
+            gh release create "$TAG" --draft --verify-tag --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" "$file" "$file.sha256" --clobber
