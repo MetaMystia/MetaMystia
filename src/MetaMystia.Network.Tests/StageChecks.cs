@@ -34,7 +34,7 @@ static partial class Checks
             "自由切场景保留连接、房间和入房身份");
 
         guest.LeaveRoom();
-        await Until(() => host.State.Room!.Members.Length == 1);
+        await Until(() => host.State.Room!.Members.Length == 1 && !guest.IsLeavingRoom);
         guest.SetProfile("stage-guest", new(), Scene.DayScene, GameStage.DayEnd);
         Assert(await Failure(guest.JoinRoomAsync(room)) == "PlayerNotAvailable", "仍在 DayScene 的结束白天阶段不能入房");
         guest.SetProfile("stage-guest", new(), Scene.WorkScene, GameStage.Work);

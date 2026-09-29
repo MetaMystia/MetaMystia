@@ -20,7 +20,7 @@ static partial class Checks
         guest.LeaveRoom();
         Assert(guest.IsConnected && guest.State.Room == null && !guest.State.IsLan,
             "独立服务器夜间客人退房保留世界连接");
-        await Until(() => host.State.Room!.Members.Length == 1);
+        await Until(() => host.State.Room!.Members.Length == 1 && !guest.IsLeavingRoom);
         guest.SetProfile("exit-guest", Player("exit-guest").Skin, Scene.DayScene, GameStage.Day);
         await Until(() => host.State.World.Single(p => p.Uid == guest.Uid).Stage == GameStage.Day);
         await Pump(guest.JoinRoomAsync(host.State.Room!.Id));

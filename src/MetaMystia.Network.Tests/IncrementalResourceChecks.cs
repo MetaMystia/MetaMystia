@@ -35,7 +35,7 @@ static partial class Checks
 
         var originalMembership = guest.State.Room!.Members.Single(p => p.Uid == guest.Uid).Membership;
         guest.LeaveRoom();
-        await Until(() => host.State.Room!.Members.Length == 2);
+        await Until(() => host.State.Room!.Members.Length == 2 && !guest.IsLeavingRoom);
         var left = Protocol.Read<Snapshot>((await Read(viewer)).Body);
         Assert(left.Room!.Members.All(p => p.Resources == null), "成员离房不重发剩余成员资源");
         await Pump(guest.JoinRoomAsync(host.State.Room!.Id));

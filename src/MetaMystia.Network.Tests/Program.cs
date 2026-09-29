@@ -124,14 +124,18 @@ static partial class Checks
         await Task.Delay(30); foreach (var x in clients) x.DispatchPending();
         Assert(receivedOutside.Count == 100 && receivedA.Count == 1, "拒绝跨房定向与非房主裁定");
         guest.LeaveRoom(); Assert(guest.State.Room == null, "主动退房立即清理本地上下文");
+        clients.Remove(guest);
         await Until(() => a.State.Room!.Members.Length == 1);
-        await Task.Delay(20); guest.DispatchPending();
+        Assert(guest.IsLeavingRoom, "未派发退房确认时仍保持退房中状态");
+        clients.Add(guest);
+        await Until(() => !guest.IsLeavingRoom);
         await Pump(guest.JoinRoomAsync(room1));
         a.Reply(context, 3, [66]); await Task.Delay(30); guest.DispatchPending();
         Assert(receivedGuest.Count == 102, "旧入房身份的迟到回复不污染再次入房");
         await Pump(a.SetRoomPlayerLimitAsync(1));
         Assert(a.State.Room!.Members.Length == 2 && a.State.Room.MaxPlayers == 1 && a.State.Room.Joinable, "下调容量保留成员且不修改开关");
-        guest.LeaveRoom(); await Until(() => a.State.Room!.Members.Length == 1); await Task.Delay(20); guest.DispatchPending();
+        guest.LeaveRoom();
+        await Until(() => a.State.Room!.Members.Length == 1 && !guest.IsLeavingRoom);
         Assert(await Failure(guest.JoinRoomAsync(room1)) == "RoomFull", "下调后限制新加入");
         await Pump(a.SetRoomPlayerLimitAsync(2));
         using (var cancel = new CancellationTokenSource(30))

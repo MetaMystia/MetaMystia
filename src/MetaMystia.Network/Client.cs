@@ -32,6 +32,7 @@ public sealed class Client : IDisposable
     public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(15);
     public int Uid { get { lock (gate) return uid; } }
     internal int PendingFrames { get { lock (gate) return session?.Incoming.Reader.Count ?? 0; } }
+    internal bool IsLeavingRoom { get { lock (gate) return session?.Leaving == true; } }
     public bool IsConnected { get { lock (gate) return uid != 0 && session?.End == null; } }
     /// <summary>到服务器的单程延迟估算（毫秒），尚未测得或断开时为 0。</summary>
     public long Latency { get { lock (gate) return session is { End: null } current ? current.Latency : 0; } }
