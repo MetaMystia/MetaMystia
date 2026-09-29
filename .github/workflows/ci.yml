@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 编译与测试
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+      DEPS_URL: https://github.com/MetaMystia/TouhouMystiaIzakaya-deps/releases/download/Release4.4.0e/deps-Release4.4.0e.zip
+      DEPS_SHA256: 427951e119e6f0d5547ab36d566d03fe6969c9677e141e6b82b24c62730193d8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            6.0.x
+            10.0.303
+
+      - name: 下载并校验编译依赖
+        run: |
+          New-Item -ItemType Directory -Force .tmp | Out-Null
+          Invoke-WebRequest $env:DEPS_URL -OutFile .tmp/deps.zip
+          if ((Get-FileHash .tmp/deps.zip -Algorithm SHA256).Hash -ne $env:DEPS_SHA256) {
+            throw '编译依赖 SHA-256 不匹配'
+          }
+          Expand-Archive .tmp/deps.zip -DestinationPath .tmp/deps
+          '<Project><PropertyGroup><BepInExPath>$(MSBuildThisFileDirectory).tmp/deps</BepInExPath></PropertyGroup></Project>' |
+            Set-Content MetaMystia.local.props -Encoding utf8
+          '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' |
+            Set-Content global.json -Encoding utf8
+
+      - name: 编译模组
+        run: dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
+
+      - name: 编译 Preloader
+        run: dotnet build src/MetaMystia.Preloader/MetaMystia.Preloader.csproj -c Release -p:DeployToGame=false
+
+      - name: 网络测试
+        run: dotnet run --project src/MetaMystia.Network.Tests -c Release
+
+      - name: 流程测试
+        run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
+
+      - name: 构建服务端
+        run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release --self-contained false -p:UseAppHost=false
+
+      - name: 保存模组产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: MetaMystia-${{ github.sha }}
+          path: src/MetaMystia.Mod/bin/Release/MetaMystia-v*.dll
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 保存 Preloader 产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: MetaMystia.Preloader-${{ github.sha }}
+          path: src/MetaMystia.Preloader/bin/Release/net6.0/MetaMystia.Preloader.dll
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 保存服务端产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: MetaMystia.Server-${{ github.sha }}
+          path: src/MetaMystia.Server/bin/Release/net6.0/publish/
+          if-no-files-found: error
+          retention-days: 14
