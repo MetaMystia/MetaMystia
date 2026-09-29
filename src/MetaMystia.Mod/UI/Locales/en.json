@@ -281,7 +281,6 @@
     "MpMaxPlayersRange": "Max players must be at least 2",
     "MpDescMaxPlayers": "View or set max player limit",
     "GameVersionMismatchNotify": "Expected game version: {0}, Current version: {1}, Unexpected errors may occur!",
-    "Il2CppInteropPatchedRestartRequired": "Il2CppInterop patch has been updated automatically. Please restart the game to ensure it runs properly.",
     "MpStartDeprecated": "⚠ '/mp start server' is deprecated, use '/mp start' instead.",
     "MpStartedOnPort": "Multiplayer started as Host on port {0} ✓",
     "MpPortRange": "Port must be between 1 and 65535",

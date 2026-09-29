@@ -343,7 +343,6 @@ public enum TextId
     GameVersionMismatchNotify,
 
     // Il2CppInterop Patch
-    Il2CppInteropPatchedRestartRequired,
 
     // Max Players / Reject
     RoomFull,

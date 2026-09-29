@@ -35,7 +35,6 @@ public class Plugin : BasePlugin
     {
         ConfigManager.InitConfigs();
         L10n.Initialize();
-        Il2CppInteropPatcher.TryPatch();
 
         if (ConfigManager.Debug.Value)
         {

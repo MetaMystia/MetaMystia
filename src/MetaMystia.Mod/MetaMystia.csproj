@@ -39,16 +39,7 @@
     <Message Text="Renamed $(TargetPath) to $(RenamedAssemblyPath)$(TargetExt)" Importance="High" />
   </Target>
 
-  <Target Name="PatchIl2CppInteropHarmonySupport" AfterTargets="Build" Condition="'$(DeployToGame)' != 'false'">
-    <Copy SourceFiles="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll"
-      DestinationFolder="$(BepInExPath)\core"
-      SkipUnchangedFiles="true" />
-    <Message Text="Patched Il2CppInterop.HarmonySupport.dll → $(BepInExPath)\core"
-      Importance="High" />
-  </Target>
-
   <ItemGroup>
-    <EmbeddedResource Include="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll" />
     <EmbeddedResource Include="ResourceEx\AssetManagement\public.pem" />
     <EmbeddedResource Include="UI\Locales\en.json" />
     <EmbeddedResource Include="UI\Locales\zh-CN.json" />
