@@ -173,6 +173,11 @@ public static partial class Mappers
             case RewardType.UpgradeKizunaLevel:
                 reward.rewardId = config.rewardId;
                 break;
+            case RewardType.EnableSGuestSpawnInTargetIzakayaById:
+                reward.rewardId = config.rewardId;
+                reward.rewardIntArray = config.rewardIntArray?.ToArray() ?? new int[0];
+                reward.should = config.should ?? true;
+                break;
             case RewardType.GiveItem:
                 reward.objectType = config.objectType ?? ObjectType.Food;
                 reward.rewardIntArray = config.rewardIntArray?.ToArray() ?? new int[0];
