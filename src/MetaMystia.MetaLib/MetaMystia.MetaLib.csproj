@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../MetaMystia.local.props" />
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <NuGetAudit>false</NuGetAudit>
+    <IsPublishable>false</IsPublishable>
+    <IsPackable>false</IsPackable>
+    <Version>0.1.0</Version>
+    <AutoLogSource>MetaMystia.MetaLib.Plugin.Instance.Log</AutoLogSource>
+  </PropertyGroup>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="AutoLogSource" />
+    <ProjectReference Include="../MetaMystia.Generators/MetaMystia.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Compile Include="../MetaMystia.Mod/Utils/AutoLogAttribute.cs" Link="Logging/AutoLogAttribute.cs" />
+    <Compile Include="../MetaMystia.Mod/Utils/SgrYuki/LogWrapper.cs" Link="Logging/LogWrapper.cs" />
+    <Compile Include="../MetaMystia.Mod/Utils/SgrYuki/Functional.cs" Link="Logging/Functional.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx.Core" HintPath="$(BepInExPath)/core/BepInEx.Core.dll" Private="false" />
+    <Reference Include="BepInEx.Unity.IL2CPP" HintPath="$(BepInExPath)/core/BepInEx.Unity.IL2CPP.dll" Private="false" />
+    <Reference Include="BepInEx.Unity.Common" HintPath="$(BepInExPath)/core/BepInEx.Unity.Common.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(BepInExPath)/core/0Harmony.dll" Private="false" />
+    <Reference Include="Il2CppInterop.Runtime" HintPath="$(BepInExPath)/core/Il2CppInterop.Runtime.dll" Private="false" />
+    <Reference Include="Assembly-CSharp" HintPath="$(BepInExPath)/interop/Assembly-CSharp.dll" Private="false" />
+    <Reference Include="Il2Cppmscorlib" HintPath="$(BepInExPath)/interop/Il2Cppmscorlib.dll" Private="false" />
+    <Reference Include="Il2CppSystem" HintPath="$(BepInExPath)/interop/Il2CppSystem.dll" Private="false" />
+    <Reference Include="Newtonsoft.Json" HintPath="$(BepInExPath)/interop/Newtonsoft.Json.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(BepInExPath)/interop/UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(BepInExPath)/interop/UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(BepInExPath)/interop/UnityEngine.IMGUIModule.dll" Private="false" />
+  </ItemGroup>
+  <Target Name="DeployMetaLib" AfterTargets="Build" Condition="'$(DeployToGame)' == 'true'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExPath)/plugins/MetaMystia.MetaLib" />
+  </Target>
+</Project>

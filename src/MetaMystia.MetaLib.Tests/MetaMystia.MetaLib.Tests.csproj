@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <NuGetAudit>false</NuGetAudit>
+    <IsPublishable>false</IsPublishable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../MetaMystia.MetaLib/Storage/SaveDocument.cs" Link="SaveDocument.cs" />
+    <Compile Include="../MetaMystia.MetaLib/Storage/ModuleData.cs" Link="ModuleData.cs" />
+    <Compile Include="../MetaMystia.MetaLib/Storage/ModuleHandlers.cs" Link="ModuleHandlers.cs" />
+    <Compile Include="../MetaMystia.MetaLib/Checks/SampleData.cs" Link="SampleData.cs" />
+    <Compile Include="../MetaMystia.MetaLib/Checks/CodecChecks.cs" Link="CodecChecks.cs" />
+  </ItemGroup>
+</Project>

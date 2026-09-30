@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Concurrent;
-using GameData.Profile;
-using MetaMystia.Multiplayer;
-using MetaMystia.Patch;
+
+using BepInEx.Unity.IL2CPP;
 using UnityEngine;
 
+using GameData.Profile;
+
+using MetaMystia.Multiplayer;
+using MetaMystia.Patch;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -65,7 +68,7 @@ public static partial class PluginManager
             ToggleStatusVisibility();
         }
 
-        if (DEBUG)
+        if (DEBUG && !IL2CPPChainloader.Instance.Plugins.ContainsKey("MetaMystia.MetaLib"))
         {
             if (Input.GetKeyDown(KeyCode.F1))
             {

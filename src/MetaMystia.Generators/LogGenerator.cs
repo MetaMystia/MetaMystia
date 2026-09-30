@@ -10,7 +10,6 @@ namespace MetaMystia.Generators
     {
         private const string LogSource = "MetaMystia.Plugin.Instance.Log";
         private const string LogSourceType = "BepInEx.Logging.ManualLogSource";
-        private const string TargetNamespace = "MetaMystia";
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
@@ -28,9 +27,16 @@ namespace MetaMystia.Generators
                 .Where(info => info is not null)
                 .Select((info, _) => info!.Value);
 
-            context.RegisterSourceOutput(classProvider, (spc, classInfo) =>
+            var logSource = context.AnalyzerConfigOptionsProvider.Select((options, _) =>
+                options.GlobalOptions.TryGetValue("build_property.AutoLogSource", out var value) && !string.IsNullOrWhiteSpace(value)
+                    ? value : LogSource);
+            var hasMemoryPack = context.CompilationProvider.Select((compilation, _) =>
+                compilation.GetTypeByMetadataName("MemoryPack.MemoryPackIgnoreAttribute") != null);
+
+            context.RegisterSourceOutput(classProvider.Combine(logSource).Combine(hasMemoryPack), (spc, input) =>
             {
-                var source = GeneratePartial(classInfo.Namespace, classInfo.ClassName);
+                var classInfo = input.Left.Left;
+                var source = GeneratePartial(classInfo.Namespace, classInfo.ClassName, input.Left.Right, input.Right);
                 spc.AddSource(
                     $"{classInfo.ClassName}.bepinexlog.g.cs",
                     SourceText.From(source, Encoding.UTF8)
@@ -55,7 +61,7 @@ namespace MetaMystia.Generators
             return new ClassInfo(className, namespaceName);
         }
 
-        private static string GeneratePartial(string? ns, string className)
+        private static string GeneratePartial(string? ns, string className, string logSource, bool hasMemoryPack)
         {
             var sb = new StringBuilder();
 
@@ -67,8 +73,9 @@ namespace MetaMystia.Generators
 
             sb.AppendLine($"public partial class {className}");
             sb.AppendLine("{");
-            sb.AppendLine($"        [MemoryPack.MemoryPackIgnore]");
-            sb.AppendLine($"        private static SgrYuki.LogWrapper Log => new ({LogSource}, nameof({className}));");
+            if (hasMemoryPack)
+                sb.AppendLine("        [MemoryPack.MemoryPackIgnore]");
+            sb.AppendLine($"        private static SgrYuki.LogWrapper Log => new ({logSource}, nameof({className}));");
             sb.AppendLine("}");
 
             if (ns != null)
