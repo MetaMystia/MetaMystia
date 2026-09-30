@@ -45,6 +45,8 @@ public static partial class PatchRegistry
         typeof(WorkSceneStoragePannelPatch),
         typeof(QTERewardManagerPatch),
         typeof(NightSceneEventManagerPatch),
+        typeof(PartnerWaitressBehaviourPatch),
+        typeof(PartnerWaitressThrowDeliverPatch),
 
         // 幽幽子挑战专用补丁
         typeof(YuyukoTimedNegativeSpellPatch),
