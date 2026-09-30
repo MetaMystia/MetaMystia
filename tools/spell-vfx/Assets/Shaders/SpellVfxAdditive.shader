@@ -13,7 +13,7 @@ Shader "SpellVfx/AdditiveParticle"
     SubShader
     {
         Tags { "Queue" = "Transparent" "IgnoreProjector" = "True" "RenderType" = "Transparent" "PreviewType" = "Plane" }
-        Blend SrcAlpha One
+        Blend One One
         Cull Off
         Lighting Off
         ZWrite Off

@@ -32,6 +32,7 @@ public static partial class SpellRegistry
     private static readonly Dictionary<string, Func<int, VfxBundle, SpellBaseEx>> Implementations = new()
     {
         ["Mai"] = Create<Spell_Mai>,
+        ["Minoriko"] = Create<Spell_Minoriko>,
     };
 
     /// <summary>宣言立绘的默认 pivot：宣言动画按 pivot 对位，取原版 104 张立绘的平均值。</summary>

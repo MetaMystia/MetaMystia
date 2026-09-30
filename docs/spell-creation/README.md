@@ -25,6 +25,7 @@
 | [`BuffRegistry.cs`](../../src/MetaMystia.Mod/ResourceEx/Registries/BuffRegistry.cs) | 按资源包 `buffs` 写入 buff 描述与图标 |
 | [`AssetBundleRegistry.cs`](../../src/MetaMystia.Mod/ResourceEx/Registries/AssetBundleRegistry.cs)、[`VfxBundle.cs`](../../src/MetaMystia.Mod/ResourceEx/Vfx/VfxBundle.cs) | 预加载与查询 `assetBundles`，按预制件名称播放特效 |
 | [`Spell_Mai.cs`](../../src/MetaMystia.Mod/ResourceEx/SpellCollection/Spell_Mai.cs) | 示例符卡：红卡自动上酒，黑卡限制评价 |
+| [`Spell_Minoriko.cs`](../../src/MetaMystia.Mod/ResourceEx/SpellCollection/Spell_Minoriko.cs) | 秋穰子：丰穣结界与饱腹惩罚，见[行为与美术说明](minoriko.md) |
 | [`DataBaseNightPatch.cs`](../../src/MetaMystia.Mod/Patches/DataBase/DataBaseNightPatch.cs) | 符卡字典写入时机 |
 | [`MaiVfxSet.cs`](../../tools/spell-vfx/Assets/Editor/Spells/Mai/MaiVfxSet.cs) | 示例特效集合 |
 
