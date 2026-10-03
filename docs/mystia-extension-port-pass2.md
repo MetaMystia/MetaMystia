@@ -274,6 +274,21 @@ SDK 手写公开面共 **771 个公开成员 / 138 个公开类型**，其中 **
 | WP-4.4 | 按 Phase 2 的新 API 迁移 101 个文件的互操作用法（优先 `Managers/`、`ResourceEx/`、`Players/`、`UI/`、`Console/`、`Utils/`） |
 | WP-4.5 | 在营业场景进入/离开时显式清空 `GuestsMap` 与各 `GuestFSM` 的延迟队列（今天没有任何清空点，靠"终态移除 + 30s 超时"兜底）；句柄改为夜会话作用域后这是必要清理，也是行为变更（未走到终态的顾客不再残留） |
 
+**当前可见错误清单（截至波 5）**：声明级错误 12 个（`Patches/Compat/` 11 + `Managers/YuyukoGuestSync.Challenge.cs` 1，等框架 seam 收尾）。因为 Roslyn 在存在声明级错误时会跳过方法体分析，方法体级错误此前不可见；用同样的源码集去掉那两个错误簇后在临时工程里实测，**真实错误 32 个**（全部在下列文件，均属版本 4.0–4.4 与互操作成员布局的差异）：
+
+| 文件 | 个数 | 性质与对策 |
+| --- | --- | --- |
+| `Utils/ExportUtils.cs` | 12 | `ImageConversion`、`Tilemap.CellToWorld`、`RenderTexture.GetTemporary` 重载、`Renderer.sortingLayerName` 无 getter——都要改走新 API 或放弃该调试导出功能（需给出控制台功能取舍结论） |
+| `ResourceEx/SpellCollection/Spell_Mai.cs` | 8 | 3 处 `StartOn(EventManager.Instance, …)` + `PlayerPosition`/`TablePosition`/`ShakeCamera` 已移到 `Presentation`——改走 `scene.Presentation` 与新 `StartOn(owner, …)` |
+| `ResourceEx/Registries/DayMapRegistry.cs` | 3 | `SortingLayer.NameToID/IDToName`、`LayerMask.NameToLayer` 在互操作里不存在——该文件整体改走 `ICommonServices.MapBuilder` |
+| `Players/PeerPlayer.cs` | 3 | `Physics2D.IgnoreCollision` 不存在——需替代方案（同层/同碰撞矩阵或直接不忽略） |
+| `ResourceEx/Vfx/VfxBundle.cs` | 2 | `AssetBundle.LoadAllAssets`/`LoadFromMemory` 只有 `…Async` 变体——改异步加载 |
+| `ResourceEx/Mappers/Mappers.cs` | 1 | `Random.value` 不存在——改 `System.Random` |
+| `Players/NetSkinManager.cs` | 1 | 待按资产 API 迁移 |
+| `ResourceEx/AssetManagement/RexAssets.cs`、`Utils/Utils.cs` | 各 1 | `ImageConversion`——改走 `IAssetFactory.TryCreateTexture`（框架自研 PNG 解码器；JPEG 不支持） |
+
+同时实测：模组侧目前**没有任何** `MYSTIA####` 禁令诊断——因为声明级错误让分析器不执行；清零后才会开始拦人。另有 684 条此前不可见的可空性警告（既有，非本轮引入）。
+
 ### Phase 5 验收与文档
 
 - 合并门槛（每批）：框架 0 错 → SDK 单测 → 重打包 + 清缓存 → 模组 0 错 → `Network.Tests` 214 / `Flow.Tests` 103 → 扩展后的 `static-check.sh` 全绿。
