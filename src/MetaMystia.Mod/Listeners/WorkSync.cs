@@ -64,6 +64,8 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
 
     public void Setup(IWorkSceneServices services)
     {
+        // 展示服务（标签、角色像素集）只在场景循环的服务窗口内可用，窗口由本类开合。
+        ScenePresentation.Begin(services.Presentation);
         // 等待全员就绪期间阻止原版开厨（原 CookSystemManagerPatch 的前缀跳过）。
         s_cookCallEnabled = !BusinessStart.IsWaitingForStart;
         services.Cook.SetCallEnabled(s_cookCallEnabled);
@@ -81,6 +83,8 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
 
     public void Update(IWorkSceneServices services, float delta)
     {
+        ScenePresentation.Pump();
+
         var callEnabled = !BusinessStart.IsWaitingForStart;
         if (callEnabled != s_cookCallEnabled)
         {
@@ -104,6 +108,7 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
 
     public void Shutdown(IWorkSceneServices services)
     {
+        ScenePresentation.End();
         ServePanel = null;
         s_skipServePanelClose = 0;
         s_applyingRemote = false;

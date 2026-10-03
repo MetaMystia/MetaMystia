@@ -1,185 +1,98 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 
-using TMPro;
-using UnityEngine;
-
-using MetaMystia.Multiplayer;
+using Mystia.Assets;
+using Mystia.Scenes;
 
 namespace MetaMystia.UI;
 
+/// <summary>
+/// 运行中场景会话的展示服务（<c>IPresentationServices</c>）：标签与角色精灵集都作用在「当前场景」上，
+/// 只在场景循环的 <c>Setup</c>/<c>Update</c>/<c>Shutdown</c> 窗口内可用。
+/// <para>
+/// 场景循环进入时 <see cref="Begin"/> 写入服务、离开时 <see cref="End"/> 清空；模组在窗口外（网络消息、
+/// 游戏回调）发起的动作经 <see cref="Enqueue"/> 排队，由场景循环逐帧调用 <see cref="Pump"/> 在窗口内执行。
+/// 没有场景会话时排队的动作会在 <see cref="End"/> 一并丢弃。
+/// </para>
+/// </summary>
+internal static class ScenePresentation
+{
+    private static readonly Queue<Action<IPresentationServices>> Pending = new();
+    private static IPresentationServices s_services;
+
+    internal static void Begin(IPresentationServices services) => s_services = services;
+
+    /// <summary>登记一个必须在场景循环服务窗口内执行的展示动作。</summary>
+    internal static void Enqueue(Action<IPresentationServices> work)
+    {
+        if (work is not null) Pending.Enqueue(work);
+    }
+
+    /// <summary>由场景循环的 <c>Update</c> 调用：在服务窗口内执行排队中的动作。</summary>
+    internal static void Pump()
+    {
+        if (s_services is not { } services) return;
+        if (Pending.Count == 0) return;
+
+        // 先取走本帧的待办：动作里再排进来的留到下一帧，避免同一帧自排自执行。
+        var batch = Pending.ToArray();
+        Pending.Clear();
+        foreach (var work in batch)
+        {
+            try { work(services); }
+            catch (Exception e) { ModRuntime.Log.Warning($"[ScenePresentation] 展示动作失败：{e.Message}"); }
+        }
+    }
+
+    /// <summary>场景循环退出时调用：服务窗口关闭，未执行的待办一并丢弃。</summary>
+    internal static void End()
+    {
+        s_services = null;
+        Pending.Clear();
+    }
+}
+
+/// <summary>
+/// 世界内的浮字：临时浮字（聊天气泡）与玩家头顶名牌。
+/// 字体、描边、颜色与淡出都由框架的 <c>IPresentationServices</c> 承担（原实现里的 TextMeshPro／
+/// GameObject／TMP_FontAsset 用法已全部移除），模组只保管 <c>IFloatingLabel</c> 句柄。
+/// </summary>
 [AutoLog]
 public static partial class FloatingTextHelper
 {
-    private static GameObject activeTextPeer;
-    private static GameObject activeTextSelf;
+    private static IFloatingLabel activeTextPeer;
+    private static IFloatingLabel activeTextSelf;
 
-    // Font
-    private static TMP_FontAsset _cachedFont;
-    private static Material _outlinedMaterial;
-    private static bool _fontSearched;
-    private const float OutlineWidthValue = 0.05f;
+    public static void ShowFloatingTextOnMainThread(object host, string Message) =>
+        PluginManager.RunOnMainThread(() => ShowFloatingText(host, Message));
 
-    private static TMP_FontAsset GetFont()
+    public static void ShowFloatingTextSelfOnMainThread(string Message) =>
+        PluginManager.RunOnMainThread(() => ShowFloatingTextSelf(Message));
+
+    /// <summary>在宿主上方弹一条临时浮字（框架的 SpawnLabel：到点自行淡出并销毁）。</summary>
+    private static void ShowFloatingText(object host, string text, float duration = 5f)
     {
-        if (_cachedFont != null) return _cachedFont;
-        if (_fontSearched) return _cachedFont;
-        _fontSearched = true;
+        if (host is null) return;
 
-        try
+        ScenePresentation.Enqueue(services =>
         {
-            // 1) 尝试从系统字体创建 TMP 字体
-            var osFont = Font.CreateDynamicFontFromOSFont("Microsoft YaHei", 48);
-            if (osFont != null)
-            {
-                _cachedFont = TMP_FontAsset.CreateFontAsset(osFont);
-                if (_cachedFont != null)
-                {
-                    Log.Info($"Created TMP font from OS 'Microsoft YaHei'");
-                    return _cachedFont;
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Log.Warning($"CreateFontAsset failed: {e.Message}");
-        }
-
-        try
-        {
-            // 2) fallback: 从游戏已加载资源中查找 TMP 字体
-            var allFonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
-            if (allFonts != null && allFonts.Length > 0)
-            {
-                // 优先查找名称含 YaHei/CJK
-                _cachedFont = allFonts.FirstOrDefault(f =>
-                    f?.name != null && (f.name.Contains("YaHei") || f.name.Contains("CJK")));
-                // 退而求其次取第一个
-                _cachedFont ??= allFonts.FirstOrDefault(f => f != null);
-                if (_cachedFont != null)
-                    Log.Info($"Using game TMP font: {_cachedFont.name}");
-            }
-        }
-        catch (Exception e)
-        {
-            Log.Warning($"Font resource search failed: {e.Message}");
-        }
-
-        return _cachedFont;
+            activeTextPeer?.Stop();
+            activeTextPeer = null;
+            if (services.Bind(host) is not { } target) return;
+            activeTextPeer = services.SpawnLabel(target, text, FloatingLabelStyle.Default, duration);
+        });
     }
 
-    private static void ApplyStyle(TextMeshPro tmp, float fontSize, Color textColor)
-    {
-        var font = GetFont();
-        if (font != null)
-            tmp.font = font;
-
-        tmp.fontSize = fontSize;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = textColor;
-
-        if (_outlinedMaterial == null)
-        {
-            _outlinedMaterial = new Material(tmp.fontSharedMaterial);
-            _outlinedMaterial.EnableKeyword("OUTLINE_ON");
-            _outlinedMaterial.SetFloat("_OutlineWidth", OutlineWidthValue);
-            _outlinedMaterial.SetColor("_OutlineColor", Color.black);
-            _outlinedMaterial.EnableKeyword("UNDERLAY_ON");
-            _outlinedMaterial.SetFloat("_UnderlayOffsetX", 0f);
-            _outlinedMaterial.SetFloat("_UnderlayOffsetY", 0f);
-            _outlinedMaterial.SetFloat("_UnderlayDilate", 0.3f);
-            _outlinedMaterial.SetColor("_UnderlayColor", Color.black);
-        }
-        tmp.fontSharedMaterial = _outlinedMaterial;
-    }
-
-
-    private static GameObject MakeFloatingText(Transform parent, string text)
-    {
-        var go = new GameObject("FloatingText");
-        go.transform.SetParent(parent, false);
-        go.transform.localPosition = new Vector3(0, 2.0f, 0);
-
-        var tmp = go.AddComponent<TextMeshPro>();
-        tmp.text = text;
-        ApplyStyle(tmp, 5f, Color.white);
-
-        return go;
-    }
-
-    private static void ShowFloatingText(Common.CharacterUtility.CharacterControllerUnit comp, string text, float duration = 5f)
-    {
-        if (activeTextPeer != null)
-        {
-            UnityEngine.Object.Destroy(activeTextPeer);
-        }
-        if (comp == null)
-        {
-            return;
-        }
-        activeTextPeer = MakeFloatingText(comp.transform, text);
-        // 挂在进程级的 owner 上：淡出不再随场景销毁而停止（对象被销毁时 FadeAndDestroy 自行结束）。
-        var coroutines = ModRuntime.Coroutines;
-        coroutines.StartOn(coroutines.Owner, _ => FadeAndDestroy(activeTextPeer.GetComponent<TextMeshPro>(), duration));
-    }
-
+    /// <summary>在本地玩家头顶弹一条临时浮字。</summary>
     private static void ShowFloatingTextSelf(string text, float duration = 5f)
     {
-        if (activeTextSelf != null)
+        ScenePresentation.Enqueue(services =>
         {
-            UnityEngine.Object.Destroy(activeTextSelf);
-        }
-
-        var character = PlayerManager.Local.GetCharacterUnit();
-        if (character == null)
-        {
-            return;
-        }
-        activeTextSelf = MakeFloatingText(character.transform, text);
-        // 同上：进程级 owner，淡出不再随场景销毁而停止。
-        var coroutines = ModRuntime.Coroutines;
-        coroutines.StartOn(coroutines.Owner, _ => FadeAndDestroy(activeTextSelf.GetComponent<TextMeshPro>(), duration));
-    }
-
-    private static System.Collections.IEnumerator FadeAndDestroy(TextMeshPro tmp, float duration)
-    {
-        float t = 0f;
-
-        while (t < duration)
-        {
-            t += Time.deltaTime;
-            yield return null;
-        }
-
-        float fade = 0f;
-        while (fade < 0.5f)
-        {
-            fade += Time.deltaTime;
-            // 协程现在挂在进程级 owner 上，场景销毁不再打断它：文字对象随之消失时要自己收尾。
-            if (tmp == null)
-                yield break;
-            float alpha = Mathf.Lerp(1f, 0f, fade / 0.5f);
-
-            var c = tmp.color;
-            c.a = alpha;
-            tmp.color = c;
-
-            yield return null;
-        }
-
-        if (tmp != null && tmp.gameObject != null)
-        {
-            GameObject.Destroy(tmp.gameObject);
-        }
-    }
-
-    public static void ShowFloatingTextOnMainThread(Common.CharacterUtility.CharacterControllerUnit component, string Message)
-    {
-        PluginManager.RunOnMainThread(() => ShowFloatingText(component, Message));
-    }
-
-    public static void ShowFloatingTextSelfOnMainThread(string Message)
-    {
-        PluginManager.RunOnMainThread(() => ShowFloatingTextSelf(Message));
+            activeTextSelf?.Stop();
+            activeTextSelf = null;
+            if (PlayerManager.Local.GetCharacterUnit() is not { } character) return;
+            if (services.Bind(character) is not { } target) return;
+            activeTextSelf = services.SpawnLabel(target, text, FloatingLabelStyle.Default, duration);
+        });
     }
 }

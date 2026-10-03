@@ -35,6 +35,8 @@ public sealed partial class DaySync : IDayListener, IDaySceneGameLoop
 
     public void Setup(IDaySceneServices services)
     {
+        // 展示服务（标签、角色像素集）只在场景循环的服务窗口内可用，窗口由本类开合。
+        ScenePresentation.Begin(services.Presentation);
         // 结束白天一律由模组决定：原版 OnDayOver 被拦下，改由 OnDayEnded 通知触发后续动作。
         services.Schedule.SetEndEnabled(false);
         ApplyInputGates(services);
@@ -42,12 +44,17 @@ public sealed partial class DaySync : IDayListener, IDaySceneGameLoop
 
     public void Update(IDaySceneServices services, float delta)
     {
+        ScenePresentation.Pump();
         services.Common.SetNightTransitionEnabled(!GameSession.HasRoomPeers);
         ApplyInputGates(services);
         RunPendingEnd(services);
     }
 
-    public void Shutdown(IDaySceneServices services) => s_pendingEnd = PendingEnd.None;
+    public void Shutdown(IDaySceneServices services)
+    {
+        ScenePresentation.End();
+        s_pendingEnd = PendingEnd.None;
+    }
 
     /// <summary>原 <c>UniversalGameManagerPatch.OpenDialogMenu_Prefix</c> 的对话包回填与「最近阅读」记录。</summary>
     public void OnDialogOpened(DialogPackage package)

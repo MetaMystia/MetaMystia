@@ -14,13 +14,14 @@ using Mystia.Numerics;
 namespace MetaMystia;
 
 /// <summary>
-/// 在线皮肤管理器：从皮肤服务器拉取 PNG 贴图，按约定布局切成精灵，并维护内存与磁盘缓存。
+/// 在线皮肤管理器：从皮肤服务器拉取 PNG 贴图，按约定布局切成帧精灵，再交给框架造成游戏的角色像素集，
+/// 并维护内存与磁盘缓存。
 ///
-/// 贴图解码与切精灵都走框架的 <see cref="IAssetFactory"/>（PNG 由框架解码；引擎的 ImageConversion 不在本构建的互操作集里），
-/// 每帧精灵再按 key 登记进 <see cref="IAssetLocator"/>。缓存的 PNG 仍走 <see cref="IModStorage"/> 的缓存区。
-/// 未就绪的能力：把精灵句柄装进游戏的 <c>CharacterSpriteSetCompact</c>／<c>CharacterSpriteSetFull</c>
-/// 需要引擎 Sprite，SDK 目前没有从 <see cref="SpriteHandle"/> 回到引擎对象的入口，因此这张皮肤只交付句柄，
-/// 装配到玩家身上等框架补能力（见交付报告）。
+/// 贴图解码、尺寸查询、切精灵与精灵集构建都走框架的 <see cref="IAssetFactory"/>
+/// （PNG 由框架解码：模组不再偷看 PNG 文件头，尺寸取自 <see cref="IAssetFactory.TryGetTextureSize"/>），
+/// 帧精灵再按 key 登记进 <see cref="IAssetLocator"/>；<see cref="IAssetFactory.TryCreateCharacterSpriteSet"/>
+/// 把帧集装成游戏的角色精灵集，套用交给 <c>IPresentationServices.ApplyCharacterSprite</c>（见 PlayerSkin）。
+/// 缓存的 PNG 仍走 <see cref="IModStorage"/> 的缓存区。
 ///
 /// PNG 布局（每格 64×64）：
 /// Compact 576×256（每行 9 格）：
@@ -195,20 +196,21 @@ public static partial class NetSkinManager
             }
 
             var bytes = await ReadBoundedAsync(resp);
-            if (bytes == null || !IsPngHeader(bytes))
+            if (bytes == null)
             {
-                if (bytes != null) Log.Warning($"NetSkin：重验证 「{name}」 响应不是合法 PNG，保留现有缓存");
+                Log.Warning($"NetSkin：重验证 「{name}」 响应为空，保留现有缓存");
                 return;
             }
 
-            if (!TryWriteDiskCache(name, bytes, resp.Headers.ETag?.Tag, "写入重验证后的缓存"))
-                return;
-
+            // 图像是否可用只由框架解码判定（模组不再校验 PNG 结构），因此先解析、解析通过才落盘。
+            var freshETag = resp.Headers.ETag?.Tag;
             Log.Info($"NetSkin：服务端 「{name}」 已更新，重新加载");
             PluginManager.RunOnMainThread(() =>
             {
-                if (TryParseAndRegister(name, bytes))
-                    RefreshPlayersUsingSkin(name);
+                if (!TryParseAndRegister(name, bytes))
+                    return;
+                TryWriteDiskCache(name, bytes, freshETag, "写入重验证后的缓存");
+                RefreshPlayersUsingSkin(name);
             });
         }
         catch (Exception e)
@@ -247,20 +249,18 @@ public static partial class NetSkinManager
             Log.Warning($"NetSkin：下载 「{name}」 抛出异常：{e.Message}");
         }
 
-        if (payload == null || !IsPngHeader(payload))
+        if (payload == null)
         {
-            if (payload != null) Log.Warning($"NetSkin：「{name}」 不是合法的 PNG");
+            Log.Warning($"NetSkin：下载 「{name}」 未取得内容");
             FinishOnMainThread(name, false);
             return;
         }
 
-        // 可选写入磁盘缓存（写文件不需要主线程）
-        TryWriteDiskCache(name, payload, etag, "写入磁盘缓存");
-
-        // 主线程解析
+        // 主线程解析：贴图与帧精灵集都由框架构建，解析通过后才落到磁盘缓存（解不开的响应不落盘）。
         PluginManager.RunOnMainThread(() =>
         {
             bool parsed = TryParseAndRegister(name, payload);
+            if (parsed) TryWriteDiskCache(name, payload, etag, "写入磁盘缓存");
             FinishRequest(name, parsed);
         });
     }
@@ -305,15 +305,9 @@ public static partial class NetSkinManager
         }
     }
 
-    private static bool IsPngHeader(byte[] bytes)
-    {
-        if (bytes == null || bytes.Length < 8) return false;
-        return bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
-            && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
-    }
-
     /// <summary>
-    /// 主线程：把 PNG 字节交给框架解码并切成帧精灵，加入内存缓存。
+    /// 主线程：把 PNG 字节交给框架解码、切成帧精灵，再用帧集造出游戏的角色精灵集，加入内存缓存。
+    /// 尺寸取自贴图句柄（<see cref="IAssetFactory.TryGetTextureSize"/>），不再偷看 PNG 文件头。
     /// </summary>
     private static bool TryParseAndRegister(string name, byte[] pngBytes)
     {
@@ -323,10 +317,15 @@ public static partial class NetSkinManager
             return false;
         }
 
-        // 尺寸取自 PNG 文件头：资产 API 的贴图句柄没有尺寸查询，而布局判别必须先知道尺寸。
-        if (!PngHeader.TryReadSize(pngBytes, out var width, out var height))
+        if (!assets.TryCreateTexture(pngBytes, out var texture))
         {
-            Log.Warning($"NetSkin：「{name}」 不是可解析的 PNG");
+            Log.Warning($"NetSkin：「{name}」 贴图加载失败（框架只解码 PNG）");
+            return false;
+        }
+
+        if (!assets.TryGetTextureSize(texture, out var width, out var height))
+        {
+            Log.Warning($"NetSkin：「{name}」 无法向框架查询贴图尺寸");
             return false;
         }
 
@@ -344,23 +343,26 @@ public static partial class NetSkinManager
             return false;
         }
 
-        if (!assets.TryCreateTexture(pngBytes, out var texture))
-        {
-            Log.Warning($"NetSkin：「{name}」 贴图加载失败");
-            return false;
-        }
-
         var main = Slice(assets, texture, name, "main", 0, MainFrames, MainDirections, directionsAlongColumns: false);
         var eyes = Slice(assets, texture, name, "eyes", 3, EyeFrames, EyeDirections, directionsAlongColumns: true);
-        var hair = isFull == true ? Slice(assets, texture, name, "hair", 9, HairFrames, HairDirections, directionsAlongColumns: false) : [];
-        var back = isFull == true ? Slice(assets, texture, name, "back", 12, BackFrames, BackDirections, directionsAlongColumns: false) : [];
+        List<SpriteHandle>? hair = isFull == true ? Slice(assets, texture, name, "hair", 9, HairFrames, HairDirections, directionsAlongColumns: false) : [];
+        List<SpriteHandle>? back = isFull == true ? Slice(assets, texture, name, "back", 12, BackFrames, BackDirections, directionsAlongColumns: false) : [];
         if (main is null || eyes is null || hair is null || back is null)
         {
             Log.Warning($"NetSkin：「{name}」 切图失败");
             return false;
         }
 
-        lock (_builtSkins) _builtSkins[name] = new NetSkin(name, isFull == true, main, eyes, hair, back);
+        // 帧精灵由框架装成游戏的角色像素集；套用由 PlayerSkin 走 IPresentationServices.ApplyCharacterSprite。
+        var frames = new CharacterSpriteSetFrames(main.ToArray(), eyes.ToArray(), hair.ToArray(), back.ToArray());
+        var kind = isFull == true ? CharacterSpriteSetKind.Full : CharacterSpriteSetKind.Compact;
+        if (!assets.TryCreateCharacterSpriteSet(kind, frames, CharacterSpriteSetStyle.Default, out var set))
+        {
+            Log.Warning($"NetSkin：「{name}」 精灵集构建失败（帧集不满足框架要求）");
+            return false;
+        }
+
+        lock (_builtSkins) _builtSkins[name] = new NetSkin(name, isFull == true, main.ToArray(), eyes.ToArray(), hair.ToArray(), back.ToArray(), set);
         Log.Info($"NetSkin：已注册 {(isFull == true ? "Full" : "Compact")} 皮肤 「{name}」");
         return true;
     }
@@ -602,26 +604,77 @@ public static partial class NetSkinManager
 }
 
 /// <summary>
-/// 一张已构建的线上皮肤：布局判别结果与四组帧精灵句柄，索引与游戏像素集一致
-/// （Main／Hair／Back 为 dir*3 + frame，Eyes 为 dir*4 + frame）。Compact 布局没有 Hair／Back，两者为空表。
+/// 一张已构建的线上皮肤：布局判别结果、四组帧精灵句柄与框架造好的角色像素集。
+/// 索引与游戏像素集一致（Main／Hair／Back 为 dir*3 + frame，Eyes 为 dir*4 + frame）。Compact 布局没有
+/// Hair／Back，两者为空表。
 /// </summary>
-public sealed class NetSkin(
-    string name,
-    bool isFull,
-    IReadOnlyList<SpriteHandle> main,
-    IReadOnlyList<SpriteHandle> eyes,
-    IReadOnlyList<SpriteHandle> hair,
-    IReadOnlyList<SpriteHandle> back)
+public sealed class NetSkin
 {
-    public string Name { get; } = name;
+    /// <summary>旋转覆盖的旋转周期（秒），与原 <c>CloneWithRotationOverride(..., 0.15f)</c> 一致。</summary>
+    internal const float RotatePerTimeSeconds = 0.15f;
 
-    public bool IsFull { get; } = isFull;
+    private readonly SpriteHandle[] _main;
+    private readonly SpriteHandle[] _eyes;
+    private readonly SpriteHandle[] _hair;
+    private readonly SpriteHandle[] _back;
 
-    public IReadOnlyList<SpriteHandle> Main { get; } = main;
+    internal NetSkin(
+        string name,
+        bool isFull,
+        SpriteHandle[] main,
+        SpriteHandle[] eyes,
+        SpriteHandle[] hair,
+        SpriteHandle[] back,
+        CharacterSpriteSetHandle? set)
+    {
+        Name = name;
+        IsFull = isFull;
+        _main = main;
+        _eyes = eyes;
+        _hair = hair;
+        _back = back;
+        DefaultSet = set;
+    }
 
-    public IReadOnlyList<SpriteHandle> Eyes { get; } = eyes;
+    public string Name { get; }
 
-    public IReadOnlyList<SpriteHandle> Hair { get; } = hair;
+    public bool IsFull { get; }
 
-    public IReadOnlyList<SpriteHandle> Back { get; } = back;
+    public IReadOnlyList<SpriteHandle> Main => _main;
+
+    public IReadOnlyList<SpriteHandle> Eyes => _eyes;
+
+    public IReadOnlyList<SpriteHandle> Hair => _hair;
+
+    public IReadOnlyList<SpriteHandle> Back => _back;
+
+    /// <summary>不带任何风格的精灵集（<see cref="CharacterSpriteSetStyle.Default"/>），构建时由框架造好。</summary>
+    internal CharacterSpriteSetHandle? DefaultSet { get; }
+
+    /// <summary>
+    /// 取这套帧的精灵集。<paramref name="rotateOverride"/> 为空时就是 <see cref="DefaultSet"/>；
+    /// 非空时按原实现的语义用 <see cref="CharacterSpriteSetStyle"/> 重建一张带旋转覆盖的集
+    /// （<c>IsHina = 覆盖值</c>，周期 <see cref="RotatePerTimeSeconds"/>）。
+    /// </summary>
+    internal bool TryCreateSet(bool? rotateOverride, [NotNullWhen(true)] out CharacterSpriteSetHandle? set)
+    {
+        if (rotateOverride is null)
+        {
+            set = DefaultSet;
+            return set is not null;
+        }
+
+        set = null;
+        if (ModRuntime.Assets is not { } assets)
+            return false;
+
+        var style = new CharacterSpriteSetStyle
+        {
+            IsHina = rotateOverride.Value,
+            RotatePerTime = RotatePerTimeSeconds,
+        };
+        var kind = IsFull ? CharacterSpriteSetKind.Full : CharacterSpriteSetKind.Compact;
+        var frames = new CharacterSpriteSetFrames(_main, _eyes, _hair, _back);
+        return assets.TryCreateCharacterSpriteSet(kind, frames, style, out set);
+    }
 }

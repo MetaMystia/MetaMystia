@@ -1,6 +1,5 @@
-using MemoryPack;
-using UnityEngine;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
@@ -9,11 +8,30 @@ using GameData.Core.Collections;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Profile;
 
+using MemoryPack;
+
 using MetaMystia.ResourceEx.Registries;
+using MetaMystia.UI;
+
+using Mystia.Assets;
+
 using SgrYuki.Utils;
 
 namespace MetaMystia;
 
+/// <summary>
+/// 一名玩家的皮肤：游戏自带的像素集（<see cref="CharacterId"/>／<see cref="SelectedType"/>／<see cref="SkinIndex"/>）
+/// 或在线皮肤名（<see cref="NetSkinName"/>，由 <see cref="NetSkinManager"/> 异步拉取）。
+///
+/// <para><b>在线皮肤</b>：帧集由 <c>IAssetFactory.TryCreateCharacterSpriteSet</c> 造成游戏的角色像素集，
+/// 套用走 <c>IPresentationServices.ApplyCharacterSprite</c>（<c>restart: true</c> 即原实现「先丢掉当前外观、
+/// 停掉动画协程再换装」的语义）。旋转覆盖用 <see cref="CharacterSpriteSetStyle"/> 重建一份集，
+/// 与原实现克隆 ScriptableObject 并改 <c>IsHina</c> 等价。</para>
+///
+/// <para><b>游戏自带像素集</b>：框架没有「导入既有游戏像素集」的入口（<c>ApplyCharacterSprite</c> 只接受框架
+/// 自建的集），因此这类皮肤仍直接交给角色，旋转覆盖也只对在线皮肤可表达；立绘出入的仍是
+/// <c>UnityEngine.Sprite</c>，因为 <c>IPortraitProvider</c> 的签名尚未代理化。两处都是框架能力缺口（见交付报告）。</para>
+/// </summary>
 [MemoryPackable]
 [AutoLog]
 public partial class PlayerSkin
@@ -33,29 +51,32 @@ public partial class PlayerSkin
     /// </summary>
     public bool? RotateOverride = null;
 
+    // 在线皮肤的框架精灵集缓存：与来源 NetSkin 及旋转覆盖一一对应，任一变化都要重建。
     [MemoryPackIgnore]
-    private CharacterSpriteSetCompact _rotatedSkinCache;
+    private CharacterSpriteSetHandle? _netSpriteSet;
     [MemoryPackIgnore]
-    private CharacterSpriteSetCompact _rotatedSkinSource;
+    private NetSkin? _netSpriteSetSource;
     [MemoryPackIgnore]
-    private bool? _rotatedSkinRotate;
+    private bool? _netSpriteSetRotate;
+    [MemoryPackIgnore]
+    private bool? _reportedRotationGap;
 
-    private void InvalidateRotatedSkinCache()
+    private void InvalidateSpriteSetCache()
     {
-        _rotatedSkinCache = null;
-        _rotatedSkinSource = null;
-        _rotatedSkinRotate = null;
+        _netSpriteSet = null;
+        _netSpriteSetSource = null;
+        _netSpriteSetRotate = null;
     }
 
     /// <summary>
-    /// 解析 CharacterSpriteSetCompact
+    /// 解析游戏自带的 CharacterSpriteSetCompact。
+    /// 在线皮肤没有游戏像素集：未就绪时返回 Fallback 占位并触发异步拉取，就绪后由
+    /// <see cref="ApplyToUnit"/> 走框架的 <c>ApplyCharacterSprite</c> 套用真正的在线皮肤。
     /// </summary>
     public CharacterSpriteSetCompact ResolveSkin()
     {
         if (!string.IsNullOrEmpty(NetSkinName))
         {
-            if (NetSkinManager.TryGet(NetSkinName, out var net))
-                return net;
             // 未就绪：触发异步加载，先返回 Fallback 占位
             NetSkinManager.RequestSkin(NetSkinName);
             return DataBaseCharacter.FallbackFullPixel;
@@ -104,51 +125,26 @@ public partial class PlayerSkin
         return DataBaseCharacter.FallbackPortrayal;
     }
 
-    private static Sprite ResolvePortraitFromSelf(CharacterSkinSets.SelectedType type, int index)
-    {
-        if (type == CharacterSkinSets.SelectedType.Default)
-        {
-            return DataBaseCharacter.SelfPortrayalSet?.defaultPortrayal.m_VisualAssetAtlasReference[0]?.Asset
-                ?.TryCast<Sprite>();
-        }
-
-        return DataBaseCore.Clothes
-            .ToList()
-            .Where(c => c.Value.skinIndex.index == index && c.Value.skinIndex.selectedType == type)
-            .Select(c => ResolveSelfPortrayalFromClothes(c.Value))
-            .FirstOrDefault() ?? ResolvePortraitFromSelf(CharacterSkinSets.SelectedType.Default, 0);
-    }
-
-    private static Sprite ResolveSelfPortrayalFromClothes(ClothesProfile.Clothes clothes)
-    {
-        if (!clothes.IsValidVisual)
-            return null;
-
-        var assetRef = clothes.m_OverrideVisualAsset;
-        var sprite = assetRef.Asset?.TryCast<Sprite>();
-
-        if (sprite == null)
-        {
-            var handle = assetRef.LoadAssetAsync();
-            sprite = handle.WaitForCompletion();
-        }
-
-        return sprite;
-    }
-
     /// <summary>
     /// 获取当前皮肤的立绘 Sprite（使用默认表情，索引 0）
-    /// 优先级: ResourceEx 自定义立绘 > 已加载的 Addressable 资源 > 同步加载 Addressable
+    /// 优先级: ResourceEx 自定义立绘 &gt; 已加载的 Addressable 资源 &gt; 同步加载 Addressable
+    /// <para>
+    /// 这个入口仍然以 <c>UnityEngine.Sprite</c> 出入：<c>IPortraitProvider</c> 的签名本身尚未代理化，
+    /// 框架没有可用的立绘句柄入口，故保留现状（框架能力缺口，见交付报告）。内部一律按不透明的资源对象
+    /// 传递，只在出口做一次转换，把引擎类型的出现收到一处。
+    /// </para>
     /// </summary>
-    public Sprite ResolvePortraitSprite()
+    public UnityEngine.Sprite ResolvePortraitSprite() => ResolvePortraitObject() as UnityEngine.Sprite;
+
+    /// <summary>立绘的资源对象（引擎 Object，可能是 Sprite 也可能是别的图集资源）；没有则 null。</summary>
+    private object ResolvePortraitObject()
     {
         if (CharacterId == -1)
         {
-            return ResolvePortraitFromSelf(SelectedType, SkinIndex);
+            return ResolveSelfPortrait(SelectedType, SkinIndex);
         }
 
-        var portrayal = ResolveSpecialPortrait();
-        if (portrayal == null) return null;
+        if (ResolveSpecialPortrait() is not { } portrayal) return null;
 
         // 优先：ResourceEx 自定义立绘
         if (SpecialGuestRegistry.TryGetSpecialGuestCustomPortrayal(portrayal, out var customSprites, out var faceInNoteBook))
@@ -160,20 +156,50 @@ public partial class PlayerSkin
         var refs = portrayal.m_VisualAssetAtlasReference;
         if (refs == null || refs.Length == 0) return null;
 
+        var portraitIndex = (portrayal.faceInNoteBook >= 0 && portrayal.faceInNoteBook < refs.Length)
+            ? portrayal.faceInNoteBook
+            : 0;
+        if (refs[portraitIndex] == null) return null;
 
-        var assetRef = (portrayal.faceInNoteBook >= 0 && portrayal.faceInNoteBook < refs.Length)
-            ? refs[portrayal.faceInNoteBook]
-            : refs[0];
-        if (assetRef == null) return null;
-
-        var sprite = assetRef.Asset?.TryCast<Sprite>();
-        if (sprite != null) return sprite;
+        // 引擎对象的空判定走 UnityEngine.Object 自己的运算符（已加载/已销毁都能判），此处不写类型名。
+        if (refs[portraitIndex].Asset != null) return refs[portraitIndex].Asset;
 
         try
         {
-            var handle = assetRef.LoadAssetAsync<Sprite>();
-            sprite = handle.WaitForCompletion();
-            return sprite;
+            return refs[portraitIndex].LoadAssetAsync().WaitForCompletion();
+        }
+        catch (System.Exception e)
+        {
+            Log.Warning($"Failed to load portrait sprite: {e.Message}");
+            return null;
+        }
+    }
+
+    private static object ResolveSelfPortrait(CharacterSkinSets.SelectedType type, int index)
+    {
+        if (type == CharacterSkinSets.SelectedType.Default)
+        {
+            return DataBaseCharacter.SelfPortrayalSet?.defaultPortrayal.m_VisualAssetAtlasReference[0]?.Asset;
+        }
+
+        return DataBaseCore.Clothes
+            .ToList()
+            .Where(c => c.Value.skinIndex.index == index && c.Value.skinIndex.selectedType == type)
+            .Select(c => ResolveClothesPortrait(c.Value))
+            .FirstOrDefault() ?? ResolveSelfPortrait(CharacterSkinSets.SelectedType.Default, 0);
+    }
+
+    private static object ResolveClothesPortrait(ClothesProfile.Clothes clothes)
+    {
+        if (clothes is null || !clothes.IsValidVisual)
+            return null;
+
+        if (clothes.m_OverrideVisualAsset.Asset != null)
+            return clothes.m_OverrideVisualAsset.Asset;
+
+        try
+        {
+            return clothes.m_OverrideVisualAsset.LoadAssetAsync().WaitForCompletion();
         }
         catch (System.Exception e)
         {
@@ -194,7 +220,7 @@ public partial class PlayerSkin
         SelectedType = selectedType;
         SkinIndex = skinIndex;
         NetSkinName = null;
-        InvalidateRotatedSkinCache();
+        InvalidateSpriteSetCache();
     }
 
     /// <summary>
@@ -203,7 +229,7 @@ public partial class PlayerSkin
     public void SetNetSkin(string name)
     {
         NetSkinName = string.IsNullOrEmpty(name) ? null : name;
-        InvalidateRotatedSkinCache();
+        InvalidateSpriteSetCache();
     }
 
     /// <summary>
@@ -212,103 +238,92 @@ public partial class PlayerSkin
     public void SetRotate(bool? value)
     {
         RotateOverride = value;
-        InvalidateRotatedSkinCache();
-    }
-
-    private CharacterSpriteSetCompact ResolveSkinForUnit()
-    {
-        var baseSkin = ResolveSkin();
-        if (baseSkin == null || !RotateOverride.HasValue)
-            return baseSkin;
-
-        if (_rotatedSkinCache != null
-            && _rotatedSkinSource == baseSkin
-            && _rotatedSkinRotate == RotateOverride)
-            return _rotatedSkinCache;
-
-        _rotatedSkinSource = baseSkin;
-        _rotatedSkinRotate = RotateOverride;
-        _rotatedSkinCache = CloneWithRotationOverride(baseSkin, RotateOverride.Value, 0.15f);
-        return _rotatedSkinCache;
-    }
-
-    private static CharacterSpriteSetCompact CloneWithRotationOverride(
-        CharacterSpriteSetCompact source, bool isHina, float rotatePerTime)
-    {
-        if (source is CharacterSpriteSetFull fullSource)
-            return CloneFullWithRotation(fullSource, isHina, rotatePerTime);
-        return CloneCompactWithRotation(source, isHina, rotatePerTime);
-    }
-
-    private static CharacterSpriteSetCompact CloneCompactWithRotation(
-        CharacterSpriteSetCompact source, bool isHina, float rotatePerTime)
-    {
-        var clone = ScriptableObject.CreateInstance<CharacterSpriteSetCompact>();
-        clone.Initialize(
-            source.MainSprite,
-            source.DoNotUseEyeSprite,
-            source.EyeSprite,
-            source.HasPrebakedShadow,
-            source.AnimationSpeedMultiplier,
-            source.ExtraYOffset,
-            isHina,
-            rotatePerTime,
-            source.DoNotHaveStepVFX,
-            source.MoveSpeedMultiplier,
-            source.RemovableTrims,
-            source.TrimSpritesDisplayFront,
-            source.TrimSpritesDisplayBack,
-            source.TrimFrontSpriteFrameSpeed,
-            source.TrimBackSpriteFrameSpeed);
-        clone.name = source.name + "_playerRot";
-        clone.hideFlags = HideFlags.HideAndDontSave;
-        return clone;
-    }
-
-    private static CharacterSpriteSetFull CloneFullWithRotation(
-        CharacterSpriteSetFull source, bool isHina, float rotatePerTime)
-    {
-        var clone = ScriptableObject.CreateInstance<CharacterSpriteSetFull>();
-        clone.Initialize(
-            source.MainSprite,
-            source.DoNotUseEyeSprite,
-            source.EyeSprite,
-            source.HairSprite,
-            source.BackSprite,
-            source.HasPrebakedShadow,
-            source.AnimationSpeedMultiplier,
-            source.ExtraYOffset,
-            isHina,
-            rotatePerTime,
-            source.DoNotHaveStepVFX,
-            source.MoveSpeedMultiplier,
-            source.RemovableTrims,
-            source.TrimSpritesDisplayFront,
-            source.TrimSpritesDisplayBack,
-            source.TrimFrontSpriteFrameSpeed,
-            source.TrimBackSpriteFrameSpeed);
-        clone.name = source.name + "_playerRot";
-        clone.hideFlags = HideFlags.HideAndDontSave;
-        return clone;
+        InvalidateSpriteSetCache();
     }
 
     /// <summary>
-    /// 将当前皮肤应用到指定 unit 上
+    /// 当前在线皮肤的框架精灵集（含旋转覆盖变体）。未就绪时触发异步拉取并返回 false；
+    /// 不是在线皮肤时也返回 false。
+    /// </summary>
+    private bool TryResolveNetSpriteSet([NotNullWhen(true)] out CharacterSpriteSetHandle set)
+    {
+        set = null;
+        if (string.IsNullOrEmpty(NetSkinName)) return false;
+
+        if (!NetSkinManager.TryGet(NetSkinName, out var net))
+        {
+            NetSkinManager.RequestSkin(NetSkinName);
+            return false;
+        }
+
+        if (_netSpriteSet is not null
+            && ReferenceEquals(_netSpriteSetSource, net)
+            && _netSpriteSetRotate == RotateOverride)
+        {
+            set = _netSpriteSet;
+            return true;
+        }
+
+        if (!net.TryCreateSet(RotateOverride, out var built))
+        {
+            Log.Warning($"网络皮肤「{NetSkinName}」的精灵集构建失败（旋转覆盖 {RotateOverride?.ToString() ?? "无"}）");
+            return false;
+        }
+
+        _netSpriteSetSource = net;
+        _netSpriteSetRotate = RotateOverride;
+        _netSpriteSet = built;
+        set = built;
+        return true;
+    }
+
+    /// <summary>
+    /// 将当前皮肤应用到指定角色。
+    /// <para>
+    /// 在线皮肤：套用走 <c>IPresentationServices.ApplyCharacterSprite</c>（<c>restart</c> 语义），
+    /// 该服务只在场景循环的服务窗口内可用，因此动作排进 <see cref="ScenePresentation"/>，由场景循环逐帧执行。
+    /// </para>
+    /// <para>
+    /// 游戏自带皮肤：框架的 <c>ApplyCharacterSprite</c> 只接受框架自建精灵集，也没有「导入既有游戏像素集」
+    /// 的入口，故仍直接交给角色；这种皮肤上的旋转覆盖无法重建，只记一次警告（框架能力缺口，见交付报告）。
+    /// </para>
     /// </summary>
     /// <param name="unit"></param>
     public void ApplyToUnit(CharacterControllerUnit unit)
     {
         if (unit == null) return;
-        var skin = ResolveSkinForUnit();
-        if (skin != null && RotateOverride.HasValue)
-        {
-            if (!RotateOverride.Value)
-                unit.animator?.StopAllCoroutines();
-            unit.m_CurrentVisual = null;
-        }
-        unit.UpdateCharacterSprite(skin);
-    }
 
+        if (!string.IsNullOrEmpty(NetSkinName))
+        {
+            if (TryResolveNetSpriteSet(out var set))
+            {
+                var name = NetSkinName;
+                ScenePresentation.Enqueue(services =>
+                {
+                    if (services.BindCharacter(unit) is not { } character)
+                    {
+                        Log.Warning($"网络皮肤「{name}」套用失败：角色不可用");
+                        return;
+                    }
+
+                    if (!services.ApplyCharacterSprite(character, set, restart: true))
+                        Log.Warning($"网络皮肤「{name}」套用失败");
+                });
+                return;
+            }
+
+            // 未就绪：先用 Fallback 游戏像素集占位（与原实现一致），下载完成后 NetSkinManager 会重新刷新。
+        }
+        else if (RotateOverride.HasValue && _reportedRotationGap != RotateOverride)
+        {
+            // 旋转覆盖只对框架自建精灵集可表达（CharacterSpriteSetStyle）；游戏自带像素集没有重建入口。
+            _reportedRotationGap = RotateOverride;
+            Log.Warning("旋转覆盖需要重建像素集，而游戏自带像素集没有重建入口（框架缺口），本次忽略。");
+        }
+
+        if (ResolveSkin() is { } gameSkin)
+            unit.UpdateCharacterSprite(gameSkin);
+    }
 
     /// <summary>
     /// 获取全部可用皮肤的表格字符串，格式为 "name: CharacterId SelectedType SkinIndex"
