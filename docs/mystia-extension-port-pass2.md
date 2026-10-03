@@ -256,6 +256,14 @@ SDK 手写公开面共 **771 个公开成员 / 138 个公开类型**，其中 **
 | WP-3.2 | 面板与入口：`WorkSceneSustainedPannelPatch`（订单回调包装 + 营业内快进）、`NoteBookProfilePannelPatch`（笔记本立绘） | 视图/监听扩展 |
 | WP-3.3 | 日程：`RunTimeSchedulerGapsPatch`（奖励拦截 + **灵梦保护窗口**） | 窗口目标是编译器生成的局部函数；版本锁定下由 MEFX 按运行期名字定位，启动时校验存在、缺失即报错（**待审计**） |
 
+**Phase 3 进展（挑战时间线，已落地第一片）**：MEFX 已实现 `IWorkSceneServices.Challenge`（`IWorkSceneChallengeServices`）+ `IChallengeListener`，覆盖 **阶段时钟**（`OnPreChallengeClockTick`/`OnChallengeClockElapsed`/`EndPhaseClock`/`SetPhaseSeconds`）、**阶段推进闸门**（`OnPreChallengeStep`/`OnChallengeStepRan`）、**阶段刷客闸门**（`OnPreChallengeGuestSpawn`/`OnChallengeGuestSpawned`），挂点是 `YuyukoBossData.MainChallengeLoop`、`_MainChallengeLoop_d__16.MoveNext`、`DC16_0` 的时钟状态机与 `DC16_0`/`DC16_6` 的刷客状态机、`IncomeControllerYuyuko.SetContext`（阶段来源）。SDK 不暴露任何游戏类型，字符串/编译期挂点在启动时校验存在性。
+
+**审计后仍未搬入 MEFX 的幽幽子项**（按审计表编号）：`ifYuyukoCouldOrder` 写回（需要 `SetBossOrderEnabled` + 1 个 seam）、限时负面符卡协程（应落在 `ISpellHost`/`TriggerNegativeBuff` 而非状态机）、吞厨具目标重放（**interop 里 `remainedCookers`/`targetType`/`targets` 字段不存在**，只能改在厨具层：`CookSystemManager.GetCooker`/`LockedCookersRaw`/`TileManager.CookerDesks`）、失败剧情开始通知（1 个成员 + 1 个 seam）、宿主下发失败的整段重放（需要桥接内复用状态机构造与字段）、重打 `OnBuffEnd` 清理（1 个成员 + 1 个 seam）、阶段 3 本体生命值镜像（`BossLife` + 变更通知）、终局离开场景的闸门与本体捕获（`NightSceneDirector`）、以及"`OnGroupEvaluated`/`OnGroupPostEvaluated` 是否真的包住挑战的评价覆盖回调"这一条待运行期确认。
+
+**审计发现的编号分歧（待实机确认后再改 mod 侧注释）**：本机互操作把 retake 闭包编为 `__c__DisplayClass16_6`、其立绘刷客循环为 `16_6.ObjectCompilerGenerated…InObWaVoObMoInVoBoOb0`，而 mod 现有注释写作 `16_5` 且把 `InObWaObUnique` 当作立绘循环（在互操作里它属于 `16_4` 的剧情 `Phase3OrderLoop`）。MEFX 的 seam 按结构（闭包归属 + 跨 yield 存活字段）定位目标，不依赖编号。
+
+**资产面的一条硬限制（已记入行为差异）**：本作 `global-metadata.dat` 里**没有** `LoadImage`/`EncodeToPNG`（`ImageConversion` 只剩模块名出现），运行期无法解析 `ImageConversion.LoadImage`，因此 MEFX 自己实现了 PNG 解码（`TryCreateTexture`），**JPEG 不支持**（与现有"非 PNG 跳过并记警告"的移植行为一致）。改用编辑器 `Managed/UnityEngine` 作为 Unity base libs 重新生成互操作虽然能让该 API 在编译期出现，但那只是编辑器形状、玩家端并不存在，故不采用。
+
 ### Phase 4 MetaMystia 去注入与代理化
 
 | WP | 内容 |
