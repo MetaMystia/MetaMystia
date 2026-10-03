@@ -1,13 +1,14 @@
-using System.Linq;
+﻿using System.Linq;
 
 using Il2CppInterop.Runtime;
 
 using Common.UI;
-using DayScene.UI;
 using GameData;
 
+using Mystia.Listeners;
+
+using MetaMystia.Listeners;
 using MetaMystia.ResourceEx.Registries;
-using SgrYuki.Utils;
 
 using static MetaMystia.UI.DaySceneSelectionMenu;
 
@@ -51,19 +52,16 @@ public static partial class StoryReplayManager
         OpenPackMenu();
     }
 
-    public static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback CreateCollabMenuSelection() =>
-        Il2CppOutDelegate.CreateGetSelectionConfigurationCallback(
-            (data, out title, out availability, out onInteract) =>
-            {
-                title = CollabMenuTitle;
-                StoryReplayIndex.Rebuild();
-                availability = StoryReplayIndex.Packs.Count > 0;
-                onInteract = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
-                {
-                    data.closeChatSelectionPannelCallback?.Invoke();
-                    OpenReplayMenu();
-                });
-            });
+    /// <summary>合作对象互动菜单里的「剧情回放」项（原 <c>CreateCollabMenuSelection</c>）。</summary>
+    public static ChatMenuEntry CreateCollabMenuEntry()
+    {
+        StoryReplayIndex.Rebuild();
+        return new ChatMenuEntry(CollabMenuTitle, StoryReplayIndex.Packs.Count > 0, () =>
+        {
+            ChatSync.CloseChatSelectionPanel();
+            OpenReplayMenu();
+        });
+    }
 
     private static void OpenPackMenu()
     {

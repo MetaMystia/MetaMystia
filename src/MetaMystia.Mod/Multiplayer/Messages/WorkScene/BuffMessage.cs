@@ -1,7 +1,8 @@
 using MemoryPack;
 
-using MetaMystia.Patch;
-using SgrYuki;
+using Mystia.Listeners;
+
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -15,23 +16,6 @@ public enum QTEBuff
     Fever_Infinite  // 永续热火朝天
 }
 
-public static class QTEBuffExtension
-{
-    extension(QTEBuff buff)
-    {
-        public int ID => buff switch
-        {
-            QTEBuff.InstantEvaluation => 0,
-            QTEBuff.PatientFreeze => 1,
-            QTEBuff.ThrowDeliver => 2,
-
-            QTEBuff.Fever => 3,
-            QTEBuff.Fever_Infinite => -1,
-            _ => 3,
-        };
-    }
-}
-
 /// <summary>
 /// 任何玩家 → 全体玩家：通告触发 QTE Buff
 /// </summary>
@@ -40,29 +24,29 @@ public static class QTEBuffExtension
 public partial class BuffMessage : MultiplayerMessage
 {
     public QTEBuff Buff;
-    protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Message;
-    protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Message;
+    protected override Mystia.LogLevel OnReceiveLogLevel => Mystia.LogLevel.Message;
+    protected override Mystia.LogLevel OnSendLogLevel => Mystia.LogLevel.Message;
 
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        CommandScheduler.Enqueue(
-            executeWhen: () => !QTERewardManagerPatch.OnQTESucceededExecuting,
-            executeInfo: "BuffMessage OnQTESucceededExecuting",
-            execute: () =>
-            {
-                if (!IsCurrent) return;
-                QTERewardManagerPatch.BuffLocalTrigger = false; // 标记为非本地触发
-                QTERewardManagerPatch.OnQTESucceeded(NightScene.CookingUtility.QTERewardManager.Instance, Buff.ID, true);
-                QTERewardManagerPatch.BuffLocalTrigger = true;
-                Log.Message($"triggered buff {Buff}");
-            },
-            timeoutSeconds: 10f
-        );
+        // 服务只在营业场景循环作用域内可用，奖励触发排到 GuestSync 的重放队列里执行。
+        var kind = ToReward(Buff);
+        GuestSync.EnqueueReplay($"buff {Buff}", services => QteSync.ReplayBuff(services, kind));
+        Log.Message($"triggered buff {Buff}");
     }
 
     public static void Send(QTEBuff buff)
     {
         new BuffMessage { Buff = buff }.Enqueue();
     }
+
+    private static RewardBuffKind ToReward(QTEBuff buff) => buff switch
+    {
+        QTEBuff.ThrowDeliver => RewardBuffKind.ThrowDeliver,
+        QTEBuff.InstantEvaluation => RewardBuffKind.InstantEvaluation,
+        QTEBuff.PatientFreeze => RewardBuffKind.PatientFreeze,
+        QTEBuff.Fever_Infinite => RewardBuffKind.InfiniteFever,
+        _ => RewardBuffKind.Fever,
+    };
 }

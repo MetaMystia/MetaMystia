@@ -5,12 +5,14 @@
     <Nullable>disable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Update="Assembly-CSharp" Aliases="GameInterop" />
+    <Reference Update="Assembly-CSharp" Aliases="GameInterop" Private="true" />
+    <Reference Update="Il2Cppmscorlib" Private="true" />
+    <Reference Update="UnityEngine.CoreModule" Private="true" />
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
     <Compile Include="../MetaMystia.Mod/Managers/DayDestinationManager.cs" Link="DayDestinationManager.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/BusinessStart.cs" Link="BusinessStart.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/GameFlow.Transitions.cs" Link="GameFlow.Transitions.cs" />
-    <Compile Include="../MetaMystia.Mod/Patches/Common/IzakayaSelectorPanelPatch.cs" Link="IzakayaSelectorPanelPatch.cs" />
+    <Compile Include="../MetaMystia.Mod/Listeners/PrepSync.cs" Link="PrepSync.cs" />
     <Compile Include="../MetaMystia.Mod/Patches/HarmonyPrefixFlow.cs" Link="HarmonyPrefixFlow.cs" />
     <Compile Include="../MetaMystia.Mod/UI/PlayerPresenceNotice.cs" Link="PlayerPresenceNotice.cs" />
   </ItemGroup>

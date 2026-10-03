@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -413,7 +413,7 @@ public static class L10n
         using var stream = asm.GetManifestResourceStream(resourceName);
         if (stream == null)
         {
-            Plugin.Instance?.Log.LogWarning($"L10n resource not found: {resourceName}");
+            ModRuntime.Log.Warning($"L10n resource not found: {resourceName}");
             return;
         }
         using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
@@ -425,17 +425,17 @@ public static class L10n
         if (!File.Exists(path))
         {
             if (warnIfMissing)
-                Plugin.Instance?.Log.LogWarning($"L10n override not found: {path}");
+                ModRuntime.Log.Warning($"L10n override not found: {path}");
             return;
         }
         try
         {
             MergeJson(lang, File.ReadAllText(path, System.Text.Encoding.UTF8));
-            Plugin.Instance?.Log.LogInfo($"L10n override loaded ({lang}): {path}");
+            ModRuntime.Log.Info($"L10n override loaded ({lang}): {path}");
         }
         catch (Exception ex)
         {
-            Plugin.Instance?.Log.LogWarning($"L10n override failed: {path} — {ex.Message}");
+            ModRuntime.Log.Warning($"L10n override failed: {path} — {ex.Message}");
         }
     }
 
@@ -443,11 +443,9 @@ public static class L10n
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;
         var path = raw.Trim().Trim('"');
+        // 相对路径以模组目录为基准（原先是插件程序集所在目录）。
         if (!Path.IsPathRooted(path))
-        {
-            var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            path = Path.Combine(pluginDir, path);
-        }
+            path = Path.Combine(ModRuntime.Paths.ModDirectory, path);
         return path;
     }
 
@@ -469,7 +467,7 @@ public static class L10n
             return;
         }
 
-        Plugin.Instance?.Log.LogWarning($"L10n override path not found: {path}");
+        ModRuntime.Log.Warning($"L10n override path not found: {path}");
     }
 
     private static void MergeJson(Language lang, string json)

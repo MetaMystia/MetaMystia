@@ -1,6 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
+using Il2CppInterop.Runtime;
 using Il2CppSystem.Linq;
 using UnityEngine;
 
@@ -10,9 +11,12 @@ using GameData.RunTime.NightSceneUtility;
 using NightScene.GuestManagementUtility;
 using NightScene.Tiles;
 
+using Mystia.Listeners;
+using Mystia.Scenes;
+
 using MetaMystia.Multiplayer;
+using MetaMystia.Listeners;
 using MetaMystia.Multiplayer.Messages;
-using MetaMystia.Patch;
 using SgrYuki.Utils;
 using static NightScene.GuestManagementUtility.GuestsManager;
 
@@ -57,12 +61,6 @@ public partial class GuestFSM
     public GuestGroupController.EvaluationResult OverrideEvalResult { get; set; } =
         GuestGroupController.EvaluationResult.Null;
 
-    /// <summary>
-    /// 客机端在 DoGenerateOrderSession 中暂存主机口径的订单数据，
-    /// 让本地 GenerateOrderInternal Prefix 短路时能回写一致的 orderData/result。
-    /// 同一帧内本质只有 0 或 1 个待处理订单，故可为可空字段而无需 Stack。
-    /// </summary>
-    public GeneratedOrderInfo? PendingOrder { get; set; }
     public int RuntimeId => GuestsMap.GetRuntimeId(Controller);
 
     private const int PendingTtlMs = 30000;
@@ -102,11 +100,19 @@ public partial class GuestFSM
     }
 
     /// <summary>
+    /// 营业场景服务作用域内的服务。重放只能由 <see cref="GuestSync"/> 的
+    /// <c>IWorkSceneGameLoop.Update</c> 驱动，因此 <see cref="Drain"/> 能执行时它一定非空。
+    /// </summary>
+    private static IWorkSceneServices Services => GuestSync.ScopedServices;
+
+    /// <summary>
     /// 检测单个顾客的阻塞的待处理项并尝试执行。每次执行完一项都重新检查队首，直到遇到未过期但无法执行的项为止。
+    /// 重放会调用被开关拦住的游戏方法，只能在营业场景循环的服务作用域内执行；作用域外只入队，等下一次 Update。
     /// </summary>
     private void Drain()
     {
         if (_draining) return;
+        if (Services == null) return;
         if (IsManualGuest && GameFlow.InStory) return;
         _draining = true;
         try
@@ -161,7 +167,7 @@ public partial class GuestFSM
     /// 主机 Hook 到顾客创建事件，获取顾客类型、ids、金钱等基本信息，注册顾客并广播 GuestSpawnMessage
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnSpawn(GuestGroupController controller, GuestsManagerPatch.PendingSpawnArgs? spawnArgs = null)
+    public static void OnSpawn(GuestGroupController controller, PendingSpawnArgs? spawnArgs = null)
     {
         var fsm = new GuestFSM();
         fsm.CurrentState = State.Constructed;
@@ -284,7 +290,7 @@ public partial class GuestFSM
 
         // 目标桌位可用 => 直接尝试入座
         var firstSpawn = fsm.CurrentState == State.Constructed;
-        if (!GuestService.ReplayTrySendToSeat(fsm.Controller, firstSpawn, deskCode, true))
+        if (!Services.Guests.Seat(fsm.Controller, deskCode, firstSpawn))
         {
             fsm.Kill(State.SeatMoving);
             return true;
@@ -413,16 +419,10 @@ public partial class GuestFSM
         eventManager.CallExternOnComboUpdate(result.Combo);
         eventManager.CallExternOnMusicIndexUpdate(eventManager.CurrentMusicLevelHandle.Invoke());
         TryCloseServePanel(controller.DeskCode);
-        GuestsManagerPatch.SkipRepellInternalPatch.Grant();
-        try
-        {
-            GuestsManager.Instance.RepellInternal(controller, out _, result.LeaveType, result.TriggerLeaveBuff);
-        }
-        finally
-        {
-            GuestsManagerPatch.SkipRepellInternalPatch.Reset();
-            GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
-        }
+        // 原版驱逐清理改走服务（服务内部放行被关掉的离场开关）。结果包里的 leaveType/triggerLeaveBuff 不再需要：
+        // 原版 LeaveFromDesk 收到 Move 时会改用控制器自身的 FinalLeaveType 结算（游戏 GuestsManager.LeaveFromDesk:2637），
+        // 而 RepellAndLeaveNoPay 内的 TriggerLeaveBuff 固定为 true，与主机侧的发送口径一致。
+        Services.Guests.Leave(controller, GuestLeaveKind.RepelledUnpaid);
     }
 
     /// <summary>
@@ -444,20 +444,18 @@ public partial class GuestFSM
     }
 
     /// <summary>
-    /// 客机落座回调，便于及时推进客机 SeatMoving => SeatedDelay 状态更新
+    /// 客机落座回调，便于及时推进客机 SeatMoving => SeatedDelay 状态更新。
+    /// 客机的落座由服务重放原版 <c>TrySendToSeat</c> 触发，到达时同样会走
+    /// <c>RefreshCurrentFundAndOrder</c>，因此只在 SeatMoving 时推进；其它来源的刷新（法术等）不介入。
     /// </summary>
     /// <param name="controller"></param>
     public static void ClientGuestGroupOnArrive(GuestGroupController controller)
     {
         var fsm = GuestsMap.GetGuestFsm(controller);
-        if (fsm.CurrentState == State.SeatMoving)
-        {
-            FlowLog($"Guest #{fsm.RuntimeId} arrived at desk {fsm.DeskCode}, FSM: SeatMoving -> SeatedDelay");
-            fsm.To(State.SeatedDelay);
-            return;
-        }
+        if (fsm == null || fsm.CurrentState != State.SeatMoving) return;
 
-        fsm.Kill(State.SeatedDelay);
+        FlowLog($"Guest #{fsm.RuntimeId} arrived at desk {fsm.DeskCode}, FSM: SeatMoving -> SeatedDelay");
+        fsm.To(State.SeatedDelay);
     }
 
 
@@ -483,7 +481,7 @@ public partial class GuestFSM
 
     /// <summary>
     /// 客机对 CheckAndSendFromQueue 的部分重放，指定顾客出队入座。
-    /// 但注意：客机是先重放了 ReplayTrySendToSeat -> MoveToDesk，
+    /// 但注意：客机是先重放了服务的入座（<c>IWorkSceneGuests.Seat</c> -> MoveToDesk），
     /// 然后才在此执行 OnLeaveQueueCallback 等一系列<b>后续</b>操作，因此初始状态为 SeatMoving。
     /// </summary>
     public static bool DoSendFromQueue(int runtimeId)
@@ -580,31 +578,26 @@ public partial class GuestFSM
         if (fsm.CurrentState != State.SeatedDelay && fsm.CurrentState != State.ContinueDecision) return false;
 
         var controller = fsm.Controller;
-        var info = new GeneratedOrderInfo()
-        {
-            RuntimeId = runtimeId,
-            OrderGenerationResult = orderGenerationResult,
-            OrderData = orderData,
-            OverrideResult = overrideResult
-        };
-
-        // 暂存主机口径的订单数据：让本地 GenerateOrderSession 重入 GenerateOrderInternal 时
-        // 客机 Prefix 能从 PendingOrder 回写一致的 orderData/result。
-        fsm.PendingOrder = info;
-
         if (fsm.IsFirstOrder) // FirstOrder
         {
-            GuestsManager.Instance.FirstOrder(controller); // FirstOrder 中会调用 GenerateOrderSession
+            // 原 FirstOrder 里不经过订单开关的显示部分（心情条与回调）在此直接执行；
+            // 点单会话本身由下面的服务放行。
+            var table = TileManager.Instance.GuestTables[controller.DeskCode].tableDisplayer;
+            table.ShowMood();
+            System.Action<float> onMoodUpdate = table.SetMoodProgress;
+            controller.OnMoodUpdateCallback = DelegateSupport.ConvertDelegate<Il2CppSystem.Action<float>>(onMoodUpdate);
+            controller.Mood = controller.Mood;
             fsm.IsFirstOrder = false;
         }
         else // MainOrderCycle
         {
+            // 原 MainOrderCycle 的 SetPlayerCanRepelGuest 步骤；doContinue 已由主机的 Result 表达，无需同步。
             GuestsManager.Instance.Register(GuestsManager.Instance.CanPlayerRepellGuest, controller);
-            // doContinue 已在 GenerateOrderInternal 内被计算为 Result，因此此处无需同步 doContinue
-            GuestsManager.Instance.GenerateOrderSession(controller, true);
         }
 
-        fsm.PendingOrder = null;
+        // 主机口径的订单与结果交给中间件的订单装载机制：服务放行原版 GenerateOrderSession，
+        // 桥接在 GenerateOrder 前缀回写订单、在闭包 GenerateOrderInternal/CheckRemainingFund 回写结果。
+        Services.Guests.BeginOrderSession(controller, overrideResult ?? orderGenerationResult, orderData, string.Empty);
 
         var finalResult = overrideResult ?? orderGenerationResult;
         if (finalResult == OrderGenerationResult.Succeed)
@@ -856,44 +849,22 @@ public partial class GuestFSM
     /// <returns></returns>
     public static bool TryUpdateServePanel(int deskCode, Sellable sellable, Sellable.SellableType type, bool canCancel)
     {
-        var panelDeskCode = WorkSceneServePannelPatch.PanelDeskCode;
-        if (panelDeskCode != deskCode) return false;
+        var panel = WorkSync.ServePanel;
+        if (panel?.DeskCode != deskCode) return false;
 
         if (type == Sellable.SellableType.Food)
         {
-            WorkSceneServePannelPatch.instanceRef?.willServeFood = canCancel ? sellable : null;
-            if (sellable == null)
-            {
-                WorkSceneServePannelPatch.instanceRef?.ResetServedVisualOnUI(
-                    WorkSceneServePannelPatch.instanceRef?.servFood,
-                    WorkSceneServePannelPatch.instanceRef?.servFoodOutline);
-            }
-            else
-            {
-                WorkSceneServePannelPatch.instanceRef?.SetServedVisualOnUI(
-                    WorkSceneServePannelPatch.instanceRef?.servFood,
-                    WorkSceneServePannelPatch.instanceRef?.servFoodOutline,
-                    sellable,
-                    canCancel);
-            }
+            panel.PendingFood = sellable;
+            panel.RefreshPendingVisual();
+            // 已确认上菜：原实现只在 UI 上以“不可取消”方式渲染、并不占用待上菜槽位；
+            // 视图没有单独的视觉入口，故渲染后立刻清空槽位，保持面板关闭时不重复确认的语义。
+            if (!canCancel) panel.PendingFood = null;
         }
         else // type == Sellable.SellableType.Beverage
         {
-            WorkSceneServePannelPatch.instanceRef?.willServeBeverage = canCancel ? sellable : null;
-            if (sellable == null)
-            {
-                WorkSceneServePannelPatch.instanceRef?.ResetServedVisualOnUI(
-                    WorkSceneServePannelPatch.instanceRef?.servBev,
-                    WorkSceneServePannelPatch.instanceRef?.servBevOutline);
-            }
-            else
-            {
-                WorkSceneServePannelPatch.instanceRef?.SetServedVisualOnUI(
-                    WorkSceneServePannelPatch.instanceRef?.servBev,
-                    WorkSceneServePannelPatch.instanceRef?.servBevOutline,
-                    sellable,
-                    canCancel);
-            }
+            panel.PendingBeverage = sellable;
+            panel.RefreshPendingVisual();
+            if (!canCancel) panel.PendingBeverage = null;
         }
         return true;
     }
@@ -905,13 +876,12 @@ public partial class GuestFSM
     /// <returns></returns>
     public static bool TryCloseServePanel(int deskCode)
     {
-        if (deskCode < 0 || WorkSceneServePannelPatch.instanceRef == null) return false;
-        if (WorkSceneServePannelPatch.PanelDeskCode != deskCode) return false;
+        var panel = WorkSync.ServePanel;
+        if (panel == null || deskCode < 0 || panel.DeskCode != deskCode) return false;
 
-        WorkSceneServePannelPatch.instanceRef?.willServeFood = null;
-        WorkSceneServePannelPatch.instanceRef?.willServeBeverage = null;
-        WorkSceneServePannelPatch.SkipOnPanelClosePatch.Grant();
-        WorkSceneServePannelPatch.instanceRef?.CloseExternPanel();
+        panel.ResetPendingVisual();
+        WorkSync.SkipNextServePanelClose();
+        panel.Close();
         return true;
     }
 
@@ -972,7 +942,8 @@ public partial class GuestFSM
         UpdateServeDesk(fsm.DeskCode, beverage, Sellable.SellableType.Beverage);
 
         fsm.To(State.Evaluating);
-        GuestsManager.Instance.EvaluateOrder(controller, isTriggerByPartner: false);
+        // 评价改走服务（服务内部同样以 isTriggerByPartner:false 调用原版，并放行被关掉的评价门控）。
+        Services.Guests.Evaluate(controller);
         fsm.OverrideEvalResult = GuestGroupController.EvaluationResult.Null;
         return true;
     }
@@ -1090,7 +1061,7 @@ public partial class GuestFSM
             if (GameSession.IsRoomHost && fsm.CurrentState == State.WaitingServe)
             {
                 if (fsm.IsManualGuest) YuyukoGuestSync.EvaluateConfirmed();
-                else GuestsManager.Instance.EvaluateOrder(controller, false, null);
+                else Services.Guests.Evaluate(controller);
             }
         }
         return true;
@@ -1183,7 +1154,7 @@ public partial class GuestFSM
     }
 
     /// <summary>
-    /// 客机放权 LeaveFromDesk 并重放桌上耐心耗尽。同步推进 WaitingServe -> Leaving
+    /// 客机重放桌上耐心耗尽。同步推进 WaitingServe -> Leaving
     /// </summary>
     public static bool DoPatientDepletedAtDesk(int runtimeId)
     {
@@ -1193,18 +1164,9 @@ public partial class GuestFSM
         var controller = fsm.Controller;
 
         fsm.To(State.Leaving);
-        // 同时放行耐心耗尽入口和它内部的离桌，重放原版订单清理与回调。
         TryCloseServePanel(fsm.DeskCode);
-        GuestsManagerPatch.SkipPatientDepletedLeavePatch.Grant();
-        try
-        {
-            GuestsManager.Instance.PatientDepletedLeave(controller);
-        }
-        finally
-        {
-            GuestsManagerPatch.SkipPatientDepletedLeavePatch.Reset();
-            GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
-        }
+        // 耐心耗尽改走服务：服务内部放行被关掉的离场开关，并在末端重放原版的订单清理与回调。
+        Services.Guests.Leave(controller, GuestLeaveKind.Patience);
         return true;
     }
 
@@ -1231,16 +1193,17 @@ public partial class GuestFSM
     }
 
     /// <summary>
-    /// 客机重放离桌。放权 LeaveFromDesk。无条件推进状态到终态。
+    /// 客机重放离桌。离桌改走服务，无条件推进状态到终态。
     /// </summary>
     public static bool DoLeaveFromDesk(int runtimeId, GuestGroupController.LeaveType leaveType, bool triggerLeaveBuff)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
         if (fsm.CurrentState == State.Dead || fsm.CurrentState == State.Left) return true;
-        FlowLog($"Guest #{runtimeId} DoLeaveFromDesk from {fsm.CurrentState}, leaveType={leaveType}");
-        GuestsManagerPatch.SkipLeaveFromDeskPatch.Grant();
-        GuestsManager.Instance.LeaveFromDesk(fsm.Controller, leaveType, null, triggerLeaveBuff);
+        FlowLog($"Guest #{runtimeId} DoLeaveFromDesk from {fsm.CurrentState}, leaveType={leaveType}, triggerLeaveBuff={triggerLeaveBuff}");
+        // 服务只按 GuestLeaveKind 选择原版离场方法，原版 LeaveFromDesk 内部一律以控制器自身的
+        // FinalLeaveType 结算（游戏 GuestsManager.LeaveFromDesk:2637），与主机发来的 leaveType 等价。
+        Services.Guests.Leave(fsm.Controller, GuestLeaveKind.Other);
         fsm.To(State.Left);
         return true;
     }
@@ -1286,7 +1249,10 @@ public partial class GuestFSM
         }
 
         To(State.Dead);
-        GuestService.ReplayForceCleanupGuest(Controller);
+        // 强制清理会调用被关掉的离场/入座接口，且 Kill 也可能由游戏调用栈（作用域外）触发，
+        // 因此排队到营业场景循环的服务作用域内执行。
+        var controller = Controller!;
+        GuestSync.EnqueueReplay($"cleanup #{rid}", services => GuestService.ReplayForceCleanupGuest(services, controller));
         GuestsMap.Remove(rid);
     }
 }

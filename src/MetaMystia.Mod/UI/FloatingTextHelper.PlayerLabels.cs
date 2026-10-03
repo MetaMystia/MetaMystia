@@ -1,9 +1,10 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 using TMPro;
 using UnityEngine;
 
 using MetaMystia.Multiplayer;
+using Object = UnityEngine.Object;
 
 namespace MetaMystia.UI;
 

@@ -1,4 +1,4 @@
-using Common.UI;
+﻿using Common.UI;
 
 using MetaMystia;
 using MetaMystia.Multiplayer;
@@ -82,7 +82,7 @@ Setup(false);
 DayDestinationManager.Submit(DayDestination.FinalTrialAgain, () => entered++);
 DayDestinationManager.ApplyConfirmation(1, DayDestination.FinalTrial);
 PluginHost.Instance.Tick();
-Check(MetaMystia.Patch.RunTimeSchedulerPatch.FirstTrialEntries == 1, "首次与重修混合时，重修客机沿已有首次客人入口进入");
+Check(MetaMystia.Listeners.ScheduleSync.FirstTrialEntries == 1, "首次与重修混合时，重修客机沿已有首次客人入口进入");
 
 Setup();
 DayDestinationManager.Submit(DayDestination.Business, () => entered++);

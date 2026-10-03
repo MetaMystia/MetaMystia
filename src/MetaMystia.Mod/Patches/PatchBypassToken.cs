@@ -33,10 +33,3 @@ public class PatchBypassToken
 
     public int Pending => _count;
 }
-
-/// <summary>
-/// 兼容旧命名，避免把非顾客重构相关的 patch 一起改掉。
-/// </summary>
-public sealed class PatchSkipPermit : PatchBypassToken
-{
-}

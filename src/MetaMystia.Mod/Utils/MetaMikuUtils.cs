@@ -1,14 +1,16 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
-using BepInEx.Logging;
+using Mystia;
+
+using MetaMystia;
 using Il2CppInterop.Runtime;
 
 namespace MetaMiku
 {
     public static class Utils
     {
-        private static ManualLogSource Log => MetaMystia.Plugin.Instance.Log;
+        private static ILog Log => ModRuntime.Log;
         private const string LOG_TAG = "[MetaMiku.Utils]";
 
         /// <summary>
@@ -98,7 +100,7 @@ namespace MetaMiku
 
             if (methodPtr == System.IntPtr.Zero)
             {
-                Log.LogError($"{LOG_TAG} Could not find set_Item method on dictionary!");
+                Log.Error($"{LOG_TAG} Could not find set_Item method on dictionary!");
                 return;
             }
 
@@ -121,8 +123,8 @@ namespace MetaMiku
                 {
                     // 尝试获取异常信息
                     // var excObj = new Il2CppSystem.Exception(exc);
-                    // Log.LogError($"{LOG_TAG} Exception during set_Item invoke: {excObj.Message}");
-                    Log.LogError($"{LOG_TAG} Exception during set_Item invoke! (Pointer: {exc})");
+                    // Log.Error($"{LOG_TAG} Exception during set_Item invoke: {excObj.Message}");
+                    Log.Error($"{LOG_TAG} Exception during set_Item invoke! (Pointer: {exc})");
                 }
                 else
                 {

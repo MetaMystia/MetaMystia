@@ -1,6 +1,6 @@
 using MemoryPack;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -22,7 +22,7 @@ public partial class PrepAllReadyMessage : MultiplayerMessage
         }
         else if (GameFlow.LocalScene != Common.UI.Scene.IzakayaPrepScene) return;
         PrepSceneManager.ApplyHostTable(PrepTable);
-        IzakayaConfigPannelPatch.PrepOver();
+        PrepSync.PrepOver();
     }
 
     public static void Send()

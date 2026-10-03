@@ -2,7 +2,7 @@ using Common.UI;
 using GameData.Profile;
 using NightScene.CookingUtility;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia;
 
@@ -15,7 +15,7 @@ public static class CheatManager
         var reward = QTERewardManager.Instance?.CurrentBuffReward?.TryCast<MystiaQTEBuffReward>();
         if (reward == null) return false;
 
-        MystiaQTEBuffRewardPatch.Player_Fever_Infinite_Reverse(reward);
+        QteSync.TriggerInfiniteFeverLocally(reward);
         return true;
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 
 using MetaMystia.Network;
@@ -16,7 +16,7 @@ public static class NetworkNotice
         var text = Label(error.Code).Get();
         if (error.Code is NetworkErrorCode.ProtocolMismatch or NetworkErrorCode.GameMismatch or NetworkErrorCode.ModMismatch)
             return text + " " + TextId.NetworkVersionDetails.Get(
-                Plugin.GameVersion, Plugin.ModVersion, Versions.Current.Protocol,
+                ModRuntime.GameVersion, ModRuntime.Version, Versions.Current.Protocol,
                 error.GameVersion ?? "?", error.ModVersion ?? "?", error.ProtocolVersion?.ToString() ?? "?");
         if ((error.Code is NetworkErrorCode.ServerFull or NetworkErrorCode.RoomFull)
             && error.Count is int count && error.Limit is int limit)

@@ -1,43 +1,26 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="../../MetaMystia.local.props" />
+﻿<Project Sdk="Mystia.Extension.Sdk/1.0.0">
+  <Import Project="../../MetaMystia.local.props" Condition="Exists('../../MetaMystia.local.props')" />
   <Import Project="../../Versions.props" />
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>14</LangVersion>
+    <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>MetaMystia</AssemblyName>
     <Product>MetaMystia</Product>
-    <DefineConstants>$(DefineConstants);TMI_$(TargetGameVersion.Replace(' ', '_').Replace('.', '_').ToUpperInvariant())</DefineConstants>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RestoreAdditionalProjectSources>
-      https://api.nuget.org/v3/index.json;
-      https://nuget.bepinex.dev/v3/index.json
-    </RestoreAdditionalProjectSources>
     <RootNamespace>MetaMystia</RootNamespace>
-    <OutputPath Condition="'$(DeployToGame)' != 'false'">$(BepInExPath)\plugins</OutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>$(DefineConstants);TMI_$(TargetGameVersion.Replace(' ', '_').Replace('.', '_').ToUpperInvariant())</DefineConstants>
   </PropertyGroup>
 
   <Target Name="GenerateTargetGameVersion" BeforeTargets="BeforeCompile">
     <WriteLinesToFile File="$(IntermediateOutputPath)TargetGameVersion.g.cs"
-      Lines="namespace MetaMystia { internal static class TmiBuildInfo { internal const string TargetGameVersion = &quot;$(TargetGameVersion)&quot;%3B } }"
+      Lines="namespace MetaMystia { internal static class TmiBuildInfo { internal const string TargetGameVersion = &quot;$(TargetGameVersion)&quot;%3B internal const string ModVersion = &quot;$(Version)&quot;%3B internal const string ModId = &quot;MetaMystia&quot;%3B } }"
       Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
     <ItemGroup>
       <Compile Include="$(IntermediateOutputPath)TargetGameVersion.g.cs" />
     </ItemGroup>
   </Target>
 
-  <Target Name="RenameBuildOutput" AfterTargets="Build">
-    <PropertyGroup>
-      <RenamedAssembly>$(AssemblyName)-v$(Version)</RenamedAssembly>
-      <RenamedAssemblyPath>$(OutputPath)$(RenamedAssembly)</RenamedAssemblyPath>
-    </PropertyGroup>
-    <Move SourceFiles="$(TargetPath)" DestinationFiles="$(RenamedAssemblyPath)$(TargetExt)" />
-    <Message Text="Renamed $(TargetPath) to $(RenamedAssemblyPath)$(TargetExt)" Importance="High" />
-  </Target>
+  <!-- 幽幽子挑战相关文件已按 4.4.0e 互操作成员布局完成适配，不再排除编译。 -->
 
   <ItemGroup>
     <EmbeddedResource Include="ResourceEx\AssetManagement\public.pem" />
@@ -46,185 +29,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
-    <ProjectReference Include="../MetaMystia.Generators\MetaMystia.Generators.csproj"
+    <ProjectReference Include="../MetaMystia.Generators/MetaMystia.Generators.csproj"
       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.*" IncludeAssets="compile" />
-    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-    <PackageReference Include="Costura.Fody" Version="6.*">
-      <PrivateAssets>all</PrivateAssets>
-      <Private>False</Private>
-    </PackageReference>
-    <PackageReference Include="Fody" Version="6.9.3">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="MemoryPack" Version="1.21.4">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(BepInExPath)\interop\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>$(BepInExPath)\interop\Assembly-CSharp-firstpass.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="BepInEx.Core">
-      <HintPath>$(BepInExPath)\core\BepInEx.Core.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="BepInEx.Preloader.Core">
-      <HintPath>$(BepInExPath)\core\BepInEx.Preloader.Core.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="BepInEx.Unity.Common">
-      <HintPath>$(BepInExPath)\core\BepInEx.Unity.Common.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="BepInEx.Unity.IL2CPP">
-      <HintPath>$(BepInExPath)\core\BepInEx.Unity.IL2CPP.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Il2CppSystem">
-      <HintPath>$(BepInExPath)\interop\Il2CppSystem.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Il2Cppmscorlib">
-      <HintPath>$(BepInExPath)\interop\Il2Cppmscorlib.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Il2CppSystem.Core">
-      <HintPath>$(BepInExPath)\interop\Il2CppSystem.Core.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Il2CppSystem.Net.Http">
-      <HintPath>$(BepInExPath)\interop\Il2CppSystem.Net.Http.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UniTask">
-      <HintPath>$(BepInExPath)\interop\UniTask.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.UI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UIModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.UIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TilemapModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.TilemapModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.CoreModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.GridModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.GridModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.ImageConversionModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.ImageConversionModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.InputLegacyModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.Physics2DModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.Physics2DModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.JSONSerializeModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.JSONSerializeModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.AudioModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.AudioModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.ParticleSystemModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.ParticleSystemModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.AssetBundleModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.AssetBundleModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.DirectorModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.DirectorModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.InputModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.InputModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>$(BepInExPath)\interop\UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Unity.Addressables">
-      <HintPath>$(BepInExPath)\interop\Unity.Addressables.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Unity.TextMeshPro">
-      <HintPath>$(BepInExPath)\interop\Unity.TextMeshPro.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Unity.InputSystem.dll">
-      <HintPath>$(BepInExPath)\interop\Unity.InputSystem.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Unity.ResourceManager">
-      <HintPath>$(BepInExPath)\interop\Unity.ResourceManager.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="DEYU.Singletons">
-      <HintPath>$(BepInExPath)\interop\DEYU.Singletons.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="DEYU.AssetHandleUtility">
-      <HintPath>$(BepInExPath)\interop\DEYU.AssetHandleUtility.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="DEYU.AdpUISystemUniTaskExtension">
-      <HintPath>$(BepInExPath)\interop\DEYU.AdpUISystemUniTaskExtension.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Omt.GamePlatformAPI">
-      <HintPath>$(BepInExPath)\interop\Omt.GamePlatformAPI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Omt.GamePlatformAPI">
-      <HintPath>$(BepInExPath)\interop\DEYU.AdaptiveUISystem.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="MemoryPack.Core">
-      <HintPath>$(NuGetPackageRoot)memorypack\1.21.4\lib\netstandard2.0\MemoryPack.Core.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>$(BepInExPath)\interop\Newtonsoft.Json.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <!-- The framework's host supplies HarmonyX at runtime; this reference only compiles the legacy
+         patches under Patches/Compat that have no middleware equivalent yet. -->
+    <PackageReference Include="HarmonyX" Version="2.16.1" PrivateAssets="all" Private="false" />
   </ItemGroup>
 </Project>

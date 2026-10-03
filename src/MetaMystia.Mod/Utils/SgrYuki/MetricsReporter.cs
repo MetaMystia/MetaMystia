@@ -1,4 +1,4 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -259,7 +259,7 @@ public static partial class MetricsReporter
             {
                 try
                 {
-                    var currentVer = Plugin.ModVersion;
+                    var currentVer = ModRuntime.Version;
                     var latestVer = await GetPluginLatestTagAsync().ConfigureAwait(false);
 
                     Log.Message($"当前 Mod 版本为 {currentVer}，最新版为 {latestVer}");

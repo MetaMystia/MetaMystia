@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System.Text;
@@ -8,8 +8,8 @@ namespace MetaMystia.Generators
     [Generator]
     public sealed class LogGenerator : IIncrementalGenerator
     {
-        private const string LogSource = "MetaMystia.Plugin.Instance.Log";
-        private const string LogSourceType = "BepInEx.Logging.ManualLogSource";
+        private const string LogSource = "MetaMystia.ModRuntime.Log";
+        private const string LogSourceType = "Mystia.ILog";
         private const string TargetNamespace = "MetaMystia";
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -32,7 +32,7 @@ namespace MetaMystia.Generators
             {
                 var source = GeneratePartial(classInfo.Namespace, classInfo.ClassName);
                 spc.AddSource(
-                    $"{classInfo.ClassName}.bepinexlog.g.cs",
+                    $"{classInfo.ClassName}.log.g.cs",
                     SourceText.From(source, Encoding.UTF8)
                 );
             });

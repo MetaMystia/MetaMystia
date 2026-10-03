@@ -1,18 +1,28 @@
-<Project>
-  <Import Project="../../MetaMystia.local.props" />
+﻿<Project>
+  <Import Project="../../MetaMystia.local.props" Condition="Exists('../../MetaMystia.local.props')" />
   <Import Project="../../Versions.props" />
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <LangVersion>14</LangVersion>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
+  <ItemGroup Condition="'$(MystiaInteropDir)' != ''">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(MystiaInteropDir)Assembly-CSharp.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(MystiaInteropDir)Il2Cppmscorlib.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(MystiaInteropDir)UnityEngine.CoreModule.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
   <ItemGroup>
-    <Reference Include="Assembly-CSharp" HintPath="$(BepInExPath)/interop/Assembly-CSharp.dll" />
-    <Reference Include="Il2Cppmscorlib" HintPath="$(BepInExPath)/interop/Il2Cppmscorlib.dll" />
-    <Reference Include="UnityEngine.CoreModule" HintPath="$(BepInExPath)/interop/UnityEngine.CoreModule.dll" />
-    <Reference Include="Il2CppInterop.Runtime" HintPath="$(BepInExPath)/core/Il2CppInterop.Runtime.dll" />
+    <PackageReference Include="Il2CppInterop.Runtime" Version="1.5.1" />
   </ItemGroup>
 </Project>

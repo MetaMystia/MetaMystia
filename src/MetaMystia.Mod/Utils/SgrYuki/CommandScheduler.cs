@@ -1,9 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using BepInEx;
-using LibCpp2IL;
 
 namespace SgrYuki;
 
@@ -50,7 +48,7 @@ public static partial class CommandScheduler
 
     private static void OnTimeoutDefault(string text)
     {
-        if (!text.IsNullOrWhiteSpace())
+        if (!string.IsNullOrWhiteSpace(text))
         {
             Log.Error($"{text} timeout!");
         }
@@ -270,7 +268,7 @@ public static partial class CommandScheduler
             throw new ArgumentOutOfRangeException(nameof(intervalSeconds));
         if (execute == null)
             throw new ArgumentNullException(nameof(execute));
-        if (_intervalTasks.GetOrDefault(commandId, false))
+        if (_intervalTasks.TryGetValue(commandId, out var isRunning) && isRunning)
             return;
 
         executeWhen ??= () => true;
@@ -334,11 +332,11 @@ public static partial class CommandScheduler
             var cmd = _queue.Dequeue();
 
             // ===== 周期任务取消 =====
-            if (cmd.Repeat &&
-                cmd.CommandId != null &&
-                !_intervalTasks.GetOrDefault(cmd.CommandId, false))
+            if (cmd.Repeat && cmd.CommandId != null)
             {
-                continue;
+                var repeating = _intervalTasks.TryGetValue(cmd.CommandId, out var active) && active;
+                if (!repeating)
+                    continue;
             }
 
             if (now > cmd.ExpireTime)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -186,7 +186,7 @@ public static partial class YuyukoGuestSync
     {
         if (running) return;
         running = true;
-        PluginHost.Instance.StartManagedCoroutine(Process(lifetime));
+        ModLoop.StartManagedCoroutine(Process(lifetime));
     }
 
     /// <summary>

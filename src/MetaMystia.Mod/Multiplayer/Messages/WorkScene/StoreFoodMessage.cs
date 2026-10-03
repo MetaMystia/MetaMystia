@@ -1,6 +1,6 @@
 using MemoryPack;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -19,9 +19,8 @@ public partial class StoreFoodMessage : MultiplayerMessage
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        IzakayaConfigurePatch.StoreFood_Original(Food.ToSellable());
-        WorkSceneStoragePannelPatch.instanceRef?.UpdateFoodField();
-        WorkSceneStoragePannelPatch.instanceRef?.m_FoodsGroup?.UpdateElements();
+        PrepSync.StoreFood(Food.ToSellable());
+        WorkSync.RefreshStoragePanel();
     }
 
     public static void Send(SellableFood food) =>

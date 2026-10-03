@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 using GameData.RunTime.Common;
 
@@ -18,7 +18,7 @@ public static partial class SchedulerDataRecovery
         var targetKeys = new List<string>();
         foreach (var key in notLoadedDLCSchedulerSaveData.Keys)
         {
-            if (key.StartsWith("UNDEFINED") || key.StartsWith("ResourceEx"))
+            if (key.StartsWith("UNDEFINED") || key.StartsWith(TmiBuildInfo.ModId) || key.StartsWith("ResourceEx"))
             {
                 targetKeys.Add(key);
             }
@@ -37,16 +37,21 @@ public static partial class SchedulerDataRecovery
             return;
         }
 
-        if (!notLoadedDLCSchedulerSaveData.ContainsKey("ResourceEx"))
+        // The framework tags injected scheduler data with this mod's own id; "ResourceEx" is the tag
+        // older saves carry, so both are accepted here.
+        var ownTag = notLoadedDLCSchedulerSaveData.ContainsKey(TmiBuildInfo.ModId)
+            ? TmiBuildInfo.ModId
+            : "ResourceEx";
+        if (!notLoadedDLCSchedulerSaveData.ContainsKey(ownTag))
         {
-            // 没有 ResourceEx 相关数据，直接返回
+            // 没有本模组相关数据，直接返回
             Log.Info("No ResourceEx Scheduler data detected to reload.");
             return;
         }
 
-        // 有且只有一条 ResourceEx 相关数据，进行自动 reload
+        // 有且只有一条本模组相关数据，进行自动 reload
         Log.Info("No excessive ResourceEx Scheduler data detected. Retaining existing ResourceEx data.");
-        var resourceExData = notLoadedDLCSchedulerSaveData["ResourceEx"];
+        var resourceExData = notLoadedDLCSchedulerSaveData[ownTag];
 
         // reload finishedEvents
         foreach (var finishedEvent in resourceExData.finishedEvents)

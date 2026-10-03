@@ -2,7 +2,7 @@ using MemoryPack;
 
 using GameData.RunTime.NightSceneUtility;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -22,8 +22,7 @@ public partial class ExtractFoodMessage : MultiplayerMessage
     public override void OnReceivedDerived()
     {
         IzakayaConfigure.Instance?.RemoveStoredFood(Food.GetFromLocal());
-        WorkSceneStoragePannelPatch.instanceRef?.UpdateFoodField();
-        WorkSceneStoragePannelPatch.instanceRef?.m_FoodsGroup?.UpdateElements();
+        WorkSync.RefreshStoragePanel();
     }
 
     public static void Send(SellableFood food) =>

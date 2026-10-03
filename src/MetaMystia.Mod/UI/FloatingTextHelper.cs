@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 
-using BepInEx.Unity.IL2CPP.Utils;
 using TMPro;
 using UnityEngine;
 
@@ -119,7 +118,7 @@ public static partial class FloatingTextHelper
             return;
         }
         activeTextPeer = MakeFloatingText(comp.transform, text);
-        comp.StartCoroutine(FadeAndDestroy(activeTextPeer.GetComponent<TextMeshPro>(), duration));
+        ModRuntime.Coroutines.StartOn(comp, _ => FadeAndDestroy(activeTextPeer.GetComponent<TextMeshPro>(), duration));
     }
 
     private static void ShowFloatingTextSelf(string text, float duration = 5f)
@@ -135,7 +134,7 @@ public static partial class FloatingTextHelper
             return;
         }
         activeTextSelf = MakeFloatingText(character.transform, text);
-        character.StartCoroutine(FadeAndDestroy(activeTextSelf.GetComponent<TextMeshPro>(), duration));
+        ModRuntime.Coroutines.StartOn(character, _ => FadeAndDestroy(activeTextSelf.GetComponent<TextMeshPro>(), duration));
     }
 
     private static System.Collections.IEnumerator FadeAndDestroy(TextMeshPro tmp, float duration)

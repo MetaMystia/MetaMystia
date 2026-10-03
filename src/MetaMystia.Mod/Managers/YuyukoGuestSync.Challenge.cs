@@ -1,4 +1,4 @@
-#if !TMI_RELEASE_4_4_0E
+﻿#if !TMI_RELEASE_4_4_0E
 #error 请核对本文件依赖的游戏协程、状态机及编译器生成成员，完成版本适配后再更新此标记。
 #endif
 
@@ -15,7 +15,7 @@ using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 
-using LockLoop = GameData.Profile.YuyukoBossData.__c__DisplayClass16_6.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObSpCoObObUnique;
+using LockLoop = GameData.Profile.YuyukoBossData.__c__DisplayClass16_5.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObSpCoObObUnique;
 using MainLoop = GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16;
 using Object = UnityEngine.Object;
 
@@ -177,7 +177,8 @@ public static partial class YuyukoGuestSync
         loop._spriteRenderer_5__2.enabled = false;
         loop._lockedCookController_5__3 = CookSystemManager.Instance.GetCooker(helper.cookerPosition);
         loop.__2__current = context.eventManager.LerpPosition(effect.transform,
-            (System.Func<Vector3>)(() => helper._MainChallengeLoop_b__64()), 0.5f).Cast<Il2CppSystem.Object>();
+            // 4.4.0e：原 _MainChallengeLoop_b__64（Func<Vector3>）在助手闭包中改名为 b__63（b__64 现为 Action）。
+            (System.Func<Vector3>)(() => helper._MainChallengeLoop_b__63()), 0.5f).Cast<Il2CppSystem.Object>();
         loop.__1__state = 2;
         result = true;
         return false;

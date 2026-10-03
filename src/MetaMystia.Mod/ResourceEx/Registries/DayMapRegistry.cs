@@ -4,7 +4,6 @@ using System.Linq;
 
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using UnityEngine;
 using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.Tilemaps;
@@ -12,11 +11,8 @@ using UnityEngine.Tilemaps;
 using DayScene;
 using DayScene.Interactables;
 using GameData.Core.Collections.DaySceneUtility;
-using GameData.CoreLanguage;
-using GameData.CoreLanguage.Collections;
 using GameData.Profile;
 
-using MetaMiku;
 using MetaMystia.ResourceEx.Addressables;
 using MetaMystia.ResourceEx.Addressables.Providers;
 using MetaMystia.ResourceEx.AssetManagement;
@@ -71,7 +67,14 @@ public static partial class DayMapRegistry
         }
     }
 
-    public static void RegisterAll()
+    /// <summary>
+    /// 构建地图引擎对象（Tilemap／相机／高度图／刷新点／内存 GameObject），并把地图本体登记进运行时 Addressables。
+    /// 引擎对象不在数据面表达，因此仍由模组构建；<c>mapData</c>／刷新点与采集点标签／地图语言／映射由框架按
+    /// <c>OnInjectDayMaps</c> 写入，这里不再写表。
+    /// 由 <c>ModDatabaseExtension.OnInjectDayMaps</c> 在框架收集注入数据时调用：此时资源包已加载，且早于
+    /// DataBaseDay.Initialize 的框架写入，从而保证只有构建成功（校验通过）的地图才进入数据面。
+    /// </summary>
+    public static void BuildAll()
     {
         if (Maps.Count == 0) return;
         if (!providerRegistered)
@@ -84,38 +87,36 @@ public static partial class DayMapRegistry
         }
         foreach (var entry in Maps.Values)
         {
-            if (entry.Template == null)
-            {
-                var error = Validate(entry.Config, entry.Package);
-                if (error != null) { Log.Error($"[{entry.Package}] dayMaps[{entry.Config.id}]: {error}"); continue; }
-                entry.Template = Build(entry);
-                RuntimeAddressables.Register(entry.Uri, entry.Template);
-            }
-            RuntimeAddressables.TryGetReference<GameObject>(entry.Uri, out var reference);
-            var c = entry.Config;
-            var markerNames = c.spawnMarkers.Select(m => GetMarker(c.id, m.name)).ToArray();
-            DataBaseDay.mapData.ForceAddOrUpdateBoxedValue(entry.Label, new DaySceneMapProfile.MapNode
-            {
-                mapName = entry.Label, parent = "", mapAssetReference = reference,
-                mapCollectableLabels = new Il2CppStringArray(0), mapSpawnMarkerLabels = new Il2CppStringArray(markerNames),
-                level1IzakayaId = new Il2CppStructArray<int>(0), level2IzakayaId = new Il2CppStructArray<int>(0), level3IzakayaId = new Il2CppStructArray<int>(0)
-            });
-            DataBaseDay.mapReference[entry.Label] = reference;
-            DataBaseDay.allCollectablesLabels[entry.Label] = new Il2CppSystem.Collections.Generic.HashSet<string>();
-            var markers = new Il2CppSystem.Collections.Generic.HashSet<string>();
-            foreach (var name in markerNames) markers.Add(name);
-            DataBaseDay.allSpawnMarkerLabels[entry.Label] = markers;
-            Log.Info($"Registered day map {c.id}: {entry.Label}");
+            if (entry.Template != null) continue;
+            var error = Validate(entry.Config, entry.Package);
+            if (error != null) { Log.Error($"[{entry.Package}] dayMaps[{entry.Config.id}]: {error}"); continue; }
+            entry.Template = Build(entry);
+            RuntimeAddressables.Register(entry.Uri, entry.Template);
+            Log.Info($"Built day map {entry.Config.id}: {entry.Label}");
         }
-        RegisterLanguages();
     }
 
-    public static void RegisterLanguages()
+    /// <summary>已构建成功的地图配置；数据面只注入这些地图（校验失败或重复 id 的地图不写表）。</summary>
+    internal static IEnumerable<DayMapConfig> BuiltConfigs =>
+        Maps.Values.Where(entry => entry.Template != null).Select(entry => entry.Config);
+
+    /// <summary>
+    /// 把内存地图的地址引用写进游戏原表 <c>DataBaseDay.mapReference</c>（换图时 <c>SpawnMapReferenceAsync</c> 从这里取）。
+    /// 只能由模组写：框架写地图引用的前提是 <c>DayMapData.MapAsset</c> 为 32 位十六进制 catalog GUID，
+    /// 而模组地图是运行时 locator 注册的内存 GameObject，其 key 是 <c>RuntimeAddressables.KeyToGuid</c> 的
+    /// D 格式（36 字符），框架会判为「无地址引用」而只写数据。
+    /// 时机与迁移前一致：DataBaseDay.Initialize 会用数据包重建该字典，因此必须在它的后缀（<c>OnDataBaseDayInitialized</c>）里写。
+    /// </summary>
+    public static void RegisterMapReferences()
     {
-        if (DaySceneLanguage.MapLanguageData == null) return;
         foreach (var entry in Maps.Values)
-            if (entry.Template != null)
-                DaySceneLanguage.MapLanguageData[entry.Label] = new LanguageBase(entry.Config.name, entry.Config.description ?? "");
+        {
+            if (entry.Template == null) continue;
+            if (RuntimeAddressables.TryGetReference<GameObject>(entry.Uri, out var reference))
+                DataBaseDay.mapReference[entry.Label] = reference;
+            else
+                Log.Error($"Day map {entry.Label} has no addressable reference; the map cannot be entered.");
+        }
     }
 
     public static bool TryGetDestination(int id, string marker, out string label, out string markerName)

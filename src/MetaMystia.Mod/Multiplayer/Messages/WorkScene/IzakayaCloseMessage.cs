@@ -1,7 +1,8 @@
 using MemoryPack;
 using System.Linq;
 
-using MetaMystia.Patch;
+using Mystia.Scenes;
+
 using MetaMystia.UI;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
@@ -17,24 +18,14 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
 {
 
     /// <summary>
-    /// 客机收到主机广播的打烊命令 → 设置允许打烊标志并直接触发打烊流程
+    /// 客机收到主机广播的打烊命令 → 排队到营业场景循环的服务作用域内重放打烊。
     /// </summary>
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
         Log.Message($"Received close command from host");
         InGameConsole.ShowPassive(TextId.PeerClosedIzakaya.Get(PlayerManager.GetPeerName(SenderUid)));
-        var eventManager = EventManager.Instance;
-        if (eventManager == null)
-        {
-            Log.Warning("EventManager is null when replaying host close.");
-            return;
-        }
-
-        NightSceneEventManagerPatch.HostCloseReplay.Grant();
-        NightSceneEventManagerPatch.StopInstantiationLoopAndCloseIzakaya_ReversePatch(eventManager);
-        UnblockClientCloseWait(eventManager);
-        NightSceneEventManagerPatch.HostCloseReplay.Reset();
+        Listeners.GuestSync.EnqueueReplay("izakaya close", Listeners.GuestSync.ReplayIzakayaClose);
     }
 
     /// <summary>
@@ -47,36 +38,39 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
     }
 
     /// <summary>
-    /// 控制台强制打烊：走完整 StopInstantiationLoop 路径，并清空可能卡住
-    /// <see cref="GuestsManager.OnWaitForAllGuestToLeave"/> 的 occupiedDesks。
+    /// 控制台强制打烊：改走服务（<see cref="IWorkSceneIzakaya.Close"/> 内部放行被关掉的关店开关），
+    /// 因此排队到营业场景循环内执行，并清空可能卡住 <see cref="GuestsManager.OnWaitForAllGuestToLeave"/>
+    /// 的 occupiedDesks。
     /// </summary>
     public static bool TryForceLocalClose()
     {
         if (GameFlow.LocalScene != Common.UI.Scene.WorkScene) return false;
+        if (EventManager.Instance == null) return false;
 
-        var eventManager = EventManager.Instance;
-        if (eventManager == null) return false;
-
-        NightSceneEventManagerPatch.HostCloseReplay.Grant();
-        try
-        {
-            NightSceneEventManagerPatch.StopInstantiationLoopAndCloseIzakaya_ReversePatch(eventManager);
-            ForceUnblockClientCloseWait(eventManager);
-            if (GameSession.IsRoomHost) Send();
-        }
-        finally
-        {
-            NightSceneEventManagerPatch.HostCloseReplay.Reset();
-        }
-
+        Listeners.GuestSync.EnqueueReplay("force close", ReplayForceLocalClose);
         return true;
     }
 
     /// <summary>
-    /// 客机 <see cref="GuestsManager.OnWaitForAllGuestToLeave"/> 依赖 occupiedDesks 清空且 CanCloseIzakaya 为真。
-    /// 联机下 occupiedDesks 由 ReplayTrySendToSeat 写入，但 LeaveFromDesk 平时被 Prefix 跳过，desync 后会残留幽灵占桌。
+    /// 等价原 <c>EventManager.StopInstantiationLoopAndCloseIzakaya</c>（停刷客循环 + 时间耗尽 + 关店），
+    /// 并强制清空 occupiedDesks。
     /// </summary>
-    private static void UnblockClientCloseWait(EventManager eventManager)
+    private static void ReplayForceLocalClose(IWorkSceneServices services)
+    {
+        var eventManager = EventManager.Instance;
+        if (eventManager == null) return;
+
+        eventManager.StopGuestInstantiateLoop();
+        eventManager.SetTimeDepeleted();
+        services.Izakaya.Close();
+        ForceUnblockClientCloseWait(eventManager);
+    }
+
+    /// <summary>
+    /// 客机 <see cref="GuestsManager.OnWaitForAllGuestToLeave"/> 依赖 occupiedDesks 清空且 CanCloseIzakaya 为真。
+    /// 联机下 occupiedDesks 由重放的入座写入，但 LeaveFromDesk 平时被关掉，desync 后会残留幽灵占桌。
+    /// </summary>
+    internal static void UnblockClientCloseWait(EventManager eventManager)
     {
         if (!GameSession.IsRoomClient) return;
         PrepareClientCloseWait(eventManager, forceClearOccupiedDesks: false);

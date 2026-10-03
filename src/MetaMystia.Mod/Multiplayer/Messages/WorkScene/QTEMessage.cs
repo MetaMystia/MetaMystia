@@ -1,6 +1,6 @@
 using MemoryPack;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -20,13 +20,12 @@ public partial class QTEMessage : MultiplayerMessage
     public override void OnReceivedDerived()
     {
         if (YuyukoGuestSync.IsSwallowedCooker(GridIndex)) return;
-        var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
-        if (cookerController == null)
+        if (CookManager.GetCookerControllerByIndex(GridIndex) == null)
         {
             Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
-        CookControllerPatch.StartCookCountDown_ReversePatch(cookerController, QTEScore, false);
+        WorkSync.EnqueueCook(cook => cook.StartCountdown(GridIndex, QTEScore));
     }
 
     public static void Send(int gridIndex, float qteScore) =>

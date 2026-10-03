@@ -1,6 +1,6 @@
 using MemoryPack;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 using MetaMystia.UI;
 
 namespace MetaMystia.Multiplayer.Messages;
@@ -24,12 +24,12 @@ public partial class SelectIzakayaMessage : MultiplayerMessage
         if (GameSession.IsRoomHost)
         {
             // 主机收到 SELECT 后自动检查全员是否一致
-            IzakayaSelectorPanelPatch.TryConfirmSelection();
+            PrepSync.TryConfirmSelection();
         }
         else
         {
             // 客机也显示当前选店状态摘要
-            IzakayaSelectorPanelPatch.ShowSelectionStatus();
+            PrepSync.ShowSelectionStatus();
         }
     }
 

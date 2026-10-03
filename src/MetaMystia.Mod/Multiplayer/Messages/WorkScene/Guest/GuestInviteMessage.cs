@@ -2,9 +2,7 @@ using MemoryPack;
 using System.Collections.Generic;
 using System.Linq;
 
-using GameData.RunTime.Common;
-
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -22,12 +20,12 @@ public partial class GuestInviteMessage : MultiplayerMessage
     public override void OnReceivedDerived()
     {
         var invitedGuestIds = InvitedGuestIds ?? [];
-        var tracker = StatusTracker.Instance;
-        if (tracker == null) return;
+        var records = SessionSync.Records;
+        if (records == null) return;
 
         foreach (var guestId in invitedGuestIds.Distinct().Where(PlayerManager.SpecialGuestAvailable))
         {
-            StatusTrackerPatch.RecordInvitedGuest_ReversePatch(tracker, guestId);
+            records.RecordInvited(guestId);
         }
     }
 

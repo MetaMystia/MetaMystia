@@ -1,26 +1,25 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Il2CppInterop.Runtime;
-using Il2CppInterop.Runtime.Attributes;
 using UnityEngine;
 
 using GameData.Core.Collections;
-using GameData.Core.Collections.NightSceneUtility;
-using GameData.CoreLanguage.Collections;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 using NightScene.PartnerUtility;
 using NightScene.Tiles;
 using NightScene.UI;
 
+using Mystia;
+using Mystia.Scenes;
+using Mystia.Spells;
+
+using MetaMystia.Listeners;
 using MetaMystia.Multiplayer;
-using MetaMystia.Patch;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.ResourceEx.Vfx;
-using SgrYuki.Utils;
 
 namespace MetaMystia.ResourceEx.SpellCollection;
 
@@ -29,12 +28,18 @@ namespace MetaMystia.ResourceEx.SpellCollection;
 ///
 /// 红卡：30 秒内持续用冰系魔法调酒，为在场普通订单送上其点单的酒水。
 /// 黑卡：30 秒内所有客人的料理必须带有「凉爽」tag，否则评价上限为「普通」。
+///
+/// 实例由框架按 <c>SpellData.Id</c> 匹配，效果在营业场景服务作用域内以托管协程执行；
+/// 特效包由 <see cref="SpellRegistry"/> 按资源包声明取出，例行日志走框架传入的 <see cref="ILog"/>。
 /// </summary>
-public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
+public sealed class Spell_Mai : ISpell, ISpellDependencies
 {
+    /// <summary>符卡 id：资源包 <c>spells[].id</c>，与所属角色（舞）的 id 一致。</summary>
+    private const int Spell = 11001;
+
     // 资源包 buffs 中声明的 buff。
-    private const EventManager.BuffType RewardBuff = (EventManager.BuffType)11002;
-    private const EventManager.BuffType PunishmentBuff = (EventManager.BuffType)11003;
+    private const int RewardBuff = 11002;
+    private const int PunishmentBuff = 11003;
 
     private const int BuffSeconds = 30;
     private const float ServeIntervalSeconds = 1f;
@@ -48,8 +53,7 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
     private const string FrostFieldVfx = "Mai_FrostField";
     private const string CoolDownVfx = "Mai_CoolDown";
 
-    /// <summary>在类型注入与实例创建前检查必要资源；返回 null 表示齐全。</summary>
-    [HideFromIl2Cpp]
+    /// <summary>在实例生效前检查必要资源；返回 null 表示齐全。</summary>
     public static string CheckDependencies(VfxBundle vfx)
     {
         if (vfx == null)
@@ -58,13 +62,18 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
             if (!vfx.Contains(prefab))
                 return $"特效包缺少预制件 {prefab}";
         foreach (var buff in new[] { RewardBuff, PunishmentBuff })
-            if (!BuffRegistry.IsAvailable((int)buff))
-                return $"buff {(int)buff} 未声明或名称、说明、图标缺失";
+            if (!BuffRegistry.IsAvailable(buff))
+                return $"buff {buff} 未声明或名称、说明、图标缺失";
         return null;
     }
 
+    public int SpellId => Spell;
+
+    /// <summary>资源包声明的特效包；<see cref="CheckDependencies"/> 通过时必定可用。</summary>
+    private static VfxBundle Vfx => SpellRegistry.VfxFor(Spell);
+
     /// <summary>正在跑的上酒协程；重复触发或 buff 结束时停掉。</summary>
-    private Coroutine _serveLoop;
+    private CoroutineHandle _serveLoop;
 
     /// <summary>客机记录本轮已播放过投掷动画的订单（按原生指针），避免同一订单每秒重复投掷。</summary>
     private HashSet<IntPtr> _animatedOrders;
@@ -78,84 +87,91 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
 
     #region 红卡
 
-    [HideFromIl2Cpp]
-    protected override IEnumerator PositiveBuffRoutine(SpellExecutionContext spellExecutionContext)
+    public IEnumerator? Positive(IWorkSceneServices scene, ICoroutineDispatcher coroutines, ILog log) =>
+        PositiveRoutine(scene, coroutines, log);
+
+    private IEnumerator PositiveRoutine(IWorkSceneServices scene, ICoroutineDispatcher coroutines, ILog log)
     {
-        var origin = spellExecutionContext.GuestPosition.HasValue
-            ? spellExecutionContext.GuestPosition.Value
-            : GetPlayerPosition();
+        var origin = GuestPosition(scene) ?? scene.Common.PlayerPosition;
         var cast = Vfx.PlayOneShot(CastVfx, origin);
-        yield return new WaitForSeconds(2f);
+        yield return coroutines.AfterSeconds(2f);
         Vfx.Stop(cast);
 
-        // buff 已存在时 TryOverrideTimedBuff 只延长时长、不调用回调，持续效果须在回调内创建。
-        RegisterTimedBuff(
-            RewardBuff,
-            BuffSeconds,
-            DelegateSupport.ConvertDelegate<Il2CppSystem.Action<int>>(OnBuffRegistered),
-            extraDuration: 0);
-
-        void OnBuffRegistered(int duration)
+        // buff 已存在时游戏只延长时长、不重跑已注册的持续效果，持续效果因此挂在本次注册的结束回调之后。
+        GameObject snowfall = null;
+        void OnBuffEnd()
         {
-            StopServeLoop();
-            _animatedOrders = [];
-            var snowfall = Vfx.Play(SnowfallVfx);
-
-            Manager.RegisterTimedBuff(
-                duration,
-                RewardBuff,
-                out _,
-                DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
-                {
-                    Vfx.Stop(snowfall);
-                    StopServeLoop();
-                }),
-                DelegateSupport.ConvertDelegate<Il2CppSystem.Func<int, string, string>>(
-                    (int currentTime, string description) => description.Replace("$c", currentTime.ToString())));
-
-            // 挂在夜间场景的 EventManager 上，离开场景时随之停止；buff 结束时由回调停止。
-            _serveLoop = Manager.StartCoroutine(ServeLoop().WrapToIl2Cpp());
+            Vfx.Stop(snowfall);
+            StopServeLoop(coroutines);
         }
+
+        scene.Buffs.RegisterTimedBuff(RewardBuff, BuffSeconds, OnBuffEnd, BuffDescription, isPositive: true);
+        if (!scene.Buffs.HasTimedBuff(RewardBuff))
+        {
+            // buff 被禁止（NoBuffTime）时游戏立即触发结束回调，此时不建立持续效果。
+            log.Warning($"符卡 {Spell} 的奖励 buff 未注册，跳过持续演出");
+            yield break;
+        }
+
+        StopServeLoop(coroutines);
+        _animatedOrders = [];
+        snowfall = Vfx.Play(SnowfallVfx);
+
+        // 挂在夜间场景的事件管理器上，离开场景时随之停止；buff 结束时由回调停止。
+        _serveLoop = coroutines.StartOn(EventManager.Instance, _ => ServeLoop(scene, coroutines));
     }
 
-    [HideFromIl2Cpp]
-    private void StopServeLoop()
+    /// <summary>buff 剩余秒数的 $c 占位符替换（原 <c>SpellBase.RegisterTimedBuff</c> 的默认处理）。</summary>
+    private static string BuffDescription(int currentTime, string description) =>
+        description.Replace("$c", currentTime.ToString());
+
+    /// <summary>符卡目标（首个客人）的世界坐标；虚客或找不到目标时返回 null，调用方回退到玩家位置。</summary>
+    private static Vector3? GuestPosition(IWorkSceneServices scene)
     {
-        if (_serveLoop != null)
-            Manager.StopCoroutine(_serveLoop);
-        _serveLoop = null;
+        var guestId = scene.Spells.GuestId;
+        if (guestId < 0)
+            return null;
+
+        foreach (var group in scene.Guests.InDeskGuests)
+        {
+            if (group is not SpecialGuestsController controller || controller.SpecialGuest?.Id != guestId)
+                continue;
+
+            var instances = controller.guestInstances;
+            if (instances is { Length: > 0 } && instances[0] != null)
+                return instances[0].transform.position;
+        }
+        return null;
+    }
+
+    private void StopServeLoop(ICoroutineDispatcher coroutines)
+    {
+        if (_serveLoop != default)
+            coroutines.Stop(_serveLoop);
+        _serveLoop = default;
     }
 
     /// <summary>每秒为一桌送上酒水。一次只处理一桌，避免全场投掷动画同时重叠。</summary>
-    [HideFromIl2Cpp]
-    private IEnumerator ServeLoop()
+    private IEnumerator ServeLoop(IWorkSceneServices scene, ICoroutineDispatcher coroutines)
     {
         var wait = new WaitForSeconds(ServeIntervalSeconds);
         while (true)
         {
             yield return wait;
-            TryServeOneOrder();
+            TryServeOneOrder(scene, coroutines);
         }
     }
 
-    [HideFromIl2Cpp]
-    private void TryServeOneOrder()
+    private void TryServeOneOrder(IWorkSceneServices scene, ICoroutineDispatcher coroutines)
     {
-        // AllGuestInDeskController 是 Il2Cpp 字典的 Values，先转成托管列表再遍历。
-        var guests = new Il2CppSystem.Collections.Generic.List<GuestGroupController>(
-            GuestsManager.Instance.AllGuestInDeskController);
-
-        foreach (var guest in guests.ToManagedList())
+        foreach (var guest in scene.Guests.InDeskGuests)
         {
-            if (guest is null || guest.AllOrdersCount <= 0)
-                continue;
-
-            var order = guest.PeekOrders();
+            var order = scene.Guests.PendingOrder(guest);
             if (order is null || order.ServBeverage != null || order.ServedBeverageInAir != null)
                 continue;
 
             // 玩家正在这桌的上菜面板里：面板提交时不复查订单，抢先上酒会被覆盖并重复结算。
-            if (WorkSceneServePannelPatch.PanelDeskCode == order.DeskCode)
+            if (WorkSync.ServePanel?.DeskCode == order.DeskCode)
                 continue;
 
             // 只处理普通订单（NormalOrder），按订单而非客人类型判断。
@@ -166,7 +182,7 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
             if (AnimationOnly && !_animatedOrders.Add(order.Pointer))
                 continue;
 
-            Serve(guest, order, beverage);
+            Serve(scene, coroutines, guest, order, beverage);
             return;
         }
     }
@@ -175,35 +191,38 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
     /// 复用游戏原本的上酒流程：先登记在空中并通知伙伴，播放投掷动画，
     /// 落地后复查订单，再写入 ServBeverage，订单齐备时结算。客机只播放动画。
     /// </summary>
-    [HideFromIl2Cpp]
-    private void Serve(GuestGroupController guest, GuestsManager.OrderBase order, Sellable beverage)
+    private void Serve(
+        IWorkSceneServices scene,
+        ICoroutineDispatcher coroutines,
+        GuestGroupController guest,
+        GuestsManager.OrderBase order,
+        Sellable beverage)
     {
-        var origin = GetPlayerPosition();
-        var target = GetGuestTable(order.DeskCode);
+        var origin = scene.Common.PlayerPosition;
+        var target = scene.Common.TablePosition(order.DeskCode);
         var visual = beverage.Text?.Visual;
         var animationOnly = AnimationOnly;
 
         if (!animationOnly)
         {
-            order.ServedBeverageInAir = beverage;
+            scene.Guests.SetBeverageInAir(guest, beverage);
             // 与原版玩家上菜一致，发射时即通知：正端着酒赶往这桌的伙伴会就此中断。
-            PartnerManager.Instance.OnOrderBaseStatusUpdate(
+            scene.Guests.NotifyOrderStatusUpdate(
                 order, PartnerManager.OrderChangeContext.BeverageDelivered, -1);
         }
-        Manager.StartCoroutine(ThrowThenServe().WrapToIl2Cpp());
+        coroutines.StartOn(EventManager.Instance, _ => ThrowThenServe());
 
         IEnumerator ThrowThenServe()
         {
             var trail = Vfx.Play(BevTrailVfx, origin);
-            // 游戏方法本身返回 Il2Cpp 的 IEnumerator，直接 yield 交给 Unity 推进。
+            // 游戏方法本身返回 Il2Cpp 的 IEnumerator，直接交给协程泵推进。
             if (visual != null)
                 yield return UIManager.Instance.ExecuteThrowDeliver(visual, target, origin);
 
             Vfx.Stop(trail);
             Vfx.PlayOneShot(IceShardVfx, target);
 
-            if (animationOnly || !IsStillInAir())
-                yield break;
+            if (animationOnly || !IsStillInAir()) yield break;
 
             order.ServBeverage = beverage;
             order.ServedBeverageInAir = null;
@@ -215,9 +234,8 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
 
         // 飞行期间客人可能离开、桌位换人，或空中酒水被其他投掷覆盖；任一情况都放弃这杯。
         bool IsStillInAir() =>
-            GuestsManager.Instance.GetInDeskGuest(order.DeskCode)?.Pointer == guest.Pointer
-            && guest.AllOrdersCount > 0
-            && guest.PeekOrders()?.Pointer == order.Pointer
+            scene.Guests.At(order.DeskCode)?.Pointer == guest.Pointer
+            && scene.Guests.PendingOrder(guest)?.Pointer == order.Pointer
             && order.ServedBeverageInAir?.Pointer == beverage.Pointer;
     }
 
@@ -225,45 +243,49 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
 
     #region 黑卡
 
-    [HideFromIl2Cpp]
-    protected override IEnumerator NegativeBuffRoutine(SpellExecutionContext spellExecutionContext)
+    public IEnumerator? Negative(IWorkSceneServices scene, ICoroutineDispatcher coroutines, ILog log) =>
+        NegativeRoutine(scene, coroutines, log);
+
+    private IEnumerator NegativeRoutine(IWorkSceneServices scene, ICoroutineDispatcher coroutines, ILog log)
     {
         // 已生效时只追加剩余时间，保留原有评价限制、特效与结束回调。
-        if (Manager.CheckTimedBuffExists(PunishmentBuff))
+        if (scene.Buffs.HasTimedBuff(PunishmentBuff))
         {
-            Manager.SetExtraBuffRemainingTime(PunishmentBuff, BuffSeconds);
+            scene.Buffs.ExtendTimedBuff(PunishmentBuff, BuffSeconds);
             yield break;
         }
 
         var frost = Vfx.PlayScreenOverlay(FrostFieldVfx);
-        var coolDown = Vfx.Play(CoolDownVfx, GetPlayerPosition());
-        EventCoroutineDelegation.Schedule(SetCameraShake(0.35f, 0.35f, 0.4f));
-
-        // 不含「凉爽」tag 的料理，评价上限压到「普通」；containsOrNot=false 表示缺少该 tag 时生效。
-        var coolTags = new Il2CppSystem.Collections.Generic.List<int>();
-        coolTags.Add(CoolTag);
+        var coolDown = Vfx.Play(CoolDownVfx, scene.Common.PlayerPosition);
+        coroutines.StartOn(EventManager.Instance, _ => Shake());
 
         // 与原版 Spell_Kagerou 一致：协程只负责演出，buff 结束后的清理交给 onBuffEnd。
-        Manager.MaxEvalLevelSet(
+        // 不含「凉爽」tag 的料理，评价上限压到「普通」；containsOrNot=false 表示缺少该 tag 时生效。
+        scene.Buffs.LimitEvalLevel(
+            PunishmentBuff,
             BuffSeconds,
             EvalNormal,
-            coolTags.ToIEnumerable(),
-            out _,
-            DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
+            [CoolTag],
+            food: true,
+            containsOrNot: false,
+            onBuffEnd: () =>
             {
                 Vfx.Stop(frost);
                 Vfx.Stop(coolDown);
-            }),
-            PunishmentBuff,
-            isFood: true,
-            overrideDescription: DelegateSupport.ConvertDelegate<Il2CppSystem.Func<int, string, string>>(
-                (int currentTime, string description) => description
-                    .Replace("$a", DataBaseLanguage.GetFoodTag(CoolTag))
-                    .Replace("$b", DataBaseLanguage.GetEvalText(EvalNormal))
-                    .Replace("$c", currentTime.ToString())),
-            containsOrNot: false);
+            },
+            description: (currentTime, description) => description
+                .Replace("$a", scene.Common.FoodTagText(CoolTag))
+                .Replace("$b", scene.Common.EvaluationText(EvalNormal))
+                .Replace("$c", currentTime.ToString()));
 
         yield break;
+
+        // 原 EventCoroutineDelegation.Schedule(SetCameraShake(...))：相机震动并等待演出结束。
+        IEnumerator Shake()
+        {
+            scene.Common.ShakeCamera(0.35f, 0.35f, 0.4f);
+            yield return coroutines.AfterSeconds(0.75f);
+        }
     }
 
     #endregion

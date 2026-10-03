@@ -1,7 +1,7 @@
 using Common.UI;
 using MemoryPack;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 using MetaMystia.UI;
 using SgrYuki;
 
@@ -22,7 +22,7 @@ public partial class ConfirmIzakayaMessage : MultiplayerMessage
         var display = MapLabel.FormatIzakayaSelection(MapLevel);
         InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(display));
 
-        IzakayaSelectorPanelPatch.TryProceedWithConfirmedSelection(MapLabel, (IzakayaLevel)MapLevel);
+        PrepSync.TryProceedWithConfirmedSelection(MapLabel, (IzakayaLevel)MapLevel);
     }
 
     /// <summary>

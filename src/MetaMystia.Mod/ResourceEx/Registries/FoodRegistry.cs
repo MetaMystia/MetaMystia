@@ -1,22 +1,18 @@
 using System.Collections.Generic;
-using System.Linq;
 
-using GameData.Core.Collections;
-using GameData.CoreLanguage.Collections;
-
-using MetaMystia.ResourceEx.AssetManagement;
-using MetaMystia.ResourceEx.Mappers;
 using MetaMystia.ResourceEx.Models;
 
 namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
-/// 食物领域注册器：持有食物配置，负责注册与语言注册。
+/// 食物领域注册器：持有资源包声明的食物配置，供 <c>ModDatabaseExtension</c> 注入框架数据面。
 /// </summary>
 [AutoLog]
 public static partial class FoodRegistry
 {
     private static readonly Dictionary<int, FoodConfig> FoodConfigs = new();
+
+    internal static IEnumerable<FoodConfig> Configs => FoodConfigs.Values;
 
     internal static void Merge(ResourceConfig config, string packageName)
     {
@@ -27,25 +23,5 @@ public static partial class FoodRegistry
             FoodConfigs[foodConfig.id] = foodConfig;
             Log.LogInfo($"[{packageName}] Loaded config for food {foodConfig.name} ({foodConfig.id})");
         }
-    }
-
-    internal static void RegisterAllFoods() => FoodConfigs.Values.ToList().ForEach(RegisterFood);
-
-    private static void RegisterFood(FoodConfig config)
-    {
-        var food = config.ToFood();
-        var success = DataBaseCore.Foods.TryAdd(config.id, food);
-        var mappingSuccess = DataBaseCore.FoodsMapping.TryAdd(config.id, "ResourceEx");
-        Log.Info($"Registered Food ID {config.id} ({config.name}): Success: {success}, Mapping Success: {mappingSuccess}");
-    }
-
-    internal static void RegisterAllFoodLanguages() => FoodConfigs.Values.ToList().ForEach(RegisterFoodLanguage);
-
-    private static void RegisterFoodLanguage(FoodConfig config)
-    {
-        RexAssetRegistry.TryGetSprite(config.spritePath, out var sprite);
-        var lang = config.ToFoodLanguage(sprite);
-        DataBaseLanguage.Foods[config.id] = lang;
-        Log.Info($"Registered Food Language ID {config.id} ({config.name})");
     }
 }

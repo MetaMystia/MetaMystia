@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Reflection;
 
-using BepInEx.Logging;
+using Mystia;
 using MemoryPack;
 
 using MetaMystia.Network;

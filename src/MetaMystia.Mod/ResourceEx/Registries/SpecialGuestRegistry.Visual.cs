@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
+using GameData.Core.Collections.CharacterUtility;
 using GameData.Profile;
 using UnityEngine;
 
@@ -9,59 +10,52 @@ using MetaMystia.ResourceEx.Models;
 
 namespace MetaMystia.ResourceEx.Registries;
 
+/// <summary>
+/// 资源包角色立绘查询。
+/// 迁移后 <c>DataBaseCharacter.SpecialGuestVisual</c> 由框架按 <c>SpecialGuestData.Portraits</c> 建立
+/// （游戏侧四个 <c>CharacterPortrayal.Load*</c> 由框架接管），模组不再自建 <see cref="CharacterPortrayal"/> 实例，
+/// 因此这里改为「查这个 portrayal 属于哪个资源包角色」，再交出包内立绘，供玩家皮肤等按 Sprite 取用的链路使用。
+/// </summary>
 public static partial class SpecialGuestRegistry
 {
     // TODO: 目前只能支持单套自定义立绘
-    private static readonly Dictionary<CharacterPortrayal, CharacterConfig> CustomSpecialGuestPortrayalToConfig = [];
-
-    private static void RegisterSpecialGuestPortrayal(CharacterPortrayal portrayal, CharacterConfig characterConfig)
-    {
-        if (CustomSpecialGuestPortrayalToConfig.TryGetValue(portrayal, out var existingConfig))
-        {
-            Log.LogWarning(
-                $"Duplicate registration for portrayal '{portrayal}'. " +
-                $"Existing characterId: {existingConfig?.id}, new characterId: {characterConfig?.id}. " +
-                "Overwriting existing mapping.");
-        }
-
-        CustomSpecialGuestPortrayalToConfig[portrayal] = characterConfig;
-    }
-
     private static readonly Dictionary<CharacterConfig, Sprite[]> LoadedSpritesCache = [];
 
-    public static bool TryGetSpecialGuestCustomPortrayal(CharacterPortrayal portrayal, [NotNullWhen(true)] out Sprite[] portrayalSprite)
-    {
-        return TryGetSpecialGuestCustomPortrayal(portrayal, out portrayalSprite, out _);
-    }
+    public static bool TryGetSpecialGuestCustomPortrayal(CharacterPortrayal portrayal, [NotNullWhen(true)] out Sprite[] portrayalSprite) =>
+        TryGetSpecialGuestCustomPortrayal(portrayal, out portrayalSprite, out _);
 
     /// <summary>
-    /// 尝试将一个角色立绘映射到自定义立绘资源
+    /// 尝试把一个角色立绘映射到资源包内的自定义立绘
     /// </summary>
     /// <param name="portrayal">角色立绘</param>
     /// <param name="portrayalSprite">如果方法返回 <see langword="true"/>，则包含映射到的自定义立绘资源；否则为 <see langword="null"/>。</param>
-    /// <param name="faceInNoteBook">Config中的默认立绘ID，如果未指定则为0</param>
-    /// <returns>如果方法返回 <see langword="true"/>，则表示成功映射到自定义立绘资源；否则为 <see langword="false"/>。</returns>
-    /// <remarks> 如果Config中部分立绘提供了无效的路径，则返回数组的对应Index位为null </remarks>
+    /// <param name="faceInNoteBook">Config 中的默认立绘下标，未指定时为 0</param>
+    /// <returns>成功映射到资源包立绘时为 <see langword="true"/>；否则为 <see langword="false"/>。</returns>
+    /// <remarks> 如果 Config 中部分立绘提供了无效的路径，则返回数组的对应 Index 位为 null </remarks>
     public static bool TryGetSpecialGuestCustomPortrayal(CharacterPortrayal portrayal, [NotNullWhen(true)] out Sprite[] portrayalSprite, out int faceInNoteBook)
     {
         portrayalSprite = null;
         faceInNoteBook = 0;
-        if (!CustomSpecialGuestPortrayalToConfig.TryGetValue(portrayal, out var config))
-        {
+        if (portrayal is null)
             return false;
-        }
+
+        var config = FindConfig(portrayal);
+        if (config is null)
+            return false;
 
         faceInNoteBook = config.faceInNoteBook ?? 0;
 
-        if (LoadedSpritesCache.TryGetValue(config, out var sprites))
+        if (LoadedSpritesCache.TryGetValue(config, out var cached))
         {
-            portrayalSprite = sprites;
-            return true;
+            portrayalSprite = cached;
+            return cached.Length > 0;
         }
-        if (config.portraits is null) return false;
-        if (config.portraits.Count == 0) return false;
+
+        if (config.portraits is null || config.portraits.Count == 0)
+            return false;
 
         var portraits = new Sprite[config.portraits.Count];
+        var any = false;
         for (var index = 0; index < config.portraits.Count; index++)
         {
             var portraitConfig = config.portraits[index];
@@ -77,11 +71,33 @@ public static partial class SpecialGuestRegistry
             if (RexAssetRegistry.TryGetSprite(portraitConfig.path, out var sprite))
             {
                 portraits[index] = sprite;
+                any = true;
             }
         }
 
         LoadedSpritesCache[config] = portraits;
         portrayalSprite = portraits;
-        return true;
+        return any;
+    }
+
+    /// <summary>
+    /// 反查 portrayal 属于哪个资源包角色：框架建立的 portrayal 就放在游戏表
+    /// <c>DataBaseCharacter.SpecialGuestVisual</c> 的 <c>GuestProfilePair</c> 里，比对对象指针即可。
+    /// </summary>
+    private static CharacterConfig FindConfig(CharacterPortrayal portrayal)
+    {
+        var visual = DataBaseCharacter.SpecialGuestVisual;
+        if (visual is null)
+            return null;
+
+        foreach (var config in GetAllCharacterConfigs())
+        {
+            if (string.IsNullOrEmpty(config.label) || !visual.TryGetValue(config.id, out var pair) || pair is null)
+                continue;
+            if (pair.CharacterPortrayal?.defaultPortrayal?.Pointer == portrayal.Pointer)
+                return config;
+        }
+
+        return null;
     }
 }

@@ -1,22 +1,23 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using GameData.Core.Collections;
 using GameData.RunTime.Common;
 
-using MetaMystia.ResourceEx.Mappers;
 using MetaMystia.ResourceEx.Models;
 
 namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
-/// 事件节点领域注册器：持有事件节点配置，负责注册与羁绊事件激活。
+/// 事件节点领域注册器：持有事件节点配置，供 <c>ModDatabaseExtension</c> 注入框架数据面。
+/// 节点表与映射由框架按 <c>OnInjectEventNodes</c> 写入；本类保留羁绊事件激活与标签查询：
+/// 前者在进入白天场景时按当前羁绊等级补排前置事件，后者供存档恢复筛出本模组的节点。
 /// </summary>
 [AutoLog]
 public static partial class EventNodeRegistry
 {
     private static readonly List<EventNodeConfig> EventNodeConfigs = new();
+
+    internal static IEnumerable<EventNodeConfig> Configs => EventNodeConfigs;
 
     internal static void Merge(ResourceConfig config, string packageName)
     {
@@ -89,28 +90,6 @@ public static partial class EventNodeRegistry
             _ => null
         };
         return prerequisiteEvent != null;
-    }
-
-    internal static void RegisterAllEventNodes() => EventNodeConfigs.ToList().ForEach(RegisterEventNode);
-    private static void RegisterEventNode(EventNodeConfig config)
-    {
-        var eventNode = config.ToEventNode();
-        var success = DataBaseScheduler.allNodes.TryAdd(config.label, eventNode);
-        Log.Info($"Registering EventNode {config.debugLabel}({config.label}), success: {success}");
-    }
-
-
-    internal static void RegisterAllEventNodesMapping() => EventNodeConfigs.ToList().ForEach(RegisterEventNodeMapping);
-    private static void RegisterEventNodeMapping(EventNodeConfig config)
-    {
-        try
-        {
-            DataBaseScheduler.AllNodesMapping[config.label] = "ResourceEx";
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Failed to register EventNode mapping for {config.label}: {ex.Message}");
-        }
     }
 
     public static List<string> GetAllEventNodeLabels() => EventNodeConfigs.Select(config => config.label).ToList();

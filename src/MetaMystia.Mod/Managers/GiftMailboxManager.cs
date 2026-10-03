@@ -1,11 +1,13 @@
-using System.Linq;
+﻿using System.Linq;
 
 using Il2CppInterop.Runtime;
 
 using Common.UI;
-using DayScene.UI;
 using GameData.RunTime.Common;
 
+using Mystia.Listeners;
+
+using MetaMystia.Listeners;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 using SgrYuki.Utils;
@@ -17,19 +19,14 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class GiftMailboxManager
 {
-    public static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback CreateCollabMenuSelection() =>
-        Il2CppOutDelegate.CreateGetSelectionConfigurationCallback(
-            (data, out title, out availability, out onInteract) =>
-            {
-                title = TextId.GiftMailboxTitle.Get();
-                availability = GiftRegistry.Mailboxes.Count > 0;
-                onInteract = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
-                {
-                    if (GiftRegistry.Mailboxes.Count == 0) return;
-                    data.closeChatSelectionPannelCallback?.Invoke();
-                    OpenMailboxMenu();
-                });
-            });
+    /// <summary>合作对象互动菜单里的「礼物信箱」项（原 <c>CreateCollabMenuSelection</c>）。</summary>
+    public static ChatMenuEntry CreateCollabMenuEntry() =>
+        new(TextId.GiftMailboxTitle.Get(), GiftRegistry.Mailboxes.Count > 0, () =>
+        {
+            if (GiftRegistry.Mailboxes.Count == 0) return;
+            ChatSync.CloseChatSelectionPanel();
+            OpenMailboxMenu();
+        });
 
     public static void OpenMailboxMenu() => OpenSelectionMenu(
         BuildSelectionItems(

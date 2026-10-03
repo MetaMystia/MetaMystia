@@ -2,7 +2,7 @@ using MemoryPack;
 
 using GameData.Core.Collections;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 /// <summary>
 /// 任何玩家 → 所有玩家：通告玩家将 Sellable 储存在空厨具上
@@ -43,13 +43,12 @@ public partial class StoreSellableMessage : MultiplayerMessage
                 Log.LogError($"StoreSellableMessage.OnReceived called with unsupported FoodType: {FoodType}");
                 return;
         }
-        var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
-        if (cookerController == null)
+        if (CookManager.GetCookerControllerByIndex(GridIndex) == null)
         {
             Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
-        CookControllerPatch.Store_ReversePatch(cookerController, sellable);
+        WorkSync.EnqueueCook(cook => cook.Store(GridIndex, sellable));
     }
 
     public static void Send(int gridIndex, Sellable sellable)

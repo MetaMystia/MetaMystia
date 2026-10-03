@@ -14,8 +14,8 @@ public partial class ChatMessage : MultiplayerMessage
 {
 
     public string Message { get; set; }
-    protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Message;
-    protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Message;
+    protected override Mystia.LogLevel OnReceiveLogLevel => Mystia.LogLevel.Message;
+    protected override Mystia.LogLevel OnSendLogLevel => Mystia.LogLevel.Message;
 
     public override void OnReceivedDerived()
     {

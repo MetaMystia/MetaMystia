@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -11,8 +11,10 @@ using NightScene.GuestManagementUtility;
 using NightScene.EventUtility;
 using Night.UI.HUD.Ordering;
 
+using Mystia.Listeners;
+using Mystia.Scenes;
+
 using MetaMystia.Multiplayer.Messages;
-using MetaMystia.Patch;
 using SgrYuki.Utils;
 
 namespace MetaMystia;
@@ -115,82 +117,6 @@ public static partial class GuestService
     }
 
     /// <summary>
-    /// TrySendToSeat 的重放版本
-    /// </summary>
-    /// <param name="toTry"></param>
-    /// <param name="firstSpawn"></param>
-    /// <param name="targetDeskCode"></param>
-    /// <param name="shouldOrder"></param>
-    /// <returns></returns>
-    public static bool ReplayTrySendToSeat(GuestGroupController toTry, bool firstSpawn, int targetDeskCode = -1, bool shouldOrder = true)
-    {
-        var OnSit = () =>
-        {
-            toTry.IsOrdering = true;
-            toTry.RefreshCurrentFundAndOrder();
-            toTry.OnFinishOrderCallback?.Invoke(toTry);
-            toTry.OnSitCallback?.Invoke(toTry);
-            NightScene.UI.UIManager.Instance.guestBuffMarkModule.TryShowTargetDeskBuffMarkCanvasGroup(toTry.DeskCode);
-            if (!shouldOrder)
-            {
-                return;
-            }
-
-            GuestsManager.Instance.guestIconManager.SwitchState(toTry, GuestState.Await);
-
-            // 客机无需进行延迟点单，点单数据由主机同步
-
-            // 客机顾客落座后，推进客机 SeatMoving => SeatedDelay 状态更新
-            GuestFSM.ClientGuestGroupOnArrive(toTry);
-        };
-
-        int guestCount = toTry.guestInstances.Length;
-        List<int> list = GuestsManager.Instance.TrueAvailableDesks
-            .ToList()
-            .Where(x => x.Value >= guestCount)
-            .Select(x => x.Key)
-            .ToList();
-        if (list.Count <= 0)
-        {
-            return false;
-        }
-        if (targetDeskCode == -1 || !list.Contains(targetDeskCode))
-        {
-            targetDeskCode = list[UnityEngine.Random.Range(0, list.Count)];
-        }
-        if (firstSpawn)
-        {
-            GuestsManager.Instance.SpawnGuest(toTry);
-        }
-        Log.Info($"[ReplayTrySendToSeat] {toTry} -> seat {targetDeskCode}");
-        GuestsManager.Instance.occupiedDesks.Add(targetDeskCode);
-        toTry.MoveToDesk(targetDeskCode, OnSit);
-        GuestsManager.Instance.Register(GuestsManager.Instance.AllGuestsControllersInDesk, toTry);
-        GuestsManager.Instance.Register(GuestsManager.Instance.CanPlayerRepellGuest, toTry);
-        NightScene.SceneManager.Instance.PlayerCharacter.RefreshCurrentFocus();
-        return true;
-    }
-
-    /// <summary>
-    /// CheckAndSendFromQueue 的劫持版本，捕获需要从队列送入座的顾客
-    /// </summary>
-    public static void HijackCheckAndSendFromQueue()
-    {
-        foreach (GuestGroupController guestGroupController in GuestGroupController.QueuedGuestControllers)
-        {
-            if (!GuestsManager.Instance.TrySendToSeat(guestGroupController, false))
-            {
-                continue;
-            }
-            GuestFSM.OnSendFromQueue(guestGroupController);
-            
-            guestGroupController.OnLeaveQueueCallback?.Invoke(guestGroupController);
-            GuestsManager.Instance.RemoveFromPatientCountdown(guestGroupController);
-            return;
-        }
-    }
-    
-    /// <summary>
     /// 注销 OrderController 订单与桌位交互回调。CleanOrderInfo 按 PeekOrders 引用匹配，
     /// 客机重放订单时可能与 HUD 实例不一致，需按 DeskCode 兜底。
     /// </summary>
@@ -231,14 +157,14 @@ public static partial class GuestService
         _removeHudOrderDeskCode = deskCode;
         System.Predicate<GuestsManager.OrderBase> match = MatchHudOrderDesk;
         OrderController.RemoveOrder(
-            DelegateSupport.ConvertDelegate<Predicate<GuestsManager.OrderBase>>(match),
+            DelegateSupport.ConvertDelegate<Il2CppSystem.Predicate<GuestsManager.OrderBase>>(match),
             "MetaMystia::ForceCleanupGuest");
     }
 
     /// <summary>
-    /// 通用性强制清理
+    /// 通用性强制清理。离桌改走服务（内部放行被关掉的离场开关）。
     /// </summary>
-    public static void ReplayForceCleanupGuest(GuestGroupController controller)
+    public static void ReplayForceCleanupGuest(IWorkSceneServices services, GuestGroupController controller)
     {
         if (controller == null) return;
 
@@ -254,7 +180,17 @@ public static partial class GuestService
         {
             GuestsManager.Instance.RemoveFromPatientCountdown(controller);
             GuestFSM.TryCloseServePanel(controller.DeskCode);
-            GuestsManagerPatch.LeaveFromDesk_ReversePatch(GuestsManager.Instance, controller, GuestGroupController.LeaveType.Fading, null, false);
+            // 这是主机清理崩溃顾客、客机重放主机清理命令的路径：不再向对端广播离场。
+            // （原 GuestReentryPermits.LeaveFromDesk 令牌由 GuestSync.LeaveBroadcastSuspended 取代）
+            Listeners.GuestSync.LeaveBroadcastSuspended = true;
+            try
+            {
+                services.Guests.Leave(controller, GuestLeaveKind.Other);
+            }
+            finally
+            {
+                Listeners.GuestSync.LeaveBroadcastSuspended = false;
+            }
             return;
         }
 

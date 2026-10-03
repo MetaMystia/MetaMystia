@@ -1,5 +1,4 @@
-using BepInEx;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,7 +19,7 @@ namespace MetaMystia;
 public static partial class ResourceExManager
 {
     // Abstracted resource root path
-    public static string ResourceRoot { get; set; } = Path.Combine(Paths.GameRootPath, "ResourceEx");
+    public static string ResourceRoot { get; set; } = Path.Combine(ModRuntime.Paths.GameRoot, "ResourceEx");
 
     // Loaded package metadata for console queries
     private static readonly List<LoadedResourcePackage> _loadedPackages = new List<LoadedResourcePackage>();
@@ -88,97 +87,81 @@ public static partial class ResourceExManager
     // 加载逻辑
     // DataBaseCore -> DataBaseScheduler -> DataBaseCharacter -> DataBaseLanguage -> DataBaseDay
 
+    /// <summary>
+    /// 数据注入前置，幂等：包加载（含版本/DLC/签名校验）与包内与游戏表无关的能力初始化。
+    /// 由 <c>ModDatabaseExtension</c> 在框架收集注入数据前调用，时机与原 DataBaseCore.Initialize 后缀相同；
+    /// 其它数据注入扩展同样应先调用本方法，不要依赖扩展之间的先后顺序。
+    /// </summary>
+    public static void PrepareDatabaseInjection()
+    {
+        if (_injectionPrepared) return;
+        _injectionPrepared = true;
+        OnDataBaseCoreInitialized();
+    }
+    private static bool _injectionPrepared;
+
     public static void OnDataBaseCoreInitialized()
     {
         // 兜底：若 GetActiveKeys Hook 未触发（如非 Steam 平台），此时 DLC 状态已确定，补做加载
         OnDlcFlagsDetermined();
 
         AssetBundleRegistry.LoadAll(); // 先于依赖特效的符卡
+        // 符卡的效果实现由模组提供（ISpell，框架按 SpellId 匹配）；这里检查实现依赖并保管特效包。
         SpellRegistry.InitializeAll();
-        SpecialGuestRegistry.RegisterAllSpawnConfigs();
-        IngredientRegistry.RegisterAllIngredients();
-        BeverageRegistry.RegisterAllBeverages();
-        RecipeRegistry.RegisterAllRecipes();
-        FoodRegistry.RegisterAllFoods();
-        ClothRegistry.RegisterAllClothItems();
-        ClothRegistry.RegisterAllClothProfiles();
+        // 特殊客人的刷客池（Izakayas[].SpecialGuestPool）由框架按 OnInjectSpecialGuests 的 Spawns 写入，
+        // 此处不再直接写表
+        // 食材/饮料/菜谱/食物/服装由 ModDatabaseExtension 经 IDatabaseExtension 注入，此处不再直接写表
+        // 商人与白天地图同理；地图本体的引擎对象由 OnInjectDayMaps 在收集阶段构建（DayMapRegistry.BuildAll）
     }
     public static void OnDataBaseDayInitialized()
     {
-        DayMapRegistry.RegisterAll();
-        DialogRegistry.RegisterAllDialogPackages();
+        // 地图数据面（mapData／刷新点与采集点标签／地图语言／映射）、商人与对话包由框架按 OnInject* 写入；
+        // 这里只补框架无法表达的部分：内存地图的地址引用与礼物邮箱校验。
         GiftRegistry.ValidateAllGifts();
 
-        SpecialGuestRegistry.RegisterNPCs();
         // RegisterAllSpawnMarkers(); // DO NOT DELETE
-        MerchantRegistry.BuildAllMerchants();
+        DayMapRegistry.RegisterMapReferences();
     }
     public static void OnDataBaseLanguageInitialized()
     {
-        SpecialGuestRegistry.RegisterAllFoodRequests();
-        SpecialGuestRegistry.RegisterAllBevRequests();
-        SpecialGuestRegistry.RegisterSpecialPortraits();
-        IngredientRegistry.RegisterAllIngredientLanguages();
-        BeverageRegistry.RegisterAllBeverageLanguages();
-        FoodRegistry.RegisterAllFoodLanguages();
-        MissionNodeRegistry.RegisterAllMissionNodeLanguages();
-        ClothRegistry.RegisterAllClothLanguages();
-        SpellRegistry.RegisterAllLanguages();
-        BuffRegistry.RegisterAllBuffLanguages();
-    }
-
-    public static void OnDataBaseCharacterInitialized()
-    {
-        DialogRegistry.BuildAllDialogPackages();
-        SpecialGuestRegistry.RegisterAllSpecialGuestPairs();
-        SpecialGuestRegistry.RegisterAllSpecialGuests(); // 依赖 Dialog
-
-        MissionNodeRegistry.RegisterAllMissionNodes(); // 依赖 Dialog
-        EventNodeRegistry.RegisterAllEventNodes(); // 依赖 Dialog
-
-        ClothRegistry.RegisterAllClothPixelSprites(); // 依赖 DataBaseCharacter
-
-        SpellRegistry.RegisterAllCharacterHasSpell();
+        // 任务名与符卡语言的表由框架在注入时一并写入（OnInjectMissionNodes／OnInjectSpells），此处不再写表
+        // 食材/饮料/食物/服装/Buff 语言由 ModDatabaseExtension 经 IDatabaseExtension 注入，此处不再直接写表
+        // 特殊客人的角色文本与点单请求行同样由 OnInjectSpecialGuests 注入，此处不再直接写表
     }
 
     /// <summary>
-    /// 符卡实例与立绘：必须晚于 DataBaseNight.Initialize，见 DataBaseNightPatch。
+    /// 迁移前由 <c>Patches/Compat/DataBaseCharacterPatch</c> 在 <c>DataBaseCharacter.Initialize</c> 后缀调用。
+    /// 该补丁已随 E2 删除：特殊客人记录、像素集与立绘、对话包构建都改由
+    /// <c>ModDatabaseExtension</c>（<c>OnInjectSpecialGuests</c>／<c>OnInjectDialogs</c>）交给框架写入。
+    /// 框架在 <c>DataBaseCharacter.Initialize</c> 之后没有给模组的回调，因此本入口当前没有调用点，
+    /// 保留给仍需「晚于角色表重建」的装配（见迁移缺口的接线说明）。
     /// </summary>
-    public static void OnDataBaseNightInitialized()
+    public static void OnDataBaseCharacterInitialized()
     {
-        SpellRegistry.RegisterAllInstances();
-    }
-
-    public static void OnDataBaseAchievementInitialized()
-    {
-        // Currently no actions needed here
-    }
-    public static void OnDataBaseSchedulerInitialized()
-    {
-        // RegisterAllMissionNodes(); // 依赖 Dialog
-        // RegisterAllEventNodes(); // 依赖 Dialog
-        MissionNodeRegistry.RegisterAllMissionNodesMapping();
-        EventNodeRegistry.RegisterAllEventNodesMapping();
-    }
-    public static void OnNightSceneLanguageInitialized()
-    {
-        SpecialGuestRegistry.RegisterAllConversations();
-        SpecialGuestRegistry.RegisterAllEvaluations();
+        // 任务／事件节点表、节点映射与「是否拥有符卡」标记由框架写入（OnInjectMissionNodes／
+        // OnInjectEventNodes／OnInjectSpells）；节点的对话包由框架在 DataBaseDay 写入后再回填。
     }
 
     public static void OnDaySceneLanguageInitialized()
     {
-        DayMapRegistry.RegisterLanguages();
+        // 地图名与描述（DaySceneLanguage.MapLanguageData）由框架按 OnInjectDayMaps 写入，此处不再写表。
+        // 迁移前由 Patches/Compat/DaySceneLanguagePatch.cs 调用；该补丁已随 E2 删除，本入口保留给后续接线。
     }
 
     public static void OnDaySceneAwake()
     {
+        // 迁移前由 Patches/Compat/DataBaseDayPatch.cs（已随 E2 删除）在 DataBaseDay.Initialize 后缀调用。
+        // 框架在 DataBaseDay 的写入之后没有给模组的回调，这里退到白天场景唤醒时补做框架无法表达的部分
+        // （内存地图的地址引用要早于换图，礼物邮箱只在这里用到）。待确认：mapReference 的写入时机。
+        OnDataBaseDayInitialized();
+
         SpecialGuestRegistry.RefreshAllDayNpcs();
         SchedulerDataRecovery.CheckAndReloadSchedulerData();
         EventNodeRegistry.ActivateAllKizunaEventNodes(); // 依赖 CheckAndReloadSchedulerData
         SpecialGuestRegistry.ResetTrackedNpcDialog();
-        MerchantRegistry.CheckAndCleanOrphanedMerchants(); // 清理孤儿商人数据，防止 RefMerchant KeyNotFoundException
-        MerchantRegistry.RegisterAllTrackedMerchant();
+        // 商人的运行时追踪记录由框架在注入时建立；这里只清理已移除资源包留下的孤儿记录，
+        // 防止游戏调用 DataBaseDay.RefMerchant 抛 KeyNotFoundException。
+        MerchantRegistry.CheckAndCleanOrphanedMerchants();
     }
 
     /// <summary>

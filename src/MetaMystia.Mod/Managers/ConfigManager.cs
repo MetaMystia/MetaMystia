@@ -1,6 +1,6 @@
 using System;
+using System.IO;
 
-using BepInEx.Configuration;
 using UnityEngine;
 
 namespace MetaMystia;
@@ -25,12 +25,11 @@ public enum LiveMode
     Full
 }
 
-
-
 [AutoLog]
 public static partial class ConfigManager
 {
-    public static ConfigFile Config => Plugin.Instance?.Config;
+    public static ModConfigFile Config { get; private set; }
+
     public static ConfigEntry<bool> Debug;
     public static ConfigEntry<bool> CheatFever;
     public static ConfigEntry<float> CheatFlowRate;
@@ -72,6 +71,10 @@ public static partial class ConfigManager
 
     public static void InitConfigs()
     {
+        Config = ModRuntime.Cache is not null
+            ? ModConfigFile.Open(ModRuntime.Cache)
+            : ModConfigFile.Open(Path.Combine(ModRuntime.Paths?.ModDirectory ?? AppContext.BaseDirectory, "config.json"));
+
         Debug = Config.Bind("General", "Debug", false, "Enable debug features and hotkeys\n启用调试功能和热键");
 
         CheatFever = Config.Bind("Cheat", "CheatFever", false,
@@ -103,17 +106,13 @@ public static partial class ConfigManager
             "Max number of console commands to persist across sessions\n控制台命令历史记录最大保存条数");
 
         ConsoleHistoryFile = Config.Bind("General", "ConsoleHistoryFile", "MetaMystia_console_history.txt",
-            "Filename for console command history (stored in BepInEx/config/)\n控制台命令历史文件名(存储于 BepInEx/config/)");
+            "Filename for console command history (stored in the mod storage)\n控制台命令历史文件名(存储于模组存储目录)");
 
         MaxPlayers = Config.Bind("Multiplayer", "MaxPlayers", 2,
-            new BepInEx.Configuration.ConfigDescription(
-                "Maximum number of players allowed (including host)\n最大玩家数（含主机）",
-                new BepInEx.Configuration.AcceptableValueRange<int>(1, 256)));
+            "Maximum number of players allowed (including host)\n最大玩家数（含主机）");
 
         DefaultPort = Config.Bind("Multiplayer", "DefaultPort", 40815,
-            new BepInEx.Configuration.ConfigDescription(
-                "Default TCP port for hosting a server\n主机默认 TCP 端口",
-                new BepInEx.Configuration.AcceptableValueRange<int>(1, 65535)));
+            "Default TCP port for hosting a server\n主机默认 TCP 端口");
 
         EnableIPv6 = Config.Bind("Multiplayer", "EnableIPv6", false,
             "Enable IPv6 dual-stack listening (IPv4 always works)\n" +
@@ -121,7 +120,7 @@ public static partial class ConfigManager
 
         LocaleOverride = Config.Bind("General", "LocaleOverride", "",
             "Locale override: a single .json file (merged into current game language, missing keys fall back to built-in),\n" +
-            "or a directory with en.json / zh-CN.json. Supports absolute or relative path (relative to BepInEx/plugins/).\n" +
+            "or a directory with en.json / zh-CN.json. Supports absolute or relative path (relative to the mod directory).\n" +
             "翻译覆盖：单个 .json 文件（按当前游戏语言覆盖，未覆盖项回退内置翻译），或含 en.json/zh-CN.json 的目录。");
 
         NoteBookSkinPortrait = Config.Bind("Experimental", "NoteBookSkinPortrait", false,
@@ -178,6 +177,9 @@ public static partial class ConfigManager
             "Off: disabled | Partial: mask player IDs, show untrusted zone outline | Full: mask IDs and chat text");
     }
 
+    /// <summary>由全局循环调用：把标记为待落盘的配置写入存储。</summary>
+    public static void Flush() => Config?.FlushIfDirty();
+
     public static string GetPlayerId()
     {
         if (string.IsNullOrEmpty(PlayerId.Value))
@@ -192,6 +194,7 @@ public static partial class ConfigManager
         }
         return PlayerId.Value;
     }
+
     public static void SetPlayerId(string id)
     {
         Log.Message($"Player ID {PlayerId.Value} set to: {id}");

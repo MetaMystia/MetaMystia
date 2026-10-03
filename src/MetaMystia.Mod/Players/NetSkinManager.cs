@@ -6,8 +6,6 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-using BepInEx;
-
 using GameData.Core.Collections.CharacterUtility;
 
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
@@ -72,8 +70,8 @@ public static partial class NetSkinManager
         Timeout = TimeSpan.FromSeconds(15),
     };
 
-    private static string CacheDir =>
-        Path.Combine(Paths.CachePath, "MetaMystia", "skins");
+    // 皮肤缓存只给相对路径：读写都交给框架的模组缓存，绝对位置对模组隐藏。
+    private const string CacheFolder = "skins";
 
     private static string ServerUrl =>
         ConfigManager.SkinServerUrl?.Value?.TrimEnd('/') ?? "https://skin.metamystia.net";
@@ -147,13 +145,12 @@ public static partial class NetSkinManager
         }
 
         // 优先尝试磁盘缓存
-        var cachedPath = GetCachePath(name);
-        if (File.Exists(cachedPath))
+        if (CacheExists(GetCachePath(name)))
         {
             Log.Info($"NetSkin：从磁盘缓存加载 「{name}」");
             PluginManager.RunOnMainThread(() =>
             {
-                bool ok = TryParseAndRegister(name, File.ReadAllBytes(cachedPath));
+                bool ok = TryParseAndRegister(name, CacheReadBytes(GetCachePath(name)));
                 FinishRequest(name, ok);
             });
             // 后台使用 ETag 重验证；如果服务器返回新内容则重新解析 + 刷新
@@ -534,11 +531,79 @@ public static partial class NetSkinManager
         return sprite;
     }
 
-    private static string GetCachePath(string name) =>
-        Path.Combine(CacheDir, $"{name}.png");
+    private static string GetCachePath(string name) => $"{CacheFolder}/{name}.png";
 
-    private static string GetETagPath(string name) =>
-        Path.Combine(CacheDir, $"{name}.etag");
+    private static string GetETagPath(string name) => $"{CacheFolder}/{name}.etag";
+
+    /// <summary>
+    /// <see cref="ModRuntime.Cache"/> 未就绪（早期初始化）时退回模组目录下的同名子目录。
+    /// </summary>
+    private static string FallbackPath(string relativePath) =>
+        Path.Combine(ModRuntime.Paths?.ModDirectory ?? AppContext.BaseDirectory, relativePath);
+
+    private static bool CacheExists(string relativePath) =>
+        ModRuntime.Cache is { } cache ? cache.Exists(relativePath) : File.Exists(FallbackPath(relativePath));
+
+    private static byte[] CacheReadBytes(string relativePath)
+    {
+        if (ModRuntime.Cache is not { } cache)
+            return File.ReadAllBytes(FallbackPath(relativePath));
+
+        using var stream = cache.OpenRead(relativePath);
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
+    }
+
+    private static string CacheReadText(string relativePath)
+    {
+        if (ModRuntime.Cache is not { } cache)
+            return File.ReadAllText(FallbackPath(relativePath));
+
+        using var reader = cache.OpenText(relativePath);
+        return reader.ReadToEnd();
+    }
+
+    private static void CacheWriteBytes(string relativePath, byte[] bytes)
+    {
+        if (ModRuntime.Cache is { } cache)
+        {
+            using var stream = cache.OpenWrite(relativePath);
+            stream.Write(bytes, 0, bytes.Length);
+            return;
+        }
+
+        var path = FallbackPath(relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, bytes);
+    }
+
+    private static void CacheWriteText(string relativePath, string text)
+    {
+        if (ModRuntime.Cache is { } cache)
+        {
+            using var writer = cache.CreateText(relativePath);
+            writer.Write(text);
+            return;
+        }
+
+        var path = FallbackPath(relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, text);
+    }
+
+    private static void CacheDelete(string relativePath)
+    {
+        if (ModRuntime.Cache is { } cache)
+        {
+            cache.Delete(relativePath);
+            return;
+        }
+
+        var path = FallbackPath(relativePath);
+        if (File.Exists(path))
+            File.Delete(path);
+    }
 
     private static bool TryWriteDiskCache(string name, byte[] payload, string etag, string operation)
     {
@@ -546,8 +611,7 @@ public static partial class NetSkinManager
 
         try
         {
-            Directory.CreateDirectory(CacheDir);
-            File.WriteAllBytes(GetCachePath(name), payload);
+            CacheWriteBytes(GetCachePath(name), payload);
             WriteETag(name, etag);
             return true;
         }
@@ -562,9 +626,8 @@ public static partial class NetSkinManager
     {
         try
         {
-            var p = GetETagPath(name);
-            if (!File.Exists(p)) return null;
-            var v = File.ReadAllText(p).Trim();
+            if (!CacheExists(GetETagPath(name))) return null;
+            var v = CacheReadText(GetETagPath(name)).Trim();
             return string.IsNullOrEmpty(v) ? null : v;
         }
         catch { return null; }
@@ -574,14 +637,13 @@ public static partial class NetSkinManager
     {
         try
         {
-            var p = GetETagPath(name);
             if (string.IsNullOrEmpty(etag))
             {
-                if (File.Exists(p)) File.Delete(p);
+                if (CacheExists(GetETagPath(name))) CacheDelete(GetETagPath(name));
             }
             else
             {
-                File.WriteAllText(p, etag);
+                CacheWriteText(GetETagPath(name), etag);
             }
         }
         catch (Exception e)
@@ -619,10 +681,8 @@ public static partial class NetSkinManager
         lock (_builtSkins) _builtSkins.Remove(name);
         try
         {
-            var p = GetCachePath(name);
-            if (File.Exists(p)) File.Delete(p);
-            var et = GetETagPath(name);
-            if (File.Exists(et)) File.Delete(et);
+            if (CacheExists(GetCachePath(name))) CacheDelete(GetCachePath(name));
+            if (CacheExists(GetETagPath(name))) CacheDelete(GetETagPath(name));
         }
         catch (Exception e)
         {

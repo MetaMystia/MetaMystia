@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Linq;
 using System.Net;
@@ -45,7 +45,7 @@ public static partial class GameSession
         Stop();
         CurrentPort = port < 0 ? ConfigPort : port;
         lan = new(CurrentPort, ConfigManager.MaxPlayers.Value, GameMessageRules.Create(),
-            new(Versions.Current.Protocol, Plugin.GameVersion, Plugin.ModVersion), EnableIPv6);
+            new(Versions.Current.Protocol, ModRuntime.GameVersion, ModRuntime.Version), EnableIPv6);
         var session = lan;
         Attach(session.Client);
         var player = PlayerProfile.Capture();
@@ -65,7 +65,7 @@ public static partial class GameSession
         if (IsConnecting || HasRoomPeers || !CanStart()) return;
         Stop();
         CurrentPort = port < 0 ? ConfigPort : port;
-        var client = new Client(new(Versions.Current.Protocol, Plugin.GameVersion, Plugin.ModVersion));
+        var client = new Client(new(Versions.Current.Protocol, ModRuntime.GameVersion, ModRuntime.Version));
         Attach(client);
         var player = PlayerProfile.Capture();
         var token = cancellation.Token;
@@ -84,9 +84,9 @@ public static partial class GameSession
 
     private static bool CanStart()
     {
-        if (!Plugin.AllPatched || !GameFlow.IsMultiplayerAvailable || !GameFlow.CanJoin)
+        if (!CompatPatches.Applied || !GameFlow.IsMultiplayerAvailable || !GameFlow.CanJoin)
         {
-            InGameConsole.LogError((Plugin.AllPatched ? TextId.MpMainSceneRequired : TextId.ModPatchFailure).Get());
+            InGameConsole.LogError((CompatPatches.Applied ? TextId.MpMainSceneRequired : TextId.ModPatchFailure).Get());
             return false;
         }
         PlayerManager.Local.ReloadResourceTable();
@@ -153,7 +153,7 @@ public static partial class GameSession
         {
             PrepSceneManager.TryCompletePrep();
             if (GameFlow.LocalScene == Common.UI.Scene.DayScene && !GameFlow.IsFinalTrial)
-                Patch.IzakayaSelectorPanelPatch.TryConfirmSelection();
+                Listeners.PrepSync.TryConfirmSelection();
         }
         if (IsRoomHost && !IsConnecting && joinability.IsCompleted && Room.Joinable != GameFlow.CanOpenRoom)
             SetJoinable(GameFlow.CanOpenRoom);
@@ -227,7 +227,7 @@ public static partial class GameSession
     }
 
     private static void Run(Task operation, System.Action completed = null, bool connecting = false, System.Action failed = null) =>
-        PluginHost.Instance.StartManagedCoroutine(Observe(Client, operation, completed, connecting, failed));
+        ModLoop.StartManagedCoroutine(Observe(Client, operation, completed, connecting, failed));
 
     private static IEnumerator Observe(Client client, Task operation, System.Action completed, bool connecting, System.Action failed)
     {

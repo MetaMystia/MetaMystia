@@ -1,12 +1,12 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 using Common.UI;
 
+using MetaMystia.Listeners;
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
-using MetaMystia.Patch;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -72,7 +72,7 @@ public static partial class DayDestinationManager
     public static void ResetSession()
     {
         Reset();
-        RunTimeSchedulerPatch.ResetFirstTrialGuest();
+        ScheduleSync.ResetFirstTrialGuest();
         Round = 1;
     }
 
@@ -223,7 +223,7 @@ public static partial class DayDestinationManager
         if (!continuations.TryGetValue(destination, out var continuation))
         {
             if (destination == DayDestination.FinalTrial && continuations.ContainsKey(DayDestination.FinalTrialAgain))
-                continuation = RunTimeSchedulerPatch.EnterFirstTrialAsGuest;
+                continuation = ScheduleSync.EnterFirstTrialAsGuest;
             else
             {
                 Log.Error($"Missing local entry for destination {destination}, round {round}");
@@ -256,7 +256,7 @@ public static partial class DayDestinationManager
         ContinueEntry();
     }
 
-    public static void FinishDayEnd(Il2CppSystem.Action continuation)
+    public static void FinishDayEnd(System.Action continuation)
     {
         // 首次挑战接管后不再继续旧白天的选店流程。
         if (!firstTrialPending) continuation?.Invoke();

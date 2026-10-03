@@ -1,16 +1,17 @@
 using System;
-using System.Collections.Concurrent;
 using GameData.Profile;
+using MetaMystia.Listeners;
 using MetaMystia.Multiplayer;
-using MetaMystia.Patch;
 using UnityEngine;
+
+using Mystia;
 
 using MetaMystia.UI;
 
 namespace MetaMystia;
 
 /// <summary>
-/// 模组静态业务入口（与其他 Manager 一致）。帧循环驱动见 <see cref="PluginHost"/>。
+/// 模组静态业务入口（与其他 Manager 一致）。帧循环驱动见 <see cref="ModLoop"/>。
 /// </summary>
 [AutoLog]
 public static partial class PluginManager
@@ -21,38 +22,19 @@ public static partial class PluginManager
         {
             int packCount = ResourceExManager.LoadedPackages.Count;
             string packLabel = packCount == 1 ? "pack" : "packs";
-            return $"{MyPluginInfo.PLUGIN_NAME} v{MyPluginInfo.PLUGIN_VERSION} loaded with {packCount} rex {packLabel}";
+            return $"{ModRuntime.Id} v{ModRuntime.Version} loaded with {packCount} rex {packLabel}";
         }
     }
     public static bool IsStatusVisible { get; private set; } = true;
-    private static readonly ConcurrentQueue<Action> _mainThreadQueue = new();
     public static bool DEBUG => ConfigManager.Debug.Value;
 
     /// <summary>
-    /// 跨线程入队到主线程执行（由 <see cref="PluginHost"/> 每帧泵出）。
+    /// 跨线程调用转发到框架的主线程调度器；泵出由宿主承担。
     /// </summary>
-    public static void RunOnMainThread(Action action) => _mainThreadQueue.Enqueue(action);
+    public static void RunOnMainThread(Action action) => ModRuntime.MainThread.RunOnMainThread(action);
 
     /// <summary>
-    /// 泵出主线程队列，由 <see cref="PluginHost"/>.Update 每帧调用。
-    /// </summary>
-    public static void TickMainThreadQueue()
-    {
-        while (_mainThreadQueue.TryDequeue(out var action))
-        {
-            try
-            {
-                action();
-            }
-            catch (Exception e)
-            {
-                Log.LogError($"Error executing on main thread: {e.Message}\n{e.StackTrace}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// 每帧快捷键处理，由 <see cref="PluginHost"/>.Update 调用。
+    /// 每帧快捷键处理，由 <see cref="ModLoop"/>.Update 调用。
     /// </summary>
     public static void HandleShortcuts()
     {
@@ -80,23 +62,23 @@ public static partial class PluginManager
 
             if (Input.GetKeyDown(KeyCode.F3))
             {
-                MystiaQTEBuffRewardPatch.Player_Fever_Infinite_Reverse(NightScene.CookingUtility.QTERewardManager.Instance?.CurrentBuffReward?.TryCast<MystiaQTEBuffReward>());
+                QteSync.TriggerInfiniteFeverLocally(NightScene.CookingUtility.QTERewardManager.Instance?.CurrentBuffReward?.TryCast<MystiaQTEBuffReward>());
                 InGameConsole.ShowPassive("触发永续热火朝天");
             }
         }
     }
 
     /// <summary>
-    /// 绘制状态条，由 <see cref="PluginHost"/>.OnGUI 调用。
+    /// 绘制状态条，由 <see cref="ModLoop"/>.OnGui 调用。
     /// </summary>
-    public static void DrawStatusOverlay()
+    public static void DrawStatusOverlay(IIMGUIDrawer drawer)
     {
         if (!IsStatusVisible) return;
 
         var info = new System.Text.StringBuilder();
         info.AppendLine(Label);
         info.AppendLine(MetaMystia.UI.MultiplayerStatus.BriefStatus);
-        GUI.Label(new Rect(10, Screen.height - 50, 600, 50), info.ToString());
+        drawer.Label(new Rect(10, drawer.ScreenSize.y - 50, 600, 50), info.ToString());
     }
 
     private static void ToggleStatusVisibility()

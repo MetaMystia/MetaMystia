@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
-using BepInEx.Logging;
+using Mystia;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
@@ -42,7 +42,7 @@ public static class RuntimeAddressables
 {
     private static readonly object _initLock = new();
     private static bool _initialized;
-    private static ManualLogSource _log;
+    private static ILog _log;
     private static ResourceLocationMap _locator;
 
     /// <summary>Type → provider routing table.</summary>
@@ -59,15 +59,15 @@ public static class RuntimeAddressables
     /// with Addressables, and inject the built-in providers (Sprite, AudioClip).
     /// Idempotent and thread-safe.
     /// </summary>
-    /// <param name="log">Optional log source. A private one is created if null.</param>
-    public static void Initialize(ManualLogSource log = null)
+    /// <param name="log">Optional log source. Falls back to <see cref="ModRuntime.Log"/> when null.</param>
+    public static void Initialize(ILog log = null)
     {
         if (_initialized) return;
         lock (_initLock)
         {
             if (_initialized) return;
 
-            _log = log ?? BepInEx.Logging.Logger.CreateLogSource("RuntimeAddressables");
+            _log = log ?? ModRuntime.Log;
 
             try
             {
@@ -82,11 +82,11 @@ public static class RuntimeAddressables
                 RegisterBuiltInAudioClipProvider();
 
                 _initialized = true;
-                _log.LogInfo("Initialized.");
+                _log.Info("Initialized.");
             }
             catch (Exception ex)
             {
-                _log.LogError($"Initialization failed: {ex}");
+                _log.Error($"Initialization failed: {ex}");
                 throw;
             }
         }
@@ -121,7 +121,7 @@ public static class RuntimeAddressables
 
         // 重复注册通常是加载流程 bug（同一 key 注册两次）：旧资产会被静默替换，显式报错便于排查。
         if (_knownGuids.Contains(guid))
-            _log.LogError($"Duplicate registration: key '{key}' (type {typeof(T).Name}) already registered; the previous asset will be replaced.");
+            _log.Error($"Duplicate registration: key '{key}' (type {typeof(T).Name}) already registered; the previous asset will be replaced.");
 
         // Defensive: prevent unintended unload by Addressables / scene change.
         asset.hideFlags |= HideFlags.HideAndDontSave;
@@ -221,7 +221,7 @@ public static class RuntimeAddressables
         if (addAsset == null) throw new ArgumentNullException(nameof(addAsset));
 
         if (_registrations.ContainsKey(typeof(T)))
-            _log.LogWarning($"Provider for {typeof(T).FullName} already registered; overwriting.");
+            _log.Warning($"Provider for {typeof(T).FullName} already registered; overwriting.");
 
         AttachProviderToResourceManager(provider);
 
@@ -236,7 +236,7 @@ public static class RuntimeAddressables
             HasAsset = hasAsset ?? (_ => false),
         };
 
-        _log.LogInfo($"Registered provider for {typeof(T).FullName} (id={providerId})");
+        _log.Info($"Registered provider for {typeof(T).FullName} (id={providerId})");
     }
 
     /// <summary>
@@ -260,7 +260,7 @@ public static class RuntimeAddressables
             dict.Remove(keyBoxed);
         }
 
-        if (removed) _log.LogDebug($"Unregistered {typeof(T).Name}: {key} → {guid}");
+        if (removed) _log.Debug($"Unregistered {typeof(T).Name}: {key} → {guid}");
         return removed;
     }
 
@@ -341,7 +341,7 @@ public static class RuntimeAddressables
     {
         if (!_knownGuids.Add(guid))
         {
-            _log.LogDebug($"Updated existing entry for GUID {guid}");
+            _log.Debug($"Updated existing entry for GUID {guid}");
             return;
         }
 
@@ -358,6 +358,6 @@ public static class RuntimeAddressables
             location.Cast<IResourceLocation>()
         );
 
-        _log.LogDebug($"Registered location: {guid} (type={reg.AssetType.Name})");
+        _log.Debug($"Registered location: {guid} (type={reg.AssetType.Name})");
     }
 }

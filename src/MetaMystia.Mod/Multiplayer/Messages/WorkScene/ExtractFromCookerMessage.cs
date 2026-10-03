@@ -1,6 +1,6 @@
 using MemoryPack;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -17,13 +17,12 @@ public partial class ExtractFromCookerMessage : MultiplayerMessage
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
-        if (cookerController == null)
+        if (CookManager.GetCookerControllerByIndex(GridIndex) == null)
         {
             Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
-        CookControllerPatch.Extract_ReversePatch(cookerController, null);
+        WorkSync.EnqueueCook(cook => cook.Extract(GridIndex));
     }
 
     public static void Send(int gridIndex) =>

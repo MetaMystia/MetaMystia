@@ -6,8 +6,8 @@ namespace MetaMystia.Multiplayer.Messages;
 public partial class PingMessage : MultiplayerMessage
 {
     public int Id { get; set; }
-    protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Debug;
-    protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Debug;
+    protected override Mystia.LogLevel OnReceiveLogLevel => Mystia.LogLevel.Debug;
+    protected override Mystia.LogLevel OnSendLogLevel => Mystia.LogLevel.Debug;
     public override void OnReceivedDerived()
     {
         PongMessage.Send(Id, SenderUid);

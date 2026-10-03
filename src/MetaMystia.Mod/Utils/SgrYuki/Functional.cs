@@ -19,7 +19,7 @@ public static class Functional
         return stack.GetFrames().Any(frame => frame.GetMethod().Name.Contains(funcName));
     }
 
-    public static void LogStacktrace(BepInEx.Logging.ManualLogSource Log)
+    public static void LogStacktrace(Mystia.ILog log)
     {
         string stack = Environment.StackTrace;
         string[] lines = stack.Split([Environment.NewLine], StringSplitOptions.None);
@@ -31,7 +31,7 @@ public static class Functional
             sb.AppendLine(lines[i]);
         }
 
-        Log.LogInfo(sb.ToString());
+        log.Info(sb.ToString());
     }
 
     public static string GetCallerName(int layer = 1) => new System.Diagnostics.StackTrace().GetFrame(layer)?.GetMethod()?.Name;

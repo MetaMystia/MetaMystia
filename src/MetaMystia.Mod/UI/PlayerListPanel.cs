@@ -1,5 +1,7 @@
 using UnityEngine;
 
+using Mystia;
+
 using Common.UI;
 
 using MetaMystia.Multiplayer;
@@ -53,22 +55,22 @@ public static partial class PlayerListPanel
     }
 
     // ====================================================================
-    // OnGUI
+    // OnGui
     // ====================================================================
-    public static void OnGUI()
+    public static void OnGui(IIMGUIDrawer drawer)
     {
         if (!GameSession.IsConnectingOrOnline || (!_visible && !InGameConsole.IsOpen))
             return;
 
-        if (ConfigManager.PlayerListX.Value > Screen.width * 0.95f || ConfigManager.PlayerListY.Value > Screen.height * 0.95f)
+        if (ConfigManager.PlayerListX.Value > drawer.ScreenSize.x * 0.95f || ConfigManager.PlayerListY.Value > drawer.ScreenSize.y * 0.95f)
         {
             ConfigManager.PlayerListX.Value = (float)ConfigManager.PlayerListX.DefaultValue;
             ConfigManager.PlayerListY.Value = (float)ConfigManager.PlayerListY.DefaultValue;
         }
 
-        InitStyles();
+        InitStyles(drawer);
 
-        Event e = Event.current;
+        Event e = drawer.Current;
         int fontSize = _lineStyle.fontSize;
         float lineH = fontSize + LinePadding * 2 + 2;
 
@@ -92,15 +94,15 @@ public static partial class PlayerListPanel
 
         // ── 拖拽手柄 ──
         var dragRect = new Rect(panelX, panelY, panelW, DragHandleHeight);
-        GUI.DrawTexture(dragRect, _dragHandleTexture, ScaleMode.StretchToFill);
+        drawer.DrawTexture(dragRect, _dragHandleTexture, ScaleMode.StretchToFill, true);
 
         // ── 字体大小按钮（拖拽手柄右侧）──
         float fontBtnW = DragHandleHeight * 2f;
         float fontBtnH = DragHandleHeight;
-        if (GUI.Button(new Rect(panelX + panelW - fontBtnW * 2 - 2, panelY, fontBtnW, fontBtnH), "A−", _fontBtnStyle))
-            AdjustFontSize(-2);
-        if (GUI.Button(new Rect(panelX + panelW - fontBtnW, panelY, fontBtnW, fontBtnH), "A+", _fontBtnStyle))
-            AdjustFontSize(2);
+        if (drawer.Button(new Rect(panelX + panelW - fontBtnW * 2 - 2, panelY, fontBtnW, fontBtnH), "A−", _fontBtnStyle))
+            AdjustFontSize(drawer, -2);
+        if (drawer.Button(new Rect(panelX + panelW - fontBtnW, panelY, fontBtnW, fontBtnH), "A+", _fontBtnStyle))
+            AdjustFontSize(drawer, 2);
 
         if (e.type == EventType.MouseDown && dragRect.Contains(e.mousePosition))
         {
@@ -114,8 +116,8 @@ public static partial class PlayerListPanel
             {
                 float newX = e.mousePosition.x - _dragOffset.x;
                 float newY = e.mousePosition.y - _dragOffset.y;
-                ConfigManager.PlayerListX.Value = Mathf.Clamp(newX, 0, Screen.width - panelW);
-                ConfigManager.PlayerListY.Value = Mathf.Clamp(newY, 0, Screen.height - panelH);
+                ConfigManager.PlayerListX.Value = Mathf.Clamp(newX, 0, drawer.ScreenSize.x - panelW);
+                ConfigManager.PlayerListY.Value = Mathf.Clamp(newY, 0, drawer.ScreenSize.y - panelH);
                 e.Use();
             }
             if (e.type == EventType.MouseUp)
@@ -127,13 +129,13 @@ public static partial class PlayerListPanel
 
         // ── 背景 ──
         var bgRect = new Rect(panelX, panelY + DragHandleHeight, panelW, panelH - DragHandleHeight);
-        GUI.DrawTexture(bgRect, _bgTexture, ScaleMode.StretchToFill);
+        drawer.DrawTexture(bgRect, _bgTexture, ScaleMode.StretchToFill, true);
 
         // ── 绘制行 ──
         float cy = panelY + DragHandleHeight + Padding;
         foreach (var (text, _) in lines)
         {
-            GUI.Label(new Rect(panelX + Padding, cy, panelW - Padding * 2, lineH), text, _lineStyle);
+            drawer.Label(new Rect(panelX + Padding, cy, panelW - Padding * 2, lineH), text, _lineStyle);
             cy += lineH;
         }
     }
@@ -270,7 +272,7 @@ public static partial class PlayerListPanel
     // ====================================================================
     // 样式初始化
     // ====================================================================
-    private static Font GetFont()
+    private static Font GetFont(IIMGUIDrawer drawer)
     {
         if (_font != null) return _font;
         try
@@ -279,24 +281,24 @@ public static partial class PlayerListPanel
             if (_font != null) return _font;
         }
         catch { /* fallback */ }
-        return GUI.skin.font;
+        return drawer.Skin.font;
     }
 
-    private static void InitStyles()
+    private static void InitStyles(IIMGUIDrawer drawer)
     {
         if (_stylesInitialized) return;
         _stylesInitialized = true;
 
-        var font = GetFont();
+        var font = GetFont(drawer);
 
         _bgTexture = MakeTex(1, 1, new Color(0.05f, 0.05f, 0.08f, 0.55f));
         _dragHandleTexture = MakeTex(1, 1, new Color(0.3f, 0.3f, 0.4f, 0.6f));
 
         int fontSize = ConfigManager.PlayerListFontSize.Value > 0
             ? ConfigManager.PlayerListFontSize.Value
-            : Mathf.Clamp(Screen.height / 55, 12, 20);
+            : Mathf.Clamp((int)drawer.ScreenSize.y / 55, 12, 20);
 
-        _lineStyle = new GUIStyle(GUI.skin.label)
+        _lineStyle = new GUIStyle(drawer.Skin.label)
         {
             font = font,
             fontSize = fontSize,
@@ -309,7 +311,7 @@ public static partial class PlayerListPanel
         _lineStyle.padding.top = (int)LinePadding;
         _lineStyle.padding.bottom = (int)LinePadding;
 
-        _fontBtnStyle = new GUIStyle(GUI.skin.button)
+        _fontBtnStyle = new GUIStyle(drawer.Skin.button)
         {
             font = font,
             fontSize = 10,
@@ -325,12 +327,12 @@ public static partial class PlayerListPanel
         _fontBtnStyle.margin.bottom = 0;
     }
 
-    private static void AdjustFontSize(int delta)
+    private static void AdjustFontSize(IIMGUIDrawer drawer, int delta)
     {
         int current = ConfigManager.PlayerListFontSize.Value;
         int effective = current > 0
             ? current
-            : Mathf.Clamp(Screen.height / 55, 12, 20);
+            : Mathf.Clamp((int)drawer.ScreenSize.y / 55, 12, 20);
         int newSize = Mathf.Clamp(effective + delta, 10, 36);
         ConfigManager.PlayerListFontSize.Value = newSize;
         ResetStyles();

@@ -2,7 +2,6 @@ using System.Linq;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using UnityEngine;
 
-using GameData.Core.Collections;
 using GameData.Core.Collections.DaySceneUtility.Collections;
 using GameData.Core.Collections.NightSceneUtility;
 using GameData.CoreLanguage;
@@ -29,99 +28,6 @@ namespace MetaMystia.ResourceEx.Mappers;
 [AutoLog]
 public static partial class Mappers
 {
-    #region Ingredient Mappers
-
-    public static Ingredient ToIngredient(this IngredientConfig config)
-    {
-        return new Ingredient(
-            id: config.id,
-            baseValue: config.baseValue,
-            level: config.level,
-            prefix: config.prefix,
-            tags: config.tags.ToArray()
-        );
-    }
-
-    public static ObjectLanguageBase ToIngredientLanguage(this IngredientConfig config, Sprite sprite)
-    {
-        return new ObjectLanguageBase(
-            name: config.name,
-            Description: config.description,
-            visual: sprite
-        );
-    }
-
-    #endregion
-
-    #region Food Mappers
-
-    public static Sellable ToFood(this FoodConfig config)
-    {
-        return new Sellable(
-            id: config.id,
-            baseValue: config.baseValue,
-            level: config.level,
-            tags: config.tags.ToArray(),
-            banTags: config.banTags.ToArray(),
-            type: SellableType.Food,
-            additiveTags: new Il2CppSystem.Collections.Generic.List<int>(),
-            isCollab: false
-        );
-    }
-
-    public static ObjectLanguageBase ToFoodLanguage(this FoodConfig config, Sprite sprite)
-    {
-        return new ObjectLanguageBase(
-            name: config.name,
-            Description: config.description,
-            visual: sprite
-        );
-    }
-
-    #endregion
-
-    #region Beverage Mappers
-
-    public static Sellable ToBeverage(this BeverageConfig config)
-    {
-        return new Sellable(
-            id: config.id,
-            baseValue: config.baseValue,
-            level: config.level,
-            tags: config.tags.ToArray(),
-            banTags: new int[0],
-            type: SellableType.Beverage,
-            additiveTags: new Il2CppSystem.Collections.Generic.List<int>(),
-            isCollab: false
-        );
-    }
-
-    public static ObjectLanguageBase ToBeverageLanguage(this BeverageConfig config, Sprite sprite)
-    {
-        return new ObjectLanguageBase(
-            name: config.name,
-            Description: config.description,
-            visual: sprite
-        );
-    }
-
-    #endregion
-
-    #region Recipe Mappers
-
-    public static Recipe ToRecipe(this RecipeConfig config)
-    {
-        return new Recipe(
-            id: config.id,
-            foodID: config.foodId,
-            cookerType: config.cookerType,
-            cookTime: config.cookTime,
-            ingredients: config.ingredients.ToArray()
-        );
-    }
-
-    #endregion
-
     #region MissionNode Mappers
 
     public static LanguageBase ToMissionLanguage(this MissionNodeConfig config)

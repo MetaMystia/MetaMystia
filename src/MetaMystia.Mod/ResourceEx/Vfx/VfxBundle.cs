@@ -1,8 +1,7 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Il2CppInterop.Runtime;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +9,7 @@ using UnityEngine.UI;
 using NightScene.EventUtility;
 
 using MetaMystia.ResourceEx.AssetManagement;
+using Object = UnityEngine.Object;
 
 namespace MetaMystia.ResourceEx.Vfx;
 
@@ -123,7 +123,7 @@ public sealed partial class VfxBundle
             rect.offsetMax = Vector2.zero;
         }
 
-        EventManager.Instance.StartCoroutine(Fade(group, 1f).WrapToIl2Cpp());
+        ModRuntime.Coroutines.StartOn(EventManager.Instance, _ => Fade(group, 1f));
         return root;
     }
 
@@ -136,7 +136,7 @@ public sealed partial class VfxBundle
         var group = instance.GetComponent<CanvasGroup>();
         if (group != null)
         {
-            EventManager.Instance.StartCoroutine(Fade(group, 0f, destroyAfter: true).WrapToIl2Cpp());
+            ModRuntime.Coroutines.StartOn(EventManager.Instance, _ => Fade(group, 0f, destroyAfter: true));
             return;
         }
 

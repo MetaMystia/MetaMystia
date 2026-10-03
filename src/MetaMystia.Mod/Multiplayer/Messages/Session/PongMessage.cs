@@ -7,8 +7,8 @@ public partial class PongMessage : MultiplayerMessage
 {
     public int Id { get; set; }
 
-    protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Debug;
-    protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Debug;
+    protected override Mystia.LogLevel OnReceiveLogLevel => Mystia.LogLevel.Debug;
+    protected override Mystia.LogLevel OnSendLogLevel => Mystia.LogLevel.Debug;
 
     [ClientOnlyReceive]
     public override void OnReceivedDerived()

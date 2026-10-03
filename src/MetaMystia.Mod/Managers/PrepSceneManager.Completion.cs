@@ -2,9 +2,9 @@ using System.Linq;
 
 using Common.UI;
 
+using MetaMystia.Listeners;
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
-using MetaMystia.Patch;
 
 namespace MetaMystia;
 
@@ -23,7 +23,7 @@ public static partial class PrepSceneManager
         {
             completingPrep = true;
             PrepAllReadyMessage.Send();
-            IzakayaConfigPannelPatch.PrepOver();
+            PrepSync.PrepOver();
         }
     }
 
@@ -35,7 +35,7 @@ public static partial class PrepSceneManager
         foreach (var peer in PlayerManager.Peers.Values) peer.IsPrepOver = true;
         completingPrep = true;
         PrepAllReadyMessage.Send();
-        IzakayaConfigPannelPatch.PrepOver();
+        PrepSync.PrepOver();
         return true;
     }
 

@@ -1,22 +1,21 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using GameData.Core.Collections;
-using GameData.CoreLanguage.Collections;
-
-using MetaMystia.ResourceEx.Mappers;
 using MetaMystia.ResourceEx.Models;
 
 namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
-/// 任务节点领域注册器：持有任务节点配置，负责注册与语言注册。
+/// 任务节点领域注册器：持有任务节点配置，供 <c>ModDatabaseExtension</c> 注入框架数据面。
+/// 节点表（<c>DataBaseScheduler.allNodes</c>）、节点映射与任务语言由框架按 <c>OnInjectMissionNodes</c> 写入；
+/// 本类只保留标签查询：存档恢复（<c>SchedulerDataRecovery</c>）用它筛出属于本模组的节点。
 /// </summary>
 [AutoLog]
 public static partial class MissionNodeRegistry
 {
     private static readonly List<MissionNodeConfig> MissionNodeConfigs = new();
+
+    internal static IEnumerable<MissionNodeConfig> Configs => MissionNodeConfigs;
 
     internal static void Merge(ResourceConfig config, string packageName)
     {
@@ -26,35 +25,6 @@ public static partial class MissionNodeRegistry
         {
             MissionNodeConfigs.Add(missionNodeConfig);
             Log.LogInfo($"[{packageName}] Loaded config for mission node {missionNodeConfig.title}");
-        }
-    }
-
-    internal static void RegisterAllMissionNodeLanguages() => MissionNodeConfigs.ToList().ForEach(RegisterMissionNodeLanguage);
-    private static void RegisterMissionNodeLanguage(MissionNodeConfig config)
-    {
-        var lang = config.ToMissionLanguage();
-        DataBaseLanguage.Missions.TryAdd(config.label, lang);
-    }
-
-
-    internal static void RegisterAllMissionNodes() => MissionNodeConfigs.ToList().ForEach(RegisterMissionNode);
-    private static void RegisterMissionNode(MissionNodeConfig config)
-    {
-        Log.Info($"Registering MissionNode {config.title}({config.debugLabel})");
-        var missionNode = config.ToMissionNode();
-        var success = DataBaseScheduler.allNodes.TryAdd(missionNode.label, missionNode);
-        Log.Info($"Registered MissionNode {config.title}({config.label}): Success: {success}");
-    }
-    internal static void RegisterAllMissionNodesMapping() => MissionNodeConfigs.ToList().ForEach(RegisterMissionNodeMapping);
-    private static void RegisterMissionNodeMapping(MissionNodeConfig config)
-    {
-        try
-        {
-            DataBaseScheduler.AllNodesMapping[config.label] = "ResourceEx";
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Failed to register MissionNode mapping for {config.label}: {ex.Message}");
         }
     }
 

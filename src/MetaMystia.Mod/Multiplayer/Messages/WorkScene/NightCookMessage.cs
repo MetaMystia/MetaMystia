@@ -2,7 +2,7 @@ using MemoryPack;
 
 using GameData.Core.Collections;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -37,14 +37,13 @@ public partial class NightCookMessage : MultiplayerMessage
 
         var food = Food.ToSellable();
 
-        var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
-        if (cookerController == null)
+        if (CookManager.GetCookerControllerByIndex(GridIndex) == null)
         {
             Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
 
-        CookControllerPatch.SetCook_ReversePatch(cookerController, food, recipe, false);
+        WorkSync.EnqueueCook(cook => cook.Start(GridIndex, food, recipe));
     }
 
     public static void Send(int gridIndex, SellableFood food, int recipeId) =>

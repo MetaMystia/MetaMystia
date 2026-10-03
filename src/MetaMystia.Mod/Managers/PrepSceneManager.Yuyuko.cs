@@ -3,9 +3,9 @@ using System.Linq;
 
 using NightScene;
 
+using MetaMystia.Listeners;
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
-using MetaMystia.Patch;
 
 namespace MetaMystia;
 
@@ -59,7 +59,7 @@ public static partial class PrepSceneManager
 
         yuyukoPrepConfirmed = true;
         PrepAllReadyMessage.Send();
-        IzakayaConfigPannelPatch.PrepOver();
+        PrepSync.PrepOver();
     }
 
     public static bool CanFinishYuyukoPrep(int round) =>

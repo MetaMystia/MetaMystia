@@ -2,7 +2,7 @@ using MemoryPack;
 
 using NightScene.EventUtility;
 
-using MetaMystia.Patch;
+using MetaMystia.Listeners;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -26,9 +26,9 @@ public partial class TipEditMessage : MultiplayerMessage
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        var em = EventManager.Instance;
-        if (em == null) return;
-        NightSceneEventManagerPatch.TipEdit_ReversePatch(em, IntValue, ServeType, ComboBuff, MoodBuff, ExtraBuff);
+        // 服务只在营业场景循环作用域内可用，编辑排到 GuestSync 的重放队列里执行。
+        GuestSync.EnqueueReplay("tip edit", services =>
+            MetricsSync.ReplayTip(services, IntValue, ServeType, ComboBuff, MoodBuff, ExtraBuff));
     }
 
     public static void Send(int value, EventManager.ServeType serveType, float comboBuff, float moodBuff, float extraBuff) =>

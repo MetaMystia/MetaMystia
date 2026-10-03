@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using GameData.Core.Collections;
 using GameData.RunTime.NightSceneUtility;
 
+using MetaMystia.Listeners;
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
-using MetaMystia.Patch;
 
 namespace MetaMystia;
 
@@ -162,13 +162,7 @@ public static partial class PrepSceneManager
         UpdateCookers();
     }
 
-    public static void UpdateUI()
-    {
-        IzakayaConfigPannelPatch.instanceRef?.SolveDailyCompletion();
-        IzakayaConfigPannelPatch.instanceRef?.m_CookerGroup?.UpdateGroupRaw();
-        IzakayaConfigPannelPatch.instanceRef?.m_BeverageGroup?.UpdateGroupRaw();
-        IzakayaConfigPannelPatch.instanceRef?.m_RecipeGroup?.UpdateGroupRaw();
-    }
+    public static void UpdateUI() => PrepSync.RefreshConfigUI();
 
     public static void UpdateAll()
     {

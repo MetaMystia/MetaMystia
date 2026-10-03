@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using BepInEx;
 using GameData.Core.Collections.CharacterUtility;
 using SgrYuki.Utils;
 using UnityEngine;
@@ -18,7 +17,7 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class ExportUtils
 {
-    public static string ExportRoot { get; set; } = Path.Combine(Paths.GameRootPath, "Exports");
+    public static string ExportRoot { get; set; } = Path.Combine(ModRuntime.Paths.GameRoot, "Exports");
 
     public static void ExportAllFoodSprite(string exportDir)
     {

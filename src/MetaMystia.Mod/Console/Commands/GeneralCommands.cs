@@ -45,7 +45,7 @@ public static class GeneralCommands
 
     private static void EnableBepInConsoleHandler(InvocationContext ctx)
     {
-        BepInEx.ConsoleManager.CreateConsole();
+        ModConsole.Create();
         ctx.Log(TextId.BepInExConsoleEnabled.Get());
         System.Console.OutputEncoding = System.Text.Encoding.UTF8;
     }

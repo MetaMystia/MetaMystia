@@ -5,7 +5,6 @@ using Il2CppInterop.Runtime.InteropTypes.Arrays;
 
 using Common.DialogUtility;
 using Common.UI;
-using GameData.Core.Collections.DaySceneUtility;
 using GameData.Profile;
 
 using MetaMystia.ResourceEx.AssetManagement;
@@ -16,7 +15,9 @@ using UnityEngine.AddressableAssets;
 namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
-/// 对话包领域注册器：持有对话包配置与构建产物，负责构建与注册。
+/// 对话包领域注册器：持有对话包配置与模组侧构建产物。
+/// 游戏表 <c>DataBaseDay.allDialogPackages</c> 由框架按 <c>ModDatabaseExtension.OnInjectDialogs</c> 写入，
+/// 这里的构建产物只服务仍按包名取用的模组链路（礼物信箱、剧情回放、商人迎宾）与文本覆盖回调。
 /// </summary>
 [AutoLog]
 public static partial class DialogRegistry
@@ -59,6 +60,9 @@ public static partial class DialogRegistry
     {
         return _dialogPackageConfigs.ContainsKey(name);
     }
+
+    /// <summary>已加载的对话包配置，供 <c>ModDatabaseExtension.OnInjectDialogs</c> 转成框架代理结构。</summary>
+    internal static IEnumerable<DialogPackageConfig> Configs => _dialogPackageConfigs.Values;
 
     public static DialogPackageConfig GetDialogPackage(string name)
     {
@@ -278,21 +282,19 @@ public static partial class DialogRegistry
         );
     }
 
+    /// <summary>
+    /// 构建模组侧对话包实例（幂等）。游戏表 <c>DataBaseDay.allDialogPackages</c> 的写入已改由框架按
+    /// <c>OnInjectDialogs</c> 完成，这里构建的实例只供仍按包名取用的模组链路（礼物信箱、剧情回放、商人迎宾）
+    /// 与文本覆盖回调使用；框架的文本覆盖按包名生效，两者名字一致。
+    /// </summary>
     internal static void BuildAllDialogPackages()
     {
+        if (_builtDialogPackages.Count > 0)
+            return;
         foreach (var kvp in _dialogPackageConfigs)
         {
             _builtDialogPackages[kvp.Key] = BuildDialogPackage(kvp.Value);
             Log.Info($"Built dialog package: {kvp.Key}");
-        }
-    }
-
-    internal static void RegisterAllDialogPackages()
-    {
-        foreach (var kvp in _builtDialogPackages)
-        {
-            DataBaseDay.allDialogPackages[kvp.Key] = kvp.Value.Package;
-            Log.Info($"Registered dialog package to DataBaseDay: {kvp.Key}");
         }
     }
 
