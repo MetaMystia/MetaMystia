@@ -12,7 +12,8 @@ public partial class PrepAllReadyMessage : MultiplayerMessage
     public UpdatePrepMessage.Table PrepTable { get; set; } = new();
     public int PrepRound { get; set; }
 
-    [RequireHostSender]
+    protected override bool RequireHostSender => true;
+
     public override void OnReceivedDerived()
     {
         if (PrepRound > 0)

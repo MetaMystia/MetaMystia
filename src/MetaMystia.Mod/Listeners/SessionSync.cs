@@ -24,13 +24,13 @@ public sealed partial class SessionSync : ISessionListener, IGlobalGameLoop
     public void Setup(IGlobalServices services)
     {
         Records = services.Common.Records;
-        ReadPlatform();
+        ReadPlatform(services.Common.Platform);
     }
 
-    /// <summary>入口绑定晚于全局循环首帧时，补读一次平台信息。</summary>
+    /// <summary>平台在全局循环首帧前尚未解析出 DLC keys 时，补读一次。</summary>
     public void Update(IGlobalServices services, float delta)
     {
-        if (!s_platformRead) ReadPlatform();
+        if (!s_platformRead) ReadPlatform(services.Common.Platform);
     }
 
     /// <summary>原 <c>SaveManagement.LoadPlayerData</c> 前缀。</summary>
@@ -43,14 +43,11 @@ public sealed partial class SessionSync : ISessionListener, IGlobalGameLoop
     /// 原 <c>SteamPlatformProfilePatch.GetActiveKeys_Postfix</c>：把平台解析到的 DLC keys 写进资源包依赖检查。
     /// 平台未解析出 keys（非 Steam 等）时不写标签，按 <c>ResourceExManager</c> 的兜底路径加载。
     /// </summary>
-    private static void ReadPlatform()
+    private static void ReadPlatform(IPlatformInfo platform)
     {
-        var platform = ModRuntime.Context?.Platform;
-        if (platform is null) return;
-
-        s_platformRead = true;
         if (!platform.KeysResolved) return;
 
+        s_platformRead = true;
         ResourceExManager.SetActiveDlcTags(platform.ActiveDlcKeys);
         Log.Info($"Active DLC keys: {string.Join(", ", platform.ActiveDlcKeys)}");
     }

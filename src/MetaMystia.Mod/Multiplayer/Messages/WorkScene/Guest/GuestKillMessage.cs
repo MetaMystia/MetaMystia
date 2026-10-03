@@ -19,9 +19,10 @@ public partial class GuestKillMessage : MultiplayerMessage
     public GuestFSM.State HostStateBeforeKill { get; set; }   // 调试用：观测主客状态分歧
     public int DeskCode { get; set; } = -1;
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool ClientOnlyReceive => true;
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         var rid = RuntimeId;

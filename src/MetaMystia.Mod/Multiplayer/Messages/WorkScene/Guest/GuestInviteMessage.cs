@@ -16,7 +16,8 @@ public partial class GuestInviteMessage : MultiplayerMessage
 
     public List<int> InvitedGuestIds { get; set; } = [];
 
-    [HostOnlyReceive]
+    protected override bool HostOnlyReceive => true;
+
     public override void OnReceivedDerived()
     {
         var invitedGuestIds = InvitedGuestIds ?? [];

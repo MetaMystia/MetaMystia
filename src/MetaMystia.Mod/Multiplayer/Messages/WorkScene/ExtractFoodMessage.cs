@@ -18,7 +18,8 @@ public partial class ExtractFoodMessage : MultiplayerMessage
     protected override bool OnSendLogOnlyMessage => true;
     protected override bool OnReceiveLogOnlyMessage => true;
 
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         IzakayaConfigure.Instance?.RemoveStoredFood(Food.GetFromLocal());

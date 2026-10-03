@@ -22,8 +22,9 @@ public partial class GenerateOrderMessage : MultiplayerMessage
     public bool NotShowInUI { get; set; }
     public bool FreeOrder { get; set; }
 
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         var rid = RuntimeId;

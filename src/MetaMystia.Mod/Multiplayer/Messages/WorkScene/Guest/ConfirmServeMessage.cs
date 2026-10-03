@@ -17,8 +17,9 @@ public partial class ConfirmServeMessage : MultiplayerMessage
 
     protected override bool CanReceiveDuringStory => YuyukoGuestSync.OwnsRuntimeId(RuntimeId);
 
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         if (GameSession.IsRoomClient && ActorUid == PlayerManager.Local.Uid)

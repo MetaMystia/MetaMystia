@@ -12,8 +12,9 @@ public partial class RoomInitialStateMessage : MultiplayerMessage
     public int Round { get; set; }
     public Dictionary<int, DayDestination> Intents { get; set; } = new();
 
-    [RequireHostSender]
-    [ClientOnlyReceive]
+    protected override bool RequireHostSender => true;
+    protected override bool ClientOnlyReceive => true;
+
     public override void OnReceivedDerived() => DayDestinationManager.InitializeSession(Round, Intents);
 
     public static void Send(int uid) => new RoomInitialStateMessage

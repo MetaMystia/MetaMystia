@@ -11,9 +11,10 @@ public partial class YuyukoLifeMessage : MultiplayerMessage
 {
     public int Life { get; set; }
 
-    [RequireHostSender]
-    [ClientOnlyReceive]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool RequireHostSender => true;
+    protected override bool ClientOnlyReceive => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived() => IncomeControllerYuyukoPatch.ReceiveProgress(Life);
 
     public static void Send(int life) => new YuyukoLifeMessage { Life = life }.Enqueue();

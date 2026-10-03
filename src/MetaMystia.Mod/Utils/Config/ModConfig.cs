@@ -40,25 +40,25 @@ public sealed class ConfigEntry<T>
 }
 
 /// <summary>
-/// 极简 JSON 配置存储。位置由框架的模组缓存提供；未就绪时退回模组目录，便于早期初始化。
+/// 极简 JSON 配置存储。位置由框架的模组存储配置区提供；未就绪时退回模组目录，便于早期初始化。
 /// </summary>
 public sealed class ModConfigFile
 {
     private readonly Dictionary<string, object> _values = new(StringComparer.Ordinal);
 
-    private IModCache _cache;
+    private IModStorage _storage;
     private string _path;
     private bool _dirty;
 
-    private ModConfigFile(IModCache cache, string path)
+    private ModConfigFile(IModStorage storage, string path)
     {
-        _cache = cache;
+        _storage = storage;
         _path = path;
     }
 
-    public static ModConfigFile Open(IModCache cache, string relativePath = "config.json")
+    public static ModConfigFile Open(IModStorage storage, string relativePath = "config.json")
     {
-        var file = new ModConfigFile(cache, relativePath);
+        var file = new ModConfigFile(storage, relativePath);
         file.Load();
         return file;
     }
@@ -98,8 +98,9 @@ public sealed class ModConfigFile
             node[pair.Key] = pair.Value is null ? null : JsonValue.Create(pair.Value);
 
         using var writer = OpenWrite();
-        using var json = new Utf8JsonWriter(writer, new JsonWriterOptions { Indented = true });
-        node.WriteTo(json);
+        if (writer is null)
+            return;
+        writer.Write(node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
     private void Load()
@@ -135,19 +136,19 @@ public sealed class ModConfigFile
         }
     }
 
-    private StreamReader OpenRead()
+    private TextReader OpenRead()
     {
-        if (_cache is not null)
-            return _cache.Exists(_path) ? new StreamReader(_cache.OpenRead(_path)) : null;
+        if (_storage is not null)
+            return _storage.TryOpenConfigRead(_path, out var reader) ? reader : null;
         return File.Exists(_path) ? new StreamReader(_path) : null;
     }
 
-    private Stream OpenWrite()
+    private TextWriter OpenWrite()
     {
-        if (_cache is not null)
-            return _cache.OpenWrite(_path);
+        if (_storage is not null)
+            return _storage.TryOpenConfigWrite(_path, out var writer) ? writer : null;
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        return File.Create(_path);
+        return File.CreateText(_path);
     }
 
     private static bool TryConvert<T>(object raw, out T value)

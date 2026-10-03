@@ -71,8 +71,7 @@ public static partial class InGameConsole
     private const int MaxLogs = 1024;
     private static int MaxHistorySize => ConfigManager.ConsoleHistorySize?.Value ?? 200;
     private static string HistoryFileName => ConfigManager.ConsoleHistoryFile?.Value ?? "MetaMystia_console_history.txt";
-    private static string HistoryFilePath => Path.Combine(
-        ModRuntime.Paths?.ModDirectory ?? AppContext.BaseDirectory, HistoryFileName);
+    private static string HistoryFilePath => Path.Combine(ModRuntime.Directory, HistoryFileName);
     private static bool focusTextField = true;
     private static bool moveCursor = false;
     private const string TextFieldControlName = "ConsoleInput";
@@ -149,16 +148,16 @@ public static partial class InGameConsole
     {
         try
         {
-            // 控制台历史由框架的模组缓存目录托管（IModCache，位置对模组隐藏）；
-            // 缓存未就绪（早期初始化）时退回模组目录，与 ConfigManager 的落盘策略一致。
-            var cache = ModRuntime.Cache;
-            if (cache is not null)
+            // 控制台历史是模组私有状态，走框架的模组存储缓存区（原始流，位置对模组隐藏）；
+            // 存储未就绪（早期初始化）时退回模组目录，与 ConfigManager 的落盘策略一致。
+            if (ModRuntime.Storage is { } storage)
             {
-                if (!cache.Exists(HistoryFileName))
+                if (!storage.TryOpenRead(HistoryFileName, out var stream))
                     return;
-                using var reader = cache.OpenText(HistoryFileName);
-                while (reader.ReadLine() is { } line)
-                    inputs.Add(line);
+                using (stream)
+                using (var reader = new StreamReader(stream))
+                    while (reader.ReadLine() is { } line)
+                        inputs.Add(line);
             }
             else
             {
@@ -183,12 +182,14 @@ public static partial class InGameConsole
             var toSave = inputs.Count > MaxHistorySize
                 ? inputs.GetRange(inputs.Count - MaxHistorySize, MaxHistorySize)
                 : inputs;
-            var cache = ModRuntime.Cache;
-            if (cache is not null)
+            if (ModRuntime.Storage is { } storage)
             {
-                using var writer = cache.CreateText(HistoryFileName);
-                foreach (var line in toSave)
-                    writer.WriteLine(line);
+                if (!storage.TryOpenWrite(HistoryFileName, out var stream))
+                    return;
+                using (stream)
+                using (var writer = new StreamWriter(stream))
+                    foreach (var line in toSave)
+                        writer.WriteLine(line);
             }
             else
             {

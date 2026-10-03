@@ -13,11 +13,11 @@ namespace MetaMystia;
 /// 模组入口：框架在模组注册完成后调用一次（对应原先的 Plugin.Load）。
 /// </summary>
 [AutoLog]
-public sealed partial class ModEntry : IPostInitialize
+public sealed partial class ModEntry : IInitialization
 {
-    public void PostInitialize(IModContext context)
+    public void Initialize(IMod mod)
     {
-        ModRuntime.Bind(context);
+        ModRuntime.Bind(mod);
 
         ConfigManager.InitConfigs();
         L10n.Initialize();
@@ -34,7 +34,7 @@ public sealed partial class ModEntry : IPostInitialize
             InGameConsole.LogDeferred(() => TextId.IgnoreDlcDependencyCheckWarning.Get());
         }
 
-        Log.Info($"Plugin {context.Log.Id} is loaded!");
+        Log.Info($"Plugin {mod.Id} is loaded!");
         Log.Info(MultiplayerStatus.DebugText);
 
         MultiplayerMessage.RegisterAllFormatter();

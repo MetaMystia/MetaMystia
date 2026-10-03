@@ -16,9 +16,10 @@ public partial class EvaluateOrderMessage : MultiplayerMessage
     public SellableFood Beverage { get; set; }
     public GuestGroupController.EvaluationResult EvalResult { get; set; }
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool ClientOnlyReceive => true;
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         var rid = RuntimeId;

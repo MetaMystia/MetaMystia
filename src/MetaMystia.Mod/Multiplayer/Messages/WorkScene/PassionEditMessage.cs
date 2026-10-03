@@ -18,9 +18,10 @@ public partial class PassionEditMessage : MultiplayerMessage
     public float Value { get; set; }
     public EventManager.MathOperation MathOp { get; set; }
 
-    [ClientOnlyReceive]
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool ClientOnlyReceive => true;
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         // 服务只在营业场景循环作用域内可用，编辑排到 GuestSync 的重放队列里执行。

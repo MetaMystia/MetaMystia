@@ -554,7 +554,7 @@ public static partial class DatabaseMappings
         }
 
         var relative = Path.Combine(ExtractRoot, image.PackageName, Path.ChangeExtension(image.Path, ".png"));
-        var full = Path.Combine(ModRuntime.Paths.ModDirectory, relative);
+        var full = Path.Combine(ModRuntime.Directory, relative);
         if (!File.Exists(full) || new FileInfo(full).Length != image.Bytes.Length)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(full));

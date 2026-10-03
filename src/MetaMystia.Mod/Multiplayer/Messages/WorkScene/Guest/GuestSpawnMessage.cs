@@ -12,8 +12,9 @@ public partial class GuestSpawnMessage : MultiplayerMessage
     public int RuntimeId { get; set; }
     public GuestSpawnInfo SpawnInfo { get; set; }
 
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         GuestFSM.DoSpawn(RuntimeId, SpawnInfo);

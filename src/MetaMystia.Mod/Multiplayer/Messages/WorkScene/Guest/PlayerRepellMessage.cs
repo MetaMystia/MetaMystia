@@ -9,9 +9,10 @@ public partial class PlayerRepellMessage : MultiplayerMessage
 
     public int RuntimeId { get; set; }
 
-    [HostOnlyReceive]
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool HostOnlyReceive => true;
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         GuestFSM.DoPlayerRepell(RuntimeId);

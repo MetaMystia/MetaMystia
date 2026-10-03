@@ -10,7 +10,8 @@ public partial class PongMessage : MultiplayerMessage
     protected override Mystia.LogLevel OnReceiveLogLevel => Mystia.LogLevel.Debug;
     protected override Mystia.LogLevel OnSendLogLevel => Mystia.LogLevel.Debug;
 
-    [ClientOnlyReceive]
+    protected override bool ClientOnlyReceive => true;
+
     public override void OnReceivedDerived()
     {
         RoomClock.Receive(Id);

@@ -17,7 +17,7 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class ExportUtils
 {
-    public static string ExportRoot { get; set; } = Path.Combine(ModRuntime.Paths.GameRoot, "Exports");
+    public static string ExportRoot { get; set; } = Path.Combine(ModRuntime.Directory, "Exports");
 
     public static void ExportAllFoodSprite(string exportDir)
     {

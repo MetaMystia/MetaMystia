@@ -9,8 +9,9 @@ public partial class MoveToQueueMessage : MultiplayerMessage
 
     public int RuntimeId { get; set; }
 
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         var rid = RuntimeId;

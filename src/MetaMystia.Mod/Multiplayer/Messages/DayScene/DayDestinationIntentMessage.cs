@@ -9,7 +9,8 @@ public partial class DayDestinationIntentMessage : MultiplayerMessage
     public int Round { get; set; }
     public DayDestination Destination { get; set; }
 
-    [HostOnlyReceive]
+    protected override bool HostOnlyReceive => true;
+
     public override void OnReceivedDerived() => DayDestinationManager.ReceiveIntent(SenderUid, Round, Destination);
 
     public static void Send(int round, DayDestination destination) =>

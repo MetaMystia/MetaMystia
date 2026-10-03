@@ -536,40 +536,51 @@ public static partial class NetSkinManager
     private static string GetETagPath(string name) => $"{CacheFolder}/{name}.etag";
 
     /// <summary>
-    /// <see cref="ModRuntime.Cache"/> 未就绪（早期初始化）时退回模组目录下的同名子目录。
+    /// <see cref="ModRuntime.Storage"/> 未就绪（早期初始化）时退回模组目录下的同名子目录。
     /// </summary>
     private static string FallbackPath(string relativePath) =>
-        Path.Combine(ModRuntime.Paths?.ModDirectory ?? AppContext.BaseDirectory, relativePath);
+        Path.Combine(ModRuntime.Directory, relativePath);
 
     private static bool CacheExists(string relativePath) =>
-        ModRuntime.Cache is { } cache ? cache.Exists(relativePath) : File.Exists(FallbackPath(relativePath));
+        ModRuntime.Storage is { } storage ? storage.Exists(relativePath) : File.Exists(FallbackPath(relativePath));
 
     private static byte[] CacheReadBytes(string relativePath)
     {
-        if (ModRuntime.Cache is not { } cache)
+        if (ModRuntime.Storage is not { } storage)
             return File.ReadAllBytes(FallbackPath(relativePath));
 
-        using var stream = cache.OpenRead(relativePath);
-        using var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
-        return buffer.ToArray();
+        if (!storage.TryOpenRead(relativePath, out var stream))
+            throw new FileNotFoundException($"缓存文件不存在：{relativePath}");
+
+        using (stream)
+        using (var buffer = new MemoryStream())
+        {
+            stream.CopyTo(buffer);
+            return buffer.ToArray();
+        }
     }
 
     private static string CacheReadText(string relativePath)
     {
-        if (ModRuntime.Cache is not { } cache)
+        if (ModRuntime.Storage is not { } storage)
             return File.ReadAllText(FallbackPath(relativePath));
 
-        using var reader = cache.OpenText(relativePath);
-        return reader.ReadToEnd();
+        if (!storage.TryOpenRead(relativePath, out var stream))
+            throw new FileNotFoundException($"缓存文件不存在：{relativePath}");
+
+        using (stream)
+        using (var reader = new StreamReader(stream))
+            return reader.ReadToEnd();
     }
 
     private static void CacheWriteBytes(string relativePath, byte[] bytes)
     {
-        if (ModRuntime.Cache is { } cache)
+        if (ModRuntime.Storage is { } storage)
         {
-            using var stream = cache.OpenWrite(relativePath);
-            stream.Write(bytes, 0, bytes.Length);
+            if (!storage.TryOpenWrite(relativePath, out var stream))
+                throw new IOException($"无法写入缓存文件：{relativePath}");
+            using (stream)
+                stream.Write(bytes, 0, bytes.Length);
             return;
         }
 
@@ -580,10 +591,13 @@ public static partial class NetSkinManager
 
     private static void CacheWriteText(string relativePath, string text)
     {
-        if (ModRuntime.Cache is { } cache)
+        if (ModRuntime.Storage is { } storage)
         {
-            using var writer = cache.CreateText(relativePath);
-            writer.Write(text);
+            if (!storage.TryOpenWrite(relativePath, out var stream))
+                throw new IOException($"无法写入缓存文件：{relativePath}");
+            using (stream)
+            using (var writer = new StreamWriter(stream))
+                writer.Write(text);
             return;
         }
 
@@ -594,9 +608,9 @@ public static partial class NetSkinManager
 
     private static void CacheDelete(string relativePath)
     {
-        if (ModRuntime.Cache is { } cache)
+        if (ModRuntime.Storage is { } storage)
         {
-            cache.Delete(relativePath);
+            storage.TryDelete(relativePath);
             return;
         }
 

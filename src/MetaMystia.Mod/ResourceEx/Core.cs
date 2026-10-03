@@ -19,7 +19,7 @@ namespace MetaMystia;
 public static partial class ResourceExManager
 {
     // Abstracted resource root path
-    public static string ResourceRoot { get; set; } = Path.Combine(ModRuntime.Paths.GameRoot, "ResourceEx");
+    public static string ResourceRoot { get; set; } = Path.Combine(ModRuntime.Directory, "ResourceEx");
 
     // Loaded package metadata for console queries
     private static readonly List<LoadedResourcePackage> _loadedPackages = new List<LoadedResourcePackage>();

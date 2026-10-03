@@ -71,9 +71,9 @@ public static partial class ConfigManager
 
     public static void InitConfigs()
     {
-        Config = ModRuntime.Cache is not null
-            ? ModConfigFile.Open(ModRuntime.Cache)
-            : ModConfigFile.Open(Path.Combine(ModRuntime.Paths?.ModDirectory ?? AppContext.BaseDirectory, "config.json"));
+        Config = ModRuntime.Storage is { } storage
+            ? ModConfigFile.Open(storage)
+            : ModConfigFile.Open(Path.Combine(ModRuntime.Directory, "config.json"));
 
         Debug = Config.Bind("General", "Debug", false, "Enable debug features and hotkeys\n启用调试功能和热键");
 

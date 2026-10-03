@@ -21,6 +21,7 @@ public sealed partial class ModLoop : IGlobalGameLoop, IIMGUIProvider
 {
     public void Setup(IGlobalServices services)
     {
+        ModRuntime.MainThread = services.Common.MainThread;
         ModRuntime.Coroutines = services.Common.Coroutines;
 
         InGameConsole.Initialize();

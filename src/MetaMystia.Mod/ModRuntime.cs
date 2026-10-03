@@ -5,40 +5,41 @@ using Mystia;
 namespace MetaMystia;
 
 /// <summary>
-/// 模组级静态上下文。框架在 <c>IPostInitialize</c> 时注入一次；此前的日志调用走空实现，避免静态构造期崩溃。
+/// 模组级静态上下文。框架在 <see cref="IInitialization"/> 时注入一次 <see cref="IMod"/>；
+/// 此前的日志调用走空实现，避免静态构造期崩溃。
 /// </summary>
 public static class ModRuntime
 {
-    private static IModContext s_context;
+    private static IMod s_mod;
 
-    public static IModContext Context => s_context;
+    /// <summary>宿主交给本模组的句柄；未绑定前为 null。</summary>
+    public static IMod Mod => s_mod;
 
-    public static ILog Log => s_context?.Log ?? SilentLog.Instance;
+    public static ILog Log => s_mod?.Log ?? SilentLog.Instance;
 
-    public static IMainThreadScheduler MainThread => s_context?.MainThread;
+    /// <summary>模组存储：配置区（文本流）与缓存区（原始流）。</summary>
+    public static IModStorage Storage => s_mod?.Storage;
 
-    public static IGamePaths Paths => s_context?.Paths;
+    public static string Id => s_mod?.Id ?? TmiBuildInfo.ModId;
 
-    public static IIl2CppComponentHost Components => s_context?.Components;
+    public static string Version => s_mod?.Version ?? TmiBuildInfo.ModVersion;
 
-    public static IModCache Cache => s_context?.Cache;
-
-    public static IModConfigSource ConfigSource => s_context?.Config;
-
-    /// <summary>由全局循环在 Setup 时注入的协程调度器。</summary>
-    public static ICoroutineDispatcher Coroutines { get; internal set; }
-
-    public static string Id => TmiBuildInfo.ModId;
-
-    public static string Version => TmiBuildInfo.ModVersion;
+    /// <summary>宿主加载本模组的目录；绑定前退回进程基目录。</summary>
+    public static string Directory => s_mod?.Directory ?? AppContext.BaseDirectory;
 
     public static string TargetGameVersion => TmiBuildInfo.TargetGameVersion;
 
     /// <summary>当前游戏版本；未进入主场景前为空串。</summary>
     public static string GameVersion => Common.LoadingSceneManager.VersionData ?? string.Empty;
 
-    internal static void Bind(IModContext context) =>
-        s_context = context ?? throw new ArgumentNullException(nameof(context));
+    /// <summary>由全局循环在 <c>Setup</c> 时从 <see cref="ICommonServices"/> 取的常驻协程调度器。</summary>
+    public static ICoroutineDispatcher Coroutines { get; internal set; }
+
+    /// <summary>由全局循环在 <c>Setup</c> 时从 <see cref="ICommonServices"/> 取的主线程调度器。</summary>
+    public static IMainThreadScheduler MainThread { get; internal set; }
+
+    internal static void Bind(IMod mod) =>
+        s_mod = mod ?? throw new ArgumentNullException(nameof(mod));
 
     private sealed class SilentLog : ILog
     {

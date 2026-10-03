@@ -20,7 +20,8 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
     /// <summary>
     /// 客机收到主机广播的打烊命令 → 排队到营业场景循环的服务作用域内重放打烊。
     /// </summary>
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         Log.Message($"Received close command from host");

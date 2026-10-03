@@ -12,8 +12,9 @@ public partial class YuyukoGuestBoundMessage : MultiplayerMessage
     public Guid Session { get; set; }
     public int RuntimeId { get; set; }
 
-    [HostOnlyReceive]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool HostOnlyReceive => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived() => YuyukoGuestSync.ReceiveBound(SenderUid, Session, RuntimeId);
 
     public static void Send(Guid session, int runtimeId) =>

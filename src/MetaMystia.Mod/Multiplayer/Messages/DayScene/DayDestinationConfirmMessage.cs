@@ -9,8 +9,9 @@ public partial class DayDestinationConfirmMessage : MultiplayerMessage
     public int Round { get; set; }
     public DayDestination Destination { get; set; }
 
-    [RequireHostSender]
-    [ClientOnlyReceive]
+    protected override bool RequireHostSender => true;
+    protected override bool ClientOnlyReceive => true;
+
     public override void OnReceivedDerived() => DayDestinationManager.ApplyConfirmation(Round, Destination);
 
     public static void Send(int round, DayDestination destination) =>

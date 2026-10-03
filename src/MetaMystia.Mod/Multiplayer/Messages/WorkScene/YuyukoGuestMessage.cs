@@ -36,9 +36,10 @@ public partial class YuyukoGuestMessage : MultiplayerMessage
     public SellableFood Beverage { get; set; }
     public GuestGroupController.EvaluationResult Result { get; set; }
 
-    [RequireHostSender]
-    [ClientOnlyReceive]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool RequireHostSender => true;
+    protected override bool ClientOnlyReceive => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived() => YuyukoGuestSync.Receive(this);
 
     public static void Send(YuyukoGuestMessage message) => message.Enqueue();

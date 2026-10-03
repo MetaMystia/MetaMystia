@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 
 using Mystia;
 using MemoryPack;
@@ -92,12 +91,31 @@ public abstract partial class MultiplayerMessage
         SenderUid = GameSession.Client?.Uid ?? 0;
     }
 
+    /// <summary>本类型允许被处理的场景；<c>null</c> 表示不限制。</summary>
+    [MemoryPackIgnore]
+    protected virtual Common.UI.Scene? ReceiveScene => null;
+
+    /// <summary>剧情播放期间是否丢弃；收发两侧一致。</summary>
+    [MemoryPackIgnore]
+    protected virtual bool DiscardOnStory => false;
+
+    /// <summary>仅处理当前房主的权威广播。</summary>
+    [MemoryPackIgnore]
+    protected virtual bool RequireHostSender => false;
+
+    /// <summary>仅客机处理；主机本地已是权威状态，忽略入站包。</summary>
+    [MemoryPackIgnore]
+    protected virtual bool ClientOnlyReceive => false;
+
+    /// <summary>仅房主处理客机请求。</summary>
+    [MemoryPackIgnore]
+    protected virtual bool HostOnlyReceive => false;
 
     public abstract void OnReceivedDerived();
     public void OnReceived()
     {
         LogMessageReceived();
-        var targetScene = GetReceivedScene();
+        var targetScene = ReceiveScene;
         if (targetScene != null && GameFlow.LocalScene != targetScene.Value)
         {
             Log.Info($"{MetaMystia.UI.MultiplayerStatus.RoleTag} Received in invalid scene: {MessageName}: {ToLogString()}");
@@ -114,19 +132,16 @@ public abstract partial class MultiplayerMessage
 
     private bool PassesReceiveGuards()
     {
-        var method = GetType().GetMethod(nameof(OnReceivedDerived));
-
-        if (method.GetCustomAttribute<RequireHostSenderAttribute>() != null
-            && SenderUid != GameSession.Room?.Host)
+        if (RequireHostSender && SenderUid != GameSession.Room?.Host)
         {
             Log.Warning($"{MetaMystia.UI.MultiplayerStatus.RoleTag} {MessageName} from non-host uid={SenderUid}, ignoring", false);
             return false;
         }
 
-        if (method.GetCustomAttribute<ClientOnlyReceiveAttribute>() != null && GameSession.IsRoomHost)
+        if (ClientOnlyReceive && GameSession.IsRoomHost)
             return false;
 
-        if (method.GetCustomAttribute<HostOnlyReceiveAttribute>() != null && !GameSession.IsRoomHost)
+        if (HostOnlyReceive && !GameSession.IsRoomHost)
         {
             Log.Warning($"{MetaMystia.UI.MultiplayerStatus.RoleTag} {MessageName} received by non-host, ignoring", false);
             return false;
@@ -135,18 +150,10 @@ public abstract partial class MultiplayerMessage
         return true;
     }
 
-    private Common.UI.Scene? GetReceivedScene()
-    {
-        var method = this.GetType().GetMethod(nameof(OnReceivedDerived));
-        var attr = method.GetCustomAttribute<CheckSceneAttribute>();
-        return attr?.Scene;
-    }
-
     private bool ShouldDiscardOnStory()
     {
         if (!GameFlow.InStory || CanReceiveDuringStory) return false;
-        var method = this.GetType().GetMethod(nameof(OnReceivedDerived));
-        return method.GetCustomAttribute<DiscardOnStoryAttribute>() != null;
+        return DiscardOnStory;
     }
 
     [MemoryPackIgnore]
@@ -225,25 +232,4 @@ public abstract partial class MultiplayerMessage
         if (!MemoryPackFormatterProvider.IsRegistered<MultiplayerMessage>()) MemoryPackFormatterProvider.Register(new MultiplayerMessageFormatter());
         if (!MemoryPackFormatterProvider.IsRegistered<MultiplayerMessage[]>()) MemoryPackFormatterProvider.Register(new MemoryPack.Formatters.ArrayFormatter<MultiplayerMessage>());
     }
-
-    [AttributeUsage(AttributeTargets.Method)]
-    protected class CheckSceneAttribute(Common.UI.Scene scene) : Attribute
-    {
-        public Common.UI.Scene Scene { get; } = scene;
-    }
-
-    [AttributeUsage(AttributeTargets.Method)]
-    protected class DiscardOnStoryAttribute : Attribute { }
-
-    /// <summary>仅处理当前房主的权威广播。</summary>
-    [AttributeUsage(AttributeTargets.Method)]
-    protected class RequireHostSenderAttribute : Attribute { }
-
-    /// <summary>仅客机处理；主机本地已是权威状态，忽略入站包。</summary>
-    [AttributeUsage(AttributeTargets.Method)]
-    protected class ClientOnlyReceiveAttribute : Attribute { }
-
-    /// <summary>仅房主处理客机请求。</summary>
-    [AttributeUsage(AttributeTargets.Method)]
-    protected class HostOnlyReceiveAttribute : Attribute { }
 }

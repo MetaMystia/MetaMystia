@@ -445,7 +445,7 @@ public static class L10n
         var path = raw.Trim().Trim('"');
         // 相对路径以模组目录为基准（原先是插件程序集所在目录）。
         if (!Path.IsPathRooted(path))
-            path = Path.Combine(ModRuntime.Paths.ModDirectory, path);
+            path = Path.Combine(ModRuntime.Directory, path);
         return path;
     }
 

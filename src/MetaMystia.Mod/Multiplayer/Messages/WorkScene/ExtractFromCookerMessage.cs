@@ -13,8 +13,9 @@ public partial class ExtractFromCookerMessage : MultiplayerMessage
 {
     public int GridIndex { get; set; }
 
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         if (CookManager.GetCookerControllerByIndex(GridIndex) == null)

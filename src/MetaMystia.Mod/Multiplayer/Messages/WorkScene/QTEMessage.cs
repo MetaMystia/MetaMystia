@@ -15,8 +15,9 @@ public partial class QTEMessage : MultiplayerMessage
     public int GridIndex { get; set; }
     public float QTEScore { get; set; }
 
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         if (YuyukoGuestSync.IsSwallowedCooker(GridIndex)) return;

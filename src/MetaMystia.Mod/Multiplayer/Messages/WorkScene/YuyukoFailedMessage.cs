@@ -9,9 +9,10 @@ namespace MetaMystia.Multiplayer.Messages;
 [AutoLog]
 public partial class YuyukoFailedMessage : MultiplayerMessage
 {
-    [RequireHostSender]
-    [ClientOnlyReceive]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool RequireHostSender => true;
+    protected override bool ClientOnlyReceive => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived() => YuyukoBossDataPatch.ReceiveFailure();
 
     public static void Send() => new YuyukoFailedMessage().Enqueue();

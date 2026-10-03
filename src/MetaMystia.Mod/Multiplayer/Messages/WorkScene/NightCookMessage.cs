@@ -17,8 +17,9 @@ public partial class NightCookMessage : MultiplayerMessage
     public int RecipeId { get; set; }
     public SellableFood Food { get; set; }
 
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         if (YuyukoGuestSync.IsSwallowedCooker(GridIndex)) return;

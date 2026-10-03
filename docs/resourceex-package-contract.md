@@ -4,7 +4,7 @@
 
 ## 包格式
 
-- ResourceEx 包是放在 ResourceEx 根目录中的 `.zip` 文件。
+- ResourceEx 包是放在 ResourceEx 根目录中的 `.zip` 文件；该目录现在是**模组目录**下的 `ResourceEx/`（框架不再提供游戏根目录）。
 - ZIP 内必须包含 `ResourceEx.json`，文件名匹配不区分大小写。
 - 如果 ZIP 中存在多个 `ResourceEx.json`，当前实现选择路径最短的文件。
 - `ResourceEx.json` 所在目录作为包内资源的根前缀。

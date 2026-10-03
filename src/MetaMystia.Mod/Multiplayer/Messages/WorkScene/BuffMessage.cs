@@ -27,7 +27,8 @@ public partial class BuffMessage : MultiplayerMessage
     protected override Mystia.LogLevel OnReceiveLogLevel => Mystia.LogLevel.Message;
     protected override Mystia.LogLevel OnSendLogLevel => Mystia.LogLevel.Message;
 
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         // 服务只在营业场景循环作用域内可用，奖励触发排到 GuestSync 的重放队列里执行。

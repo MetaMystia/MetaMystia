@@ -21,10 +21,11 @@ public partial class GuestRepellMessage : MultiplayerMessage
     public int LoseComboTimeForPassion { get; set; }
     public int LoseComboGuestSetNum { get; set; }
 
-    [RequireHostSender]
-    [ClientOnlyReceive]
-    [DiscardOnStory]
-    [CheckScene(Common.UI.Scene.WorkScene)]
+    protected override bool RequireHostSender => true;
+    protected override bool ClientOnlyReceive => true;
+    protected override bool DiscardOnStory => true;
+    protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
+
     public override void OnReceivedDerived()
     {
         var fsm = GuestsMap.GetGuestFsm(RuntimeId);
