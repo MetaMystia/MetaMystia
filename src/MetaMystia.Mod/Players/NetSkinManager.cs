@@ -1,22 +1,26 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-using GameData.Core.Collections.CharacterUtility;
-
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
-
-using UnityEngine;
+using Mystia.Assets;
+using Mystia.Imgui;
+using Mystia.Numerics;
 
 namespace MetaMystia;
 
 /// <summary>
-/// 在线皮肤管理器：从皮肤服务器拉取 PNG 贴图，按约定布局解析为 CharacterSpriteSetCompact / CharacterSpriteSetFull，
-/// 并维护内存与磁盘缓存。
+/// 在线皮肤管理器：从皮肤服务器拉取 PNG 贴图，按约定布局切成精灵，并维护内存与磁盘缓存。
+///
+/// 贴图解码与切精灵都走框架的 <see cref="IAssetFactory"/>（PNG 由框架解码；引擎的 ImageConversion 不在本构建的互操作集里），
+/// 每帧精灵再按 key 登记进 <see cref="IAssetLocator"/>。缓存的 PNG 仍走 <see cref="IModStorage"/> 的缓存区。
+/// 未就绪的能力：把精灵句柄装进游戏的 <c>CharacterSpriteSetCompact</c>／<c>CharacterSpriteSetFull</c>
+/// 需要引擎 Sprite，SDK 目前没有从 <see cref="SpriteHandle"/> 回到引擎对象的入口，因此这张皮肤只交付句柄，
+/// 装配到玩家身上等框架补能力（见交付报告）。
 ///
 /// PNG 布局（每格 64×64）：
 /// Compact 576×256（每行 9 格）：
@@ -40,6 +44,7 @@ namespace MetaMystia;
 public static partial class NetSkinManager
 {
     private const int TileSize = 64;
+    private const float TilePixelsPerUnit = 48f;
     private const int CompactWidth = 9 * TileSize;   // 576
     private const int CompactHeight = 4 * TileSize;  // 256
     private const int FullWidth = 15 * TileSize;     // 960
@@ -61,7 +66,7 @@ public static partial class NetSkinManager
     private const long MaxDownloadBytes = 1 * 1024 * 1024; // 1 MB
     private static readonly Regex NameRegex = new(@"^[A-Za-z0-9_\-]{1,32}$", RegexOptions.Compiled);
 
-    private static readonly Dictionary<string, CharacterSpriteSetCompact> _builtSkins = new();
+    private static readonly Dictionary<string, NetSkin?> _builtSkins = new();
     private static readonly HashSet<string> _inFlight = new();
     private static readonly ConcurrentDictionary<string, List<Action<bool>>> _callbacks = new();
 
@@ -97,7 +102,7 @@ public static partial class NetSkinManager
     /// <summary>
     /// 立即从内存缓存中获取已构建的皮肤
     /// </summary>
-    public static bool TryGet(string name, out CharacterSpriteSetCompact skin)
+    public static bool TryGet(string name, [NotNullWhen(true)] out NetSkin? skin)
     {
         skin = null;
         if (string.IsNullOrEmpty(name)) return false;
@@ -115,7 +120,7 @@ public static partial class NetSkinManager
     /// </summary>
     /// <param name="name">皮肤名（必须通过 IsValidName 校验）</param>
     /// <param name="onComplete">完成回调，参数为是否成功</param>
-    public static void RequestSkin(string name, Action<bool> onComplete = null)
+    public static void RequestSkin(string name, Action<bool>? onComplete = null)
     {
         if (!IsValidName(name))
         {
@@ -308,228 +313,117 @@ public static partial class NetSkinManager
     }
 
     /// <summary>
-    /// 主线程：将 PNG 字节解析为 CharacterSpriteSetCompact / CharacterSpriteSetFull 并加入内存缓存。
+    /// 主线程：把 PNG 字节交给框架解码并切成帧精灵，加入内存缓存。
     /// </summary>
     private static bool TryParseAndRegister(string name, byte[] pngBytes)
     {
-        try
+        if (ModRuntime.Assets is not { } assets)
         {
-            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-                hideFlags = HideFlags.HideAndDontSave,
-            };
-            if (!ImageConversion.LoadImage(tex, pngBytes))
-            {
-                Log.Warning($"NetSkin：「{name}」 贴图加载失败");
-                UnityEngine.Object.Destroy(tex);
-                return false;
-            }
-            tex.name = $"NetSkin_{name}";
-
-            // 按尺寸自动判别 Compact / Full
-            CharacterSpriteSetCompact skin = null;
-            string kind = null;
-            if (tex.width == CompactWidth && tex.height == CompactHeight)
-            {
-                skin = BuildCompactFromTexture(name, tex);
-                kind = "Compact";
-            }
-            else if (tex.width == FullWidth && tex.height == FullHeight)
-            {
-                skin = BuildFullFromTexture(name, tex);
-                kind = "Full";
-            }
-            else
-            {
-                Log.Warning($"NetSkin：「{name}」 尺寸 {tex.width}×{tex.height} 不受支持 " +
-                            $"（期望 Compact {CompactWidth}×{CompactHeight} 或 Full {FullWidth}×{FullHeight}）");
-            }
-
-            if (skin == null)
-            {
-                UnityEngine.Object.Destroy(tex);
-                return false;
-            }
-
-            lock (_builtSkins) _builtSkins[name] = skin;
-            Log.Info($"NetSkin：已注册 {kind} 皮肤 「{name}」");
-            return true;
-        }
-        catch (Exception e)
-        {
-            Log.Warning($"NetSkin：解析 「{name}」 抛出异常：{e.Message}");
+            Log.Warning($"NetSkin：「{name}」 资产工厂不可用");
             return false;
         }
+
+        // 尺寸取自 PNG 文件头：资产 API 的贴图句柄没有尺寸查询，而布局判别必须先知道尺寸。
+        if (!PngHeader.TryReadSize(pngBytes, out var width, out var height))
+        {
+            Log.Warning($"NetSkin：「{name}」 不是可解析的 PNG");
+            return false;
+        }
+
+        // 按尺寸自动判别 Compact / Full
+        bool? isFull = (width, height) switch
+        {
+            (CompactWidth, CompactHeight) => false,
+            (FullWidth, FullHeight) => true,
+            _ => null,
+        };
+        if (isFull is null)
+        {
+            Log.Warning($"NetSkin：「{name}」 尺寸 {width}×{height} 不受支持 " +
+                        $"（期望 Compact {CompactWidth}×{CompactHeight} 或 Full {FullWidth}×{FullHeight}）");
+            return false;
+        }
+
+        if (!assets.TryCreateTexture(pngBytes, out var texture))
+        {
+            Log.Warning($"NetSkin：「{name}」 贴图加载失败");
+            return false;
+        }
+
+        var main = Slice(assets, texture, name, "main", 0, MainFrames, MainDirections, directionsAlongColumns: false);
+        var eyes = Slice(assets, texture, name, "eyes", 3, EyeFrames, EyeDirections, directionsAlongColumns: true);
+        var hair = isFull == true ? Slice(assets, texture, name, "hair", 9, HairFrames, HairDirections, directionsAlongColumns: false) : [];
+        var back = isFull == true ? Slice(assets, texture, name, "back", 12, BackFrames, BackDirections, directionsAlongColumns: false) : [];
+        if (main is null || eyes is null || hair is null || back is null)
+        {
+            Log.Warning($"NetSkin：「{name}」 切图失败");
+            return false;
+        }
+
+        lock (_builtSkins) _builtSkins[name] = new NetSkin(name, isFull == true, main, eyes, hair, back);
+        Log.Info($"NetSkin：已注册 {(isFull == true ? "Full" : "Compact")} 皮肤 「{name}」");
+        return true;
     }
 
-    private static CharacterSpriteSetCompact BuildCompactFromTexture(string name, Texture2D tex)
+    /// <summary>
+    /// 切一组 64×64 帧精灵并登记进资产管线。索引与迁移前一致：<c>dir*frames + frame</c>；
+    /// <paramref name="directionsAlongColumns"/> 为真时方向沿列、帧沿行（Eyes 区），否则帧沿列、方向沿行（Main／Hair／Back 区）。
+    /// 任一切图被拒时返回 null。
+    /// </summary>
+    private static List<SpriteHandle>? Slice(
+        IAssetFactory assets, TextureHandle texture, string name, string group,
+        int columnOffset, int frames, int directions, bool directionsAlongColumns)
     {
-        var template = DataBaseCharacter.FallbackCompactPixel;
-        if (template == null)
+        if (ModRuntime.Locator is not { } locator)
         {
-            Log.Warning("NetSkin：FallbackCompactPixel 模板为空");
+            Log.Warning($"NetSkin：「{name}」 资产登记表不可用");
             return null;
         }
 
-        var mainSprites = NewSpriteArray(template.MainSprite);
-        var eyeSprites = NewSpriteArray(template.EyeSprite);
-        if (mainSprites == null || eyeSprites == null) return null;
-
-        SliceMain(name, tex, mainSprites, columnOffset: 0);
-        SliceEyes(name, tex, eyeSprites, columnOffset: 3);
-
-        var pixel = ScriptableObject.CreateInstance<CharacterSpriteSetCompact>();
-        pixel.Initialize(
-            mainSprites,
-            template.DoNotUseEyeSprite,
-            eyeSprites,
-            template.HasPrebakedShadow,
-            template.AnimationSpeedMultiplier,
-            template.ExtraYOffset,
-            template.IsHina,
-            template.RotatePerTime,
-            template.DoNotHaveStepVFX,
-            template.MoveSpeedMultiplier,
-            template.RemovableTrims,
-            template.TrimSpritesDisplayFront,
-            template.TrimSpritesDisplayBack,
-            template.TrimFrontSpriteFrameSpeed,
-            template.TrimBackSpriteFrameSpeed
-        );
-        pixel.name = $"NetSkin_{name}";
-        pixel.hideFlags = HideFlags.HideAndDontSave;
-        return pixel;
-    }
-
-    private static CharacterSpriteSetFull BuildFullFromTexture(string name, Texture2D tex)
-    {
-        var template = DataBaseCharacter.FallbackFullPixel;
-        if (template == null)
-        {
-            Log.Warning("NetSkin：FallbackFullPixel 模板为空");
-            return null;
-        }
-
-        var mainSprites = NewSpriteArray(template.MainSprite);
-        var eyeSprites = NewSpriteArray(template.EyeSprite);
-        var hairSprites = NewSpriteArray(template.HairSprite);
-        var backSprites = NewSpriteArray(template.BackSprite);
-        if (mainSprites == null || eyeSprites == null || hairSprites == null || backSprites == null) return null;
-
-        SliceMain(name, tex, mainSprites, columnOffset: 0);
-        SliceEyes(name, tex, eyeSprites, columnOffset: 3);
-        SliceHairOrBack(name, tex, hairSprites, columnOffset: 9, tag: 'H');
-        SliceHairOrBack(name, tex, backSprites, columnOffset: 12, tag: 'B');
-
-        var pixel = ScriptableObject.CreateInstance<CharacterSpriteSetFull>();
-        pixel.Initialize(
-            mainSprites,
-            template.DoNotUseEyeSprite,
-            eyeSprites,
-            hairSprites,
-            backSprites,
-            template.HasPrebakedShadow,
-            template.AnimationSpeedMultiplier,
-            template.ExtraYOffset,
-            template.IsHina,
-            template.RotatePerTime,
-            template.DoNotHaveStepVFX,
-            template.MoveSpeedMultiplier,
-            template.RemovableTrims,
-            template.TrimSpritesDisplayFront,
-            template.TrimSpritesDisplayBack,
-            template.TrimFrontSpriteFrameSpeed,
-            template.TrimBackSpriteFrameSpeed
-        );
-        pixel.name = $"NetSkin_{name}";
-        pixel.hideFlags = HideFlags.HideAndDontSave;
-        return pixel;
-    }
-
-    /// <summary>
-    /// Main 区：列 columnOffset..columnOffset+2，行 0..3，索引 = dir*MainFrames + frame
-    /// </summary>
-    private static void SliceMain(string name, Texture2D tex, Il2CppReferenceArray<Sprite> target, int columnOffset)
-    {
-        for (int dir = 0; dir < MainDirections; dir++)
-        {
-            for (int frame = 0; frame < MainFrames; frame++)
-            {
-                int idx = dir * MainFrames + frame;
-                if (idx >= target.Length) break;
-                int x = (columnOffset + frame) * TileSize;
-                int y = (4 - 1 - dir) * TileSize; // Unity 纹理原点在左下
-                target[idx] = SliceSprite(tex, x, y, $"{name}_M{dir}_{frame}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Eyes 区：列 columnOffset..columnOffset+5（dir = col-columnOffset），行 0..3 即 frame
-    /// </summary>
-    private static void SliceEyes(string name, Texture2D tex, Il2CppReferenceArray<Sprite> target, int columnOffset)
-    {
-        for (int dir = 0; dir < EyeDirections; dir++)
-        {
-            for (int frame = 0; frame < EyeFrames; frame++)
-            {
-                int idx = dir * EyeFrames + frame;
-                if (idx >= target.Length) break;
-                int x = (columnOffset + dir) * TileSize;
-                int y = (4 - 1 - frame) * TileSize;
-                target[idx] = SliceSprite(tex, x, y, $"{name}_E{dir}_{frame}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Hair / Back 区（与 Main 同样布局）4 dir × 3 frame。tag 仅用于命名精灵。
-    /// </summary>
-    private static void SliceHairOrBack(string name, Texture2D tex, Il2CppReferenceArray<Sprite> target, int columnOffset, char tag)
-    {
-        const int dirs = HairDirections;   // 与 Back 一致
-        const int frames = HairFrames;
-        for (int dir = 0; dir < dirs; dir++)
+        var sprites = new List<SpriteHandle>(frames * directions);
+        for (int dir = 0; dir < directions; dir++)
         {
             for (int frame = 0; frame < frames; frame++)
             {
-                int idx = dir * frames + frame;
-                if (idx >= target.Length) break;
-                int x = (columnOffset + frame) * TileSize;
-                int y = (4 - 1 - dir) * TileSize;
-                target[idx] = SliceSprite(tex, x, y, $"{name}_{tag}{dir}_{frame}");
+                int x = (columnOffset + (directionsAlongColumns ? dir : frame)) * TileSize;
+                int y = (4 - 1 - (directionsAlongColumns ? frame : dir)) * TileSize; // 贴图原点在左下
+                var index = dir * frames + frame;
+                if (!assets.TryCreateSprite(texture, new Rect(x, y, TileSize, TileSize), new Vector2(0.5f, 0f), TilePixelsPerUnit, out var sprite)
+                    || !locator.TryRegisterSprite(FrameKey(name, group, index), sprite, out _))
+                {
+                    Log.Warning($"NetSkin：「{name}」 切图失败：{group}[{index}]");
+                    return null;
+                }
+
+                sprites.Add(sprite);
             }
         }
+
+        return sprites;
     }
 
-    private static Il2CppReferenceArray<Sprite> NewSpriteArray(
-        Il2CppReferenceArray<Sprite> templateArray)
+    /// <summary>帧精灵在资产管线里的 key；前缀按模组命名空间，避免与其他 mod 冲突。</summary>
+    private static string FrameKey(string name, string group, int index) => $"{ModRuntime.Id}/skin/{name}/{group}/{index}";
+
+    /// <summary>解绑一张皮肤的全部帧精灵（内存缓存被丢弃时调用）。</summary>
+    private static void UnregisterFrames(string name)
     {
-        if (templateArray == null)
-        {
-            Log.Warning("NetSkin：模板精灵数组为空");
-            return null;
-        }
-        // 沿用模板长度，避免与游戏 Initialize 内部假设不匹配
-        var result = new Il2CppReferenceArray<Sprite>(templateArray.Length);
-        for (int i = 0; i < templateArray.Length; i++)
-            result[i] = templateArray[i];
-        return result;
+        if (ModRuntime.Locator is not { } locator)
+            return;
+
+        foreach (var (group, count) in Groups)
+            for (var index = 0; index < count; index++)
+                locator.Unregister(FrameKey(name, group, index));
     }
 
-    private static Sprite SliceSprite(Texture2D atlas, int x, int y, string name)
-    {
-        var sprite = Sprite.Create(
-            atlas,
-            new Rect(x, y, TileSize, TileSize),
-            new Vector2(0.5f, 0f),
-            48f);
-        sprite.name = name;
-        sprite.hideFlags = HideFlags.HideAndDontSave;
-        return sprite;
-    }
+    // 各组帧数，取自上方布局说明；Compact 没有 Hair／Back，解绑时多问几个 key 无副作用。
+    private static readonly (string Group, int Count)[] Groups =
+    [
+        ("main", MainDirections * MainFrames),
+        ("eyes", EyeDirections * EyeFrames),
+        ("hair", HairDirections * HairFrames),
+        ("back", BackDirections * BackFrames),
+    ];
 
     private static string GetCachePath(string name) => $"{CacheFolder}/{name}.png";
 
@@ -692,7 +586,9 @@ public static partial class NetSkinManager
     public static void Invalidate(string name)
     {
         if (string.IsNullOrEmpty(name)) return;
-        lock (_builtSkins) _builtSkins.Remove(name);
+        bool cached;
+        lock (_builtSkins) cached = _builtSkins.Remove(name);
+        if (cached) UnregisterFrames(name);
         try
         {
             if (CacheExists(GetCachePath(name))) CacheDelete(GetCachePath(name));
@@ -703,4 +599,29 @@ public static partial class NetSkinManager
             Log.Warning($"NetSkin：清理缓存 「{name}」 失败：{e.Message}");
         }
     }
+}
+
+/// <summary>
+/// 一张已构建的线上皮肤：布局判别结果与四组帧精灵句柄，索引与游戏像素集一致
+/// （Main／Hair／Back 为 dir*3 + frame，Eyes 为 dir*4 + frame）。Compact 布局没有 Hair／Back，两者为空表。
+/// </summary>
+public sealed class NetSkin(
+    string name,
+    bool isFull,
+    IReadOnlyList<SpriteHandle> main,
+    IReadOnlyList<SpriteHandle> eyes,
+    IReadOnlyList<SpriteHandle> hair,
+    IReadOnlyList<SpriteHandle> back)
+{
+    public string Name { get; } = name;
+
+    public bool IsFull { get; } = isFull;
+
+    public IReadOnlyList<SpriteHandle> Main { get; } = main;
+
+    public IReadOnlyList<SpriteHandle> Eyes { get; } = eyes;
+
+    public IReadOnlyList<SpriteHandle> Hair { get; } = hair;
+
+    public IReadOnlyList<SpriteHandle> Back { get; } = back;
 }

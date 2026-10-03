@@ -6,7 +6,6 @@ using Il2CppInterop.Runtime;
 using UnityEngine;
 
 using GameData.Core.Collections;
-using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 using NightScene.PartnerUtility;
 using NightScene.Tiles;
@@ -92,7 +91,7 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
 
     private IEnumerator PositiveRoutine(IWorkSceneServices scene, ICoroutineDispatcher coroutines, ILog log)
     {
-        var origin = GuestPosition(scene) ?? scene.Common.PlayerPosition;
+        var origin = GuestPosition(scene) ?? scene.Presentation.PlayerPosition;
         var cast = Vfx.PlayOneShot(CastVfx, origin);
         yield return coroutines.AfterSeconds(2f);
         Vfx.Stop(cast);
@@ -117,8 +116,8 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
         _animatedOrders = [];
         snowfall = Vfx.Play(SnowfallVfx);
 
-        // 挂在夜间场景的事件管理器上，离开场景时随之停止；buff 结束时由回调停止。
-        _serveLoop = coroutines.StartOn(EventManager.Instance, _ => ServeLoop(scene, coroutines));
+        // 挂在场景协程宿主上，离开场景时随之停止；buff 结束时由回调停止。
+        _serveLoop = coroutines.StartOn(coroutines.Owner, _ => ServeLoop(scene, coroutines));
     }
 
     /// <summary>buff 剩余秒数的 $c 占位符替换（原 <c>SpellBase.RegisterTimedBuff</c> 的默认处理）。</summary>
@@ -198,8 +197,8 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
         GuestsManager.OrderBase order,
         Sellable beverage)
     {
-        var origin = scene.Common.PlayerPosition;
-        var target = scene.Common.TablePosition(order.DeskCode);
+        var origin = scene.Presentation.PlayerPosition;
+        var target = scene.Presentation.TablePosition(order.DeskCode);
         var visual = beverage.Text?.Visual;
         var animationOnly = AnimationOnly;
 
@@ -210,7 +209,7 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
             scene.Guests.NotifyOrderStatusUpdate(
                 order, PartnerManager.OrderChangeContext.BeverageDelivered, -1);
         }
-        coroutines.StartOn(EventManager.Instance, _ => ThrowThenServe());
+        coroutines.StartOn(coroutines.Owner, _ => ThrowThenServe());
 
         IEnumerator ThrowThenServe()
         {
@@ -256,8 +255,8 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
         }
 
         var frost = Vfx.PlayScreenOverlay(FrostFieldVfx);
-        var coolDown = Vfx.Play(CoolDownVfx, scene.Common.PlayerPosition);
-        coroutines.StartOn(EventManager.Instance, _ => Shake());
+        var coolDown = Vfx.Play(CoolDownVfx, scene.Presentation.PlayerPosition);
+        coroutines.StartOn(coroutines.Owner, _ => Shake());
 
         // 与原版 Spell_Kagerou 一致：协程只负责演出，buff 结束后的清理交给 onBuffEnd。
         // 不含「凉爽」tag 的料理，评价上限压到「普通」；containsOrNot=false 表示缺少该 tag 时生效。
@@ -283,7 +282,7 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
         // 原 EventCoroutineDelegation.Schedule(SetCameraShake(...))：相机震动并等待演出结束。
         IEnumerator Shake()
         {
-            scene.Common.ShakeCamera(0.35f, 0.35f, 0.4f);
+            scene.Presentation.ShakeCamera(0.35f, 0.35f, 0.4f);
             yield return coroutines.AfterSeconds(0.75f);
         }
     }

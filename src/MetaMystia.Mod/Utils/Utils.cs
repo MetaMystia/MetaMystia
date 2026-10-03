@@ -1,100 +1,118 @@
 using System;
+using System.Buffers.Binary;
 using System.IO;
-using Il2CppInterop.Runtime;
-using UnityEngine;
 
+using Mystia.Assets;
+using Mystia.Imgui;
+using Mystia.Numerics;
 
 namespace MetaMystia;
+
+/// <summary>
+/// PNG 文件头：只解析 IHDR 的像素尺寸，不解码。
+/// 资产 API 构建的贴图是不透明句柄，没有尺寸查询，而「把整张贴图切成精灵」与
+/// 「按包内声明的矩形校验切图」都需要尺寸，因此这里读取文件头（框架的解码器读到同一份数据）。
+/// </summary>
+internal static class PngHeader
+{
+    private static ReadOnlySpan<byte> Signature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    public static bool TryReadSize(ReadOnlySpan<byte> png, out int width, out int height)
+    {
+        width = 0;
+        height = 0;
+
+        if (png.Length < 24 || !png.Slice(0, 8).SequenceEqual(Signature) || !png.Slice(12, 4).SequenceEqual("IHDR"u8))
+            return false;
+
+        width = BinaryPrimitives.ReadInt32BigEndian(png.Slice(16, 4));
+        height = BinaryPrimitives.ReadInt32BigEndian(png.Slice(20, 4));
+        return width > 0 && height > 0;
+    }
+}
 
 [AutoLog]
 public static partial class Utils
 {
-    public static void test()
-    {
-        var Ingredients = GameData.CoreLanguage.Collections.DataBaseLanguage.Ingredients;
-        foreach (var kvp in Ingredients)
-        {
-            Log.LogInfo($"Ingredient ID: {kvp.Key}, Name: {kvp.Value.ToString()}");
-        }
-    }
-    public static Sprite GetArtWork(string filePath, Vector2 pivot, int width = 0, int height = 0, int pixelOffsetX = 0, int pixelOffsetY = 0)
+    private const float DefaultPixelsPerUnit = 48f;
+
+    /// <summary>读一张 PNG 并切成精灵；像素单位、pivot 语义与迁移前一致。</summary>
+    public static SpriteHandle GetArtWork(string filePath, Vector2 pivot, int width = 0, int height = 0, int pixelOffsetX = 0, int pixelOffsetY = 0)
     {
         if (!File.Exists(filePath)) return null;
-        byte[] fileData = File.ReadAllBytes(filePath);
-        var sprite = GetArtWorkFromBytes(fileData, pivot, width, height, pixelOffsetX, pixelOffsetY);
-        if (sprite != null)
+        return GetArtWorkFromBytes(File.ReadAllBytes(filePath), pivot, width, height, pixelOffsetX, pixelOffsetY);
+    }
+
+    /// <summary>
+    /// 把 PNG 字节切成精灵。给定 <paramref name="width"/>/<paramref name="height"/> 时按原居中偏移取有效矩形；
+    /// 资产 API 不能新建贴图再逐像素拷贝，因此不再补透明边框，超出源贴图的部分直接丢弃。
+    /// </summary>
+    public static SpriteHandle GetArtWorkFromBytes(byte[] fileData, Vector2 pivot, int width = 0, int height = 0, int pixelOffsetX = 0, int pixelOffsetY = 0)
+    {
+        if (ModRuntime.Assets is not { } assets)
         {
-            sprite.name = Path.GetFileNameWithoutExtension(filePath);
+            Log.LogWarning("Asset factory unavailable; the artwork was not built.");
+            return null;
         }
+
+        if (!PngHeader.TryReadSize(fileData, out var sourceWidth, out var sourceHeight)
+            || !assets.TryCreateTexture(fileData, out var texture))
+        {
+            Log.LogWarning("Failed to decode the artwork (PNG only).");
+            return null;
+        }
+
+        var rect = new Rect(0f, 0f, sourceWidth, sourceHeight);
+        if (width > 0 && height > 0 && (sourceWidth != width || sourceHeight != height))
+        {
+            // 迁移前把源贴图按 (width, height) 居中（偏移 pixelOffset）画进新贴图；这里取两者相交的部分。
+            var offsetX = (width - sourceWidth) / 2 + pixelOffsetX;
+            var offsetY = (height - sourceHeight) / 2 + pixelOffsetY;
+            var x0 = Math.Max(0, -offsetX);
+            var y0 = Math.Max(0, -offsetY);
+            var x1 = Math.Min(sourceWidth, width - offsetX);
+            var y1 = Math.Min(sourceHeight, height - offsetY);
+            if (x1 <= x0 || y1 <= y0)
+            {
+                Log.LogWarning($"The artwork ({sourceWidth}×{sourceHeight}) does not overlap the requested {width}×{height}.");
+                return null;
+            }
+
+            rect = new Rect(x0, y0, x1 - x0, y1 - y0);
+        }
+
+        if (!assets.TryCreateSprite(texture, rect, pivot, DefaultPixelsPerUnit, out var sprite))
+        {
+            Log.LogWarning($"Failed to cut the artwork sprite {rect.X},{rect.Y} {rect.Width}×{rect.Height}.");
+            return null;
+        }
+
         return sprite;
     }
 
-    public static Sprite GetArtWorkFromBytes(byte[] fileData, Vector2 pivot, int width = 0, int height = 0, int pixelOffsetX = 0, int pixelOffsetY = 0)
+    /// <summary>全透明像素集：框架建一张空像素贴图，再切成整图精灵。</summary>
+    public static SpriteHandle BuildEmptySprite(int width = 64, int height = 64)
     {
-        var texture2D = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-
-        ImageConversion.LoadImage(texture2D, fileData);
-
-        if (width > 0 && height > 0 && (texture2D.width != width || texture2D.height != height))
+        if (ModRuntime.Assets is not { } assets)
         {
-            var newTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-            var colors = new Color[width * height];
-            for (int i = 0; i < colors.Length; i++) colors[i] = Color.clear;
-            newTexture.SetPixels(colors);
-
-            int x = (width - texture2D.width) / 2 + pixelOffsetX;
-            int y = (height - texture2D.height) / 2 + pixelOffsetY;
-
-            x = Mathf.Clamp(x, 0, width - texture2D.width);
-            y = Mathf.Clamp(y, 0, height - texture2D.height);
-
-            newTexture.SetPixels(x, y, texture2D.width, texture2D.height, texture2D.GetPixels());
-            newTexture.Apply();
-            texture2D = newTexture;
+            Log.LogWarning("Asset factory unavailable; the empty sprite was not built.");
+            return null;
         }
 
-        texture2D.filterMode = FilterMode.Point;
-        texture2D.wrapMode = TextureWrapMode.Clamp;
-
-        var sprite = Sprite.Create(texture2D, new Rect(0f, 0f, texture2D.width, texture2D.height), pivot, 48f);
-
-        return sprite;
-    }
-    public static void FindAndProcessResources<T>(Action<T> action) where T : UnityEngine.Object
-    {
-        try
+        if (!assets.TryCreatePixelTexture(width, height, out var pixels))
         {
-            var type = Il2CppType.Of<T>();
-            var foundAssets = Resources.FindObjectsOfTypeAll(type);
-
-            if (foundAssets == null || foundAssets.Length == 0)
-            {
-                Log.LogWarning($"No {typeof(T).Name} assets found in memory.");
-                return;
-            }
-
-            Log.LogDebug($"Found {foundAssets.Length} {typeof(T).Name} asset(s).");
-
-            for (var i = 0; i < foundAssets.Length; i++)
-            {
-                var asset = foundAssets[i].TryCast<T>();
-                if (asset == null) continue;
-                action(asset);
-            }
+            Log.LogWarning($"Failed to create a {width}×{height} pixel texture.");
+            return null;
         }
-        catch (Exception e)
-        {
-            Log.LogError($"Failed to process {typeof(T).Name} contents: {e.Message}\n{e.StackTrace}");
-        }
-    }
-    public static Sprite BuildEmptySprite(int width = 64, int height = 64)
-    {
-        var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-        var colors = new Color[width * height];
-        var transparent = new Color(0f, 0f, 0f, 0f);
-        for (int i = 0; i < colors.Length; i++) colors[i] = transparent;
-        texture.SetPixels(colors);
-        texture.Apply();
-        return Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), 48f);
+
+        // PixelBuffer 初始即全透明，无需填充即可切图。
+        return assets.TryCreateSprite(
+            pixels.Texture,
+            new Rect(0f, 0f, width, height),
+            new Vector2(0.5f, 0.5f),
+            DefaultPixelsPerUnit,
+            out var sprite)
+            ? sprite
+            : null;
     }
 }

@@ -1,6 +1,7 @@
 using System;
 
 using Mystia;
+using Mystia.Assets;
 
 namespace MetaMystia;
 
@@ -37,6 +38,18 @@ public static class ModRuntime
 
     /// <summary>由全局循环在 <c>Setup</c> 时从 <see cref="ICommonServices"/> 取的主线程调度器。</summary>
     public static IMainThreadScheduler MainThread { get; internal set; }
+
+    /// <summary>
+    /// 由全局循环在 <c>Setup</c> 时从 <see cref="ICommonServices"/> 取的资产工厂：
+    /// 贴图／精灵／音频剪辑／像素缓冲都由框架构建，模组只保管句柄。仅主线程可用。
+    /// </summary>
+    public static IAssetFactory Assets { get; internal set; }
+
+    /// <summary>由全局循环在 <c>Setup</c> 时取的资产登记表：把框架建好的资产按 key 交进游戏资产管线。</summary>
+    public static IAssetLocator Locator { get; internal set; }
+
+    /// <summary>由全局循环在 <c>Setup</c> 时取的白天地图构建器；构建与发布都只能在主线程调用。</summary>
+    public static IDayMapBuilder MapBuilder { get; internal set; }
 
     internal static void Bind(IMod mod) =>
         s_mod = mod ?? throw new ArgumentNullException(nameof(mod));

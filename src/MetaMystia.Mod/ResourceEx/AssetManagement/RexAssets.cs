@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
-using MetaMystia.ResourceEx.Addressables;
-using UnityEngine;
-using UnityEngine.AddressableAssets;
+
+using Mystia.Assets;
+using Mystia.Imgui;
+using Mystia.Numerics;
 
 namespace MetaMystia.ResourceEx.AssetManagement;
 
@@ -123,17 +125,32 @@ public abstract class RexAsset
     public RexAssetKind Kind { get; }
 }
 
+/// <summary>
+/// 包内图片：贴图与精灵都由框架的 <see cref="IAssetFactory"/> 构建，这里只保管句柄，因此不再有 Unity 对象。
+/// 尺寸取自 PNG 文件头（资产 API 的句柄没有尺寸查询），用于按包内声明校验切图矩形与切整图精灵。
+/// 精灵切图失败（尺寸与句柄不一致等）时 <see cref="Sprite"/> 为空，贴图仍然可用。
+/// </summary>
 public sealed class RexImageAsset : RexAsset
 {
-    public RexImageAsset(string uri, string packageName, string path, byte[] bytes, Texture2D texture, Sprite sprite)
+    public RexImageAsset(
+        string uri, string packageName, string path, byte[] bytes,
+        TextureHandle texture, SpriteHandle? sprite, int width, int height)
         : base(uri, packageName, path, bytes, RexAssetKind.Image)
     {
         Texture = texture;
         Sprite = sprite;
+        Width = width;
+        Height = height;
     }
 
-    public Texture2D Texture { get; }
-    public Sprite Sprite { get; }
+    /// <summary>整张贴图切出的精灵。</summary>
+    public TextureHandle Texture { get; }
+
+    /// <summary>整张贴图的精灵。</summary>
+    public SpriteHandle? Sprite { get; }
+
+    public int Width { get; }
+    public int Height { get; }
 }
 
 public sealed class RexTextAsset : RexAsset
@@ -147,15 +164,16 @@ public sealed class RexTextAsset : RexAsset
     public string Text { get; }
 }
 
+/// <summary>包内音频：解码后的采样交给框架建剪辑，这里只保管句柄；无法解码的容器（OGG/MP3 等）<see cref="Clip"/> 为空。</summary>
 public sealed class RexAudioAsset : RexAsset
 {
-    public RexAudioAsset(string uri, string packageName, string path, byte[] bytes, AudioClip clip = null)
+    public RexAudioAsset(string uri, string packageName, string path, byte[] bytes, AudioClipHandle? clip = null)
         : base(uri, packageName, path, bytes, RexAssetKind.Audio)
     {
         Clip = clip;
     }
 
-    public AudioClip Clip { get; }
+    public AudioClipHandle? Clip { get; }
 }
 
 public sealed class RexBinaryAsset : RexAsset
@@ -171,9 +189,12 @@ public static partial class RexAssetRegistry
 {
     // Case-sensitive: rex:// URIs follow RFC 3986 path semantics. The scheme prefix itself
     // is matched case-insensitively in RexUri.IsRexUri (per RFC 3986), but package name and
-    // path are exact-match. This stays in lockstep with RuntimeAddressables.KeyToGuid (MD5),
-    // which is byte-sensitive — so a single source of truth across both registries.
+    // path are exact-match. This stays in lockstep with the framework's IAssetLocator, which
+    // files a key under the MD5 of that exact key — so a single source of truth across both.
     private static readonly Dictionary<string, RexAsset> _assets = new(StringComparer.Ordinal);
+
+    /// <summary>整张贴图切精灵时的 pixels per unit，与迁移前一致。</summary>
+    private const float DefaultPixelsPerUnit = 48f;
 
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -259,22 +280,33 @@ public static partial class RexAssetRegistry
         return true;
     }
 
-    public static bool TryGetSprite(string uri, out Sprite sprite)
+    /// <summary>取某个 rex URI 登记进游戏资产管线的精灵。</summary>
+    public static bool TryGetSprite(string uri, [NotNullWhen(true)] out SpriteHandle sprite)
     {
         sprite = null;
-        return RexUri.IsRexUri(uri) && RuntimeAddressables.TryGetAsset(uri, out sprite);
+        return RexUri.IsRexUri(uri)
+            && ModRuntime.Locator is { } locator
+            && locator.TryResolveSprite(uri, out sprite);
     }
 
-    public static bool TryGetSpriteReference(string uri, out AssetReferenceSprite reference)
+    /// <summary>取某个 rex URI 的资产引用（该 URI 登记为图片时才有）。</summary>
+    public static bool TryGetSpriteReference(string uri, [NotNullWhen(true)] out AssetReference reference)
     {
         reference = null;
-        return RexUri.IsRexUri(uri) && RuntimeAddressables.TryGetSpriteReference(uri, out reference);
+        return _assets.TryGetValue(uri, out var asset)
+            && asset.Kind == RexAssetKind.Image
+            && ModRuntime.Locator is { } locator
+            && locator.TryGetReference(uri, out reference);
     }
 
-    public static bool TryGetAudioReference(string uri, out AssetReferenceT<AudioClip> reference)
+    /// <summary>取某个 rex URI 的资产引用（该 URI 登记为音频时才有）。</summary>
+    public static bool TryGetAudioReference(string uri, [NotNullWhen(true)] out AssetReference reference)
     {
         reference = null;
-        return RexUri.IsRexUri(uri) && RuntimeAddressables.TryGetReference(uri, out reference);
+        return _assets.TryGetValue(uri, out var asset)
+            && asset.Kind == RexAssetKind.Audio
+            && ModRuntime.Locator is { } locator
+            && locator.TryGetReference(uri, out reference);
     }
 
     private static RexAsset CreateAsset(RexUri uri, byte[] bytes)
@@ -295,55 +327,68 @@ public static partial class RexAssetRegistry
 
     private static RexAsset CreateImageAsset(RexUri uri, byte[] bytes)
     {
-        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-        try
+        // 尺寸来自 PNG 文件头：容器不是 PNG（JPEG 等）时框架的贴图工厂也会拒绝，两者都按「跳过并告警」处理。
+        if (!PngHeader.TryReadSize(bytes, out var width, out var height))
         {
-            if (!ImageConversion.LoadImage(texture, bytes))
-            {
-                UnityEngine.Object.DestroyImmediate(texture);
-                Log.LogWarning($"Failed to decode image resource: {uri.Value}");
-                return new RexBinaryAsset(uri.Value, uri.PackageName, uri.Path, bytes);
-            }
-
-            var name = System.IO.Path.GetFileNameWithoutExtension(uri.Path);
-            texture.name = name;
-            texture.filterMode = FilterMode.Point;
-            texture.wrapMode = TextureWrapMode.Clamp;
-            texture.hideFlags = HideFlags.HideAndDontSave;
-
-            var sprite = Sprite.Create(
-                texture,
-                new Rect(0f, 0f, texture.width, texture.height),
-                new Vector2(0.5f, 0.5f),
-                48f);
-
-            sprite.name = name;
-            sprite.hideFlags = HideFlags.HideAndDontSave;
-
-            RuntimeAddressables.RegisterSprite(uri.Value, sprite);
-            return new RexImageAsset(uri.Value, uri.PackageName, uri.Path, bytes, texture, sprite);
-        }
-        catch (Exception ex)
-        {
-            UnityEngine.Object.DestroyImmediate(texture);
-            Log.LogWarning($"Failed to create image resource {uri.Value}: {ex.Message}");
+            Log.LogWarning($"Failed to decode image resource (PNG only): {uri.Value}");
             return new RexBinaryAsset(uri.Value, uri.PackageName, uri.Path, bytes);
         }
+
+        if (ModRuntime.Assets is not { } assets)
+        {
+            Log.LogWarning($"Asset factory unavailable; image resource {uri.Value} is registered as binary.");
+            return new RexBinaryAsset(uri.Value, uri.PackageName, uri.Path, bytes);
+        }
+
+        // 贴图解码是框架自己的 PNG 解码（引擎的 ImageConversion 不在本构建的互操作集里）。
+        if (!assets.TryCreateTexture(bytes, out var texture))
+        {
+            Log.LogWarning($"Failed to decode image resource: {uri.Value}");
+            return new RexBinaryAsset(uri.Value, uri.PackageName, uri.Path, bytes);
+        }
+
+        if (!assets.TryCreateSprite(
+                texture,
+                new Rect(0f, 0f, width, height),
+                new Vector2(0.5f, 0.5f),
+                DefaultPixelsPerUnit,
+                out var sprite))
+        {
+            Log.LogWarning($"Failed to cut the image resource sprite: {uri.Value}");
+            return new RexImageAsset(uri.Value, uri.PackageName, uri.Path, bytes, texture, null, width, height);
+        }
+
+        if (ModRuntime.Locator is not { } locator || !locator.TryRegisterSprite(uri.Value, sprite, out _))
+            Log.LogWarning($"Failed to file the image resource: {uri.Value}");
+
+        return new RexImageAsset(uri.Value, uri.PackageName, uri.Path, bytes, texture, sprite, width, height);
     }
 
     private static RexAsset CreateAudioAsset(RexUri uri, byte[] bytes)
     {
-        try
+        // 容器解码是框架的 WavAudio：只读 PCM / IEEE float 的 RIFF/WAVE，其余容器按「跳过并告警」处理。
+        if (!WavAudio.TryDecode(bytes, out var wav))
         {
-            var clip = WavLoader.LoadFromBytes(bytes, uri.Value);
-            RuntimeAddressables.Register(uri.Value, clip);
-            return new RexAudioAsset(uri.Value, uri.PackageName, uri.Path, bytes, clip);
-        }
-        catch (Exception ex)
-        {
-            Log.LogWarning($"Failed to register audio resource {uri.Value}: {ex.Message}");
+            Log.LogWarning($"Failed to decode audio resource (RIFF/WAVE only): {uri.Value}");
             return new RexAudioAsset(uri.Value, uri.PackageName, uri.Path, bytes);
         }
+
+        if (ModRuntime.Assets is not { } assets)
+        {
+            Log.LogWarning($"Asset factory unavailable; audio resource {uri.Value} has no clip.");
+            return new RexAudioAsset(uri.Value, uri.PackageName, uri.Path, bytes);
+        }
+
+        if (!assets.TryCreateAudioClip(uri.Value, wav.Samples, wav.Channels, wav.SampleRate, out var clip))
+        {
+            Log.LogWarning($"Failed to create the audio resource clip: {uri.Value}");
+            return new RexAudioAsset(uri.Value, uri.PackageName, uri.Path, bytes);
+        }
+
+        if (ModRuntime.Locator is not { } locator || !locator.TryRegisterAudioClip(uri.Value, clip, out _))
+            Log.LogWarning($"Failed to file the audio resource: {uri.Value}");
+
+        return new RexAudioAsset(uri.Value, uri.PackageName, uri.Path, bytes, clip);
     }
 
     private static void RegisterAsset(RexAsset asset)

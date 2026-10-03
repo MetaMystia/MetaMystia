@@ -76,7 +76,7 @@ public partial class PeerPlayer : NetPlayer
             owner.characterCollection.Add(CharacterId, character);
             character.AddInputProcessor<HeightBlendedInputProcessorComponent>();
             Skin.ApplyToUnit(character);
-            IgnorePlayerCollisions();
+            MakeColliderNonBlocking();
             Log.Info($"Created peer '{CharacterId}' in {Scene}");
         }
 
@@ -107,16 +107,15 @@ public partial class PeerPlayer : NetPlayer
         FloatingTextHelper.SetPlayerLabel(Uid, LiveModeManager.GetDisplayName(Uid), character.transform);
     }
 
-    private void IgnorePlayerCollisions()
+    /// <summary>
+    /// 远端角色的碰撞体不再阻挡任何人。互操作里 <c>Physics2D</c> 被裁得只剩查询
+    /// （<c>IgnoreCollision</c>/<c>IgnoreLayerCollision</c> 都不存在，2D 碰撞矩阵也无法在运行时改），
+    /// 做不到「碰撞对」级过滤，因此改用触发器：与本地玩家、其他远端角色都不再产生碰撞响应。
+    /// 代价：它也不再与地图障碍碰撞，位置完全由网络位置与速度修正驱动。
+    /// </summary>
+    private void MakeColliderNonBlocking()
     {
-        var self = PlayerManager.Local.unit;
-        if (self?.cl2d != null) Physics2D.IgnoreCollision(character.cl2d, self.cl2d);
-        foreach (var peer in PlayerManager.Peers.Values)
-            if (peer != this && peer.character != null && peer.character.cl2d != null)
-                Physics2D.IgnoreCollision(character.cl2d, peer.character.cl2d);
-        foreach (var peer in PlayerManager.PublicPeers.Values)
-            if (peer != this && peer.character != null && peer.character.cl2d != null)
-                Physics2D.IgnoreCollision(character.cl2d, peer.character.cl2d);
+        character.cl2d.isTrigger = true;
     }
 
     /// <summary>场景卸载由游戏销毁对象；中途离线由模组移除自己的角色。</summary>

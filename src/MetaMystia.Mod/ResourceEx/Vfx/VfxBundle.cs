@@ -26,14 +26,20 @@ public sealed partial class VfxBundle
 
     private readonly Dictionary<string, GameObject> _prefabs = [];
 
+    /// <summary><see cref="AssetBundle.LoadFromStream"/> 要求流的存活期长于 AssetBundle，故持有到进程结束。</summary>
+    private readonly Il2CppSystem.IO.MemoryStream _stream;
+
     /// <summary>资源包保持加载（不调用 Unload），prefab 依赖其中的贴图与材质。</summary>
-    private VfxBundle(AssetBundle bundle)
+    private VfxBundle(AssetBundle bundle, Il2CppSystem.IO.MemoryStream stream)
     {
+        _stream = stream;
         if (bundle == null)
             return;
 
-        // 泛型 LoadAllAssets<T> 依赖游戏未实例化的 ConvertObjects<GameObject>，会 unstripping 失败。
-        foreach (var obj in bundle.LoadAllAssets(Il2CppType.Of<GameObject>()))
+        // 互操作里 LoadAllAssets 被裁掉（游戏未调用），只剩异步变体；读取尚未完成的 allAssets
+        // 会阻塞到加载结束，因此这里仍是启动期同步载入，与原来的 LoadAllAssets 等价。
+        // 仍用 Type 重载而非泛型 LoadAllAssetsAsync<T>：泛型要走游戏未实例化的 ConvertObjects<GameObject>。
+        foreach (var obj in bundle.LoadAllAssetsAsync(Il2CppType.Of<GameObject>()).allAssets)
         {
             var prefab = obj.TryCast<GameObject>();
             if (prefab == null)
@@ -46,14 +52,17 @@ public sealed partial class VfxBundle
 
     public static VfxBundle Load(string uri)
     {
-        var bundle = AssetBundle.LoadFromMemory(RexAssetRegistry.Assets[uri].Bytes);
+        // 互操作里没有 AssetBundle.LoadFromMemory，改用等价的同步 LoadFromStream；
+        // 它要的是游戏的 System.IO.Stream，所以用 il2cpp 侧的 MemoryStream 包一层。
+        var stream = new Il2CppSystem.IO.MemoryStream(RexAssetRegistry.Assets[uri].Bytes);
+        var bundle = AssetBundle.LoadFromStream(stream, 0);
         if (bundle == null)
         {
             Log.LogError($"AssetBundle 加载失败: {uri}");
             return null;
         }
 
-        var vfx = new VfxBundle(bundle);
+        var vfx = new VfxBundle(bundle, stream);
         Log.LogInfo($"{uri}: 已加载 {vfx._prefabs.Count} 个特效 prefab");
         return vfx;
     }

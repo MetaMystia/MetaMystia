@@ -5,7 +5,6 @@ using Mystia.Imgui;
 using Mystia.Scenes;
 
 using Common.UI;
-using UnityEngine;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.UI;
@@ -24,6 +23,9 @@ public sealed partial class ModLoop : IGlobalGameLoop, IIMGUIProvider
     {
         ModRuntime.MainThread = services.Common.MainThread;
         ModRuntime.Coroutines = services.Common.Coroutines;
+        ModRuntime.Assets = services.Common.Assets;
+        ModRuntime.Locator = services.Common.Locator;
+        ModRuntime.MapBuilder = services.Common.MapBuilder;
 
         InGameConsole.Initialize();
         ResourceExManager.FlushPendingConsoleLogs();

@@ -111,12 +111,13 @@ public static partial class ResourceExManager
         // 特殊客人的刷客池（Izakayas[].SpecialGuestPool）由框架按 OnInjectSpecialGuests 的 Spawns 写入，
         // 此处不再直接写表
         // 食材/饮料/菜谱/食物/服装由 ModDatabaseExtension 经 IDatabaseExtension 注入，此处不再直接写表
-        // 商人与白天地图同理；地图本体的引擎对象由 OnInjectDayMaps 在收集阶段构建（DayMapRegistry.BuildAll）
+        // 商人与白天地图同理；地图本体的引擎对象由 OnInjectDayMaps 在收集阶段交给框架构建
+        // （DayMapRegistry.BuildAll → ICommonServices.MapBuilder）
     }
     public static void OnDataBaseDayInitialized()
     {
         // 地图数据面（mapData／刷新点与采集点标签／地图语言／映射）、商人与对话包由框架按 OnInject* 写入；
-        // 这里只补框架无法表达的部分：内存地图的地址引用与礼物邮箱校验。
+        // 这里补两件框架不做的：把已构建的地图发布给游戏（框架写 mapReference）与礼物邮箱校验。
         GiftRegistry.ValidateAllGifts();
 
         // RegisterAllSpawnMarkers(); // DO NOT DELETE
@@ -151,8 +152,8 @@ public static partial class ResourceExManager
     public static void OnDaySceneAwake()
     {
         // 迁移前由 Patches/Compat/DataBaseDayPatch.cs（已随 E2 删除）在 DataBaseDay.Initialize 后缀调用。
-        // 框架在 DataBaseDay 的写入之后没有给模组的回调，这里退到白天场景唤醒时补做框架无法表达的部分
-        // （内存地图的地址引用要早于换图，礼物邮箱只在这里用到）。待确认：mapReference 的写入时机。
+        // 框架在 DataBaseDay 的写入之后没有给模组的回调，这里退到白天场景唤醒时补做：
+        // 重新发布一次内存地图（mapReference 会被 DataBaseDay.Initialize 重建，发布要早于换图）与礼物邮箱校验。
         OnDataBaseDayInitialized();
 
         SpecialGuestRegistry.RefreshAllDayNpcs();

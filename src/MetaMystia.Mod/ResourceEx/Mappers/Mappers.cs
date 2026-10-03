@@ -334,7 +334,9 @@ public static partial class Mappers
         {
             key = config.key,
             products = config.merchandise
-                .Where(x => UnityEngine.Random.value <= x.sellProbability)
+                // 互操作里没有 UnityEngine.Random.value（游戏未调用，已被裁掉），概率判定改用 System.Random：
+                // 每进程一次随机种子、[0,1) 均匀分布，与原来的分布意图一致。
+                .Where(x => System.Random.Shared.NextDouble() <= x.sellProbability)
                 .Select(x => x.item.ToProduct(UnityEngine.Random.Range(x.itemAmountMin, x.itemAmountMax)))
                 .ToIl2CppReferenceArray(),
             currentPriceMultiplier = UnityEngine.Random.Range(config.priceMultiplierMin, config.priceMultiplierMax),

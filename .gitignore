@@ -22,3 +22,6 @@ chat-filter.json
 
 server.json
 /src/MetaMystia.Server/logs/
+
+# Agent scratch (tool output, probes and measurement projects)
+.spinney/

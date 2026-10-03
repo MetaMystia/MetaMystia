@@ -1,12 +1,17 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using GameData.Core.Collections.CharacterUtility;
-using SgrYuki.Utils;
+
+using Il2CppInterop.Runtime;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+
+using GameData.Core.Collections.CharacterUtility;
+
+using SgrYuki.Utils;
 
 namespace MetaMystia;
 
@@ -165,10 +170,12 @@ public static partial class ExportUtils
         if (!Directory.Exists(exportDir))
             Directory.CreateDirectory(exportDir);
 
-        Utils.FindAndProcessResources<CharacterSpriteSetCompact>(spriteSet =>
+        // 迁移前走 Utils.FindAndProcessResources，即 Resources.FindObjectsOfTypeAll。
+        foreach (var found in Resources.FindObjectsOfTypeAll(Il2CppType.Of<CharacterSpriteSetCompact>()))
         {
+            var spriteSet = found.TryCast<CharacterSpriteSetCompact>();
             if (spriteSet == null || spriteSet.mainSprite == null)
-                return;
+                continue;
 
             foreach (var eye in spriteSet.eyeSprite)
             {
@@ -185,7 +192,7 @@ public static partial class ExportUtils
                 TrySaveSprite(main, filepath);
             }
             Log.Warning($"Exported sprite set: {spriteSet.name}");
-        });
+        }
     }
     public static void TrySaveSprite(Sprite sprite, string filepath)
     {
@@ -199,13 +206,12 @@ public static partial class ExportUtils
             // 1. 提取裁剪后的区域 (readableTexture)
             if (!originalTexture.isReadable)
             {
-                // 使用 RenderTexture 复制不可读的纹理
+                // 互操作里 RenderTexture.GetTemporary 没有五项重载，四项版默认 RenderTextureReadWrite.Default。
                 var rt = RenderTexture.GetTemporary(
                     originalTexture.width,
                     originalTexture.height,
                     0,
-                    RenderTextureFormat.ARGB32,
-                    RenderTextureReadWrite.Default);
+                    RenderTextureFormat.ARGB32);
 
                 Graphics.Blit(originalTexture, rt);
                 var previous = RenderTexture.active;
@@ -252,7 +258,7 @@ public static partial class ExportUtils
             finalTexture.SetPixels(Mathf.RoundToInt(offset.x), Mathf.RoundToInt(offset.y), (int)rect.width, (int)rect.height, readableTexture.GetPixels());
             finalTexture.Apply();
 
-            byte[] pngData = ImageConversion.EncodeToPNG(finalTexture);
+            byte[] pngData = EncodePng(finalTexture);
             var directory = Path.GetDirectoryName(filepath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
@@ -564,8 +570,8 @@ public static partial class ExportUtils
         }
         else
         {
-            var cellMin = tilemap.CellToWorld(bounds.min);
-            var cellMax = tilemap.CellToWorld(bounds.max);
+            var cellMin = CellToWorld(tilemap, bounds.min);
+            var cellMax = CellToWorld(tilemap, bounds.max);
             worldMinX = cellMin.x;
             worldMinY = cellMin.y;
             totalW = Mathf.CeilToInt((cellMax.x - cellMin.x) * ppu);
@@ -610,7 +616,7 @@ public static partial class ExportUtils
 
                     // Sprite Pivot 对齐到 Cell Anchor，用世界坐标计算左下角像素坐标
                     var anchor = tilemap.tileAnchor;
-                    var cellWorld = tilemap.CellToWorld(cellPos);
+                    var cellWorld = CellToWorld(tilemap, cellPos);
                     int cellPixelX = Mathf.RoundToInt((cellWorld.x - worldMinX) * ppu);
                     int cellPixelY = Mathf.RoundToInt((cellWorld.y - worldMinY) * ppu);
                     int spriteOriginX = cellPixelX + Mathf.RoundToInt(anchor.x * cellW) - Mathf.RoundToInt(sprite.pivot.x);
@@ -656,7 +662,7 @@ public static partial class ExportUtils
             output.SetPixels(outputPixels);
             output.Apply();
 
-            byte[] pngData = ImageConversion.EncodeToPNG(output);
+            byte[] pngData = EncodePng(output);
             var dir = Path.GetDirectoryName(filepath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
@@ -743,8 +749,8 @@ public static partial class ExportUtils
             }
             else
             {
-                var min = tm.CellToWorld(bounds.min);
-                var max = tm.CellToWorld(bounds.max);
+                var min = CellToWorld(tm, bounds.min);
+                var max = CellToWorld(tm, bounds.max);
                 worldMinX = Mathf.Min(worldMinX, min.x);
                 worldMinY = Mathf.Min(worldMinY, min.y);
                 worldMaxX = Mathf.Max(worldMaxX, max.x);
@@ -810,7 +816,7 @@ public static partial class ExportUtils
 
                         // 用世界坐标计算 cell 在输出图中的位置
                         var anchor = tm.tileAnchor;
-                        var cellWorld = tm.CellToWorld(cellPos);
+                        var cellWorld = CellToWorld(tm, cellPos);
                         int cellPixelX = Mathf.RoundToInt((cellWorld.x - worldMinX) * ppu);
                         int cellPixelY = Mathf.RoundToInt((cellWorld.y - worldMinY) * ppu);
                         int spriteOriginX = cellPixelX + Mathf.RoundToInt(anchor.x * cellW) - Mathf.RoundToInt(sprite.pivot.x);
@@ -855,7 +861,7 @@ public static partial class ExportUtils
             output.SetPixels(outputPixels);
             output.Apply();
 
-            byte[] pngData = ImageConversion.EncodeToPNG(output);
+            byte[] pngData = EncodePng(output);
             var dir = Path.GetDirectoryName(filepath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
@@ -871,6 +877,99 @@ public static partial class ExportUtils
                 if (tex != null) UnityEngine.Object.DestroyImmediate(tex);
             }
         }
+    }
+
+    /// <summary>
+    /// <c>Tilemap.CellToWorld</c> 在互操作里不存在（游戏未调用，已被裁掉），用 cell 中心减半格还原左下角。
+    /// 与像素换算的前提一致：Grid 变换为单位变换（无旋转、无缩放）。
+    /// </summary>
+    private static Vector3 CellToWorld(Tilemap tilemap, Vector3Int cell)
+    {
+        var grid = tilemap.layoutGrid;
+        return grid.GetCellCenterWorld(cell) - grid.transform.TransformVector(grid.cellSize * 0.5f);
+    }
+
+    /// <summary>
+    /// <c>ImageConversion.EncodeToPNG</c> 在本作互操作里不存在（游戏未调用，已被裁掉），
+    /// 这里自行编码 8 位 RGBA PNG：签名 + IHDR + zlib(IDAT) + IEND。
+    /// </summary>
+    private static byte[] EncodePng(Texture2D texture)
+    {
+        int width = texture.width;
+        int height = texture.height;
+        Color[] pixels = texture.GetPixels(); // 行序自下而上
+
+        int stride = 1 + width * 4;
+        var scanlines = new byte[height * stride];
+        for (int y = 0; y < height; y++)
+        {
+            int row = (height - 1 - y) * stride; // PNG 的行序自上而下
+            scanlines[row] = 0;                  // filter type: None
+            for (int x = 0; x < width; x++)
+            {
+                var pixel = pixels[y * width + x];
+                int at = row + 1 + x * 4;
+                scanlines[at] = ToByte(pixel.r);
+                scanlines[at + 1] = ToByte(pixel.g);
+                scanlines[at + 2] = ToByte(pixel.b);
+                scanlines[at + 3] = ToByte(pixel.a);
+            }
+        }
+
+        using var png = new MemoryStream();
+        png.Write(PngSignature);
+        WriteChunk(png, "IHDR", [.. BigEndian(width), .. BigEndian(height), 8, 6, 0, 0, 0]);
+        using (var compressed = new MemoryStream())
+        {
+            using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
+                zlib.Write(scanlines);
+            WriteChunk(png, "IDAT", compressed.ToArray());
+        }
+        WriteChunk(png, "IEND", []);
+        return png.ToArray();
+    }
+
+    private static readonly byte[] PngSignature = [137, (byte)'P', (byte)'N', (byte)'G', 13, 10, 26, 10];
+
+    private static byte ToByte(float value) => (byte)(Mathf.Clamp01(value) * 255f + 0.5f);
+
+    private static byte[] BigEndian(int value) =>
+        [(byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value];
+
+    /// <summary>PNG 块：长度（不含类型与 CRC）+ 类型 + 数据 + 类型与数据的 CRC-32。</summary>
+    private static void WriteChunk(Stream stream, string type, byte[] data)
+    {
+        var payload = new byte[4 + data.Length];
+        for (int i = 0; i < 4; i++)
+            payload[i] = (byte)type[i];
+        data.CopyTo(payload, 4);
+
+        stream.Write(BigEndian(data.Length));
+        stream.Write(payload);
+        stream.Write(BigEndian((int)Crc32(payload)));
+    }
+
+    private static readonly uint[] CrcTable = BuildCrcTable();
+
+    private static uint[] BuildCrcTable()
+    {
+        var table = new uint[256];
+        for (uint n = 0; n < 256; n++)
+        {
+            var c = n;
+            for (int k = 0; k < 8; k++)
+                c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+            table[n] = c;
+        }
+        return table;
+    }
+
+    private static uint Crc32(byte[] data)
+    {
+        var crc = 0xFFFFFFFFu;
+        foreach (var b in data)
+            crc = CrcTable[(crc ^ b) & 0xFF] ^ (crc >> 8);
+        return crc ^ 0xFFFFFFFFu;
     }
 
     private static float DetectTilemapPPU(Tilemap tilemap, BoundsInt bounds)
@@ -906,8 +1005,7 @@ public static partial class ExportUtils
         if (!cache.TryGetValue(texId, out var readable))
         {
             var rt = RenderTexture.GetTemporary(
-                originalTex.width, originalTex.height, 0,
-                RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+                originalTex.width, originalTex.height, 0, RenderTextureFormat.ARGB32);
             Graphics.Blit(originalTex, rt);
             var prev = RenderTexture.active;
             RenderTexture.active = rt;
@@ -973,7 +1071,7 @@ public static partial class ExportUtils
                     extra = $" cells={b.size.x}x{b.size.y} (tiles exist={b.size.x > 0 && b.size.y > 0})";
                 }
             }
-            sb.AppendLine($"{indent}  [{type}] sortingLayer={r.sortingLayerName} order={r.sortingOrder}{extra}");
+            sb.AppendLine($"{indent}  [{type}] sortingLayerId={r.sortingLayerID} order={r.sortingOrder}{extra}");
         }
 
         for (int i = 0; i < t.childCount; i++)
