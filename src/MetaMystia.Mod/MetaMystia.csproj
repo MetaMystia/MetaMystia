@@ -1,4 +1,4 @@
-﻿<Project Sdk="Mystia.Extension.Sdk/1.0.0">
+﻿<Project Sdk="Mystia.Extension.Sdk/2.0.0">
   <Import Project="../../MetaMystia.local.props" Condition="Exists('../../MetaMystia.local.props')" />
   <Import Project="../../Versions.props" />
 
