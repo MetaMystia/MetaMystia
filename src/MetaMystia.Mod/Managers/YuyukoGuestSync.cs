@@ -105,7 +105,7 @@ public static partial class YuyukoGuestSync
         }
         if (message.Event == YuyukoGuestEvent.Swallow)
         {
-            if (!phase3Ended) pendingSwallows.Enqueue(message.CookerIndex);
+            ReceiveSwallow(message.CookerIndex);
             return;
         }
         if (message.Event == YuyukoGuestEvent.Clear)
@@ -190,7 +190,7 @@ public static partial class YuyukoGuestSync
     }
 
     /// <summary>
-    /// 每帧尝试绑定；剧情外处理吞食、阶段取消、订单安装和评价完成。
+    /// 每帧尝试绑定；剧情外处理阶段取消、订单安装和评价完成（吞厨具由挑战监听在场景循环内重放）。
     /// 消息到达时本地剧情可能尚未准备好，故先暂存并在后续帧重试，而不阻塞接收调用。
     /// 主机等待全部当前同伴绑定；客机每帧最多应用一条普通事件，清理优先于订单安装。
     /// </summary>
@@ -206,7 +206,6 @@ public static partial class YuyukoGuestSync
             TryBind();
             if (fsm != null && !GameFlow.InStory)
             {
-                PlayPendingSwallows();
                 if (pendingClear != null)
                 {
                     if (pendingClear.OrderSeq >= fsm.OrderSeq)
@@ -356,6 +355,7 @@ public static partial class YuyukoGuestSync
     /// <summary>
     /// 客机重放专用改判回调时，回填主机最终评价、台词、连击保护和伤害倍率。
     /// 剧情版的 Null 是有效评价，必须保留；重打版原回调会扣血或触发吞食，不能在客机再次执行。
+    /// 伤害倍率写在挑战闭包里，经保留的 <see cref="YuyukoBossDataPatch"/> 以纯数值转出。
     /// </summary>
     /// <returns>是否已替代专用回调；其他实体或非重放调用返回 false，放行原版。</returns>
     internal static bool ReplayBossEvaluation(GuestGroupController controller, ref EvaluationResult result,
@@ -365,7 +365,7 @@ public static partial class YuyukoGuestSync
         result = replayEvaluation.Result;
         message = replayEvaluation.EvaluationMessage;
         protect = replayEvaluation.ComboProtect;
-        YuyukoBossDataPatch.CurrentContext.dmgMultiplier = replayEvaluation.DamageMultiplier;
+        YuyukoBossDataPatch.DamageMultiplier = replayEvaluation.DamageMultiplier;
         return true;
     }
 
@@ -398,7 +398,7 @@ public static partial class YuyukoGuestSync
             message.Mood = body.Mood;
             message.EvaluationMessage = evaluationMessage;
             message.ComboProtect = comboProtect;
-            message.DamageMultiplier = YuyukoBossDataPatch.CurrentContext.dmgMultiplier;
+            message.DamageMultiplier = YuyukoBossDataPatch.DamageMultiplier;
             YuyukoGuestMessage.Send(message);
         }
         fsm.SetManualState(GuestFSM.State.Evaluating);

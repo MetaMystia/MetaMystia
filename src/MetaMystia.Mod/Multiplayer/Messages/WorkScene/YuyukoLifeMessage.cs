@@ -1,7 +1,5 @@
 ﻿using MemoryPack;
 
-using MetaMystia.Patch;
-
 namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>主机同步三阶段剩余生命，同时驱动客机挑战状态和显示。</summary>
@@ -15,7 +13,7 @@ public partial class YuyukoLifeMessage : MultiplayerMessage
     protected override bool ClientOnlyReceive => true;
     protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
 
-    public override void OnReceivedDerived() => IncomeControllerYuyukoPatch.ReceiveProgress(Life);
+    public override void OnReceivedDerived() => YuyukoGuestSync.ReceiveLife(Life);
 
     public static void Send(int life) => new YuyukoLifeMessage { Life = life }.Enqueue();
 }

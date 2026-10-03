@@ -11,16 +11,20 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Listeners;
 
 /// <summary>
-/// 日程监听，取代原 <c>Patches/Compat/RunTimeSchedulerPatch</c> 中可由中间件表达的部分：
-/// 事件改写（跟随首次的「重修」玩家）、白天结束与结束后的回调包装。
-/// <para>灵梦保护窗口没有 enter/exit 通知对，奖励拦截拿不到被处理的奖励数据，
-/// 二者仍以 Harmony 形式保留在 <c>Patches/Compat/RunTimeSchedulerGapsPatch</c>，见该文件与缺口清单。</para>
+/// 日程监听，取代原 <c>Patches/Compat/RunTimeSchedulerPatch</c> 与 <c>RunTimeSchedulerGapsPatch</c>：
+/// 事件改写（跟随首次的「重修」玩家）、奖励拦截与重放、灵梦保护窗口、白天结束与结束后的回调包装。
 /// </summary>
 [AutoLog]
 public sealed partial class ScheduleSync : IScheduleListener
 {
     /// <summary>本轮白天是否以「重修玩家跟随首次挑战」的方式进入（原 <c>RunTimeSchedulerPatch.firstTrialGuest</c>）。</summary>
     private static bool s_firstTrialGuest;
+
+    /// <summary>灵梦送钱保护窗口的嵌套深度；<see cref="OnReimuProtectionEntered"/> 进入、<see cref="OnReimuProtectionExited"/> 清零。</summary>
+    private static int s_reimuProtection;
+
+    /// <summary>是否处于灵梦送钱保护窗口，供顾客同步判定保护来客（原 <c>RunTimeSchedulerGapsPatch.DuringReimuProtection</c>）。</summary>
+    public static bool IsDuringReimuProtection => s_reimuProtection > 0;
 
     public static void ResetFirstTrialGuest() => s_firstTrialGuest = false;
 
@@ -62,6 +66,31 @@ public sealed partial class ScheduleSync : IScheduleListener
     public void OnPreDayEnd(ref Action onFinished, ref bool cancelInvocation) => GuardDayEnd(ref onFinished);
 
     public void OnPreAfterDayEnd(ref Action onFinished, ref bool cancelInvocation) => GuardDayEnd(ref onFinished);
+
+    /// <summary>
+    /// 首次/重修挑战由 <c>MoveToChallenge</c> 奖励进入。原补丁在 <c>ProcessReward</c> 前缀里拦下该奖励，
+    /// 先在 <see cref="DayDestinationManager"/> 上登记目的地，再在确认后重放同一个奖励以保持后续挑战调用
+    /// 在原生侧；不 Hook <c>StartChallengeSession</c>，其 Nullable 参数在 trampoline 中会封送失败。
+    /// </summary>
+    public void OnPreRewardProcessed(ref SchedulerNode.Reward reward, ref bool cancelInvocation)
+    {
+        if (!GameSession.IsInRoom || DayDestinationManager.ReplayingChallenge) return;
+        if (reward.rewardType != SchedulerNode.Reward.RewardType.MoveToChallenge) return;
+        if (reward.challengeType is not (NightSceneDirector.ChallengeType.Story_Yuyuko
+            or NightSceneDirector.ChallengeType.Challenge_Yuyuko)) return;
+
+        var destination = reward.challengeType == NightSceneDirector.ChallengeType.Story_Yuyuko
+            ? DayDestination.FinalTrial : DayDestination.FinalTrialAgain;
+        var captured = reward;
+        cancelInvocation = true;
+        DayDestinationManager.Submit(destination, () => RunTimeScheduler.ProcessReward(captured));
+    }
+
+    /// <summary>灵梦送钱保护窗口打开：调度器即将把灵梦正面符卡加进营业场景。</summary>
+    public void OnReimuProtectionEntered() => s_reimuProtection++;
+
+    /// <summary>灵梦送钱保护窗口关闭；与 <see cref="OnReimuProtectionEntered"/> 配对。</summary>
+    public void OnReimuProtectionExited() => s_reimuProtection = 0;
 
     /// <summary>
     /// 原 <c>GuardDayEnd</c>：<c>InvokeDayOverEventsAsync</c> 依次等待这两个回调；

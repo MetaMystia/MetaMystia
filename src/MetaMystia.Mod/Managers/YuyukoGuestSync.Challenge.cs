@@ -1,238 +1,239 @@
-﻿#if !TMI_RELEASE_4_4_0E
-#error 请核对本文件依赖的游戏协程、状态机及编译器生成成员，完成版本适配后再更新此标记。
-#endif
-
-using System;
 using System.Collections.Generic;
 
-using Il2CppSystem.Linq;
-using UnityEngine;
-
-using NightScene.CookingUtility;
-using NightScene.Tiles;
+using Mystia.Scenes;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
-using MetaMystia.Patch;
-
-using LockLoop = GameData.Profile.YuyukoBossData.__c__DisplayClass16_5.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObSpCoObObUnique;
-using MainLoop = GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16;
-using Object = UnityEngine.Object;
 
 namespace MetaMystia;
 
+/// <summary>
+/// 幽幽子挑战的阶段同步。原实现直接挂在挑战的编译器生成状态机上；本文件改为消费框架的挑战时间线
+/// （<see cref="IWorkSceneChallengeServices"/> 与 <c>IChallengeListener</c>），只保留阶段数据的收发、
+/// 吞厨具记录与生命值转发。需要读取挑战闭包或主循环恢复位置的少量工作留在
+/// <c>Patches/Compat/YuyukoMainLoopPatch</c>（本仓库唯一允许接触生成成员的地方），它把纯数值交给本文件。
+/// </summary>
 public static partial class YuyukoGuestSync
 {
+    /// <summary>主机按主循环恢复位置发布的阶段数据；客机按位置保存，允许消息先于本地剧情到达。</summary>
     private static readonly Dictionary<int, YuyukoGuestMessage> phases = new();
     private static readonly HashSet<int> sentPhases = new();
+
+    /// <summary>主机广播的吞厨具索引，等待在营业场景循环内用挑战服务重放。</summary>
     private static readonly Queue<int> pendingSwallows = new();
-    private static readonly Dictionary<IntPtr, int> replaySwallows = new();
-    private static readonly Dictionary<IntPtr, LockLoop> activeSwallows = new();
+
+    /// <summary>本次挑战已被吞食、厨具锁仍生效的位置；由挑战监听按游戏收尾释放。</summary>
+    private static readonly HashSet<int> swallowedCookers = new();
+
     private static bool phase3Ended;
-    /// <summary>吞食协程正在执行中断烹饪步骤；此期间内部 Extract 不作为玩家取菜再次广播。</summary>
+    private static int? hostLife;
+    private static int? appliedLife;
+
+    /// <summary>
+    /// 本模组正在用挑战服务重放吞厨具。该重放在厨具层的 <c>InterruptCook</c> 使游戏再次走到取菜入口，
+    /// 此期间不把它当作玩家取菜广播。
+    /// </summary>
     internal static bool IsInterruptingCooker { get; private set; }
 
-    /// <summary>
-    /// 判断指定厨具是否仍被本次吞食锁定，供本地烹饪入口和网络重放拒绝迟到操作。
-    /// 同时匹配协程记录的厨具位置和原版锁列表，不能仅凭特效存在或历史吞食记录判断。
-    /// </summary>
-    internal static bool IsSwallowedCooker(int gridIndex)
-    {
-        if (!GameSession.HasRoomPeers || !PrepSceneManager.IsYuyukoChallenge) return false;
-        foreach (var loop in activeSwallows.Values)
-            if (loop._lockedCookController_5__3?.GridIndex == gridIndex && loop.__8__1?.targets != null
-                && loop.__4__this.field_Public___c__DisplayClass16_0_0.eventManager.LockedCookersRaw.Contains(loop.__8__1.targets))
-                return true;
-        return false;
-    }
+    /// <summary>阶段同步是否生效；与是否已绑定本体无关。</summary>
+    internal static bool PhaseSyncActive => GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge;
+
+    /// <summary>原版主循环里需要交换阶段数据的恢复位置；数字属于 4.4.0e 布局，由 <see cref="YuyukoMainLoopPatch"/> 核验。</summary>
+    internal static bool IsPhasePosition(int state) => state is 4 or 9 or 10 or 15 or 16;
+
+    /// <summary>该厨具是否仍被本次挑战的吞食锁定；吞食收尾后由挑战监听清除。</summary>
+    internal static bool IsSwallowedCooker(int gridIndex) => PhaseSyncActive && swallowedCookers.Contains(gridIndex);
+
+    #region 主循环阶段数据
 
     /// <summary>
-    /// 客机等待主机阶段依据，再由原版选择成功或失败分支。一阶段主机需先清场结账，由 Postfix 广播。
-    /// 4.4.0e 的恢复位置：4 为一阶段计时结束，9 为二阶段计时结束，10 为二阶段符卡执行完毕；
-    /// 15、16 分别为剧情版、重打版三阶段计时结束，不表示成功和失败。
+    /// 本次主循环恢复位置是否必须挂起：主机在绑定本体之前无法构造阶段消息；客机在收到主机依据之前不能
+    /// 用本机数据判定结果。非阶段同步期间一律放行。
     /// </summary>
-    /// <returns>
-    /// true 放行原版；false 暂停本次 MoveNext，由 Hook 保持当前位置并等待下一帧。
-    /// 主机需先绑定本体以构造消息；客机需收到对应恢复位置的数据，才能回填收入、符卡数和生命值。
-    /// </returns>
-    internal static bool BeforeMainStep(MainLoop loop)
+    internal static bool ShouldHoldMainStep(int state)
     {
-        if (!GameSession.HasRoomPeers || !PrepSceneManager.IsYuyukoChallenge) return true;
-        int state = loop.__1__state;
-        if (state is not (4 or 9 or 10 or 15 or 16)) return true;
-        var context = loop.__8__1;
-        if (GameSession.IsRoomHost)
-        {
-            if (fsm == null) return false;
-            if (state != 4) SendPhase(loop, state);
-        }
-        else
-        {
-            if (!phases.TryGetValue(state, out var message)) return false;
-            context.eventManager.EarnedFund = message.Fund;
-            context.positiveSpellCount = message.PositiveSpellCount;
-            context.yuyukoTotalLife = message.Life;
-            if (state == 4) Log.Info($"Yuyuko phase 1 applying settled fund: {message.Fund}");
-        }
-        if (state is 15 or 16) EndPhase3();
+        if (!PhaseSyncActive || !IsPhasePosition(state)) return false;
+        return GameSession.IsRoomHost ? fsm == null : !phases.ContainsKey(state);
+    }
+
+    /// <summary>客机在相应恢复位置回填主机依据；返回 false 表示本机照常判定。</summary>
+    internal static bool TryApplyPhase(int state, out int fund, out int spell, out int life)
+    {
+        fund = 0;
+        spell = 0;
+        life = 0;
+        if (!GameSession.IsRoomClient || !PhaseSyncActive || !IsPhasePosition(state)) return false;
+        if (!phases.TryGetValue(state, out var message)) return false;
+        fund = message.Fund;
+        spell = message.PositiveSpellCount;
+        life = message.Life;
         return true;
     }
 
-    /// <summary>
-    /// 4.4.0e state 4 在同一次 MoveNext 内清场结账并判定，随后停在失败等待 5 或成功剧情等待 6。
-    /// 此时发送最终营业额，避免客机用清场前金额判定；原版未执行或未完成该段时不发送。
-    /// </summary>
-    internal static void AfterMainStep(MainLoop loop, int previousState)
+    /// <summary>主机发布一个恢复位置的阶段数据；同一位置只发一次。</summary>
+    internal static void SendPhase(int state, int fund, int spell, int life)
     {
-        if (!GameSession.HasRoomPeers || !GameSession.IsRoomHost || !PrepSceneManager.IsYuyukoChallenge
-            || previousState != 4 || loop.__1__state is not (5 or 6)) return;
-        SendPhase(loop, 4);
-    }
-
-    private static void SendPhase(MainLoop loop, int state)
-    {
-        if (!sentPhases.Add(state)) return;
-        var context = loop.__8__1;
+        if (!GameSession.IsRoomHost || !PhaseSyncActive || !sentPhases.Add(state)) return;
         var message = Message(YuyukoGuestEvent.Phase);
         message.PhaseState = state;
-        message.Fund = context.eventManager.EarnedFund;
-        message.PositiveSpellCount = context.positiveSpellCount;
-        message.Life = context.yuyukoTotalLife;
+        message.Fund = fund;
+        message.PositiveSpellCount = spell;
+        message.Life = life;
         YuyukoGuestMessage.Send(message);
-        if (state == 4)
-            Log.Info($"Yuyuko phase 1 settled: fund={message.Fund}, nextState={loop.__1__state}");
+        Log.Info($"幽幽子阶段 {state} 已广播: fund={fund}, spell={spell}, life={life}");
     }
 
     /// <summary>
-    /// 客机按主循环恢复位置保存阶段消息，允许消息先于本地剧情到达。
-    /// 仅接受已核对的五个位置；相同位置保留第一条消息，不在接收时直接推进原版协程。
+    /// 一阶段在恢复位置 4 内清场结账并判定，阶段数据必须在同一段执行完之后才广播，
+    /// 否则客机拿到的是清场前金额。这里只回答「刚离开 4 且进入等待分支」这一种情况。
     /// </summary>
+    internal static bool ShouldBroadcastAfterStep(int previousState, int currentState) =>
+        GameSession.IsRoomHost && PhaseSyncActive && previousState == 4 && currentState is 5 or 6;
+
+    /// <summary>该恢复位置是否属于第三阶段收尾，需要停止接受新的吞食。</summary>
+    internal static void NoticePhaseState(int state)
+    {
+        if (state is 15 or 16) EndPhase3();
+    }
+
     private static void ReceivePhase(YuyukoGuestMessage message)
     {
-        if (message.PhaseState is 4 or 9 or 10 or 15 or 16)
-            phases.TryAdd(message.PhaseState, message);
+        if (IsPhasePosition(message.PhaseState)) phases.TryAdd(message.PhaseState, message);
     }
 
-    /// <summary>查询客机是否已收到指定恢复位置的主机数据；仅表示消息已到，不表示本地阶段已执行完毕。</summary>
-    internal static bool HasPhaseEnd(int state) => phases.ContainsKey(state);
+    #endregion
 
-    /// <summary>
-    /// 客机在重打上下文与特效列表就绪后，按主机目标启动原版吞厨具协程。
-    /// 先登记目标和协程，再启动执行；后续 Hook 据此替换随机选择。无效索引记录后丢弃。
-    /// 协程句柄同时加入原版列表，使挑战收尾仍能停止这些协程；第三阶段结束后不再启动。
-    /// </summary>
-    private static void PlayPendingSwallows()
+    #region 吞厨具
+
+    /// <summary>客机收到主机选定的厨具，等待在营业场景循环内用挑战服务重放。</summary>
+    internal static void ReceiveSwallow(int cookerIndex)
     {
-        var retake = YuyukoBossDataPatch.CurrentRetake;
-        if (!GameSession.IsRoomClient || phase3Ended || retake?.eatingGameObejct == null) return;
-        while (pendingSwallows.TryDequeue(out int index))
-        {
-            if (index < 0 || index >= TileManager.Instance.CookerDesks.Length)
-            {
-                Log.Error($"幽幽子吞厨具索引无效：{index}");
-                continue;
-            }
-            var loop = new LockLoop(0) { __4__this = retake };
-            replaySwallows.Add(loop.Pointer, index);
-            activeSwallows.Add(loop.Pointer, loop);
-            var coroutine = retake.field_Public___c__DisplayClass16_0_0.eventManager
-                .StartCoroutine(loop.Cast<Il2CppSystem.Collections.IEnumerator>());
-            retake.lockCookerCorotine.Add(coroutine);
-        }
+        if (!phase3Ended) pendingSwallows.Enqueue(cookerIndex);
     }
 
     /// <summary>
-    /// 吞食协程每次恢复前，主机放行原版，客机仅放行已登记的主机目标重放。
-    /// 客机在 state 1 替代随机选择，并重建同段的特效初始化；state 0、2、3 继续使用原版。
-    /// 阶段结束或客机自行触发的未登记协程直接结束，不再吞食。
+    /// 挑战的吞食报告：主机广播本次选定的厨具，两端都记下仍被锁定的位置。
+    /// 游戏自身的吞食与模组经服务触发的重放走同一条通知，因此主机不会漏报、客机的重放也不会回声。
     /// </summary>
-    /// <param name="loop">4.4.0e 的 LockCookersYuyuko|41 状态机，字段与状态编号均依赖此版本。</param>
-    /// <param name="result">跳过原版时返回给 MoveNext 的结果：true 表示仍在等待，false 表示协程结束。</param>
-    /// <returns>是否执行原版 MoveNext；与 result 表示的协程存活状态不同。</returns>
-    internal static bool BeforeSwallowStep(LockLoop loop, ref bool result)
+    internal static void OnCookerSwallowed(int cookerIndex)
     {
-        IsInterruptingCooker = false;
-        if (!GameSession.HasRoomPeers || !PrepSceneManager.IsYuyukoChallenge) return true;
-        if (phase3Ended) { result = false; return false; }
-        IsInterruptingCooker = loop.__1__state == 2;
-        if (!GameSession.IsRoomClient) return true;
-        // 不接受客机自己的差评再次触发随机吞食。
-        if (!replaySwallows.TryGetValue(loop.Pointer, out int index)) { result = false; return false; }
-        if (loop.__1__state != 1) return true;
-
-        // 原版 state 1 负责随机选择和创建特效；这里按主机索引创建同样的上下文，
-        // state 2/3 仍由原版执行 InterruptCook、锁定、隐藏和登记 BossBuffend。
-        var retake = loop.__4__this;
-        var context = retake.field_Public___c__DisplayClass16_0_0;
-        var helper = loop.__8__1;
-        var targets = new Il2CppSystem.Collections.Generic.List<int>();
-        targets.Add(index);
-        helper.targets = targets.Cast<Il2CppSystem.Collections.Generic.IEnumerable<int>>();
-        helper.cookerPosition = TileManager.Instance.CookerDesks[index];
-        var effect = Object.Instantiate(context.__4__this.yuyukoEatEffect);
-        retake.eatingGameObejct.Add(effect);
-        loop._spriteRenderer_5__2 = effect.GetComponent<SpriteRenderer>();
-        // 初始坐标和下方 0.5 秒移动时长均来自 4.4.0e 原版 state 1。
-        effect.transform.position = new Vector3(10f, -9.5f, 0f);
-        loop._spriteRenderer_5__2.enabled = false;
-        loop._lockedCookController_5__3 = CookSystemManager.Instance.GetCooker(helper.cookerPosition);
-        loop.__2__current = context.eventManager.LerpPosition(effect.transform,
-            // 4.4.0e：原 _MainChallengeLoop_b__64（Func<Vector3>）在助手闭包中改名为 b__63（b__64 现为 Action）。
-            (System.Func<Vector3>)(() => helper._MainChallengeLoop_b__63()), 0.5f).Cast<Il2CppSystem.Object>();
-        loop.__1__state = 2;
-        result = true;
-        return false;
+        if (!PhaseSyncActive || phase3Ended) return;
+        swallowedCookers.Add(cookerIndex);
+        if (!GameSession.IsRoomHost) return;
+        var message = Message(YuyukoGuestEvent.Swallow);
+        message.CookerIndex = cookerIndex;
+        YuyukoGuestMessage.Send(message);
     }
 
     /// <summary>
-    /// 清除本次中断标记；主机在 state 1 到 2 时，记录并广播原版刚确定的吞食目标。
-    /// 客机不广播。Prefix 跳过原版后 Postfix 仍会进入，因此不能仅凭 Postfix 被调用判断原流程已执行。
-    /// </summary>
-    internal static void AfterSwallowStep(LockLoop loop, int previousState)
-    {
-        IsInterruptingCooker = false;
-        if (!GameSession.HasRoomPeers || !PrepSceneManager.IsYuyukoChallenge || phase3Ended) return;
-        if (GameSession.IsRoomHost && previousState == 1 && loop.__1__state == 2)
-        {
-            activeSwallows[loop.Pointer] = loop;
-            var message = Message(YuyukoGuestEvent.Swallow);
-            message.CookerIndex = loop.__8__1.targets.First();
-            YuyukoGuestMessage.Send(message);
-        }
-    }
-
-    /// <summary>
-    /// 停止接受新吞食并清除待处理目标，移除本次已跟踪吞食的锁与特效。
-    /// 覆盖原版已加锁但尚未登记 BossBuffend 回调就被中断的情况；保留其他符卡的锁。
-    /// 协程句柄由原版收尾停止，仍被恢复的吞食协程也会因阶段结束标记退出；本方法可重复调用。
+    /// 停止接受新吞食并清空本次记录。厨具锁本身由框架在挑战收尾时释放（游戏自身的 buff 收尾与框架的
+    /// 重放共用同一条释放路径），因此这里不再手工解锁。本方法可重复调用。
     /// </summary>
     internal static void EndPhase3()
     {
         phase3Ended = true;
         pendingSwallows.Clear();
-        // 即便停在 state 2 与登记清理回调之间，也移除本次吞食的锁；不清空其他符卡的锁。
-        foreach (var loop in activeSwallows.Values)
-        {
-            var retake = loop.__4__this;
-            var targets = loop.__8__1?.targets;
-            if (targets != null)
-                retake.field_Public___c__DisplayClass16_0_0.eventManager.LockedCookersRaw.Remove(targets);
-            if (loop._spriteRenderer_5__2 != null) Object.Destroy(loop._spriteRenderer_5__2.gameObject);
-        }
-        activeSwallows.Clear();
-        replaySwallows.Clear();
+        swallowedCookers.Clear();
         IsInterruptingCooker = false;
     }
 
-    /// <summary>
-    /// 先清理残留吞食，再清空已收和已发阶段记录、恢复阶段标记，供下一次本体同步使用。
-    /// 与只结束第三阶段不同，此处同时废弃上一轮阶段消息。
-    /// </summary>
     private static void ResetChallengeEvents()
     {
         EndPhase3();
         phases.Clear();
         sentPhases.Clear();
         phase3Ended = false;
+        ResetLife();
     }
+
+    #endregion
+
+    #region 本体生命值
+
+    /// <summary>挑战面板报告了本体生命值；主机把它作为权威值广播，客机不回声。</summary>
+    internal static void OnBossLifeChanged(int life)
+    {
+        if (!PhaseSyncActive || !GameSession.IsRoomHost) return;
+        YuyukoLifeMessage.Send(life);
+    }
+
+    /// <summary>客机记下主机生命值，等待在营业场景循环内写回面板。</summary>
+    internal static void ReceiveLife(int life)
+    {
+        if (!PrepSceneManager.IsYuyukoChallenge) return;
+        hostLife = life;
+    }
+
+    /// <summary>丢弃上一轮暂存的主机生命值；新一次挑战开始时调用。</summary>
+    internal static void ResetLife()
+    {
+        hostLife = null;
+        appliedLife = null;
+    }
+
+    #endregion
+
+    #region 每帧驱动
+
+    /// <summary>
+    /// 客机是否已收到某个阶段对应恢复位置的主机依据。阶段与恢复位置的对应属于 4.4.0e 布局，
+    /// 与 <see cref="YuyukoMainLoopPatch"/> 使用的编号一致。
+    /// </summary>
+    internal static bool IsHostPhaseReady(ChallengePhase phase, ChallengeRunKind kind)
+    {
+        int state = phase switch
+        {
+            ChallengePhase.One => 4,
+            ChallengePhase.Two => 9,
+            ChallengePhase.Three when kind == ChallengeRunKind.Retake => 16,
+            ChallengePhase.Three => 15,
+            _ => -1,
+        };
+        return state >= 0 && phases.ContainsKey(state);
+    }
+
+    /// <summary>
+    /// 在营业场景循环内落实挑战服务动作：客机在拿到主机阶段依据后结束本地阶段时钟（与
+    /// <see cref="YuyukoChallengeSync.OnChallengeClockElapsed"/> 的挂起互补）、重放待处理的吞厨具、
+    /// 并把主机生命值写回面板。场景服务只在场景循环内有效，因此这些动作只能在这里执行。
+    /// </summary>
+    internal static void DriveChallenge(IWorkSceneChallengeServices challenge)
+    {
+        if (!PhaseSyncActive || !GameSession.IsRoomClient) return;
+
+        PlayPendingSwallows(challenge);
+
+        if (hostLife is { } life && appliedLife != life)
+        {
+            appliedLife = life;
+            challenge.BossLife = life;
+        }
+
+        if (challenge.Clock != default && IsHostPhaseReady(challenge.Phase, challenge.RunKind))
+            challenge.EndPhaseClock();
+    }
+
+    private static void PlayPendingSwallows(IWorkSceneChallengeServices challenge)
+    {
+        if (phase3Ended)
+        {
+            pendingSwallows.Clear();
+            return;
+        }
+
+        while (pendingSwallows.TryDequeue(out int index))
+        {
+            IsInterruptingCooker = true;
+            try
+            {
+                challenge.SwallowCooker(index);
+            }
+            finally
+            {
+                IsInterruptingCooker = false;
+            }
+        }
+    }
+
+    #endregion
 }

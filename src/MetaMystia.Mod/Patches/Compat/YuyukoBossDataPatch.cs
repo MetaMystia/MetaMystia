@@ -8,7 +8,7 @@ using HarmonyLib;
 using Il2CppSystem.Linq;
 using UnityEngine;
 
-// 与 YuyukoGuestSync.Challenge.cs 一致：消除 System.Object 与 UnityEngine.Object 的 Object 二义性。
+// 与旧 Challange 实现一致：消除 System.Object 与 UnityEngine.Object 的 Object 二义性。
 using Object = UnityEngine.Object;
 
 using GameData.Profile;
@@ -21,6 +21,15 @@ using SgrYuki.Utils;
 
 namespace MetaMystia.Patch;
 
+/// <summary>
+/// 挑战闭包上的两项纯数值（伤害倍率、单阶段基准时长），以及主机的失败结果在客机上的整段重放。
+/// <para>
+/// 缺口说明：框架的挑战时间线只报告 <c>OnChallengeFailureStarted</c>，不提供「用挑战自己的失败协程在
+/// 客机上重放」的能力。重放必须停止主循环及其嵌套计时协程，并用挑战闭包构造失败状态机（
+/// <c>ObjectCompilerGenerated…InObObObUnique</c>），因此本文件保留为兼容缺口；相应地，基准阶段时长也
+/// 只能从这里读出后交给挑战服务，见 <see cref="YuyukoChallengeSync"/>。
+/// </para>
+/// </summary>
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData))]
 [AutoLog]
 public partial class YuyukoBossDataPatch
@@ -29,18 +38,23 @@ public partial class YuyukoBossDataPatch
     private static bool failureStarted;
     private static bool failurePending;
 
-    internal static YuyukoBossData.__c__DisplayClass16_0 CurrentContext => currentLoop?.__8__1;
-    // 4.4.0e：重打上下文为 __c__DisplayClass16_5（4.3.x 布局记作 __c__DisplayClass16_6）。
-    internal static YuyukoBossData.__c__DisplayClass16_5 CurrentRetake => currentLoop?.__8__3;
-    internal static int CurrentState => currentLoop?.__1__state ?? -1;
+    private static YuyukoBossData.__c__DisplayClass16_0 CurrentContext => currentLoop?.__8__1;
 
-    internal static void ResetChallenge()
+    /// <summary>挑战闭包里本体当前受到的伤害倍率；评价消息与客机重放共用这一个值。</summary>
+    internal static float DamageMultiplier
     {
-        YuyukoGuestSync.Reset();
-        currentLoop = null;
-        failureStarted = false;
-        failurePending = false;
-        IncomeControllerYuyukoPatch.ResetProgress();
+        get => CurrentContext?.dmgMultiplier ?? 1f;
+        set { if (CurrentContext is { } context) context.dmgMultiplier = value; }
+    }
+
+    /// <summary>挑战数据里的单阶段基准时长（秒）；挑战未开始时为 0。</summary>
+    internal static int SingleRoundSeconds
+    {
+        get
+        {
+            var data = currentLoop?.__4__this;
+            return data is null ? 0 : data.singleRoundDuration;
+        }
     }
 
     [HarmonyPatch(nameof(YuyukoBossData.MainChallengeLoop))]
@@ -50,9 +64,13 @@ public partial class YuyukoBossDataPatch
         currentLoop = GameSession.HasRoomPeers ? __result.Cast<GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16>() : null;
         failureStarted = false;
         failurePending = false;
-        IncomeControllerYuyukoPatch.ResetProgress();
+        YuyukoGuestSync.ResetLife();
     }
 
+    /// <summary>
+    /// 失败剧情开始：主机广播一次失败结果。原实现挂在失败协程的第一个恢复位置上，
+    /// 现由挑战监听的 <c>OnChallengeFailureStarted</c> 调用，语义不变。
+    /// </summary>
     internal static void OnFailureStarted()
     {
         if (!GameSession.HasRoomPeers || failureStarted) return;
@@ -83,7 +101,9 @@ public partial class YuyukoBossDataPatch
                 if (effect != null) Object.Destroy(effect);
         }
 
-        ModRuntime.Coroutines.StartOn(events, _ => FinishFailure(loop));
+        // 常驻调度器持有这条收尾协程；它只等待剧情结束与面板淡出，不依赖挑战自己的 MonoBehaviour。
+        var coroutines = ModRuntime.Coroutines;
+        coroutines.StartOn(coroutines.Owner, _ => FinishFailure(loop));
     }
 
     private static IEnumerator FinishFailure(GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16 loop)

@@ -647,11 +647,11 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     }
 
     private static bool IsReimuProtectionGuestId(int id)
-        => RunTimeSchedulerGapsPatch.IsDuringReimuProtection && id == ReimuProtectionGuestId;
+        => ScheduleSync.IsDuringReimuProtection && id == ReimuProtectionGuestId;
 
     private static bool IsReimuProtectionGuest(GuestGroupController controller)
     {
-        if (!RunTimeSchedulerGapsPatch.IsDuringReimuProtection
+        if (!ScheduleSync.IsDuringReimuProtection
             || controller == null
             || controller.ControllType != GuestsManager.GuestType.Special)
         {

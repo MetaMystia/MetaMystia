@@ -108,6 +108,7 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
         s_skipServePanelClose = 0;
         s_applyingRemote = false;
         s_pendingCooks.Clear();
+        s_yuyukoOpenOrders.Clear();
     }
 
     #endregion
@@ -157,7 +158,9 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
     public void OnCookExtracted(CookController controller)
     {
         // 吞食消息已让两端各执行一次原版中断，不能再把其内部 Extract 当作玩家取菜广播。
+        // 客机的重放在调用挑战服务时置起中断标记；主机的原版吞食则已先登记为已锁定的厨具。
         if (YuyukoGuestSync.IsInterruptingCooker) return;
+        if (YuyukoGuestSync.IsSwallowedCooker(controller.GridIndex)) return;
         if (GameFlow.ShouldSkipAction) return;
         if (s_applyingRemote) return;
 
@@ -257,6 +260,47 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
             return;
         }
         throw new InvalidOperationException("Unexpected network state in OnPreDishCancelled");
+    }
+
+    #endregion
+
+    #region 本体投掷上菜的延迟回调
+
+    /// <summary>
+    /// 本体订单打开上菜面板时记下它的订单序号，取代原 <c>WorkSceneSustainedPannelPatch</c> 前缀在
+    /// 8 参回调外面套的一层订单身份判断。一条订单一个序号，因此同一面板的多次开启互不覆盖。
+    /// </summary>
+    private static readonly Dictionary<nint, int> s_yuyukoOpenOrders = new();
+
+    public void OnServeCallbacksRegistered(ServeCallbackView callbacks)
+    {
+        var guest = callbacks.Guest;
+        if (!YuyukoGuestSync.IsBody(guest)) return;
+
+        var fsm = GuestsMap.GetGuestFsm(guest);
+        if (fsm == null) return;
+        s_yuyukoOpenOrders[callbacks.Order.Pointer] = fsm.OrderSeq;
+    }
+
+    /// <summary>
+    /// 本体手动订单的投掷动画可能晚于主机评价和续单完成。旧投掷的延迟回调不能写入新桌面或评价下一单，
+    /// 因此这里按「订单身份 + 序号 + 仍在等待上菜」拒绝过期回调。耐心恢复回调在原实现里不被包装，保持放行。
+    /// </summary>
+    public void OnPreServeCallback(ServeCallbackView callbacks, ServeCallbackKind kind, ref bool cancelInvocation)
+    {
+        if (kind == ServeCallbackKind.PatientRecover) return;
+        if (!s_yuyukoOpenOrders.TryGetValue(callbacks.Order.Pointer, out int seq)) return;
+
+        var guest = callbacks.Guest;
+        var fsm = guest == null ? null : GuestsMap.GetGuestFsm(guest);
+        bool current = guest != null && fsm != null
+            && guest.AllOrdersCount > 0
+            && fsm.CurrentOrder?.Pointer == callbacks.Order.Pointer
+            && (!GameSession.HasRoomPeers
+                || (YuyukoGuestSync.IsBody(guest) && fsm.OrderSeq == seq && fsm.CurrentState == GuestFSM.State.WaitingServe));
+        if (current) return;
+
+        cancelInvocation = true;
     }
 
     #endregion
