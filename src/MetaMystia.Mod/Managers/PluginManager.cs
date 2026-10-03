@@ -5,8 +5,11 @@ using MetaMystia.Multiplayer;
 using UnityEngine;
 
 using Mystia;
+using Mystia.Imgui;
 
 using MetaMystia.UI;
+
+using Rect = Mystia.Numerics.Rect;
 
 namespace MetaMystia;
 
@@ -78,7 +81,7 @@ public static partial class PluginManager
         var info = new System.Text.StringBuilder();
         info.AppendLine(Label);
         info.AppendLine(MetaMystia.UI.MultiplayerStatus.BriefStatus);
-        drawer.Label(new Rect(10, drawer.ScreenSize.y - 50, 600, 50), info.ToString());
+        drawer.Label(new Rect(10, drawer.ScreenSize.Y - 50, 600, 50), info.ToString());
     }
 
     private static void ToggleStatusVisibility()

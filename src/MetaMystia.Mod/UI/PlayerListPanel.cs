@@ -1,10 +1,16 @@
 using UnityEngine;
 
 using Mystia;
+using Mystia.Imgui;
 
 using Common.UI;
 
 using MetaMystia.Multiplayer;
+
+using Color = Mystia.Numerics.Color;
+using Rect = Mystia.Numerics.Rect;
+using UnityVector2 = UnityEngine.Vector2;
+using Vector2 = Mystia.Numerics.Vector2;
 
 namespace MetaMystia.UI;
 
@@ -20,11 +26,13 @@ public static partial class PlayerListPanel
 
     // ── 样式缓存 ──
     private static bool _stylesInitialized = false;
-    private static Font _font;
-    private static GUIStyle _lineStyle;
-    private static GUIStyle _fontBtnStyle;
-    private static Texture2D _bgTexture;
-    private static Texture2D _dragHandleTexture;
+    private static FontHandle? _font;
+    private static TextStyleHandle? _lineStyle;
+    private static TextStyleHandle? _fontBtnStyle;
+
+    // 面板底色：框架只给一张白纹理，颜色由 drawer.Color 乘上去（原先各造一张 1x1 贴图）。
+    private static readonly Color BgColor = new(0.05f, 0.05f, 0.08f, 0.55f);
+    private static readonly Color DragHandleColor = new(0.3f, 0.3f, 0.4f, 0.6f);
 
     public static void ResetStyles() => _stylesInitialized = false;
 
@@ -62,7 +70,7 @@ public static partial class PlayerListPanel
         if (!GameSession.IsConnectingOrOnline || (!_visible && !InGameConsole.IsOpen))
             return;
 
-        if (ConfigManager.PlayerListX.Value > drawer.ScreenSize.x * 0.95f || ConfigManager.PlayerListY.Value > drawer.ScreenSize.y * 0.95f)
+        if (ConfigManager.PlayerListX.Value > drawer.ScreenSize.X * 0.95f || ConfigManager.PlayerListY.Value > drawer.ScreenSize.Y * 0.95f)
         {
             ConfigManager.PlayerListX.Value = (float)ConfigManager.PlayerListX.DefaultValue;
             ConfigManager.PlayerListY.Value = (float)ConfigManager.PlayerListY.DefaultValue;
@@ -70,8 +78,8 @@ public static partial class PlayerListPanel
 
         InitStyles(drawer);
 
-        Event e = drawer.Current;
-        int fontSize = _lineStyle.fontSize;
+        ImguiEvent e = drawer.Current;
+        int fontSize = _lineStyle!.FontSize;
         float lineH = fontSize + LinePadding * 2 + 2;
 
         // 收集要显示的行
@@ -82,8 +90,7 @@ public static partial class PlayerListPanel
         float maxW = 0f;
         foreach (var (text, _) in lines)
         {
-            var content = new GUIContent(StripRichText(text));
-            float w = _lineStyle.CalcSize(content).x + Padding * 2;
+            float w = _lineStyle!.CalcSize(StripRichText(text)).X + Padding * 2;
             if (w > maxW) maxW = w;
         }
 
@@ -94,33 +101,33 @@ public static partial class PlayerListPanel
 
         // ── 拖拽手柄 ──
         var dragRect = new Rect(panelX, panelY, panelW, DragHandleHeight);
-        drawer.DrawTexture(dragRect, _dragHandleTexture, ScaleMode.StretchToFill, true);
+        Fill(drawer, dragRect, DragHandleColor);
 
         // ── 字体大小按钮（拖拽手柄右侧）──
         float fontBtnW = DragHandleHeight * 2f;
         float fontBtnH = DragHandleHeight;
-        if (drawer.Button(new Rect(panelX + panelW - fontBtnW * 2 - 2, panelY, fontBtnW, fontBtnH), "A−", _fontBtnStyle))
+        if (drawer.Button(new Rect(panelX + panelW - fontBtnW * 2 - 2, panelY, fontBtnW, fontBtnH), "A−", _fontBtnStyle!))
             AdjustFontSize(drawer, -2);
-        if (drawer.Button(new Rect(panelX + panelW - fontBtnW, panelY, fontBtnW, fontBtnH), "A+", _fontBtnStyle))
+        if (drawer.Button(new Rect(panelX + panelW - fontBtnW, panelY, fontBtnW, fontBtnH), "A+", _fontBtnStyle!))
             AdjustFontSize(drawer, 2);
 
-        if (e.type == EventType.MouseDown && dragRect.Contains(e.mousePosition))
+        if (e.Kind == ImguiEventKind.MouseDown && dragRect.Contains(e.MousePosition))
         {
             _isDragging = true;
-            _dragOffset = e.mousePosition - new Vector2(panelX, panelY);
+            _dragOffset = e.MousePosition - new Vector2(panelX, panelY);
             e.Use();
         }
         if (_isDragging)
         {
-            if (e.type == EventType.MouseDrag)
+            if (e.Kind == ImguiEventKind.MouseDrag)
             {
-                float newX = e.mousePosition.x - _dragOffset.x;
-                float newY = e.mousePosition.y - _dragOffset.y;
-                ConfigManager.PlayerListX.Value = Mathf.Clamp(newX, 0, drawer.ScreenSize.x - panelW);
-                ConfigManager.PlayerListY.Value = Mathf.Clamp(newY, 0, drawer.ScreenSize.y - panelH);
+                float newX = e.MousePosition.X - _dragOffset.X;
+                float newY = e.MousePosition.Y - _dragOffset.Y;
+                ConfigManager.PlayerListX.Value = Mathf.Clamp(newX, 0, drawer.ScreenSize.X - panelW);
+                ConfigManager.PlayerListY.Value = Mathf.Clamp(newY, 0, drawer.ScreenSize.Y - panelH);
                 e.Use();
             }
-            if (e.type == EventType.MouseUp)
+            if (e.Kind == ImguiEventKind.MouseUp)
             {
                 _isDragging = false;
                 e.Use();
@@ -129,13 +136,13 @@ public static partial class PlayerListPanel
 
         // ── 背景 ──
         var bgRect = new Rect(panelX, panelY + DragHandleHeight, panelW, panelH - DragHandleHeight);
-        drawer.DrawTexture(bgRect, _bgTexture, ScaleMode.StretchToFill, true);
+        Fill(drawer, bgRect, BgColor);
 
         // ── 绘制行 ──
         float cy = panelY + DragHandleHeight + Padding;
         foreach (var (text, _) in lines)
         {
-            drawer.Label(new Rect(panelX + Padding, cy, panelW - Padding * 2, lineH), text, _lineStyle);
+            drawer.Label(new Rect(panelX + Padding, cy, panelW - Padding * 2, lineH), text, _lineStyle!);
             cy += lineH;
         }
     }
@@ -156,7 +163,7 @@ public static partial class PlayerListPanel
         string localLine = FormatPlayer(
             local.Uid, local.Id, scene,
             needsGameplayData ? PlayerManager.LocalMapLabel : MapLabel.Unknown,
-            needsGameplayData ? local.Position : Vector2.zero,
+            needsGameplayData ? local.Position : UnityVector2.zero,
             local.IsDayOver, local.IsPrepOver,
             local.IzakayaMapLabel, local.IzakayaLevel,
             isSelf: true, isHost: GameSession.IsRoomHost);
@@ -170,7 +177,7 @@ public static partial class PlayerListPanel
             string line = FormatPlayer(
                 peer.Uid, peer.Id, peer.Scene,
                 peer.HasMotion && peer.CanRender ? peer.MapLabel : MapLabel.Unknown,
-                peer.HasMotion && peer.CanRender ? peer.Position : Vector2.zero,
+                peer.HasMotion && peer.CanRender ? peer.Position : UnityVector2.zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
                 isSelf: false, isHost: kvp.Key == GameSession.Room?.Host,
@@ -186,7 +193,7 @@ public static partial class PlayerListPanel
             string line = FormatPlayer(
                 peer.Uid, peer.Id, peer.Scene,
                 peer.HasMotion && peer.CanRender ? peer.MapLabel : MapLabel.Unknown,
-                peer.HasMotion && peer.CanRender ? peer.Position : Vector2.zero,
+                peer.HasMotion && peer.CanRender ? peer.Position : UnityVector2.zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
                 isSelf: false, isHost: false,
@@ -198,9 +205,10 @@ public static partial class PlayerListPanel
         return lines;
     }
 
+    /// <summary>玩家位置来自游戏对象，仍是引擎的向量；渲染尺寸才走 <c>Mystia.Numerics</c>。</summary>
     private static string FormatPlayer(
         int uid, string id, Scene scene,
-        MapLabel mapLabel, Vector2 pos,
+        MapLabel mapLabel, UnityVector2 pos,
         bool isDayOver, bool isPrepOver,
         MapLabel izakayaMapLabel, int izakayaLevel,
         bool isSelf, bool isHost, bool hasMotion = true,
@@ -238,7 +246,7 @@ public static partial class PlayerListPanel
     /// DayScene: 全员 DayOver 后显示选店信息，否则显示地图+坐标+状态
     /// </summary>
     private static string FormatDayLine(string name, string dim,
-        MapLabel mapLabel, Vector2 pos, bool isDayOver,
+        MapLabel mapLabel, UnityVector2 pos, bool isDayOver,
         MapLabel izakayaMapLabel, int izakayaLevel, int uid, bool inRoom)
     {
         var destination = inRoom && GameSession.HasRoomPeers ? DayDestinationManager.GetIntent(uid) : DayDestination.None;
@@ -264,7 +272,7 @@ public static partial class PlayerListPanel
     }
 
     private static string ColorToHex(Color c)
-        => $"#{(int)(c.r * 255):X2}{(int)(c.g * 255):X2}{(int)(c.b * 255):X2}";
+        => $"#{(int)(c.R * 255):X2}{(int)(c.G * 255):X2}{(int)(c.B * 255):X2}";
 
     private static string StripRichText(string text)
         => System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "");
@@ -272,16 +280,16 @@ public static partial class PlayerListPanel
     // ====================================================================
     // 样式初始化
     // ====================================================================
-    private static Font GetFont(IIMGUIDrawer drawer)
+    private static FontHandle? GetFont(IIMGUIDrawer drawer)
     {
         if (_font != null) return _font;
         try
         {
-            _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei", 1);
+            _font = drawer.CreateFontFromOsFont("Microsoft YaHei", 1);
             if (_font != null) return _font;
         }
         catch { /* fallback */ }
-        return drawer.Skin.font;
+        return drawer.Skin.Font;
     }
 
     private static void InitStyles(IIMGUIDrawer drawer)
@@ -291,40 +299,42 @@ public static partial class PlayerListPanel
 
         var font = GetFont(drawer);
 
-        _bgTexture = MakeTex(1, 1, new Color(0.05f, 0.05f, 0.08f, 0.55f));
-        _dragHandleTexture = MakeTex(1, 1, new Color(0.3f, 0.3f, 0.4f, 0.6f));
-
         int fontSize = ConfigManager.PlayerListFontSize.Value > 0
             ? ConfigManager.PlayerListFontSize.Value
-            : Mathf.Clamp((int)drawer.ScreenSize.y / 55, 12, 20);
+            : Mathf.Clamp((int)drawer.ScreenSize.Y / 55, 12, 20);
 
-        _lineStyle = new GUIStyle(drawer.Skin.label)
-        {
-            font = font,
-            fontSize = fontSize,
-            richText = true,
-            wordWrap = false,
-            normal = { textColor = Color.white },
-        };
-        _lineStyle.padding.left = 4;
-        _lineStyle.padding.right = 4;
-        _lineStyle.padding.top = (int)LinePadding;
-        _lineStyle.padding.bottom = (int)LinePadding;
+        _lineStyle = drawer.Skin.Label;
+        _lineStyle.Font = font;
+        _lineStyle.FontSize = fontSize;
+        _lineStyle.RichText = true;
+        _lineStyle.WordWrap = false;
+        _lineStyle.Normal.TextColor = Color.White;
+        _lineStyle.Padding.Left = 4;
+        _lineStyle.Padding.Right = 4;
+        _lineStyle.Padding.Top = (int)LinePadding;
+        _lineStyle.Padding.Bottom = (int)LinePadding;
 
-        _fontBtnStyle = new GUIStyle(drawer.Skin.button)
-        {
-            font = font,
-            fontSize = 10,
-            alignment = TextAnchor.MiddleCenter,
-        };
-        _fontBtnStyle.padding.left = 0;
-        _fontBtnStyle.padding.right = 0;
-        _fontBtnStyle.padding.top = 0;
-        _fontBtnStyle.padding.bottom = 0;
-        _fontBtnStyle.margin.left = 0;
-        _fontBtnStyle.margin.right = 0;
-        _fontBtnStyle.margin.top = 0;
-        _fontBtnStyle.margin.bottom = 0;
+        _fontBtnStyle = drawer.Skin.Button;
+        _fontBtnStyle.Font = font;
+        _fontBtnStyle.FontSize = 10;
+        _fontBtnStyle.Alignment = ImguiTextAnchor.MiddleCenter;
+        _fontBtnStyle.Padding.Left = 0;
+        _fontBtnStyle.Padding.Right = 0;
+        _fontBtnStyle.Padding.Top = 0;
+        _fontBtnStyle.Padding.Bottom = 0;
+        _fontBtnStyle.Margin.Left = 0;
+        _fontBtnStyle.Margin.Right = 0;
+        _fontBtnStyle.Margin.Top = 0;
+        _fontBtnStyle.Margin.Bottom = 0;
+    }
+
+    /// <summary>用框架的白纹理加 <see cref="IIMGUIDrawer.Color"/> 画一块纯色矩形，画完把颜色还原。</summary>
+    private static void Fill(IIMGUIDrawer drawer, Rect rect, Color color)
+    {
+        var previous = drawer.Color;
+        drawer.Color = color;
+        drawer.DrawTexture(rect, drawer.WhiteTexture, ImguiScaleMode.StretchToFill, true);
+        drawer.Color = previous;
     }
 
     private static void AdjustFontSize(IIMGUIDrawer drawer, int delta)
@@ -332,20 +342,9 @@ public static partial class PlayerListPanel
         int current = ConfigManager.PlayerListFontSize.Value;
         int effective = current > 0
             ? current
-            : Mathf.Clamp((int)drawer.ScreenSize.y / 55, 12, 20);
+            : Mathf.Clamp((int)drawer.ScreenSize.Y / 55, 12, 20);
         int newSize = Mathf.Clamp(effective + delta, 10, 36);
         ConfigManager.PlayerListFontSize.Value = newSize;
         ResetStyles();
-    }
-
-    private static Texture2D MakeTex(int w, int h, Color col)
-    {
-        var tex = new Texture2D(w, h);
-        for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-                tex.SetPixel(x, y, col);
-        tex.Apply();
-        tex.hideFlags = HideFlags.HideAndDontSave;
-        return tex;
     }
 }

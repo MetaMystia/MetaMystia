@@ -7,12 +7,17 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 using Mystia;
+using Mystia.Imgui;
 
 using Common.UI;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
 using MetaMystia.ConsoleSystem;
+
+using Color = Mystia.Numerics.Color;
+using Rect = Mystia.Numerics.Rect;
+using Vector2 = Mystia.Numerics.Vector2;
 
 namespace MetaMystia.UI;
 
@@ -63,7 +68,7 @@ public static partial class InGameConsole
     private static string input = "";
     private static Vector2 scrollPosition;
     private static readonly List<LogEntry> _logs = [];
-    // Pending logs queued from any thread; drained only on EventType.Layout to keep
+    // Pending logs queued from any thread; drained only on ImguiEventKind.Layout to keep
     // GUILayout control counts consistent between Layout and Repaint passes.
     private static readonly ConcurrentQueue<string> _pendingLogs = new();
     private static List<string> inputs = [];
@@ -116,20 +121,28 @@ public static partial class InGameConsole
     // ====================================================================
     // IMGUI style cache
     // ====================================================================
-    private static GUIStyle? _logStyle;
-    private static GUIStyle? _inputStyle;
-    private static GUIStyle? _completionStyle;
-    private static GUIStyle? _completionSelectedStyle;
-    private static GUIStyle? _fontBtnStyle;
-    private static Texture2D? _bgTexture;
-    private static Texture2D? _inputBgTexture;
-    private static Texture2D? _completionBgTexture;
-    private static Texture2D? _completionSelTexture;
-    private static Texture2D? _shadowTexture;
-    private static Texture2D? _dragHandleTexture;
-    private static Texture2D? _resizeHandleTexture;
+    private static TextStyleHandle? _logStyle;
+    private static TextStyleHandle? _inputStyle;
+    private static TextStyleHandle? _completionStyle;
+    private static TextStyleHandle? _completionSelectedStyle;
+    private static TextStyleHandle? _fontBtnStyle;
     private static bool _stylesInitialized = false;
-    private static Font? _font;
+    private static FontHandle? _font;
+
+    // 面板底色：框架只给一张白纹理，颜色由 drawer.Color 乘上去
+    //（原先每种颜色各造一张 1x1 贴图，现在只留颜色）。
+    private static readonly Color LogBgColor = new(0.05f, 0.05f, 0.08f, 0.55f);
+    private static readonly Color InputBgColor = new(0.0f, 0.0f, 0.0f, 0.50f);
+    private static readonly Color CompletionBgColor = new(0.10f, 0.10f, 0.15f, 0.92f);
+    private static readonly Color CompletionSelectedBgColor = new(0.25f, 0.40f, 0.65f, 0.90f);
+    private static readonly Color DragHandleColor = new(0.3f, 0.3f, 0.4f, 0.6f);
+    private static readonly Color ResizeHandleColor = new(0.4f, 0.4f, 0.5f, 0.7f);
+
+    /// <summary>
+    /// 原先那张 1x1 纯黑阴影贴图的不透明度：白纹理替掉它之后，原贴图 alpha 与原先叠在
+    /// <see cref="IIMGUIDrawer.Color"/> 上的 0.85 一并折进这里，画面结果不变。
+    /// </summary>
+    private const float ShadowAlpha = 0.35f;
 
     public static void ResetStyles() => _stylesInitialized = false;
 
@@ -281,16 +294,16 @@ public static partial class InGameConsole
     // ====================================================================
     #region IMGUI Styles
 
-    private static Font GetFont(IIMGUIDrawer drawer)
+    private static FontHandle? GetFont(IIMGUIDrawer drawer)
     {
         if (_font != null) return _font;
         try
         {
-            _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei", 1);
+            _font = drawer.CreateFontFromOsFont("Microsoft YaHei", 1);
             if (_font != null) return _font;
         }
         catch { /* fallback */ }
-        return drawer.Skin.font;
+        return drawer.Skin.Font;
     }
 
     private static void InitStyles(IIMGUIDrawer drawer)
@@ -300,91 +313,76 @@ public static partial class InGameConsole
 
         var font = GetFont(drawer);
 
-        _bgTexture = MakeTex(1, 1, new Color(0.05f, 0.05f, 0.08f, 0.55f));
-        _inputBgTexture = MakeTex(1, 1, new Color(0.0f, 0.0f, 0.0f, 0.50f));
-        _completionBgTexture = MakeTex(1, 1, new Color(0.10f, 0.10f, 0.15f, 0.92f));
-        _completionSelTexture = MakeTex(1, 1, new Color(0.25f, 0.40f, 0.65f, 0.90f));
-        _shadowTexture = MakeTex(1, 1, new Color(0f, 0f, 0f, 0.35f));
-        _dragHandleTexture = MakeTex(1, 1, new Color(0.3f, 0.3f, 0.4f, 0.6f));
-        _resizeHandleTexture = MakeTex(1, 1, new Color(0.4f, 0.4f, 0.5f, 0.7f));
-
         int fontSize = ConfigManager.ConsoleFontSize.Value > 0
             ? ConfigManager.ConsoleFontSize.Value
-            : Mathf.Clamp((int)drawer.ScreenSize.y / 50, 14, 24);
+            : Mathf.Clamp((int)drawer.ScreenSize.Y / 50, 14, 24);
 
-        _logStyle = new GUIStyle(drawer.Skin.label)
-        {
-            font = font,
-            fontSize = fontSize,
-            wordWrap = true,
-            richText = true,
-            normal = { textColor = Color.white },
-        };
-        _logStyle.padding.left = 6;
-        _logStyle.padding.right = 6;
-        _logStyle.padding.top = 2;
-        _logStyle.padding.bottom = 2;
+        _logStyle = drawer.Skin.Label;
+        _logStyle.Font = font;
+        _logStyle.FontSize = fontSize;
+        _logStyle.WordWrap = true;
+        _logStyle.RichText = true;
+        _logStyle.Normal.TextColor = Color.White;
+        _logStyle.Padding.Left = 6;
+        _logStyle.Padding.Right = 6;
+        _logStyle.Padding.Top = 2;
+        _logStyle.Padding.Bottom = 2;
 
-        _inputStyle = new GUIStyle(drawer.Skin.textField)
-        {
-            font = font,
-            fontSize = fontSize,
-            richText = false,
-            normal = { textColor = new Color(0.95f, 0.95f, 1f), background = _inputBgTexture },
-            focused = { textColor = Color.white, background = _inputBgTexture },
-        };
-        _inputStyle.padding.left = 8;
-        _inputStyle.padding.right = 8;
-        _inputStyle.padding.top = 8;
-        _inputStyle.padding.bottom = 10;
+        _inputStyle = drawer.Skin.TextField;
+        _inputStyle.Font = font;
+        _inputStyle.FontSize = fontSize;
+        _inputStyle.RichText = false;
+        // 底色不再由样式贴图给，改为在控件后面用白纹理 + drawer.Color 画（原先的纯色贴图）。
+        _inputStyle.Normal.TextColor = new Color(0.95f, 0.95f, 1f);
+        _inputStyle.Normal.Background = null;
+        _inputStyle.Focused.TextColor = Color.White;
+        _inputStyle.Focused.Background = null;
+        _inputStyle.Padding.Left = 8;
+        _inputStyle.Padding.Right = 8;
+        _inputStyle.Padding.Top = 8;
+        _inputStyle.Padding.Bottom = 10;
 
-        _completionStyle = new GUIStyle(drawer.Skin.label)
-        {
-            font = font,
-            fontSize = fontSize - 2,
-            richText = true,
-            normal = { textColor = new Color(0.8f, 0.8f, 0.85f), background = _completionBgTexture },
-        };
-        _completionStyle.padding.left = 10;
-        _completionStyle.padding.right = 10;
-        _completionStyle.padding.top = 4;
-        _completionStyle.padding.bottom = 4;
-        _completionStyle.margin.left = 0;
-        _completionStyle.margin.right = 0;
-        _completionStyle.margin.top = 0;
-        _completionStyle.margin.bottom = 0;
+        _completionStyle = drawer.Skin.Label;
+        _completionStyle.Font = font;
+        _completionStyle.FontSize = fontSize - 2;
+        _completionStyle.RichText = true;
+        _completionStyle.Normal.TextColor = new Color(0.8f, 0.8f, 0.85f);
+        _completionStyle.Normal.Background = null;
+        _completionStyle.Padding.Left = 10;
+        _completionStyle.Padding.Right = 10;
+        _completionStyle.Padding.Top = 4;
+        _completionStyle.Padding.Bottom = 4;
+        _completionStyle.Margin.Left = 0;
+        _completionStyle.Margin.Right = 0;
+        _completionStyle.Margin.Top = 0;
+        _completionStyle.Margin.Bottom = 0;
 
-        _completionSelectedStyle = new GUIStyle(_completionStyle)
-        {
-            normal = { textColor = Color.white, background = _completionSelTexture },
-            fontStyle = FontStyle.Bold
-        };
+        _completionSelectedStyle = _completionStyle.Clone();
+        _completionSelectedStyle.Normal.TextColor = Color.White;
+        _completionSelectedStyle.Normal.Background = null;
+        _completionSelectedStyle.FontStyle = ImguiFontStyle.Bold;
 
-        _fontBtnStyle = new GUIStyle(drawer.Skin.button)
-        {
-            font = font,
-            fontSize = 10,
-            alignment = TextAnchor.MiddleCenter,
-        };
-        _fontBtnStyle.padding.left = 0;
-        _fontBtnStyle.padding.right = 0;
-        _fontBtnStyle.padding.top = 0;
-        _fontBtnStyle.padding.bottom = 0;
-        _fontBtnStyle.margin.left = 0;
-        _fontBtnStyle.margin.right = 0;
-        _fontBtnStyle.margin.top = 0;
-        _fontBtnStyle.margin.bottom = 0;
+        _fontBtnStyle = drawer.Skin.Button;
+        _fontBtnStyle.Font = font;
+        _fontBtnStyle.FontSize = 10;
+        _fontBtnStyle.Alignment = ImguiTextAnchor.MiddleCenter;
+        _fontBtnStyle.Padding.Left = 0;
+        _fontBtnStyle.Padding.Right = 0;
+        _fontBtnStyle.Padding.Top = 0;
+        _fontBtnStyle.Padding.Bottom = 0;
+        _fontBtnStyle.Margin.Left = 0;
+        _fontBtnStyle.Margin.Right = 0;
+        _fontBtnStyle.Margin.Top = 0;
+        _fontBtnStyle.Margin.Bottom = 0;
     }
 
-    private static Texture2D MakeTex(int w, int h, Color col)
+    /// <summary>用框架的白纹理加 <see cref="IIMGUIDrawer.Color"/> 画一块纯色矩形，画完把颜色还原。</summary>
+    private static void Fill(IIMGUIDrawer drawer, Rect rect, Color color)
     {
-        var tex = new Texture2D(w, h);
-        for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-                tex.SetPixel(x, y, col);
-        tex.Apply();
-        tex.hideFlags = HideFlags.HideAndDontSave;
-        return tex;
+        var previous = drawer.Color;
+        drawer.Color = color;
+        drawer.DrawTexture(rect, drawer.WhiteTexture, ImguiScaleMode.StretchToFill, true);
+        drawer.Color = previous;
     }
 
     #endregion
@@ -397,7 +395,7 @@ public static partial class InGameConsole
         int current = ConfigManager.ConsoleFontSize.Value;
         int effective = current > 0
             ? current
-            : Mathf.Clamp((int)drawer.ScreenSize.y / 50, 14, 24);
+            : Mathf.Clamp((int)drawer.ScreenSize.Y / 50, 14, 24);
         int newSize = Mathf.Clamp(effective + delta, 10, 36);
         ConfigManager.ConsoleFontSize.Value = newSize;
         ResetStyles();
@@ -408,7 +406,7 @@ public static partial class InGameConsole
     // ====================================================================
     public static void OnGui(IIMGUIDrawer drawer)
     {
-        if (ConfigManager.ConsoleX.Value > drawer.ScreenSize.x * 0.95f || ConfigManager.ConsoleY.Value > drawer.ScreenSize.y * 0.95f)
+        if (ConfigManager.ConsoleX.Value > drawer.ScreenSize.X * 0.95f || ConfigManager.ConsoleY.Value > drawer.ScreenSize.Y * 0.95f)
         {
             ConfigManager.ConsoleX.Value = (float)ConfigManager.ConsoleX.DefaultValue;
             ConfigManager.ConsoleY.Value = (float)ConfigManager.ConsoleY.DefaultValue;
@@ -416,10 +414,10 @@ public static partial class InGameConsole
 
         InitStyles(drawer);
 
-        // Drain pending logs only during Layout pass so that control count is stable
-        // for the matching Repaint pass. This also serializes cross-thread writes
+        // Drain pending logs only during the layout pass so that control count is stable
+        // for the matching repaint pass. This also serializes cross-thread writes
         // (TCP receive thread enqueues; main thread dequeues).
-        if (drawer.Current.type == EventType.Layout)
+        if (drawer.Current.Kind == ImguiEventKind.Layout)
             DrainPendingLogs();
 
         if (IsOpen)
@@ -443,11 +441,10 @@ public static partial class InGameConsole
 
     private static float GetEntryHeight(LogEntry entry, float width)
     {
-        int fs = _logStyle!.fontSize;
+        int fs = _logStyle!.FontSize;
         if (entry.CachedHeight > 0f && entry.CachedWidth == width && entry.CachedFontSize == fs)
             return entry.CachedHeight;
-        var content = new GUIContent(entry.Text);
-        entry.CachedHeight = _logStyle.CalcHeight(content, width);
+        entry.CachedHeight = _logStyle.CalcHeight(entry.Text, width);
         entry.CachedWidth = width;
         entry.CachedFontSize = fs;
         entry.CachedTextWidth = 0f; // invalidate passive bubble width too
@@ -479,7 +476,7 @@ public static partial class InGameConsole
         float panelX = ConfigManager.ConsoleX.Value;
         float logAreaH = ConfigManager.ConsoleHeight.Value;
         float panelBottomY = ConfigManager.ConsoleY.Value < 0
-            ? drawer.ScreenSize.y - BottomMargin
+            ? drawer.ScreenSize.Y - BottomMargin
             : ConfigManager.ConsoleY.Value + logAreaH + InputHeight;
         float inputTopY = panelBottomY - InputHeight;
         float maxWidth = panelW - Padding * 2;
@@ -503,18 +500,17 @@ public static partial class InGameConsole
 
             if (entry.CachedTextWidth <= 0f)
             {
-                var strippedContent = new GUIContent(StripRichText(entry.Text));
-                float tw = _logStyle!.CalcSize(strippedContent).x + 16f;
+                float tw = _logStyle!.CalcSize(StripRichText(entry.Text)).X + 16f;
                 entry.CachedTextWidth = Mathf.Clamp(tw, 100f, maxWidth);
             }
             float textWidth = Mathf.Min(entry.CachedTextWidth, maxWidth);
 
             var prevColor = drawer.Color;
-            drawer.Color = new Color(0f, 0f, 0f, alpha * 0.85f);
-            drawer.DrawTexture(new Rect(panelX + Padding, currentY, textWidth, itemH), _shadowTexture, ScaleMode.StretchToFill, true);
+            Fill(drawer, new Rect(panelX + Padding, currentY, textWidth, itemH),
+                new Color(0f, 0f, 0f, alpha * 0.85f * ShadowAlpha));
 
             drawer.Color = new Color(1f, 1f, 1f, alpha);
-            drawer.Label(new Rect(panelX + Padding, currentY, maxWidth, itemH), entry.Text, _logStyle);
+            drawer.Label(new Rect(panelX + Padding, currentY, maxWidth, itemH), entry.Text, _logStyle!);
 
             drawer.Color = prevColor;
             currentY += itemH;
@@ -532,10 +528,10 @@ public static partial class InGameConsole
     // ====================================================================
     private static void DrawOpenMode(IIMGUIDrawer drawer)
     {
-        Event e = drawer.Current;
+        ImguiEvent e = drawer.Current;
 
         // ── Key handling ──
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape)
+        if (e.Kind == ImguiEventKind.KeyDown && e.Key == ImguiKey.Escape)
         {
             if (_completion.IsActive)
                 _completion.Dismiss();
@@ -545,11 +541,11 @@ public static partial class InGameConsole
             return;
         }
 
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Tab)
+        if (e.Kind == ImguiEventKind.KeyDown && e.Key == ImguiKey.Tab)
         {
             if (_completion.HasCompletions)
             {
-                var applied = _completion.TabCycle(reverse: e.shift);
+                var applied = _completion.TabCycle(reverse: e.Shift);
                 if (applied != null)
                 {
                     input = applied;
@@ -560,13 +556,13 @@ public static partial class InGameConsole
         }
 
         bool submit = false;
-        if (e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter))
+        if (e.Kind == ImguiEventKind.KeyDown && (e.Key == ImguiKey.Return || e.Key == ImguiKey.KeypadEnter))
         {
             submit = true;
             e.Use();
         }
 
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.UpArrow)
+        if (e.Kind == ImguiEventKind.KeyDown && e.Key == ImguiKey.UpArrow)
         {
             if (_completion.IsTabCycling)
                 _completion.Dismiss();
@@ -581,7 +577,7 @@ public static partial class InGameConsole
             }
             e.Use();
         }
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.DownArrow)
+        if (e.Kind == ImguiEventKind.KeyDown && e.Key == ImguiKey.DownArrow)
         {
             if (_completion.IsTabCycling)
                 _completion.Dismiss();
@@ -596,7 +592,7 @@ public static partial class InGameConsole
             e.Use();
         }
 
-        if (justOpened && e.type == EventType.KeyDown && e.character == '/')
+        if (justOpened && e.Kind == ImguiEventKind.KeyDown && e.Character == '/')
             e.Use();
 
         // ── Layout: config-based position and size ──
@@ -605,7 +601,7 @@ public static partial class InGameConsole
         float panelX = ConfigManager.ConsoleX.Value;
         // Auto-bottom when Y == -1
         float panelBottomY = ConfigManager.ConsoleY.Value < 0
-            ? drawer.ScreenSize.y - BottomMargin
+            ? drawer.ScreenSize.Y - BottomMargin
             : ConfigManager.ConsoleY.Value + logAreaH + InputHeight;
         float inputY = panelBottomY - InputHeight;
         float logY = inputY - logAreaH;
@@ -616,36 +612,36 @@ public static partial class InGameConsole
 
         // ── Drag handle ──
         var dragRect = new Rect(panelX, dragY, panelW, DragHandleHeight);
-        drawer.DrawTexture(dragRect, _dragHandleTexture, ScaleMode.StretchToFill, true);
+        Fill(drawer, dragRect, DragHandleColor);
 
         // ── Font size buttons (right side of drag handle) ──
         float fontBtnW = DragHandleHeight * 2f;
         float fontBtnH = DragHandleHeight;
-        if (drawer.Button(new Rect(panelX + panelW - fontBtnW * 2 - 2, dragY, fontBtnW, fontBtnH), "A−", _fontBtnStyle))
+        if (drawer.Button(new Rect(panelX + panelW - fontBtnW * 2 - 2, dragY, fontBtnW, fontBtnH), "A−", _fontBtnStyle!))
             AdjustFontSize(drawer, -2);
-        if (drawer.Button(new Rect(panelX + panelW - fontBtnW, dragY, fontBtnW, fontBtnH), "A+", _fontBtnStyle))
+        if (drawer.Button(new Rect(panelX + panelW - fontBtnW, dragY, fontBtnW, fontBtnH), "A+", _fontBtnStyle!))
             AdjustFontSize(drawer, 2);
 
         // Drag logic
         if (!lockConsoleUi)
         {
-            if (e.type == EventType.MouseDown && dragRect.Contains(e.mousePosition))
+            if (e.Kind == ImguiEventKind.MouseDown && dragRect.Contains(e.MousePosition))
             {
                 _isDragging = true;
-                _dragOffset = e.mousePosition - new Vector2(panelX, dragY);
+                _dragOffset = e.MousePosition - new Vector2(panelX, dragY);
                 e.Use();
             }
             if (_isDragging)
             {
-                if (e.type == EventType.MouseDrag)
+                if (e.Kind == ImguiEventKind.MouseDrag)
                 {
-                    float newX = e.mousePosition.x - _dragOffset.x;
-                    float newTopY = e.mousePosition.y - _dragOffset.y;
-                    ConfigManager.ConsoleX.Value = Mathf.Clamp(newX, 0, drawer.ScreenSize.x - panelW);
-                    ConfigManager.ConsoleY.Value = Mathf.Clamp(newTopY, 0, drawer.ScreenSize.y - totalH);
+                    float newX = e.MousePosition.X - _dragOffset.X;
+                    float newTopY = e.MousePosition.Y - _dragOffset.Y;
+                    ConfigManager.ConsoleX.Value = Mathf.Clamp(newX, 0, drawer.ScreenSize.X - panelW);
+                    ConfigManager.ConsoleY.Value = Mathf.Clamp(newTopY, 0, drawer.ScreenSize.Y - totalH);
                     e.Use();
                 }
-                if (e.type == EventType.MouseUp)
+                if (e.Kind == ImguiEventKind.MouseUp)
                 {
                     _isDragging = false;
                     e.Use();
@@ -658,34 +654,34 @@ public static partial class InGameConsole
         }
 
         // Background behind log area + input
-        drawer.DrawTexture(new Rect(panelX, logY, panelW, logAreaH + InputHeight), _bgTexture, ScaleMode.StretchToFill, true);
+        Fill(drawer, new Rect(panelX, logY, panelW, logAreaH + InputHeight), LogBgColor);
 
         // ── Resize handle (bottom-right corner) ──
         var resizeRect = new Rect(panelX + panelW - ResizeHandleSize, inputY + InputHeight - ResizeHandleSize,
             ResizeHandleSize, ResizeHandleSize);
-        drawer.DrawTexture(resizeRect, _resizeHandleTexture, ScaleMode.StretchToFill, true);
+        Fill(drawer, resizeRect, ResizeHandleColor);
 
         if (!lockConsoleUi)
         {
-            if (e.type == EventType.MouseDown && resizeRect.Contains(e.mousePosition))
+            if (e.Kind == ImguiEventKind.MouseDown && resizeRect.Contains(e.MousePosition))
             {
                 _isResizing = true;
-                _resizeStart = e.mousePosition;
+                _resizeStart = e.MousePosition;
                 _resizeStartW = panelW;
                 _resizeStartH = logAreaH;
                 e.Use();
             }
             if (_isResizing)
             {
-                if (e.type == EventType.MouseDrag)
+                if (e.Kind == ImguiEventKind.MouseDrag)
                 {
-                    float dw = e.mousePosition.x - _resizeStart.x;
-                    float dh = e.mousePosition.y - _resizeStart.y; // down = taller (console grows upward)
+                    float dw = e.MousePosition.X - _resizeStart.X;
+                    float dh = e.MousePosition.Y - _resizeStart.Y; // down = taller (console grows upward)
                     ConfigManager.ConsoleWidth.Value = Mathf.Max(_resizeStartW + dw, MinPanelW);
                     ConfigManager.ConsoleHeight.Value = Mathf.Max(_resizeStartH + dh, MinPanelH);
                     e.Use();
                 }
-                if (e.type == EventType.MouseUp)
+                if (e.Kind == ImguiEventKind.MouseUp)
                 {
                     _isResizing = false;
                     e.Use();
@@ -701,7 +697,7 @@ public static partial class InGameConsole
         // thousands of labels per frame. Uses drawer.BeginScrollView with absolute rects
         // so control count is constant (1 scroll view + 0 inner GUILayout controls).
         var logViewRect = new Rect(panelX + Padding, logY, panelW - Padding * 2, logAreaH);
-        float contentWidth = logViewRect.width - 18f; // reserve scrollbar space
+        float contentWidth = logViewRect.Width - 18f; // reserve scrollbar space
 
         int logCount = _logs.Count;
         float contentHeight = 0f;
@@ -718,33 +714,33 @@ public static partial class InGameConsole
         scrollPosition = drawer.BeginScrollView(logViewRect, scrollPosition, contentRect);
 
         // Virtualize: only render entries whose rect intersects the visible viewport.
-        float viewportTop = scrollPosition.y;
+        float viewportTop = scrollPosition.Y;
         float viewportBottom = viewportTop + logAreaH;
         float y = topPad;
         for (int i = 0; i < logCount; i++)
         {
             float h = _logs[i].CachedHeight;
             if (y + h >= viewportTop && y <= viewportBottom)
-                drawer.Label(new Rect(0, y, contentWidth, h), _logs[i].Text, _logStyle);
+                drawer.Label(new Rect(0, y, contentWidth, h), _logs[i].Text, _logStyle!);
             y += h;
             if (y > viewportBottom) break;
         }
         drawer.EndScrollView();
 
         // Auto-scroll to bottom
-        if (_scrollToBottom && e.type == EventType.Repaint)
+        if (_scrollToBottom && e.Kind == ImguiEventKind.Repaint)
         {
-            scrollPosition.y = Mathf.Max(0f, totalContentH - logAreaH);
+            scrollPosition.Y = Mathf.Max(0f, totalContentH - logAreaH);
             _scrollToBottom = false;
         }
 
         // Input bar background
-        drawer.DrawTexture(new Rect(panelX, inputY, panelW, InputHeight), _inputBgTexture, ScaleMode.StretchToFill, true);
+        Fill(drawer, new Rect(panelX, inputY, panelW, InputHeight), InputBgColor);
 
         // Input field. Name based focus (SetNextControlName/FocusControl) is not part of this game
         // build, so the field is focused through the keyboard control id instead.
         string prevInput = input;
-        input = drawer.TextField(new Rect(panelX + Padding, inputY, panelW - Padding * 2, InputHeight), input, _inputStyle);
+        input = drawer.TextField(new Rect(panelX + Padding, inputY, panelW - Padding * 2, InputHeight), input, _inputStyle!);
 
         if (input != prevInput)
             _completion.UpdateCompletions(input);
@@ -755,14 +751,14 @@ public static partial class InGameConsole
             focusTextField = false;
         }
 
-        if (moveCursor && e.type == EventType.Repaint)
+        if (moveCursor && e.Kind == ImguiEventKind.Repaint)
         {
             int id = drawer.KeyboardControl;
-            var editor = drawer.GetStateObject<TextEditor>(id);
+            var editor = drawer.GetStateObject<TextInputState>(id);
             if (editor != null)
             {
-                editor.cursorIndex = input.Length;
-                editor.selectIndex = input.Length;
+                editor.CursorIndex = input.Length;
+                editor.SelectIndex = input.Length;
             }
             moveCursor = false;
         }
@@ -797,7 +793,7 @@ public static partial class InGameConsole
         }
 
         // Consume remaining key events
-        if (e.type == EventType.KeyDown && e.keyCode != KeyCode.None)
+        if (e.Kind == ImguiEventKind.KeyDown && e.Key != ImguiKey.None)
             e.Use();
     }
 
@@ -806,19 +802,17 @@ public static partial class InGameConsole
     // ====================================================================
     private static void DrawCompletionDropdown(IIMGUIDrawer drawer, float x, float inputY, float width)
     {
-        float itemHeight = (_completionStyle!.fontSize + 10);
+        float itemHeight = (_completionStyle!.FontSize + 10);
 
         if (_completion.HasHint)
         {
             float hintHeight = itemHeight + 4;
             float hintY = inputY - hintHeight;
-            drawer.DrawTexture(new Rect(x, hintY, width, hintHeight), _completionBgTexture, ScaleMode.StretchToFill, true);
+            Fill(drawer, new Rect(x, hintY, width, hintHeight), CompletionBgColor);
 
-            var hintStyle = new GUIStyle(_completionStyle)
-            {
-                fontStyle = FontStyle.Italic,
-                normal = { textColor = new Color(0.55f, 0.55f, 0.65f) }
-            };
+            var hintStyle = _completionStyle.Clone();
+            hintStyle.FontStyle = ImguiFontStyle.Italic;
+            hintStyle.Normal.TextColor = new Color(0.55f, 0.55f, 0.65f);
             drawer.Label(new Rect(x, hintY + 2, width, itemHeight),
                 $"  {_completion.Hint}", hintStyle);
             return;
@@ -830,7 +824,7 @@ public static partial class InGameConsole
         float dropdownHeight = maxVisible * itemHeight + 4;
 
         float dropY = inputY - dropdownHeight;
-        drawer.DrawTexture(new Rect(x, dropY, width, dropdownHeight), _completionBgTexture, ScaleMode.StretchToFill, true);
+        Fill(drawer, new Rect(x, dropY, width, dropdownHeight), CompletionBgColor);
 
         int offset = _completion.ScrollOffset;
         for (int i = 0; i < maxVisible; i++)
@@ -842,18 +836,19 @@ public static partial class InGameConsole
             var style = isSelected ? _completionSelectedStyle : _completionStyle;
             float itemY = dropY + 2 + i * itemHeight;
 
+            if (isSelected)
+                Fill(drawer, new Rect(x, itemY, width, itemHeight), CompletionSelectedBgColor);
+
             string displayText = _completion.FormatWithHighlight(completions[itemIndex]);
-            drawer.Label(new Rect(x, itemY, width, itemHeight), displayText, style);
+            drawer.Label(new Rect(x, itemY, width, itemHeight), displayText, style!);
         }
 
         if (totalCount > maxVisible)
         {
             string indicator = $"[{offset + 1}-{Math.Min(offset + maxVisible, totalCount)}/{totalCount}]";
-            var indicatorStyle = new GUIStyle(_completionStyle)
-            {
-                alignment = TextAnchor.MiddleRight,
-                normal = { textColor = new Color(0.5f, 0.5f, 0.6f) }
-            };
+            var indicatorStyle = _completionStyle.Clone();
+            indicatorStyle.Alignment = ImguiTextAnchor.MiddleRight;
+            indicatorStyle.Normal.TextColor = new Color(0.5f, 0.5f, 0.6f);
             drawer.Label(new Rect(x, dropY + dropdownHeight - itemHeight, width - 8, itemHeight), indicator, indicatorStyle);
         }
     }
@@ -865,7 +860,7 @@ public static partial class InGameConsole
     {
         string timestamp = DateTime.Now.ToString("HH:mm:ss");
         string stamped = $"<color=#888899>[{timestamp}]</color> {message}";
-        // Thread-safe: enqueue and let OnGUI drain on the Layout pass. This prevents
+        // Thread-safe: enqueue and let OnGUI drain on the layout pass. This prevents
         // "Collection was modified" exceptions when callers (e.g. TCP receive thread)
         // log from off the main thread, and keeps GUILayout control counts stable
         // between Layout and Repaint events.
@@ -920,7 +915,7 @@ public static partial class InGameConsole
         float logAreaH = ConfigManager.ConsoleHeight.Value;
         float panelX = ConfigManager.ConsoleX.Value;
         float panelBottomY = ConfigManager.ConsoleY.Value < 0
-            ? drawer.ScreenSize.y - BottomMargin
+            ? drawer.ScreenSize.Y - BottomMargin
             : ConfigManager.ConsoleY.Value + logAreaH + InputHeight;
         float inputY = panelBottomY - InputHeight;
         float logY = inputY - logAreaH;
@@ -939,12 +934,9 @@ public static partial class InGameConsole
 
     private static void DrawRectOutline(IIMGUIDrawer drawer, Rect rect, Color color, float thickness)
     {
-        var prev = drawer.Color;
-        drawer.Color = color;
-        drawer.DrawTexture(new Rect(rect.x, rect.y, rect.width, thickness), Texture2D.whiteTexture, ScaleMode.StretchToFill, true);
-        drawer.DrawTexture(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), Texture2D.whiteTexture, ScaleMode.StretchToFill, true);
-        drawer.DrawTexture(new Rect(rect.x, rect.y, thickness, rect.height), Texture2D.whiteTexture, ScaleMode.StretchToFill, true);
-        drawer.DrawTexture(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), Texture2D.whiteTexture, ScaleMode.StretchToFill, true);
-        drawer.Color = prev;
+        Fill(drawer, new Rect(rect.X, rect.Y, rect.Width, thickness), color);
+        Fill(drawer, new Rect(rect.X, rect.YMax - thickness, rect.Width, thickness), color);
+        Fill(drawer, new Rect(rect.X, rect.Y, thickness, rect.Height), color);
+        Fill(drawer, new Rect(rect.XMax - thickness, rect.Y, thickness, rect.Height), color);
     }
 }

@@ -6,8 +6,6 @@ using Il2CppInterop.Runtime;
 using UnityEngine;
 using UnityEngine.UI;
 
-using NightScene.EventUtility;
-
 using MetaMystia.ResourceEx.AssetManagement;
 using Object = UnityEngine.Object;
 
@@ -123,7 +121,10 @@ public sealed partial class VfxBundle
             rect.offsetMax = Vector2.zero;
         }
 
-        ModRuntime.Coroutines.StartOn(EventManager.Instance, _ => Fade(group, 1f));
+        // 挂在进程级的 owner 上：淡入不再随场景销毁而停止（遮罩本身随场景销毁，
+        // Fade 里的 null 检查随即结束协程）。
+        var coroutines = ModRuntime.Coroutines;
+        coroutines.StartOn(coroutines.Owner, _ => Fade(group, 1f));
         return root;
     }
 
@@ -136,7 +137,9 @@ public sealed partial class VfxBundle
         var group = instance.GetComponent<CanvasGroup>();
         if (group != null)
         {
-            ModRuntime.Coroutines.StartOn(EventManager.Instance, _ => Fade(group, 0f, destroyAfter: true));
+            // 同上：进程级 owner，淡出不再随场景销毁而停止；group 消失时 Fade 自行结束。
+            var coroutines = ModRuntime.Coroutines;
+            coroutines.StartOn(coroutines.Owner, _ => Fade(group, 0f, destroyAfter: true));
             return;
         }
 

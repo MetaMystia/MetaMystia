@@ -118,7 +118,9 @@ public static partial class FloatingTextHelper
             return;
         }
         activeTextPeer = MakeFloatingText(comp.transform, text);
-        ModRuntime.Coroutines.StartOn(comp, _ => FadeAndDestroy(activeTextPeer.GetComponent<TextMeshPro>(), duration));
+        // 挂在进程级的 owner 上：淡出不再随场景销毁而停止（对象被销毁时 FadeAndDestroy 自行结束）。
+        var coroutines = ModRuntime.Coroutines;
+        coroutines.StartOn(coroutines.Owner, _ => FadeAndDestroy(activeTextPeer.GetComponent<TextMeshPro>(), duration));
     }
 
     private static void ShowFloatingTextSelf(string text, float duration = 5f)
@@ -134,7 +136,9 @@ public static partial class FloatingTextHelper
             return;
         }
         activeTextSelf = MakeFloatingText(character.transform, text);
-        ModRuntime.Coroutines.StartOn(character, _ => FadeAndDestroy(activeTextSelf.GetComponent<TextMeshPro>(), duration));
+        // 同上：进程级 owner，淡出不再随场景销毁而停止。
+        var coroutines = ModRuntime.Coroutines;
+        coroutines.StartOn(coroutines.Owner, _ => FadeAndDestroy(activeTextSelf.GetComponent<TextMeshPro>(), duration));
     }
 
     private static System.Collections.IEnumerator FadeAndDestroy(TextMeshPro tmp, float duration)
@@ -151,6 +155,9 @@ public static partial class FloatingTextHelper
         while (fade < 0.5f)
         {
             fade += Time.deltaTime;
+            // 协程现在挂在进程级 owner 上，场景销毁不再打断它：文字对象随之消失时要自己收尾。
+            if (tmp == null)
+                yield break;
             float alpha = Mathf.Lerp(1f, 0f, fade / 0.5f);
 
             var c = tmp.color;
