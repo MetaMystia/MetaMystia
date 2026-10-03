@@ -84,8 +84,8 @@
    dotnet run --project src/Mystia.InteropGen -- <游戏工程目录> <游戏安装目录>
    dotnet pack sdk/Mystia.Extension.Sdk/Mystia.Extension.Sdk.Pack.csproj -c Release
    ```
-   `Mystia.InteropGen` 会校验 `GameAssembly.dll` 的 SHA256 必须是 pin 住的那个（见框架 README），否则拒绝生成；它**确定性**地优先选择 `Build/Symbols/**/Managed` 这份备份（并在输出里打印实际选中的目录），可用 `--managed <dir>` 显式指定、`--symbols-backup` 强制要求 Symbols 备份。互操作产物在 `artifacts/interop`（被忽略，不入库）。
-   **源备份的选择会决定互操作里有哪些成员**：IL2CPP 构建会写出托管裁剪版，Symbols 备份更完整。已知的具体表现是 `ResourceProviderBase.Release` 只在部分备份里存在——若桥接报 `CS0115 ... Release ... 没有找到适合的方法来重写`，说明选中的备份是裁剪版，用 `--managed <游戏工程>/Library/ScriptAssemblies` 重新生成即可（那是未裁剪的构建产物）。
+   `Mystia.InteropGen` 会校验 `GameAssembly.dll` 的 SHA256 必须是 pin 住的那个（见框架 README），否则拒绝生成；它**确定性**地优先选择 `Build/Symbols/**/Managed` 这份备份，并**读该备份的成员表**确认 `ResourceProviderBase.Release` 存在——缺它就拒绝生成（`--allow-stripped-backup` 才会继续），因为桥接要 override 该成员。`--managed <dir>` 显式指定备份、`--output <dir>` 指定产物目录、`--symbols-backup` 强制要求 Symbols 备份；工具拒绝把产物写进任何"有 `Assembly-CSharp.dll` 但没有 `interop-manifest.json`"的目录（那是源，不是产物）。互操作产物在 `artifacts/interop`（被忽略，不入库）。
+   **互操作不入库，所以换机时它不会跟着 git 走**：如果新机器的托管备份里没有 `ResourceProviderBase.Release`（不同构建的裁剪口味不同），最省事的做法是**把已有机器上的 `artifacts/interop` 目录整份拷过去**（两台机器 pin 的是同一个 `GameAssembly.dll`/`global-metadata.dat`，产物通用）。`Library/ScriptAssemblies` **不是**可用退路：未裁剪的项目程序集与裁剪过的引擎模块混用会让生成器抛 `NullReferenceException`（两台机器都复现了）。
 4. 每次重打 SDK 后清缓存：`rm -rf ~/.nuget/packages/mystia.extension.sdk`，然后重建样例工程（`samples/SampleMod.*`），因为框架测试会加载它们的**预编译产物**。
 
 ## 8. 常用命令
@@ -117,7 +117,9 @@ bash docs/port/static-check.sh
 - **`Tilemap.CellToWorld`** 缺失：导出工具用 `GetCellCenterWorld − cellSize/2` 反推（待抽查）。
 - `LoopedBGMPackage` **没有音量字段**；`CharacterSpriteSetFull.BaseSprite` 是静态数组（框架无法供图，依赖游戏填好）。
 - 互操作命名：本机生成器的清洗名**不带 `PDM` 段**（`__c__DisplayClass16_0`、`_MainChallengeLoop_d__16`、`Method_Internal_…_0`），编译器生成类型的编号与 mod 旧注释有分歧（例如 retake 闭包在本机是 `__c__DisplayClass16_6`）。按名定位的挂点必须在启动时校验存在性（已有 `NamedSeams`/`ChallengeTargets`/`AssetBuilderTargets` 三个校验器）。
-- **互操作可编译面 ≠ 运行期存在性**：权威是 pin 住的那份 shipped `global-metadata.dat`。互操作里可见、但 shipped metadata 没有的成员（`EncodeToPNG`/`LoadImage` 是已知例子）在运行期会解析失败，**绝不可调用**；反过来 shipped 有、互操作没有的（`NameToID`/`NameToLayer`/`CellToWorld` 只在未裁剪构建产物里）只能降级。已知反例是 `ResourceProviderBase.Release`：托管备份的裁剪版里没有，但 shipped metadata 有（互操作生成的 `NativeMethodInfoPtr_Release_Public_Abstract_Virtual_New_Void_IResourceLocation_Object_0` 就是证据），所以那三处 override 是对的，不要为了迁就裁剪版备份而删掉。
+- **互操作可编译面 ≠ 运行期存在性**：权威是 pin 住的那份 shipped `global-metadata.dat`。互操作里可见、但 shipped metadata 没有的成员（`EncodeToPNG`/`LoadImage` 是已知例子）在运行期会解析失败，**绝不可调用**；反过来 shipped 有、互操作没有的（`NameToID`/`NameToLayer`/`CellToWorld` 只在未裁剪构建产物里）只能降级。
+- **成员是否存在必须读成员表**：对托管程序集用 `strings`/`grep` 判成员会给出**假阴性**（已证：`Library/ScriptAssemblies/Unity.ResourceManager.dll` 明确声明 `Release`，而 `grep -cx Release` 返回 0）。判断符号存在性一律用元数据表（`PEReader`/`MetadataReader`，或 Il2CppDumper/反编译器的成员表）。
+- **`ResourceProviderBase.Release` 属于"运行时真的有"那一侧，但它是否出现在互操作里由托管备份的口味决定**：本机 `Build/Symbols/.../Managed/Unity.ResourceManager.dll` 用成员表读**有**该成员（互操作也有），而另一台机器的备份里被 UnityLinker 裁掉了（互操作因此没有 → `AssetProviders.cs` 三处 override 报 `CS0115`）。所以缺它时应换备份或跨机拷贝产物，**不要删那三处 override**。
 
 ## 10. 待用户裁决
 
