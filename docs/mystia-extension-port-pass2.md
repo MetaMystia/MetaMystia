@@ -287,7 +287,20 @@ SDK 手写公开面共 **771 个公开成员 / 138 个公开类型**，其中 **
 | `Players/NetSkinManager.cs` | 1 | 待按资产 API 迁移 |
 | `ResourceEx/AssetManagement/RexAssets.cs`、`Utils/Utils.cs` | 各 1 | `ImageConversion`——改走 `IAssetFactory.TryCreateTexture`（框架自研 PNG 解码器；JPEG 不支持） |
 
-同时实测：模组侧目前**没有任何** `MYSTIA####` 禁令诊断——因为声明级错误让分析器不执行；清零后才会开始拦人。另有 684 条此前不可见的可空性警告（既有，非本轮引入）。
+**波 7 里程碑（模组首次声明级清零）**：`Patches/Compat/` 从 16 个退役到 **7 个**，`YuyukoGuestSync.Challenge.cs` 重写为不再引用任何编译器生成成员，声明级错误 **12 → 0**。于是 **SDK 禁令分析器首次真正运行**，实测诊断（去重后）：`MYSTIA1004`（UnityEngine）658、`MYSTIA1001`（Harmony/BepInEx）43、`MYSTIA1002`（Il2CppInterop 注入）28、`MYSTIA1005`（生成成员名）24、`MYSTIA1003`（反射）17；另有 13 个此前被遮蔽的方法体 CS 错误（`PlayerSkin.cs`、`ResourceEx/Registries/*`、`Spell_Mai.cs`）与约 684 条可空性警告。`static-check.sh` 8/8。
+
+留册的 7 个 Compat 补丁各有明文缺口，需要框架补面才能退役：
+
+| 补丁 | 缺口 |
+| --- | --- |
+| `YuyukoChallengeContextPatch` / `YuyukoRetakeContextPatch` | `OnPreBossEvaluated` 不带回调的 `out string message`（覆盖台词）与闭包 `dmgMultiplier` |
+| `YuyukoMainLoopPatch` | `ChallengeStep` 编号不可读（阶段数据只能靠恢复位置编号交换）；建议给 `ChallengeStep` 加语义常量或把阶段数据搬上服务 |
+| `YuyukoBossDataPatch` | 失败**整段重放**（停主循环与子协程、销毁特效、构造失败状态机）无对应面 |
+| `YuyukoExtraDialogData__c__DisplayClass4_0Patch` | 无「挑战确认回调」面（原回调先 `ScheduleEventExtern` 再 `StartChallengeSession`） |
+| `YuyukoTimedNegativeSpellPatch` | 限时负面符卡是独立协程，`ISpellHost`/监听均无挂点 |
+| `NightSceneDirectorPatch` | `AllowLeaveScene` 是「放行/拦下」，不是「本次离开来自最终试炼」；本体控制器捕获也无替代面（`Challenge.Boss` 只是不透明句柄） |
+
+另有两处待框架收尾的细节：`SetPhaseSeconds` 需绝对秒数且要求时钟未启动，而基础时长只在闭包里（现由纯数值桥转出并在监听 `Update` 逐帧幂等下放，一阶段若与挑战启动同帧开始会漏掉拉伸）；`NoteBookSkinPortrait` 开关随笔记本补丁删除而空转（建议由 `ClothPortraitProvider` 按开关过滤，或删配置项）。
 
 ### Phase 5 验收与文档
 
