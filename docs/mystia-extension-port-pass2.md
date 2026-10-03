@@ -2,6 +2,8 @@
 
 配套：[`mystia-extension-port.md`](mystia-extension-port.md)（首轮迁法与验收）、[`mystia-extension-port-gaps.md`](mystia-extension-port-gaps.md)（缺口台账）、[`mystia-extension-port-report.md`](mystia-extension-port-report.md)（首轮交付）。中间件仓库是同级目录的 `MystiaExtensionFramework`。
 
+> **当前状态与交接请看 [`mystia-extension-port-pass3.md`](mystia-extension-port-pass3.md)**；本文保留为第二轮的计划与 API 形状记录。
+
 两条目标：
 
 1. **任何 mod（含 MetaMystia）都不再自带注入管线**。注入只允许存在于 MEFX：原生引导 + 桥接是唯一且长期允许的管线。
