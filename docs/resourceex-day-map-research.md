@@ -6,7 +6,7 @@
 
 **可以从零构造 `DaySceneMap`，不必克隆完整原图，也不必先制作 Unity AssetBundle。** 本次已在运行中的游戏里构造独立色块地图，通过 GameObject Provider 接入原生加载，完成行走、桥面通行、河岸阻挡、前后遮挡、顶层覆盖及两次进出。
 
-建议首版采用：**资源包 ZIP 内的地图 JSON + PNG 图集 → 运行时构造未激活地图模板 → `RuntimeAddressables` 注册 GameObject → 原生 `SwapMap`。** NPC 沿用现有角色配置，碰撞与视觉分开描述。
+建议首版采用：**资源包 ZIP 内的地图 JSON + PNG 图集 → 运行时构造未激活地图模板 → 经框架 `IAssetLocator` 注册 GameObject → 原生 `SwapMap`。** NPC 沿用现有角色配置，碰撞与视觉分开描述。
 
 这是加载方案与结构验证，尚未实现正式 ZIP 地图加载器，也未制作三途川美术。
 
@@ -53,7 +53,7 @@ Grid 为 Rectangle、XYZ，`cellSize=(1,1,0)`、gap 为零。并非所有层都�
 
 `BinaryTilemapDecompressor` 的原图实例配置为 Awake 解压，关联 `Map_BeastForest_Binary`。逆向显示它按 Sprite 索引、图层索引、格坐标和矩阵创建 Tile，再批量 `SetTiles`。**可以用自定义 JSON 构建同样的 Unity Tilemap，无需首版就复刻原版二进制压缩格式。**
 
-当前 `ExportUtils.ExportTilemap` / `ExportTilemapsComposite` 可辅助看图，但其像素合成只取矩阵翻转符号，没有完整重放旋转、缩放、平移与专用 Shader；也不输出碰撞、出生点、NPC 和相机配置。因此导出 PNG 不等于导出了可往返还原的地图。
+曾用于看图的 `ExportUtils` 已随迁移删除（其像素合成本来也只取矩阵翻转符号，没有完整重放旋转、缩放、平移与专用 Shader，既不输出碰撞、出生点、NPC 和相机配置）；因此导出 PNG 从来不等于导出了可往返还原的地图。
 
 ### 碰撞独立于贴图
 
@@ -279,4 +279,4 @@ flowchart LR
 - `src/Assembly-CSharp/DayScene/Interactables/` 下的 `MapTransitionData`、`InteractableArea`、`VisualEntity` 及相关 Condition / Behaviour：出口与初始化依赖。
 - `src/Assembly-CSharp/GameData/RunTime/DaySceneUtility/RunTimeDayScene.cs`：地图解锁、NPC 与存档数据。
 
-项目依据：[资源包约定](resourceex-package-contract.md)、[模块结构](resourceex-module-structure.md)、[RuntimeAddressables](../src/MetaMystia.Mod/ResourceEx/Addressables/RuntimeAddressables.cs)、[SpawnMarkerRegistry](../src/MetaMystia.Mod/ResourceEx/Registries/SpawnMarkerRegistry.cs)、[移动同步](../src/MetaMystia.Mod/Players/PlayerProfile.cs)。
+项目依据：[资源包约定](resourceex-package-contract.md)、[模块结构](resourceex-module-structure.md)、[资产登记表](../src/MetaMystia.Mod/ResourceEx/AssetManagement/RexAssets.cs)、[SpawnMarkerRegistry](../src/MetaMystia.Mod/ResourceEx/Registries/SpawnMarkerRegistry.cs)、[移动同步](../src/MetaMystia.Mod/Players/PlayerProfile.cs)。

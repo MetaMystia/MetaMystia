@@ -5,17 +5,15 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 | 目录 | 命名空间 | 职责 |
 |---|---|---|
 | `ResourceEx/Core.cs` | `MetaMystia` | `ResourceExManager`：包加载、DLC 依赖检查、生命周期钩子、包查询 |
-| `ResourceEx/Registries/` | `MetaMystia.ResourceEx.Registries` | 各内容领域注册器：SpecialGuest、Dialog、Gift、Ingredient、Food、Beverage、Recipe、Cloth、MissionNode、EventNode、Merchant、Spell、Buff、AssetBundle；以及 `PixelSpriteFactory`、`SchedulerDataRecovery` |
+| `ResourceEx/Registries/` | `MetaMystia.ResourceEx.Registries` | 各内容领域注册器：SpecialGuest、Dialog、Gift、Ingredient、Food、Beverage、Recipe、Cloth、MissionNode、EventNode、Merchant、Spell、Buff、AssetBundle；以及 `SchedulerDataRecovery` |
 | `ResourceEx/SpellCollection/` | `MetaMystia.ResourceEx.SpellCollection` | 符卡基类 `SpellBaseEx` 与各符卡的行为实现 |
 | `ResourceEx/Vfx/` | `MetaMystia.ResourceEx.Vfx` | `VfxBundle`：AssetBundle 中特效的播放、全屏遮罩与结束 |
-| `ResourceEx/Mappers/` | `MetaMystia.ResourceEx.Mappers` | config DTO → 游戏对象转换 |
 | `ResourceEx/Models/` | `MetaMystia.ResourceEx.Models` | ResourceEx.json 配置 DTO |
 | `ResourceEx/AssetManagement/` | `MetaMystia.ResourceEx.AssetManagement` | ZIP 加载、ID 范围与签名校验、rex:// 资产注册表与资产查询 |
-| `ResourceEx/Addressables/` | `MetaMystia.ResourceEx.Addressables` | 内存资产注入 Unity Addressables 管线 |
 
 ## 数据流
 
-包扫描与解析（`ResourcePackageLoader`）→ ID 校验（`IdRangeValidator`）→ 资产注册（`RexAssetRegistry` / `RuntimeAddressables`）→ `ResourceExManager` 按包合并配置到各注册器（`*Registry.Merge`）→ 游戏初始化钩子按序调用各注册器的注册方法。
+包扫描与解析（`ResourcePackageLoader`）→ ID 校验（`IdRangeValidator`）→ 资产注册（`RexAssetRegistry`，经框架 `IAssetLocator`）→ `ResourceExManager` 按包合并配置到各注册器（`*Registry.Merge`）→ 游戏初始化钩子按序调用各注册器的注册方法。
 
 ## 生命周期钩子
 

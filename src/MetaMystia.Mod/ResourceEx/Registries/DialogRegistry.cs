@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
@@ -244,7 +244,8 @@ public static partial class DialogRegistry
             return new AssetReferenceSprite("");
         }
 
-        return reference;
+        // 游戏的对话行字段是引擎资源引用，框架的引用是同一份「key + 地址」，按地址重建一份即可。
+        return new AssetReferenceSprite(reference.Address);
     }
 
     private static AssetReferenceT<UnityEngine.AudioClip> ResolveDialogAudioReference(DialogActionConfig actionConfig)
@@ -258,7 +259,7 @@ public static partial class DialogRegistry
             return new AssetReferenceT<UnityEngine.AudioClip>("");
         }
 
-        return reference;
+        return new AssetReferenceT<UnityEngine.AudioClip>(reference.Address);
     }
 
     private static void BuildAndShowDialog(DialogPackageConfig dialogPackageConfig, System.Action onFinishCallback = null)
@@ -322,19 +323,14 @@ public static partial class DialogRegistry
 
     public static void DumpExampleDialog()
     {
-        Utils.FindAndProcessResources<DialogPackage>(dialogPackage =>
+        if (ModRuntime.Dialogs.TryResolve("OnTransitionToNight", out var package))
         {
-            var packageName = dialogPackage.name;
-            if (packageName == "OnTransitionToNight")
-            {
-                ExampleDialog = dialogPackage;
-                Log.LogInfo("Stored ExampleDialog(OnTransitionToNight) package.");
-            }
-            Log.LogDebug($"id={dialogPackage.name}, package={packageName}");
-        });
+            ExampleDialog = package;
+            Log.LogInfo("Stored ExampleDialog(OnTransitionToNight) package.");
+            return;
+        }
 
-        if (ExampleDialog == null)
-            Log.LogWarning("ExampleDialog(OnTransitionToNight) package not found among loaded assets.");
+        Log.LogWarning("ExampleDialog(OnTransitionToNight) package not found among loaded assets.");
     }
 
     public static void ShowResourceExPackage(string packageName, System.Action onFinishCallback = null)

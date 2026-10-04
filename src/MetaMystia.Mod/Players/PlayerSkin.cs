@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
@@ -28,9 +28,12 @@ namespace MetaMystia;
 /// 停掉动画协程再换装」的语义）。旋转覆盖用 <see cref="CharacterSpriteSetStyle"/> 重建一份集，
 /// 与原实现克隆 ScriptableObject 并改 <c>IsHina</c> 等价。</para>
 ///
-/// <para><b>游戏自带像素集</b>：框架没有「导入既有游戏像素集」的入口（<c>ApplyCharacterSprite</c> 只接受框架
-/// 自建的集），因此这类皮肤仍直接交给角色，旋转覆盖也只对在线皮肤可表达；立绘出入的仍是
-/// <c>UnityEngine.Sprite</c>，因为 <c>IPortraitProvider</c> 的签名尚未代理化。两处都是框架能力缺口（见交付报告）。</para>
+/// <para><b>游戏自带像素集</b>：这类皮肤仍直接交给角色（框架的 <c>ApplyCharacterSprite</c> 只套用框架自建的
+/// 集）。旋转覆盖需要一份重建的集：框架的 <c>IAssetFactory.TryUnwrapCharacterSpriteSet</c> 已能把游戏自带的
+/// 集拆成帧与样式，<c>TryCreateCharacterSpriteSet</c> 再按 <see cref="CharacterSpriteSetStyle"/> 重建，但重建
+/// 出的集其裁剪（trims）取游戏 fallback 像素集而非该皮肤自己的，因此本轮未接线，先记警告。</para>
+/// <para>立绘出入的是框架的不透明句柄（<c>IPortraitProvider</c> 已代理化），游戏自带那张由
+/// <c>IAssetFactory.TryWrapSprite</c> 包成句柄。</para>
 /// </summary>
 [MemoryPackable]
 [AutoLog]
@@ -126,15 +129,19 @@ public partial class PlayerSkin
     }
 
     /// <summary>
-    /// 获取当前皮肤的立绘 Sprite（使用默认表情，索引 0）
+    /// 获取当前皮肤的立绘句柄（使用默认表情，索引 0）
     /// 优先级: ResourceEx 自定义立绘 &gt; 已加载的 Addressable 资源 &gt; 同步加载 Addressable
     /// <para>
-    /// 这个入口仍然以 <c>UnityEngine.Sprite</c> 出入：<c>IPortraitProvider</c> 的签名本身尚未代理化，
-    /// 框架没有可用的立绘句柄入口，故保留现状（框架能力缺口，见交付报告）。内部一律按不透明的资源对象
-    /// 传递，只在出口做一次转换，把引擎类型的出现收到一处。
+    /// 自建的资源包立绘本来就是句柄；游戏自带的那张（皮肤资源引用里的 Sprite）由框架的
+    /// <c>IAssetFactory.TryWrapSprite</c> 包成句柄，出入因此统一是句柄，引擎类型只在这一处出现。
     /// </para>
     /// </summary>
-    public UnityEngine.Sprite ResolvePortraitSprite() => ResolvePortraitObject() as UnityEngine.Sprite;
+    public SpriteHandle? ResolvePortraitSprite() => ResolvePortraitObject() switch
+    {
+        SpriteHandle handle => handle,
+        { } gameArt when ModRuntime.Assets.TryWrapSprite(gameArt, out var wrapped) => wrapped,
+        _ => null,
+    };
 
     /// <summary>立绘的资源对象（引擎 Object，可能是 Sprite 也可能是别的图集资源）；没有则 null。</summary>
     private object ResolvePortraitObject()
@@ -284,8 +291,8 @@ public partial class PlayerSkin
     /// 该服务只在场景循环的服务窗口内可用，因此动作排进 <see cref="ScenePresentation"/>，由场景循环逐帧执行。
     /// </para>
     /// <para>
-    /// 游戏自带皮肤：框架的 <c>ApplyCharacterSprite</c> 只接受框架自建精灵集，也没有「导入既有游戏像素集」
-    /// 的入口，故仍直接交给角色；这种皮肤上的旋转覆盖无法重建，只记一次警告（框架能力缺口，见交付报告）。
+    /// 游戏自带皮肤：框架的 <c>ApplyCharacterSprite</c> 只接受框架自建精灵集，故仍直接交给角色；旋转覆盖
+    /// 需要按游戏自带帧重建一份集（框架已具备拆解与重建两个入口，见类注释），本轮未接线，只记一次警告。
     /// </para>
     /// </summary>
     /// <param name="unit"></param>

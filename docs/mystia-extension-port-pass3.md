@@ -37,15 +37,15 @@
 
 | 诊断 | 数量 | 含义 |
 | --- | --- | --- |
-| `MYSTIA1004` | 583 | 仍在用 `UnityEngine` 类型（几乎全在 `ResourceEx/**`） |
-| `MYSTIA1002` | 28 | `Il2CppInterop` 注入/启动（`ResourceEx` 的 provider 与地址表） |
-| `MYSTIA1003` | 17 | `System.Reflection`（`Utils/MetaMikuUtils.cs` 等裸指针工具） |
-| 纯 CS | 6 | 全部是 `ResourceEx/Registries` 的资产形状落差（见 §6） |
-| **去重总错误** | **634** | |
+| `MYSTIA1004` | 207 | 仍在用 `UnityEngine` 类型（`VfxBundle`、`InGameConsole`/面板 IMGUI 层、`DialogRegistry`、`Spell_Mai`、网络层） |
+| `MYSTIA1003` | 17 | `System.Reflection`（`SvgYuki/Functional.cs`、`L10n.cs`、`IdRangeValidator.cs`、`NativeDllExtractor.cs`、两个 il2cpp 工具） |
+| `MYSTIA1002` | 14 | `Il2CppInterop` 裸 il2cpp（`Utils/MetaMikuUtils.cs` 12、`Utils/Il2CppOutDelegate.cs` 2） |
+| 纯 CS | 0 | 声明级错误已清零（这正是分析器能全量报告的原因） |
+| **去重总错误** | **238** | |
 
-`MYSTIA1001`（Harmony/BepInEx）与 `MYSTIA1005`（编译器生成成员名）已清零：`Patches/`、`CompatPatches`、`HarmonyPrefixFlow` 与 `HarmonyX` 引用全部删除。
+`MYSTIA1001`（Harmony/BepInEx）与 `MYSTIA1005`（编译器生成成员名）保持 0；`ResourceEx` 的自建注入管线（`ResourceEx/Addressables/**` 的 `ClassInjector` provider 与 `RuntimeAddressables`）已作为死代码删除，模组的 `MYSTIA1002` 因此从 28 降到 14。
 
-**关键机制提醒（务必记住）**：Roslyn 在存在**声明级**错误时会跳过方法体分析，**分析器也不执行**。所以只要还有声明级错误（现在的 6 个纯 CS），模组侧就看不到方法体级错误与 `MYSTIA100x` 诊断。反之，方法体错误清完后每减少一批声明级错误，都会"新暴露"一批此前不可见的错误——这是正常现象，不要用禁用注释或兼容层掩盖。
+**关键机制提醒（务必记住）**：Roslyn 在存在**声明级**错误时会跳过方法体分析，**分析器也不执行**。所以只要还有声明级错误，模组侧就看不到方法体级错误与 `MYSTIA100x` 诊断。反之，方法体错误清完后每减少一批声明级错误，都会"新暴露"一批此前不可见的错误——这是正常现象，不要用禁用注释或兼容层掩盖。
 
 ## 4. 框架已落地的能力（mod 可直接用）
 
@@ -68,18 +68,22 @@
 4. **挑战数据两项纯数值（完成）**：`SingleRoundSeconds` 由框架的 `IWorkSceneChallengeServices.BasePhaseSeconds` 给出；`DamageMultiplier` 由 `IChallengeBossEvaluation` 带来。
 5. **失败整段重放（完成）**：删 `YuyukoBossDataPatch`。框架新增 `IWorkSceneChallengeServices.StopRun()`/`ReplayFailure()`：先停主循环与它启动的协程、收回重打 buff（并释放框架自己的厨具锁），等调用方的剧情与准备面板收尾后再清场并启动游戏的失败剧情。模组侧由 `YuyukoFailedMessage` 排队进营业场景循环（原实现在收包线程上直接跑）。
 6. **兼容层清零（完成）**：`Patches/`（含 `HarmonyPrefixFlow.cs`）、`CompatPatches.cs`、`HarmonyX` 引用全部删除；`CompatPatches.Applied` 的 4 处门控改读 `ModRuntime.Ready`（失败原因 `ModRuntime.Failure`），提示文案由「补丁注入失败」改为「初始化失败」（`TextId.ModInitFailure`）。`static-check.sh` 的豁免全部去掉。
+7. **资产/立绘面收尾（完成，声明级错误清零）**：`IPortraitProvider` 代理化（`int clothIndex` + `out SpriteHandle`）；`ClothRegistry`／`SpecialGuestRegistry.Visual`／`PlayerSkin` 立绘链改走句柄；框架新增 `IAssetFactory.TryWrapSprite`（把游戏自己持有的精灵包成句柄）与 `TryUnwrapCharacterSpriteSet`（把游戏自己的角色像素集拆成帧与样式）；`DialogRegistry` 的引擎资源引用按 `AssetReference.Address` 重建，`OnTransitionToNight` 改走框架 `IDialogCatalog.TryResolve`（原来是 `Resources.FindObjectsOfTypeAll`）。
+8. **死代码删除**：`Utils/ExportUtils.cs`（1101 行、无调用点，其 PNG 编码器已上移 MEFX）、`ResourceEx/Registries/PixelSpriteFactory.cs`（无调用点）、`ResourceEx/Mappers/**`（779 行，无调用点）、`ResourceEx/Addressables/**`（563 行自建 Addressables 注入，只被自己的初始化调用）。
 
 ## 6. 未完成的迁移（按优先级）
 
-1. **`ResourceEx` 资产四件（6 个纯 CS 错误，也是 `MYSTIA1002/1003/1004` 的大头）**：`ClothRegistry`/`PixelSpriteFactory`/`SpecialGuestRegistry.Visual` 的 `SpriteHandle ↔ Sprite`、`DialogRegistry` 的 `AssetReference` 与 `Utils.FindAndProcessResources`。**卡在 §11 第 4 项**（`IPortraitProvider` 是否继续代理化、是否需要"包装游戏自带精灵集"的入口）。
-2. **`Utils/ExportUtils.cs` 去留**（全仓库无调用点；为救活它已自研 PNG 编码器与坐标公式反推）：建议删除。
-3. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/harmony-hook-style.md` 退役（本会话已删，`AGENTS.md` 的引用一并移除）；`docs/multiplayer-architecture.md` 的"构建与验证"仍写 Costura/BepInEx plugins/Preloader（过时）；`docs/mystia-extension-port-gaps.md` 为首轮口径。
+1. **`Utils` 的裸 il2cpp 与反射（`MYSTIA1002` 14 + `MYSTIA1003` 17）**：`MetaMikuUtils.cs`、`Il2CppOutDelegate.cs` 需要 SDK 提供 out 委托适配与字符串读取；`SgrYuki/Functional.cs`、`IdRangeValidator.cs`、`L10n.cs`、`NativeDllExtractor.cs` 的反射要么改强类型、要么搬进框架。
+2. **`MYSTIA1004` 残余（207）**：热点是 `VfxBundle.cs`、`InGameConsole.cs`／`PlayerListPanel.cs` 等 IMGUI 面板、`DialogRegistry.cs`、`Spell_Mai.cs`、`NetPlayer.cs`、`GuestSync.cs`。多数要换 `Mystia.Imgui` 与 `IPresentationServices`。
+3. **`PlayerSkin` 的游戏自带皮肤旋转覆盖**：框架已具备拆解（`TryUnwrapCharacterSpriteSet`）与重建（`TryCreateCharacterSpriteSet`）两个入口，接线即把该路径从「记警告」变成「重建后套用」；但重建出的集其裁剪取游戏 fallback 像素集，未获确认前不接线。
+4. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/mystia-extension-port-gaps.md` 为首轮口径。
 
-## 7. 波 9 之后的顺序
+## 7. 之后的顺序
 
-1. 定 §11 第 4 项 → 收 `ResourceEx` 资产四件（目标：模组编译全绿）。
-2. `ExportUtils` 裁决（§11 第 1 项）。
-3. 全量验收与文档收尾。
+1. `Utils` 的裸 il2cpp（`MetaMikuUtils.cs`／`Il2CppOutDelegate.cs`）→ 框架补 out 委托适配与字符串读取。
+2. `System.Reflection` 四处（`Functional.cs`／`L10n.cs`／`IdRangeValidator.cs`／`NativeDllExtractor.cs`）。
+3. `MYSTIA1004` 残余：IMGUI 面板、`VfxBundle`、`Spell_Mai`、网络层。
+4. 全量验收与文档收尾。
 
 ## 8. 环境搭建（换一台机器要做的四件事）
 
@@ -117,7 +121,7 @@ bash docs/port/static-check.sh
 
 这些是**互操作/玩家二进制本身没有**的能力，任何工作流都无法实现，只能降级或改设计：
 
-- **`ImageConversion` 整体缺失**（`LoadImage`/`EncodeToPNG` 在 shipped metadata 里连字符串都没有）：框架自带 PNG 解码器（`PngImage`），**JPEG 不支持**；需要编码的地方自研（现状仅 `ExportUtils`）。
+- **`ImageConversion` 整体缺失**（`LoadImage`/`EncodeToPNG` 在 shipped metadata 里连字符串都没有）：框架自带 PNG 解码器与编码器（`PngImage`／`PngWriter`），**JPEG 不支持**；模组侧的 `ExportUtils` 已删除（§6 第 8 项）。
 - **`AssetBundle` 只剩 `LoadFromStream` 与异步 API**（无 `LoadFromMemory`/`LoadAllAssets`/同步 `LoadFromFile`）：特效包改为流式 + `allAssets`（依赖 Unity "访问未完成的 allAssets 会 stall" 的语义，**待实机确认**）；`IPresentationServices.TryRegisterPrefab` 是当前的模板入口。
 - **`Physics2D.IgnoreCollision`** 不存在（`Collider2D` 也只剩 `attachedRigidbody/isTrigger/offset`）：远端玩家改为 `isTrigger`，**不再阻挡任何东西**（含地图障碍与其他客人）。
 - **`SortingLayer.NameToID/IDToName`、`LayerMask.NameToLayer`、可读的 `Renderer.sortingLayerName`** 都没有：白天地图的层检查改走 `SortingGroup` 往返与内置层槽位。
@@ -130,11 +134,12 @@ bash docs/port/static-check.sh
 
 ## 11. 待用户裁决
 
-1. `Utils/ExportUtils.cs`：删除还是把 PNG 编码器上移 MEFX？（无调用点）
+1. ~~`Utils/ExportUtils.cs` 去留~~ —— 已裁决：删除，PNG 编码器上移 MEFX（已完成，见 §6 第 8 项）。
 2. `PeerPlayer` 的触发器方案是否接受（另一选择是照游戏剧情角色直接销毁碰撞体）。
 3. `NoteBookSkinPortrait` 配置项在笔记本补丁删除后空转：由 `ClothPortraitProvider` 按开关过滤，还是删配置项？
-4. `IPortraitProvider` 是否需要代理化（现在仍 `ClothesProfile.Clothes` → `Sprite`），以及是否需要"包装游戏自带精灵集"的入口（`/skin set` 目前直接调游戏方法）。
+4. ~~`IPortraitProvider` 是否代理化 + 是否需要"包装游戏自带精灵集"的入口~~ —— 已裁决：两者都做（已完成，见 §6 第 7 项）。
 5. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
+6. **新**：`PlayerSkin` 的游戏自带皮肤旋转覆盖要不要接线（重建后套用；代价是重建集的裁剪取游戏 fallback 像素集）？见 §6 第 3 项。
 
 ## 12. 必须实机验证的清单（全部结论目前都是源码/编译级）
 

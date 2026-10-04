@@ -51,6 +51,9 @@ public static class ModRuntime
     /// <summary>由全局循环在 <c>Setup</c> 时取的白天地图构建器；构建与发布都只能在主线程调用。</summary>
     public static IDayMapBuilder MapBuilder { get; internal set; }
 
+    /// <summary>由全局循环在 <c>Setup</c> 时取的对话包目录：按名字查当前游戏装载的对话包。</summary>
+    public static IDialogCatalog Dialogs { get; internal set; }
+
     /// <summary>初始化失败的原因；为 null 表示可用。失败时联机功能主动拒绝进入。</summary>
     public static Exception Failure { get; internal set; }
 

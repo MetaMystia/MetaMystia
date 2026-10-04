@@ -1,6 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
-using UnityEngine;
+using Mystia.Assets;
 
 using MetaMystia.ResourceEx.AssetManagement;
 using MetaMystia.ResourceEx.Models;
@@ -9,14 +10,15 @@ namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
 /// 服装领域注册器：持有资源包声明的服装配置，供 <c>ModDatabaseExtension</c> 注入框架数据面。
-/// 运行时立绘（<c>IPortraitProvider</c>）沿用同一份配置按 <c>rex://</c> URI 取 Sprite。
+/// 运行时立绘（<c>IPortraitProvider</c>）沿用同一份配置按 <c>rex://</c> URI 取精灵句柄。
 /// </summary>
 [AutoLog]
 public static partial class ClothRegistry
 {
     private static readonly Dictionary<int, ClothConfig> ClothConfigs = new();
-    // Cloth portrait cache: clothId -> Sprite (loaded lazily or during preload)
-    private static readonly Dictionary<int, Sprite> _clothPortraitCache = new();
+
+    // Cloth portrait cache: clothId -> sprite handle (loaded lazily or during preload)
+    private static readonly Dictionary<int, SpriteHandle> _clothPortraitCache = new();
 
     internal static IEnumerable<ClothConfig> Configs => ClothConfigs.Values;
 
@@ -37,23 +39,25 @@ public static partial class ClothRegistry
     public static bool IsResourceExCloth(int clothId) => ClothConfigs.ContainsKey(clothId);
 
     /// <summary>
-    /// 获取 ResourceEx 注册的服装立绘 Sprite（用于 SetupPortrayalVisual 中动态替换）
+    /// 取 ResourceEx 注册的服装立绘句柄（用于 <c>IPortraitProvider</c> 中动态替换立绘）。
     /// </summary>
-    public static bool TryGetClothPortrait(int clothId, out Sprite portrait)
+    public static bool TryGetClothPortrait(int clothId, [NotNullWhen(true)] out SpriteHandle? portrait)
     {
-        if (_clothPortraitCache.TryGetValue(clothId, out portrait))
-            return portrait != null;
-
-        if (!ClothConfigs.TryGetValue(clothId, out var config) || string.IsNullOrEmpty(config.portraitPath))
+        portrait = null;
+        if (_clothPortraitCache.TryGetValue(clothId, out var cached))
         {
-            portrait = null;
-            return false;
+            portrait = cached;
+            return cached is not null;
         }
 
-        if (!RexAssetRegistry.TryGetSprite(config.portraitPath, out portrait))
-            portrait = null;
+        if (!ClothConfigs.TryGetValue(clothId, out var config) || string.IsNullOrEmpty(config.portraitPath))
+            return false;
+
+        RexAssetRegistry.TryGetSprite(config.portraitPath, out portrait);
+        if (portrait is null)
+            return false;
 
         _clothPortraitCache[clothId] = portrait;
-        return portrait != null;
+        return true;
     }
 }

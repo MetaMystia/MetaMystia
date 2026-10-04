@@ -1,10 +1,9 @@
-using System;
+﻿using System;
 
 using Mystia;
 
 using MetaMystia.Multiplayer.Messages;
 using MetaMystia.ResourceEx;
-using MetaMystia.ResourceEx.Addressables;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -38,15 +37,6 @@ public sealed partial class ModEntry : IInitialization
         Log.Info(MultiplayerStatus.DebugText);
 
         MultiplayerMessage.RegisterAllFormatter();
-
-        try
-        {
-            RuntimeAddressables.Initialize();
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"Early RuntimeAddressables init failed (will retry later): {ex.Message}");
-        }
 
         try
         {

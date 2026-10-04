@@ -26,6 +26,7 @@ public sealed partial class ModLoop : IGlobalGameLoop, IIMGUIProvider
         ModRuntime.Assets = services.Common.Assets;
         ModRuntime.Locator = services.Common.Locator;
         ModRuntime.MapBuilder = services.Common.MapBuilder;
+        ModRuntime.Dialogs = services.Common.Dialogs;
 
         InGameConsole.Initialize();
         ResourceExManager.FlushPendingConsoleLogs();
