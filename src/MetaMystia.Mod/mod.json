@@ -1,5 +1,6 @@
 {
   "id": "MetaMystia",
   "version": "0.29.3",
-  "loadAfter": []
+  "loadAfter": [],
+  "assembly": "MetaMystia.dll"
 }

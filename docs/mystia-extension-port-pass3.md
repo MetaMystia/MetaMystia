@@ -251,3 +251,21 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 - **历史记录**（不要当现状读）：`mystia-extension-port.md`、`mystia-extension-port-plan.md`、`mystia-extension-port-report.md`、`docs/port/**` 的 handoff/audit 文档。
 - **需要校正**：`docs/multiplayer-architecture.md`（构建与部署段仍写 Costura/BepInEx plugins/Preloader）、`docs/mystia-extension-port-gaps.md`（首轮口径，16 个缺口已被 pass2/pass3 全面覆盖）。
 
+## 14. 首轮实机结果与当前阻塞（2026-10-05）
+
+**注入路线已换成 DLL 劫持。** 进程注入不可行：游戏 `SteamPlatform` 构造函数调用 `SteamAPI_RestartAppIfNecessary`，凡不是 Steam 客户端亲自启动的进程都会被要求退出、再由 Steam 重新拉起一份未注入的副本。现在 `Mystia.Syringe.exe` 把 `Mystia.Proxy.dll` 安装为游戏目录里的 `version.dll`（`UnityPlayer.dll` 静态导入 `VERSION.dll`，且它不在 `KnownDLLs`），代理把 17 个导出全部转发给系统 DLL，并读同目录的 `Mystia.Proxy.txt` 找到启动器目录、加载 `Mystia.Bootstrap.dll`。游戏依旧由 Steam 启动，DRM 既不修改也不绕过（`Player.log` 里云存档同步正常）。
+
+**已实测通过的部分**：`steam://run/1584090` → 游戏目录的 `VERSION.dll`（模块表实测）→ bootstrap 挂上 `il2cpp_init` → 托管宿主启动 → 桥装载 **188 个补丁方法、0 失败** → MetaMystia 0.29.3 加载成功（`host.log`：`Plugin MetaMystia is loaded!`、`CommandRegistry initialized`）。模组依赖由 `ModAssemblyResolver` 从模组目录解析，加载失败的模组只警告不致命。
+
+**当前阻塞**：模组加载后约 5 秒，游戏进程以 `0xC0000409`（`coreclr.dll` 内的 fail-fast）退出，`host.log` 停在正常帧尾。已定位到崩溃发生在**控制台的被动气泡绘制**（`InGameConsole.DrawPassiveMode`，经 `ModLoop.OnGui` → 框架 `GlobalHost.DrawGui`）：
+
+| 实验 | 结果 |
+| --- | --- |
+| 关掉整个 `GlobalHost.DrawGui()` | 188 个补丁全开仍稳定 45 s 以上 |
+| 只关掉 `DrawPassiveMode` | 同上稳定 |
+| 分别关掉 `CalcSize`、`Label`、`DrawTexture` | 仍崩 |
+| 0 个补丁（无消息可画） | 不绘制、不崩 |
+
+⇒ 只在“有内容要画”时崩；剩下的绘制调用只有 `GUI.color` 读写与**样式回写**（mod 写 `_logStyle.Normal.TextColor`、`_inputStyle.Normal.Background = null` 等，由 `TextStyleHandle` 在绘制那一刻落到引擎 `GUIStyle`/`GUIStyleState`）。这条 facade（`ImguiMirror`/`ImguiDrawer`）是本次迁移新写的，回写路径最可疑；`__fastfail` 绕过异常处理与 `DOTNET_DbgEnableMiniDump`，因此拿不到崩溃栈，只能二分。
+
+**下一步**（未做）：在 `DrawPassiveMode` 内继续隔离——先只留 `GUI.color` 读写、再单独恢复样式回写；或在 `UnityTextStyle` 回写处改成“只在值真的变化时写”，把写入次数降到最低后再逐项恢复。

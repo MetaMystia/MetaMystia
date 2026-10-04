@@ -14,5 +14,5 @@ dotnet pack sdk/Mystia.Extension.Sdk/Mystia.Extension.Sdk.Pack.csproj -c Release
 cp ../MystiaExtensionFramework/artifacts/nuget/Mystia.Extension.Sdk.<版本>.nupkg vendor/nuget/
 ```
 
-**注意**：SDK 版本号不变时（现在固定 2.0.0），NuGet 按版本号缓存包，所以同步之后本机要清一次缓存
+**注意**：SDK 版本号不变时，NuGet 按版本号缓存包，所以同步之后本机要清一次缓存
 （`rm -rf ~/.nuget/packages/mystia.extension.sdk`），否则仍会用旧包。

@@ -94,7 +94,9 @@ dotnet run --project src/MetaMystia.Server -c Release --no-build -- 40815 16
 
 独立服务器输入命令后按回车执行，使用 `stop` 或 Ctrl+C 退出；管理命令与日志见[服务端控制台](server-console.md)。
 
-模组以「一份目录：模组 dll + `mod.json`」的形式放进启动器的 `mods/`，由 Mystia Extension 的启动器与宿主挂载；注入管线只存在于框架侧，模组不再自带 patcher／preloader。`MetaMystia.Network` 是独立程序集，与模组输出在同一目录，不通过 Costura 嵌入。构建产物在 `src/MetaMystia.Mod/bin/<配置>/net10.0/`。
+模组是 `Mystia.Extension.Sdk` 的类库（`net10.0`）。部署形态是一个**启动器目录**：`Mystia.Syringe` 向游戏目录安装一个代理 DLL，由 Steam 启动游戏，注入管线只存在于框架侧。模组放在启动器目录的 `mods/MetaMystia/`，与它自己的依赖 DLL 和 `mod.json` 同处一个目录；多程序集的模组必须在 `mod.json` 里用 `assembly` 指名入口程序集。`MetaMystia.Network` 是独立程序集，随模组一起放在该目录。构建产物在 `src/MetaMystia.Mod/bin/<配置>/net10.0/`。
+
+日志来自框架宿主，写在启动器目录的 `host.log`，不再是 BepInEx 的 `LogOutput.log` 或游戏控制台。
 
 网络测试覆盖 TCP 顺序、阶段、房间管理、权限和消息隔离；流程测试覆盖入口确认、营业等待与场景转换，使用替代的游戏和传输入口。
 

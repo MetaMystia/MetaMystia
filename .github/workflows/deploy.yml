@@ -24,9 +24,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: |
-            6.0.x
-            10.0.303
+          dotnet-version: 10.0.303
       - name: 下载并校验编译依赖
         run: |
           New-Item -ItemType Directory -Force .tmp | Out-Null
@@ -35,12 +33,17 @@ jobs:
             throw '编译依赖 SHA-256 不匹配'
           }
           Expand-Archive .tmp/deps.zip -DestinationPath .tmp/deps
-          '<Project><PropertyGroup><BepInExPath>$(MSBuildThisFileDirectory).tmp/deps</BepInExPath></PropertyGroup></Project>' |
+          # 互操作只被流程测试需要（模组本体这里不构建）。
+          '<Project><PropertyGroup><MystiaInteropDir>$(MSBuildThisFileDirectory).tmp/deps/interop/</MystiaInteropDir></PropertyGroup></Project>' |
             Set-Content MetaMystia.local.props -Encoding utf8
           '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' |
             Set-Content global.json -Encoding utf8
+          # 仓库的 nuget.config 指向同级框架仓库（CI 里不存在，会让还原报 NU1301），改指自带的 vendor 副本。
+          '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear /><add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" /><add key="vendor" value="vendor/nuget" /></packageSources></configuration>' |
+            Set-Content nuget.config -Encoding utf8
       - name: 网络测试
-        run: dotnet run --project src/MetaMystia.Network.Tests -c Release
+        # 显式不带互操作：共享网络程序集若再引用游戏类型，这一步就会失败。
+        run: dotnet run --project src/MetaMystia.Network.Tests -c Release -p:MystiaInteropDir=
       - name: 流程测试
         run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
       - name: 构建 Linux 服务端（包含运行时）
@@ -48,7 +51,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: server-linux-x64
-          path: src/MetaMystia.Server/bin/Release/net6.0/linux-x64/publish/
+          path: src/MetaMystia.Server/bin/Release/net10.0/linux-x64/publish/
           if-no-files-found: error
           retention-days: 14
 

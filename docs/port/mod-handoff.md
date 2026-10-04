@@ -114,13 +114,13 @@ ResourceEx 保留部分（不迁）：包加载与签名校验、Addressables �
 3. 交付：三列对照表（原补丁类型／归宿／是否编译通过）、缺口清单、行为变更清单。
 4. 全量验收命令与静态检查（见 `conventions.md`）。
 
-## 未决疑点（施工中若遇到先报告）
+## 未决疑点（结项回填）
 
-1. 备菜确认回调名：模组 `_SolveDailyCompletion_b__64_7` vs 中间件 `_b__61_7`，以游戏工程当前版本核对为准。
-2. 故事回放的聊天菜单入口接口形态未定（见 `mefx-handoff.md` 未决疑点 5）。
-3. 快进提交（`DaySceneSustainedPannel.OnFastForwardSubmit`）的钩子未定，未定期间该补丁留缺口。
-4. `TrackedMissionDataPatch` 是否有可用钩子未定。
-5. `DaySceneMapPatch` 的 NPC 定位改写能否完全由 Place 数据表达未定。
-6. `RunTimeAlbumPatch` 的归宿未定。
-7. 日志可见性变化（框架 `ILog` 落点与原 BepInEx／游戏控制台不同）。
-8. `Flow.Tests` 调整包含列表后，断言的覆盖范围会缩小，需在交付说明里写清。
+1. ~~备菜确认回调名~~ —— **已解决**：以**已安装游戏构建**（`GameAssembly.dll` sha256 `91CE5AE3DAD5DA07DFED63BAB4C9E454F67B6E50F9A6E8EC498EF9B0B806A789`，RELEASE 4.4.0e）生成的互操作里，该成员名是 `IzakayaConfigPannel._SolveDailyCompletion_b__64_7`。游戏安装目录里随 BepInEx 附带的旧互操作集（`assembly-hash.txt` 为 `64c4b5b5…`）把同一成员命名为 `_SolveDailyCompletion_b__61_7`；中间件桥接曾照抄旧名，该 seam 静默失效。**模组侧的 `_b__64_7` 是对的**。口径：编译器生成成员名一律以当前安装构建生成的互操作为准。
+2. ~~故事回放的聊天菜单入口形态~~ —— **已解决**：框架的 `IChatSelectionServices` + `ChatMenuEntry`／`ChatMenuContext`；模组在 `Listeners/ChatSync.ProvideChatMenuEntries` 与 `Managers/StoryReplayManager.CreateCollabMenuEntry` 挂入口，游戏那套带 `out` 参数的回调构造留在桥接（`UI/DaySceneSelectionMenu`）。
+3. ~~快进提交的钩子~~ —— **已解决**：`IDayUiListener.OnPreFastForward`／`IWorkUiListener.OnPreFastForward`（`ref bool cancelInvocation`），见 `Listeners/UiSync`；白天先提交意向、确认后回到原版 `OnFastForwardSubmit`，营业内快进拦客机。
+4. ~~`TrackedMissionDataPatch` 的钩子~~ —— **已解决**：`IMissionListener.OnMissionFinishStatesUpdated(RunTimeScheduler.TrackedMissionData)`，见 `Listeners/MissionSync`。
+5. ~~`DaySceneMapPatch` 的 NPC 定位能否由 Place 数据表达~~ —— **已解决（结论是不表达）**：`OnInjectNpcs` 故意留空，NPC 记录由原版 `LoadingSceneManager` 从注入后的 `DataBaseCharacter.SpecialGuest` 生成，定位走 `SpecialGuestData.SpawnMarker`（桥接点位管线，见 `Data/ResourceEx/DatabaseMappings.Marker`）；等价性由实机清单「白天地图构建与切图」覆盖。
+6. ~~`RunTimeAlbumPatch` 的归宿~~ —— **已解决**：`IStatusListener.OnPlayerSkinChanged(int)`，见 `Listeners/StatusSync`（原 `ChangePlayerSkin` 后缀）。
+7. ~~日志可见性变化~~ —— **已解决**：日志走框架 `ILog`，落在**启动器目录的 `host.log`**，不再是 BepInEx 的 `LogOutput.log` 或游戏控制台；模组控制台命令保留 `enable_bepin_console`／「BepInEx 控制台」字样（对外行为不变，底层改为自建 `AllocConsole`）。
+8. ~~`Flow.Tests` 的断言覆盖范围~~ —— **已写明**：编译列表只剩 5 个模组源文件（`DayDestinationManager`／`BusinessStart`／`GameFlow.Transitions`／`PrepSync`／`PlayerPresenceNotice`），实跑 103 条断言，覆盖共同入口的确认与撤回、营业开场的等待与放行、场景转换的保留／退房判定与玩家在场提示；其余玩法路径不在离线覆盖内，按实机清单验证。
