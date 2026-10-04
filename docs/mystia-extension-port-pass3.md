@@ -173,7 +173,9 @@ bash docs/port/static-check.sh
 1. 迁移前的 `SetupPortrayalVisual` 前缀对 `/skin` 分支返回 `SkipOriginal`（跳过原方法），于是调用方 `NoteBookProfilePannel` 的 `if (!SetupPortrayalVisual(...))` 分支会把页面设成 `DefaultPic`——**这才是那个开关真正在修的东西**：开关关着时笔记本显示默认图，开着才显示皮肤立绘。
 2. 对该前缀的"ResourceEx 服装立绘"分支（返回 `RunOriginal`），开关不起作用。
 
-**落地**：`PortraitTarget.NoteBook` 时开关关闭 → 提供者不回答 → 框架的前缀照常跑游戏自己的逻辑 → 该页显示游戏自己的立绘（比迁移前的 `DefaultPic` 更合理）。开关打开 → 与白天 HUD 同一条链（先 `/skin`，再资源包立绘）。### C. `PlayerSkin` 游戏自带皮肤的旋转覆盖（待裁决：接线与否 + 用哪条路）
+**落地**：`PortraitTarget.NoteBook` 时开关关闭 → 提供者不回答 → 框架的前缀照常跑游戏自己的逻辑 → 该页显示游戏自己的立绘（比迁移前的 `DefaultPic` 更合理）。开关打开 → 与白天 HUD 同一条链（先 `/skin`，再资源包立绘）。
+
+### C. `PlayerSkin` 游戏自带皮肤的旋转覆盖（待裁决：接线与否 + 用哪条路）
 
 **问题是什么**：玩家皮肤分两类——在线皮肤（框架用 `TryCreateCharacterSpriteSet` 自建像素集）与游戏自带皮肤（`ResolveSkin()` 拿到游戏自己的 `CharacterSpriteSetCompact`）。旋转覆盖（`RotateOverride`，由对端皮肤描述带来）对前者用 `CharacterSpriteSetStyle` 重建即可；对后者，`ApplyToUnit` 目前只记一次警告（`PlayerSkin.cs:317-322`）。
 
