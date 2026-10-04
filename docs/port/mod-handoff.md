@@ -17,7 +17,7 @@
 5. 新增 `mod.json` 并复制到输出目录：`id` 取原 `MyPluginInfo.PLUGIN_GUID`（`MetaMystia`），`version` 取 `Versions.props` 的 `Version`，`loadAfter` 为空。
 6. `Network.props`：`TargetFramework` 升 `net10.0`；游戏程序集引用改走 `MystiaInteropDir`；`Il2CppInterop.Runtime` 改为 NuGet 包引用（不再指向 BepInEx core），不再 `Import` `MetaMystia.local.props` 里的 `BepInExPath`。
 7. `MetaMystia.Server` 与两个测试工程随 `Network` 升 `net10.0`；`MetaMystia.Preloader` 从解决方案删除。
-8. `Flow.Tests` 的 `Compile Include` 列表要跟着迁移结果调整（原先链接的 `Patches/HarmonyPrefixFlow.cs`、`Patches/Common/IzakayaSelectorPanelPatch.cs` 等会被删除或改写），测试必须继续起实际断言作用。
+8. `Flow.Tests` 的 `Compile Include` 列表要跟着迁移结果调整（`Patches/HarmonyPrefixFlow.cs` 已随兼容层删除并从列表移除），测试必须继续起实际断言作用。
 9. `LogGenerator` 改为生成挂在框架 `ILog` 上的 `Log`（保持 `[AutoLog]` 类的使用方式不变，162 处调用点不动）；`TraceGenerator` 与 `TracePatchAttribute` 删除。
 10. 入口：删 `Plugin.cs`；新增一个 `[AutoWire]` 的 `IPostInitialize` 实现，做原来 `Load()` 的全部初始化（配置、本地化、消息格式化器、Addressables、`PluginHost` 的创建）；场景唤醒/开始改用 `ISceneListener`；每帧/每物理帧逻辑改用 `IGlobalGameLoop`；宿主组件改用 `IIl2CppComponentHost.CreatePersistent`；`PluginManager.RunOnMainThread` 转发到 `IMainThreadScheduler`；配置读写改用 `ICommonServices.Config`/`Caching`；`Plugin.Instance.Log` 一类静态入口改为模组内的静态上下文。
 
