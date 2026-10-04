@@ -37,13 +37,9 @@
 
 | 诊断 | 数量 | 含义 |
 | --- | --- | --- |
-| `MYSTIA1004` | 207 | 仍在用 `UnityEngine` 类型（`VfxBundle`、`InGameConsole`/面板 IMGUI 层、`DialogRegistry`、`Spell_Mai`、网络层） |
-| `MYSTIA1003` | 1 | `Utils/Il2CppOutDelegate.cs` 的 `Marshal`（手搓 IL2CPP out 委托） |
-| `MYSTIA1002` | 2 | `Il2CppInterop` 裸 il2cpp（`Utils/Il2CppOutDelegate.cs`） |
-| 纯 CS | 0 | 声明级错误已清零（这正是分析器能全量报告的原因） |
-| **去重总错误** | **210** | |
-
-`MYSTIA1001`（Harmony/BepInEx）与 `MYSTIA1005`（编译器生成成员名）保持 0；`ResourceEx` 的自建注入管线（`ResourceEx/Addressables/**` 的 `ClassInjector` provider 与 `RuntimeAddressables`）已作为死代码删除，模组的 `MYSTIA1002` 因此从 28 降到 14。
+| `MYSTIA1004` | 31 | 仍在用 `UnityEngine` 类型：其中 **18 条是已声明的保留**（`VfxBundle` 的 AssetBundle／预制体读取 12、`NetPlayer` 的 `Rigidbody2D`/`Collider2D`/`Transform` 6，两处都在代码里写明理由），其余 13 条在等框架补面（见 §6） |
+| `MYSTIA1001` / `MYSTIA1002` / `MYSTIA1003` / `MYSTIA1005` | 0 | Harmony/BepInEx、裸 il2cpp、反射、编译器生成成员名全部清零 |
+| 纯 CS | 0 | 声明级与方法体级错误都已清零 |
 
 **关键机制提醒（务必记住）**：Roslyn 在存在**声明级**错误时会跳过方法体分析，**分析器也不执行**。所以只要还有声明级错误，模组侧就看不到方法体级错误与 `MYSTIA100x` 诊断。反之，方法体错误清完后每减少一批声明级错误，都会"新暴露"一批此前不可见的错误——这是正常现象，不要用禁用注释或兼容层掩盖。
 
@@ -72,60 +68,36 @@
 8. **共享网络层不再引用游戏类型（完成）**：`MetaMystia.Network` 原来直接用游戏的 `Common.UI.Scene` 与 `CharacterSkinSets.SelectedType`，于是**凡是构建它的工程都需要互操作**（服务端、网络测试也在内）。现在协议有自己的词汇（`PlayerScene`、`SkinSelection`，与已有的 `GameStage` 同形），游戏枚举只在模组侧转换（`GameFlow.ToProtocolScene`/`ToGameScene`、`PlayerProfile` 的两处皮肤转换）。**实测**：`MystiaInteropDir` 置空时 Network、Network.Tests（214 断言全过）、Server 都能构建——需要互操作的只剩模组本体与 Flow.Tests。
 9. **协议版本 0 → 1（`Versions.props`）**：场景字段的取值来源换了（游戏枚举 → 协议枚举），取值编号随之改变，因此新旧版本客户端会按协议号互相拒绝；皮肤选择字段的取值（0/1/2）不变。
 10. **CI 整体改到新体系（完成）**：见 §6.6。
-11. **死代码删除**：`Utils/ExportUtils.cs`（1101 行、无调用点，其 PNG 编码器已上移 MEFX）、`ResourceEx/Registries/PixelSpriteFactory.cs`（无调用点）、`ResourceEx/Mappers/**`（779 行，无调用点）、`ResourceEx/Addressables/**`（563 行自建 Addressables 注入，只被自己的初始化调用）、`Utils/MetaMikuUtils.cs`（装箱字典 workaround，无调用点）。
+12. **框架面：模组自己的选择列表**（`IChatSelectionServices` + `ChatMenuEntry.Icon`）。模组侧删掉 `Il2CppOutDelegate.cs`（116 行，模组最后一条裸 il2cpp）与 `DaySceneSelectionMenu` 的游戏回调构造，`ChatSync` 的面板栈绕法删除；`Spell_Mai` 的调用点重排（投掷协程跑在框架协程泵上、**不在**服务作用域内，表现面调用因此排进场景循环——否则会抛异常并终止上酒流程）。
+13. **框架面：模组的若干轮询**（`IClock`、`IInputServices` + `MystiaKey`、`UiNavigationEnabled`、`OpenUrl`、`IDayInputListener` 去引擎类型）。模组侧：热键配置改成 `MystiaKey`、控制台/玩家列表/插件热键改轮询、两处 `Time.unscaledTime` 改 `Clock.Now`、UI 导航开关走服务、外链走 `OpenUrl`、输入方向与坐标链改成 `Mystia.Numerics` 镜像（引擎只在 `NetPlayer` 的两个边界出现）。
+14. **`VfxBundle` 迁到框架表现面**（`PlayVfx`/`PlayScreenOverlay`/`IVfxHandle`），保留 AssetBundle 加载与预制体读取（框架没有 AssetBundle 面）。
+15. **`DialogRegistry` 迁到框架对话构建器**（`DialogSpec`/`IGameDataBuilder`），`DaySync` 的 `dialogContext` 回填删除（框架复制游戏模板，天然非空）。
+16. **共享网络层去游戏类型** + **CI 整体改到新体系**（见 §6.6 与前面几节的记录）。
+17. **死代码删除**：`Utils/ExportUtils.cs`（1101 行、无调用点，其 PNG 编码器已上移 MEFX）、`ResourceEx/Registries/PixelSpriteFactory.cs`（无调用点）、`ResourceEx/Mappers/**`（779 行，无调用点）、`ResourceEx/Addressables/**`（563 行自建 Addressables 注入，只被自己的初始化调用）、`Utils/MetaMikuUtils.cs`（装箱字典 workaround，无调用点）。
 
-## 6. 未完成的迁移（按优先级，逐项已查清）
+### 5.1 本轮引入的行为口径变化（实机验证重点）
 
-> 这一段是本轮把剩余诊断逐条查清后的结果：下面每项都写了"它是什么 / 为什么被禁 / 正解 / 代价"，可直接照做。
+1. **随机流**：符卡/刷客的抽签从 `UnityEngine.Random` 改为 `System.Random.Shared` → 分布不变，但**不再扰动游戏的全局随机流**（游戏自身的随机序列因此与迁移前不同，属改善但需知悉）；`GuestSync` 两处刷客间隔由闭区间 `[min,max]` 变为 `[min,max)`。
+2. **对话 `goto` 落点**：`DialogRegistry` 把 `index` 按 1 基交给框架（旧路写 0 基，整体早一行）→ 这是**修正**旧错位；若实机发现比旧版晚一行，把 `ResolveLineNumber` 的返回值减 1。
+3. **一次性特效的尾巴**：`VfxBundle.PlayOneShot` 到点由"立即销毁"变为"停止发射 + 排水 6 秒"（发射窗口不变，尾巴更长）。
+4. **`Spell_Mai` 的精灵读取时机**：从"`Serve` 当下捕获"改为"投掷协程内读属性"（值不会变，但时机不同）。
+5. **热键配置**：类型换成 `MystiaKey`；**数字型旧值**（本仓库早期按数字写盘）会解析成未定义值 → 已加"未定义即回落默认并告警"。
+6. **控制台/列表的坐标显示**：镜像 `Vector2` 的 `ToString` 是 `Vector2 { X = .., Y = .. }`，不再是引擎的 `(x, y)`——纯显示差异。
+7. **`Math.Clamp` 换成 `Min/Max`**：三处上界来自运行期窗口尺寸，`Math.Clamp` 在上界小于下界时会抛，`Min/Max` 不会（与 `Mathf.Clamp` 等价）。
+8. **`DialogRegistry` 的应用路径**：模组的包仍同时经**数据面**注入（线-only 的桩）与**构建器**写入同一批名字，谁在表里取决于时机；需实机确认资源包对话保住了行内动作（若没有，修法是去掉数据面的对话注入）。
 
-### 6.1 `Il2CppOutDelegate.cs`（`MYSTIA1002` ×2，另 1 条反射）
+## 6. 未完成的迁移（只剩框架面与保留项）
 
-- **它是什么**：把带 `out` 参数的托管 lambda 包成游戏的 `DaySceneChatSelectionPannel.GetSelectionConfigurationCallback`（IL2CPP 委托无法用 C# 委托直接表达 `out` 参数，所以要在运行期造代理）。
-- **谁在用**：唯一调用方是 `UI/DaySceneSelectionMenu.BuildSelectionItems`，而它服务于**模组自己打开的列表菜单** —— 礼物信箱（`GiftMailboxManager.OpenMailboxMenu`/`OpenGiftMenu`）与剧情回放（`StoryReplayManager` 三处），做法是自建回调数组交给游戏的 `UIManager.OpenAfterChatMenu`，外加一个结束按钮。
-- **正解**：框架给一条"模组自开列表菜单"的面（条目形状同 `ChatMenuEntry`：标题 + 可用性 + 选中回调，再加结束按钮），out 参数与委托转换留在桥接 —— 桥接里已经有 `ChatMenuPipeline` 那套机器，正是干这个的。模组侧 `DaySceneSelectionMenu` 与 `Il2CppOutDelegate` 一起删，两个 Manager 改成提供条目。
-- **代价**：SDK 一个成员 + 桥接复用既有管线；改动面是 3 个调用点。需实机点一遍信箱与回放列表（菜单是纯 UI 路径，离线测不到）。
+模组侧 31 条诊断分两类：
 
-### 6.2 `Utils/SgrYuki/Functional.cs`、`NativeDllExtractor.cs`（已完成）
+**已声明的保留（18 条，不打算迁）**
 
-`Functional` 的四个方法里，`CheckStacktraceContains`（补丁时代的栈扫描）与 `ModifyReadonlyField`（反射写字段）**全仓无调用方**；`GetCallerName` 换成 `[CallerMemberName]`（它读的栈帧本来就解析成同一个直接调用者，日志文本一字不变）；`LogStacktrace` 并入 `LogWrapper`。文件删除。`NativeDllExtractor`（把内嵌原生 DLL 释放到基目录、无调用方）一并删除。合计 −53 行。
-
-### 6.3 `IdRangeValidator.cs` 的公钥（已完成）
-
-公钥是公开信息，直接内联成常量（`PublicKeyPem`），删掉 `LoadEmbeddedPublicKey` 与 `public.pem` 及其 csproj 条目；导入改走跨平台的 `RSA.Create()`，顺手去掉 Windows-only 的 CSP 与 `#pragma CA1416`。
-
-### 6.4 `MYSTIA1004` 残余（207 条，按被禁类型统计）
-
-| 类别 | 数量 | 内容与对策 |
+| 位置 | 条数 | 理由 |
 | --- | --- | --- |
-| 值类型与静态 API | ≈110 | `Vector2` 26、`Mathf` 19、`Time` 14、`KeyCode` 13、`Input` 10、`Vector3` 9、`Object` 8（`UnityEngine.Object`）、`Random` 5、`PlayState` 2、`WaitForSeconds` 2 —— 换 `Mystia.Numerics` 镜像 / `System.Math` / 场景循环给的 `delta` / `Mystia.Imgui` 的 `ImguiEvent`。多数是机械替换，不需要新面。 |
-| 引擎对象 | ≈90 | `GameObject` 21、`AssetReferenceSprite` 9 + `AssetReferenceT` 7、`CanvasGroup` 5、`AudioClip` 5、`EventSystem` 4、`AssetBundle` 3、`SpriteRenderer`/`Rigidbody2D`/`RawImage`/`ParticleSystem`/`Canvas` 各 2 —— 逐项判断"框架补面"还是"保留在模组引擎层"。`VfxBundle.cs`（52 条）是集中地，此前已明确 VFX 层直接用 Unity 对象。 |
+| `ResourceEx/Vfx/VfxBundle.cs` | 12 | AssetBundle 的加载、预制体读取与 `HideFlags`；框架没有 AssetBundle 入口（全仓零命中），这一段在文件头写明保留 |
+| `Players/NetPlayer.cs` | 6 | `Rigidbody2D`/`Collider2D`/`Transform`（以及一处写回引擎向量）：框架没有"角色/预制体"面，角色物理与层级只能走引擎对象 |
 
-- **`DialogRegistry` 的 `AssetReferenceSprite`/`AssetReferenceT`（16 条）**：模组自建 `DialogPackage` 并往游戏对话行的引擎引用字段里写 `new AssetReferenceSprite(reference.Address)`。框架的 `DialogActionSpec` 已经用 `SpriteHandle` 表达这些字段（`IGameDataBuilder` 那条路），因此正解是把 `DialogRegistry` 迁到框架的对话构建器；代价中等（模组对话还带 `OverrideReplaceTextCallback` 之类的自定义行为，需要先确认框架面能覆盖）。
-- 建议次序：**先做值类型那 ≈110 条**（机械、无新面、可离线计分），再按文件处置引擎对象段。
-
-### 6.5 `UI/L10n.cs`（已完成）
-
-两份 locale JSON 不再作为嵌资读取：`MetaMystia.Generators` 新增一个生成器，把它们当 `AdditionalFiles` 读入，编译期写成原始字符串字面量常量（`MetaMystia.UI.LocaleResources`），`L10n.Initialize` 拿常量喂同一个 `MergeJson`。运行时既不读嵌资也不碰反射，模组仍是"一份 dll + mod.json"；文本逐字节与源文件一致（已比对），字面量定界符宽度按内容里最长的连续引号数算，将来文本变化也不会破坏它。
-
-### 6.6 CI（已完成：整体改到新体系）
-
-**红线（先写清楚，已与负责人确认）**：`artifacts/interop` 是社区从游戏编译产物逆向出来的构建物料，**允许**存在与分发（deps 包即为此），因此它不再作为待决的暴露面。仍然成立的是：互操作**不入本仓库**，发布物里也不含它——模组目录只装模组自己的 dll、依赖与 `mod.json`。
-
-**新 CI 做的事**：
-
-| 步骤 | 说明 |
-| --- | --- |
-| 校验发布版本 | tag 必须等于 `Versions.props` 的 `Version`（原有） |
-| **校验模组清单版本** | `mod.json` 的 `version` 必须等于 `Versions.props` 的 `Version`——宿主把它当模组版本报给对端，握手比的就是它 |
-| 下载并校验编译依赖 | 仍用仓库自带的 `vendor/nuget` 里的 SDK（CI 里没有同级框架仓库），并写 `MystiaInteropDir = .tmp/deps/interop/` |
-| 编译模组 | 需要互操作（模组直接引用游戏类型） |
-| **网络测试** | **显式置空 `MystiaInteropDir`**：共享网络程序集若再引用游戏类型，这一步就会失败——把"共享层零游戏依赖"钉成 CI 断言 |
-| 流程测试 | 需要互操作（它直接编译模组源码） |
-| 构建服务端 | 同样置空 `MystiaInteropDir`（服务器不引用游戏类型） |
-| **汇编模组目录** | 把模组构建输出目录整份装进 `MetaMystia/` 并打成 zip——MEFX 启动器消费的就是这一个目录（dll + 依赖 + `mod.json`） |
-| 产物 | 模组目录 zip + 服务端 publish 目录；发布步骤把 zip 命名成 `MetaMystia-<tag>.zip`（连 `.sha256` 一起上传），不再发布单个 dll |
-
-顺带去掉的旧体系残留：`setup-dotnet` 只装 10.0.303（6.0.x 已无用）、删掉 `编译 Preloader`/`保存 Preloader 产物` 两步（那个工程随注入管线已删）、去掉已不存在的 `-p:DeployToGame=false`、产物路径不再是移植时删掉的 `RenamedAssembly` 名字。
+**等框架补面（13 条，正在做）**：`CallCommands`（3，移动具名角色的两个控制台命令）、`PrepSync`（3，今夜客流倍率的写入面——现在框架把游戏 `IzakayaConfigure` 直接交给模组）、`PeerPlayer`（2，生成/销毁一个角色）、`GameFlow`（3，"是否在播剧情"）、`Panel`（2，"快进/打断当前对话"）。这 5 个面做完，模组侧就只剩上面那 18 条保留。
 
 ## 7. 之后的顺序
 
