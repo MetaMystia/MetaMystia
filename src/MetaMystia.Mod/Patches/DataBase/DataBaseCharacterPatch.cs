@@ -45,13 +45,15 @@ public partial class DataBaseCharacterPatch
     [HarmonyPrefix]
     public static bool SetupPortrayalVisual_Prefix(ref Image imageComponent)
     {
+        // 清除上次服装的立绘覆盖，再按当前服装设置。
+        imageComponent.overrideSprite = null;
+
         // /skin 立绘覆盖
         if (PlayerManager.Local?.IsCustomSkinOverride == true)
         {
             var sprite = PlayerManager.Local.Skin.ResolvePortraitSprite();
             if (sprite != null)
             {
-                imageComponent.overrideSprite = null;
                 imageComponent.sprite = sprite;
                 return SkipOriginal;
             }
