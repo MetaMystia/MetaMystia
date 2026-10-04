@@ -1,4 +1,4 @@
-# 模组工单（MetaMystia）
+﻿# 模组工单（MetaMystia）
 
 读者：负责迁移模组的执行者。配套：[`conventions.md`](conventions.md)、[`audit-facts.md`](audit-facts.md)（逐补丁事实与归宿）、[`mefx-handoff.md`](mefx-handoff.md)（中间件侧接口与挂点）。
 
@@ -35,7 +35,7 @@
 | `DaySceneManagerPatch` | `OnSceneAwake(Day)`；快进入夜用 `IDaySceneScheduleServices.SetEndEnabled/End`；地图切换用 `IDaySceneMapServices.Swap(..., onFinished)`；删除反向补丁 |
 | `PrepNightSceneManagerPatch` / `StaffSceneManagerPatch` / `ResultSceneManagerPatch` | 各自 `ISceneListener.OnSceneStart(...)`；Result 场景**删除** `GuestsManager.Initialize` 调用（行为变更） |
 | `NightSceneManagerPatch` | `OnSceneStart(Night)` + 清理改到 `IWorkSceneGameLoop.Shutdown` |
-| `UniversalGameManagerPatch` | 对话打开通知走 `IDayListener.OnDialogOpened(package)`（空 `dialogContext` 回填与「最近阅读」记录在模组侧完成，模板包用 `ICommonServices.Dialogs.TryResolve`）；夜转场开关走 `ICommonServices.SetNightTransitionEnabled`；主动加载走 `ICommonServices.LoadScene`；场景变化通知走 `IDayListener.OnSceneChanging` |
+| `UniversalGameManagerPatch` | 对话打开通知走 `IDayListener.OnDialogOpened(package)`（`dialogContext` 由框架复制游戏自己的模板而来，回填代码已删除；「最近阅读」记录仍在模组侧）；夜转场开关走 `ICommonServices.SetNightTransitionEnabled`；主动加载走 `ICommonServices.LoadScene`；场景变化通知走 `IDayListener.OnSceneChanging` |
 | `StatusTrackerPatch` | 邀请记录改走 `IGuestRecords.RecordInvited`（作用域无关）；删除反向补丁，调用点改走同一 API |
 | `CharacterControllerInputGeneratorComponentPatch` | `IDayInputListener.OnMoveInput(unit, direction)`（带来源实例，模组自行判断是否本地玩家） |
 | `DayScenePlayerInputPatch` | `IDayInputListener` 的冲刺与互动通知 + `IDaySceneInputServices.SetSprintEnabled/SetInteractEnabled`；注意原补丁按「控制台是否打开」条件跳过，改用开关时要在开关里表达同一条件 |

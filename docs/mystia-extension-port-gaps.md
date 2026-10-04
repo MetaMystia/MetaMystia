@@ -1,5 +1,7 @@
 ﻿# 迁移缺口清单
 
+> **已被取代**：本文件是首轮口径的缺口台账。后续两轮的结论见 [`mystia-extension-port-pass2.md`](mystia-extension-port-pass2.md) 与 [`mystia-extension-port-pass3.md`](mystia-extension-port-pass3.md)；`src/MetaMystia.Mod/Patches/` 已整体删除，模组侧不再以 Harmony 形式保留任何补丁。本文件只作历史记录，不要当现状读。
+
 本文件记录迁移后**仍以 Harmony 兼容形式保留**的补丁（位于 `src/MetaMystia.Mod/Patches/Compat/`），以及框架侧尚未提供的表达能力。逐条事实见 [`port/audit-facts.md`](port/audit-facts.md)，中间件侧能力清单见 [`port/mefx-handoff.md`](port/mefx-handoff.md)，本轮工单见 [`port/mefx-next-round-plan.md`](port/mefx-next-round-plan.md)。
 
 格式：文件 | 原方法 | 行为（观察 / 跳过 / 改写） | 缺的回调。

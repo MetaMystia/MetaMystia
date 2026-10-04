@@ -1,4 +1,4 @@
-# ResourceEx 资源包约定
+﻿# ResourceEx 资源包约定
 
 本文描述当前 ResourceEx 加载器的输入约定。修改加载、校验或冲突规则时，必须同步更新本文和用户文档。
 
@@ -43,7 +43,7 @@ ZIP 文件名形成 `PackageName`。`packInfo.label` 有效时形成 `PackageLab
 4. 按 `label` 解决版本冲突。
 5. 创建 `LoadedResourcePackage` 并注册资源。
 
-单个 ZIP 的文件或解析错误只影响该包，不应阻止其他包加载。明确拒绝的包应同时记录 BepInEx 日志和 ResourceEx 查询结果。
+单个 ZIP 的文件或解析错误只影响该包，不应阻止其他包加载。明确拒绝的包应同时记录框架日志和 ResourceEx 查询结果。
 
 ## 版本冲突
 

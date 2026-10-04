@@ -1,4 +1,4 @@
-# 日志与调用追踪规范
+﻿# 日志与调用追踪规范
 
 ## AutoLog
 
@@ -15,7 +15,7 @@ public static partial class ExampleManager
 }
 ```
 
-Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx。禁止使用 `UnityEngine.Debug`，也不要为普通类型手动保存 `Plugin.Instance.Log`。
+Source Generator 会为该类型生成 `LogWrapper`，日志最终经框架的 `ILog` 写入宿主日志。禁止使用 `UnityEngine.Debug`，日志入口由框架注入（`[AutoLog]` 生成的 `Log` 属性），不要自己缓存。
 
 `Log.Debug`、`Log.Info`、`Log.Message`、`Log.Warning`、`Log.Error` 和 `Log.Fatal` 是主要接口。`Log.LogInfo` 等兼容接口可用于现有代码；新增代码优先使用较短形式。
 
@@ -52,7 +52,7 @@ Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx
 
 ## TracePatch
 
-`[TracePatch]` 用于临时分析 Harmony 调用顺序。Source Generator 会生成 Prefix、Postfix 和 Finalizer，并由 `TraceLog` 维护调用栈。
+（`[TracePatch]` 与配套生成器已随兼容层一起删除：模组侧不再有 Harmony 挂点，调用顺序要在框架的桥接里追。）
 
 - 仅在确有调用链调查需求时添加。
 - 必须确认目标方法和重载签名。

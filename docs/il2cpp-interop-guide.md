@@ -1,4 +1,4 @@
-# Il2CppInterop 开发规范
+﻿# Il2CppInterop 开发规范
 
 ## 事实来源
 
@@ -50,7 +50,7 @@ Il2Cpp Dictionary 不得视为普通托管 Dictionary。优先使用已经验证
 ## 协程与异步结构
 
 - 游戏侧协程接口使用 `Il2CppSystem.Collections.IEnumerator`，C# 的 `yield return` 生成 `System.Collections.IEnumerator`，两者不可直接混用。
-- 托管协程必须通过 `WrapToIl2Cpp()` 或项目已有的 BepInEx 托管协程入口适配后交给游戏运行时。
+- 托管协程交给框架的 `ICoroutineDispatcher` 驱动，等待用框架的等待令牌；`yield return` 游戏 API 返回的枚举器可直接交给协程泵推进（见 [协程风格](coroutine-style.md)）。
 - 逆向源码中的完整 async、协程、匿名函数和局部函数，在 Interop DLL 中可能被拆成状态机、闭包类型和特殊化方法名。
 - `__c__DisplayClass*`、`_Method_b__*`、`Method_Internal_*` 等名称必须结合类型、签名、声明顺序和逆向代码确认，不能只按名称猜测。
 
