@@ -137,8 +137,8 @@ bash docs/port/static-check.sh
 
 1. ~~`Utils/ExportUtils.cs` 去留~~ —— 已裁决：删除，PNG 编码器上移 MEFX（已完成，见 §6 第 8 项）。
 2. ~~`IPortraitProvider` 是否代理化 + 是否需要"包装游戏自带精灵集"的入口~~ —— 已裁决：两者都做（已完成，见 §6 第 7 项）。
-3. `PeerPlayer` 的碰撞方案（见下 A）。
-4. `PlayerSkin`「笔记本立绘」开关（`Experimental/NoteBookSkinPortrait`）的去留（见下 B）。
+3. ~~`PeerPlayer` 的碰撞方案~~ —— 已裁决：方案 B（用游戏自己的参数）。已完成。
+4. ~~`NoteBookSkinPortrait` 开关去留~~ —— 已裁决：让开关真生效（选项 ②）。已完成：框架把"哪个面板在要立绘"作为 `PortraitTarget` 交给提供者，模组在笔记本上按开关过滤。
 5. `PlayerSkin` 游戏自带皮肤的旋转覆盖要不要接线（见下 C）。
 6. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
 
@@ -162,35 +162,35 @@ bash docs/port/static-check.sh
 
 **要判的点**：白天交互区（`InteractableArea`）被远端角色触发是否会造成可见问题（例如互相刷出交互提示）；以及是否有任何逻辑依赖远端角色存在碰撞体（模组旧注释称"联机角色需保留碰撞体"，但没有给出具体依赖，游戏自己的剧情角色证明引擎不需要它）。
 
-**建议**：倾向方案 B（用游戏自己的参数，语义一致、无触发器事件）；但在实机两机走一遍（远端角色穿过白天交互区、穿过地图障碍、穿过顾客）之前不擅自改。若判定 B 会造成问题，则保留 A，并把注释改成现在的证据版本。
+**已定（方案 B）**：`PeerPlayer` 现在 `Initialize(..., shouldTurnOnCollider: false)`，删掉 `MakeColliderNonBlocking`。待实机确认的只有"远端角色不再发触发事件"是否符合预期（白天交互区不再被远端角色触发）。
 
-### B. `Experimental/NoteBookSkinPortrait` 开关的去留
+### B. `Experimental/NoteBookSkinPortrait` 开关（已定：选项 ②）
 
-**背景**：这个开关（默认 **false**，`ConfigManager.cs:126`）原本由已退役的 `NoteBookProfilePannelPatch` 使用，含义是"在笔记本里为皮肤系统启用立绘替换"。迁移后框架的立绘 seam 是 `DataBaseCharacter.SetupPortrayalVisual` 的前缀，而**白天 HUD 与笔记本档案页走的是同一个调用**（框架注释里已记：`UIManager.cs:193` 与 `NoteBookProfilePannel.cs:72`），因此模组的立绘现在**两个面板都替换**，开关不再有任何作用。
+**背景**：开关（默认 **false**）原本由已退役的 `NoteBookProfilePannelPatch` 使用，它挂在 `NoteBookProfilePannel.OnPanelOpen` 的 postfix 上：开关开着且 `/skin` 覆盖生效时，把皮肤立绘写进 `mystiaPic.sprite`。迁移后两个面板共用一条提供者链，开关因此空转。
 
-也就是说：迁移把"笔记本里默认不替换"变成了"总是替换"（对用过默认值的玩家是可见变化），这也与交付报告里"可见结果相同"的说法不符。
+**查清的两件事**（旧补丁源码 `1908e4a^`）：
 
-**选项**：
-1. **删掉开关**：承认"两个面板都替换"是目标行为，删配置项与两处文档里的提及。改动最小、语义干净，但要接受上面那次默认行为的变化。
-2. **让开关真的生效**：需要框架知道"这次是哪个面板在要立绘"。做法是给 `IPortraitProvider` 的请求加一个目标身份（例如 `PortraitTarget.DayHud / NoteBook`），由桥接在 seam 里判定（`Image` 的祖先里有笔记本面板组件即 NoteBook）——框架侧约 30 行 + SDK 形状变更 + 模组按开关过滤。代价是"哪个面板"要从 `Image` 的层级推断。
-3. **折中**：保留开关但改语义为"整个立绘替换的开关"（两个面板一起关）。最小改动、不撒谎，但用户看到的开关含义变了，且默认关闭时皮肤立绘完全不生效（可能不是原意）。
+1. 迁移前的 `SetupPortrayalVisual` 前缀对 `/skin` 分支返回 `SkipOriginal`（跳过原方法），于是调用方 `NoteBookProfilePannel` 的 `if (!SetupPortrayalVisual(...))` 分支会把页面设成 `DefaultPic`——**这才是那个开关真正在修的东西**：开关关着时笔记本显示默认图，开着才显示皮肤立绘。
+2. 对该前缀的"ResourceEx 服装立绘"分支（返回 `RunOriginal`），开关不起作用。
 
-**建议**：若"皮肤立绘在两个面板都生效"就是要的效果 → 选 1；若笔记本需要能单独关掉 → 选 2（我可以一并做框架面）。
+**落地**：`PortraitTarget.NoteBook` 时开关关闭 → 提供者不回答 → 框架的前缀照常跑游戏自己的逻辑 → 该页显示游戏自己的立绘（比迁移前的 `DefaultPic` 更合理）。开关打开 → 与白天 HUD 同一条链（先 `/skin`，再资源包立绘）。### C. `PlayerSkin` 游戏自带皮肤的旋转覆盖（待裁决：接线与否 + 用哪条路）
 
-### C. `PlayerSkin` 游戏自带皮肤的旋转覆盖
+**问题是什么**：玩家皮肤分两类——在线皮肤（框架用 `TryCreateCharacterSpriteSet` 自建像素集）与游戏自带皮肤（`ResolveSkin()` 拿到游戏自己的 `CharacterSpriteSetCompact`）。旋转覆盖（`RotateOverride`，由对端皮肤描述带来）对前者用 `CharacterSpriteSetStyle` 重建即可；对后者，`ApplyToUnit` 目前只记一次警告（`PlayerSkin.cs:317-322`）。
 
-**背景**：玩家皮肤分两类 —— 在线皮肤（框架自建像素集）与游戏自带皮肤（`ResolveSkin()` 拿到的游戏 `CharacterSpriteSetCompact`）。旋转覆盖（`RotateOverride`，由对端皮肤描述带来）对在线皮肤用 `CharacterSpriteSetStyle` 重建即可；对游戏自带皮肤，`ApplyToUnit` 目前只记一次警告（`PlayerSkin.cs:317-322`），因为框架原来没有"导入既有游戏像素集"的入口。
+**为什么之前说"重建会丢裁剪"**：框架造集走的是**"值 → 集"**这条路（`CharacterSpriteSetStyle` 只镜像*移动*类标志：眼睛/阴影/动画速度/Y 偏移/移动速度/自转/步态特效），裁剪那部分（`RemovableTrimProperty[]`、前后 trim 贴图数组、两条 trim 帧速）以及三个序列化字段（`spriteOffsetInNoteBook`、`daySceneInteractableHighlightOffset`、`daySceneInteractableColliderAdditiveRadius`）都不在这条路上，`BuildCompact/BuildFull` 只能拿游戏 fallback 像素集的值顶上。**这条损失不是"自带皮肤重建"独有的**：任何框架自建的集（包括在线皮肤）今天都这样。
 
-**现在**：入口已就位 —— `IAssetFactory.TryUnwrapCharacterSpriteSet(set, out frames, out style)`（把游戏自带像素集拆成帧句柄 + 样式）与 `TryCreateCharacterSpriteSet(kind, frames, style)`（按样式重建）。接线后游戏自带皮肤的旋转覆盖会真的生效。
+**"为什么不能在 MEFX 里做全支持"——能做，有两条路**：
 
-**代价/风险**：重建出的集，其**裁剪**（`RemovableTrims`／前后 trim 贴图与其帧速）不是该皮肤自己的，而是**游戏 fallback 像素集**的（`CharacterSprites.Build*` 一直如此，在线皮肤早就如此）——若某个自带皮肤带装饰性 trim，重建后装饰可能与该皮肤原本的外观不一致。另一个小点：每次套用都会重建一份集（36~60 个帧句柄 + 一个 ScriptableObject），需要按皮肤+覆盖值缓存（`PlayerSkin` 已有同类缓存模式）。
+| | 路 1：把值面补全 | 路 2：复制游戏那份集（推荐） |
+| --- | --- | --- |
+| 做法 | SDK 加 `RemovableTrimProperty` 的镜像（层位枚举 4 值、`CanBeRemoved`、以及它自己的一个**嵌套集规格**：trim 也是 `CharacterSpriteSetCompact`，有自己的帧与样式），`CharacterSpriteSetStyle` 再加前后 trim 的句柄数组与两条帧速；桥接两个方向映射 | 框架 `Object.Instantiate` 复制游戏那份集，只写调用方要求改的标志 |
+| 覆盖度 | 裁剪、trim 全覆盖；`Initialize` 不接受的那三个字段（笔记本里的角色偏移、白天交互高亮偏移/半径）**仍然丢**（修它得直接写私有序列化字段） | **全覆盖**（三个字段、trim、其它一切随副本保留） |
+| 代价 | SDK 新镜像 + 双向映射 + 递归边界（trim 的集自带 trim？）+ 测试，约 150–250 行；SDK 面扩大 | 桥接约 30 行 + 一个 SDK 成员，不扩大值面 |
+| 与既有风格 | 与"值进值出"一致 | 与桥接既有做法一致：互操作把 `[SerializeField] private` 字段暴露成可读写属性（`isHina`、`animSpeedMultiplier`、`spriteOffsetInNoteBook` 都有 setter，已用 interop 成员表核实），`Object.Instantiate<T>(T)` 也在互操作里（核实过） |
 
-**选项**：
-1. **接线**（按皮肤+覆盖缓存）：功能补全，代价是上面那条 trim 差异（只在"该皮肤带 trim 且开了旋转覆盖"时可感知）。
-2. **不接线**：保持警告，玩家/对端的旋转请求对自带皮肤无效（现状）。
-3. **先只服务无 trim 的皮肤**：需要判断某个集有没有 trim（`RemovableTrims.Length == 0`），有 trim 就继续警告、没有就重建 —— 逻辑小但把"框架的一个已知不完美"藏进了模组分支。
+**结论**：没有任何结构性障碍。路 2 更小且无损；路 1 更"纯"，但即使做完也仍缺三个字段（而那三个字段**今天就已经**在所有框架自建集上丢失）。所以我建议：**路 2**（框架加一个 `IAssetFactory.TryCopyCharacterSpriteSet(object set, CharacterSpriteSetStyle style, out CharacterSpriteSetHandle?)`），然后接线（原选项 ①）——那时重建是无损的。
 
-**建议**：选 1 或 3 都由你定；我倾向 3（先把确定安全的范围做掉），但它让行为依赖游戏数据的细节。若你更看重观感一致，选 2 也完全站得住。
+**若选路 1**：我可以做，但要接受上面那条残留差异，并在 `CharacterSpriteSetStyle` 文档里写明。
 
 ## 12. 必须实机验证的清单（全部结论目前都是源码/编译级）
 
