@@ -1,8 +1,7 @@
-using Mystia.Listeners;
+﻿using Mystia.Listeners;
 using Mystia.Scenes;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Patch;
 using MetaMystia.UI;
 
 namespace MetaMystia;
@@ -114,6 +113,7 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
     /// </summary>
     void IChallengeListener.OnChallengePhaseStarted(ChallengePhaseInfo phase)
     {
+        YuyukoGuestSync.BeginRun(phase.Run);
         if (!GameSession.HasRoomPeers) return;
         if (phase.Phase != ChallengePhase.Three) return;
         InGameConsole.ShowPassive(TextId.YuyukoPhase3PatientExtended.Get());
@@ -150,7 +150,7 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
     #region 通知
 
     /// <summary>挑战失败剧情开始：主机广播失败结果，客机进入原版的失败重放。</summary>
-    void IChallengeListener.OnChallengeFailureStarted() => YuyukoBossDataPatch.OnFailureStarted();
+    void IChallengeListener.OnChallengeFailureStarted() => YuyukoGuestSync.OnFailureStarted();
 
     /// <summary>重打第三阶段的 buff 收尾：厨具锁已由框架释放，这里结束同步侧的吞食处理。</summary>
     void IChallengeListener.OnChallengeBuffEnded() => YuyukoGuestSync.EndPhase3();

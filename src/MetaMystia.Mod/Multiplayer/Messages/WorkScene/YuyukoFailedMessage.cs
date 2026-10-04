@@ -1,6 +1,4 @@
-using MemoryPack;
-
-using MetaMystia.Patch;
+﻿using MemoryPack;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -13,7 +11,7 @@ public partial class YuyukoFailedMessage : MultiplayerMessage
     protected override bool ClientOnlyReceive => true;
     protected override Common.UI.Scene? ReceiveScene => Common.UI.Scene.WorkScene;
 
-    public override void OnReceivedDerived() => YuyukoBossDataPatch.ReceiveFailure();
+    public override void OnReceivedDerived() => YuyukoGuestSync.ReceiveFailure();
 
     public static void Send() => new YuyukoFailedMessage().Enqueue();
 }

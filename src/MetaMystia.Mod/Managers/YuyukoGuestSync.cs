@@ -11,7 +11,6 @@ using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
-using MetaMystia.Patch;
 
 using static NightScene.GuestManagementUtility.GuestGroupController;
 using static NightScene.GuestManagementUtility.GuestsManager;

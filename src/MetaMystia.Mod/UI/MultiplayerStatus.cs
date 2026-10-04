@@ -11,7 +11,7 @@ public static class MultiplayerStatus
 {
     public static string RoleTag => GameSession.IsRoomHost ? "[H]" : GameSession.IsRoomClient ? "[C]" : GameSession.IsOnline ? "[W]" : "[O]";
     public static string RoleName => GameSession.IsRoomHost ? "Host" : GameSession.IsRoomClient ? "Client" : GameSession.IsOnline ? "World" : "Offline";
-    public static string BriefStatus => !CompatPatches.Applied ? TextId.ModPatchFailure.Get()
+    public static string BriefStatus => !ModRuntime.Ready ? TextId.ModInitFailure.Get()
         : GameSession.IsConnecting ? TextId.NetworkConnecting.Get()
         : !GameSession.IsOnline ? TextId.NetworkOffline.Get()
         : TextId.NetworkStatus.Get(RoleTag, GameSession.Client.Uid, GameSession.State.World.Length, GameSession.State.MaxPlayers,

@@ -39,8 +39,6 @@ public sealed partial class ModEntry : IInitialization
 
         MultiplayerMessage.RegisterAllFormatter();
 
-        CompatPatches.ApplyAll();
-
         try
         {
             RuntimeAddressables.Initialize();
@@ -57,7 +55,7 @@ public sealed partial class ModEntry : IInitialization
         catch (Exception ex)
         {
             Log.Error($"FAILED to Initialize ResourceEx! {ex.Message}");
-            CompatPatches.Failed = ex;
+            ModRuntime.Failure = ex;
         }
     }
 }

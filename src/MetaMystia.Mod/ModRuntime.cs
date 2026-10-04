@@ -51,6 +51,12 @@ public static class ModRuntime
     /// <summary>由全局循环在 <c>Setup</c> 时取的白天地图构建器；构建与发布都只能在主线程调用。</summary>
     public static IDayMapBuilder MapBuilder { get; internal set; }
 
+    /// <summary>初始化失败的原因；为 null 表示可用。失败时联机功能主动拒绝进入。</summary>
+    public static Exception Failure { get; internal set; }
+
+    /// <summary>初始化是否成功：失败原因为空。联机入口与状态栏都按它判断本模组是否可用。</summary>
+    public static bool Ready => Failure is null;
+
     internal static void Bind(IMod mod) =>
         s_mod = mod ?? throw new ArgumentNullException(nameof(mod));
 

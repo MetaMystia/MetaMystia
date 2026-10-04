@@ -1,4 +1,4 @@
-{
+﻿{
     "BusinessStartWaiting": "等待其他玩家准备完成。",
     "NetworkVersionDetails": "本机：游戏 {0}，模组 {1}，协议 {2}；对端：游戏 {3}，模组 {4}，协议 {5}。",
     "NetworkProtocolMismatch": "联机协议不一致，请使用相同版本的游戏和模组。",
@@ -82,7 +82,7 @@
     "YuyukoTimedNegativeSpellDisabled": "循环触发的惩罚符卡将在联机中被禁用。",
     "YuyukoPhase3PatientExtended": "联机中，三阶段幽幽子的点单耐心已延长至原来的三倍。",
     "AllReadyTransition": "全员就绪，即将切换场景…",
-    "ModPatchFailure": "补丁注入失败！此Mod将不会正常运行！可能是你的游戏版本不受支持？请考虑移除此Mod进行游玩！",
+    "ModInitFailure": "初始化失败！此Mod将不会正常运行！可能是你的游戏版本不受支持？请考虑移除此Mod进行游玩！",
     "ModVersionMismatch": "Mod 版本不匹配，连接已断开！",
     "GameVersionMismatch": "游戏版本不匹配，连接已断开！",
     "GameResourcesNotLoaded": "游戏资源尚未加载完成，无法加入联机房间",

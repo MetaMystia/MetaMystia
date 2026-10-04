@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="../MetaMystia.Network/Network.props" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -13,7 +13,6 @@
     <Compile Include="../MetaMystia.Mod/Managers/BusinessStart.cs" Link="BusinessStart.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/GameFlow.Transitions.cs" Link="GameFlow.Transitions.cs" />
     <Compile Include="../MetaMystia.Mod/Listeners/PrepSync.cs" Link="PrepSync.cs" />
-    <Compile Include="../MetaMystia.Mod/Patches/HarmonyPrefixFlow.cs" Link="HarmonyPrefixFlow.cs" />
     <Compile Include="../MetaMystia.Mod/UI/PlayerPresenceNotice.cs" Link="PlayerPresenceNotice.cs" />
   </ItemGroup>
 </Project>

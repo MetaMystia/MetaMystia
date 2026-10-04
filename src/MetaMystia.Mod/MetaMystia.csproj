@@ -41,8 +41,5 @@
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.21.4" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-    <!-- The framework's host supplies HarmonyX at runtime; this reference only compiles the legacy
-         patches under Patches/Compat that have no middleware equivalent yet. -->
-    <PackageReference Include="HarmonyX" Version="2.16.1" PrivateAssets="all" Private="false" />
   </ItemGroup>
 </Project>

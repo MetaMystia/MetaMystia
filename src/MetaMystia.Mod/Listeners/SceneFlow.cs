@@ -91,9 +91,9 @@ public sealed partial class SceneFlow : ISceneListener
             PlayerProfile.SendProfile();
         }
 
-        if (!CompatPatches.Applied)
+        if (!ModRuntime.Ready)
         {
-            var warningMessage = TextId.ModPatchFailure.Get();
+            var warningMessage = TextId.ModInitFailure.Get();
             InGameConsole.LogError(warningMessage);
         }
     }

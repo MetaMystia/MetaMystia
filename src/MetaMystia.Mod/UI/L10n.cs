@@ -166,7 +166,7 @@ public enum TextId
     DLCPeerCookerNotAvailable,
 
     // System Messages
-    ModPatchFailure,
+    ModInitFailure,
 
     // Console UI & Formatting
     PeerMessagePrefix,

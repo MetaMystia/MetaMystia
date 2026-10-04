@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 
 using Mystia.Scenes;
@@ -56,6 +57,7 @@ public static partial class YuyukoGuestSync
     private static bool phase3Ended;
     private static int? hostLife;
     private static int? appliedLife;
+    private static ChallengeRunHandle currentRun;
 
     /// <summary>
     /// 本模组正在用挑战服务重放吞厨具。该重放在厨具层的 <c>InterruptCook</c> 使游戏再次走到取菜入口，
@@ -201,8 +203,94 @@ public static partial class YuyukoGuestSync
         heldPoint = null;
         pendingSend = null;
         phase3Ended = false;
+        failureStarted = false;
+        failurePending = false;
         ResetLife();
     }
+
+    #endregion
+
+    #region 失败重放
+
+    private static bool failureStarted;
+    private static bool failurePending;
+
+    /// <summary>
+    /// 新一次挑战开始：丢弃上一轮的生命值暂存与失败状态。运行号由框架给出（一次挑战一次运行），
+    /// 与上一轮相同即无操作。
+    /// </summary>
+    internal static void BeginRun(ChallengeRunHandle run)
+    {
+        if (run == currentRun) return;
+        currentRun = run;
+        failureStarted = false;
+        failurePending = false;
+        ResetLife();
+    }
+
+    /// <summary>
+    /// 挑战失败剧情开始：主机广播一次失败结果。原实现挂在失败协程的第一个恢复位置上
+    /// （见 <c>IChallengeListener.OnChallengeFailureStarted</c>），语义不变。
+    /// </summary>
+    internal static void OnFailureStarted()
+    {
+        if (!GameSession.HasRoomPeers || failureStarted) return;
+        failureStarted = true;
+        if (GameSession.IsRoomHost) YuyukoFailedMessage.Send();
+    }
+
+    /// <summary>
+    /// 收到主机的失败结果：立刻停掉本机的主循环与它启动的协程（本机挑战不能再走下去），再等剧情与准备
+    /// 面板收尾后由挑战服务重放失败收尾。停止必须在收到时执行，收尾必须等场景静下来，因此两步分开、
+    /// 各自在营业场景循环内调用挑战服务。原实现是同一段兼容补丁，直接跑在收包线程上。
+    /// </summary>
+    internal static void ReceiveFailure()
+    {
+        if (!PrepSceneManager.IsYuyukoChallenge || failurePending) return;
+        failurePending = true;
+        EndPhase3();
+        QueueService("challenge failure stop", services => services.Challenge.StopRun());
+        ModRuntime.Coroutines.StartOn(ModRuntime.Coroutines.Owner, _ => ReplayFailure());
+    }
+
+    /// <summary>
+    /// 等剧情结束与准备面板淡出之后再重放失败收尾。中间任一步发现本机已不在挑战里，或框架已不再持有
+    /// 被停下的那次运行（新的一次挑战开始、场景离开），就放弃；框架的重放自身也会按运行号判定。
+    /// </summary>
+    private static IEnumerator ReplayFailure()
+    {
+        while (GameFlow.InStory)
+        {
+            if (!AwaitingFailureReplay()) yield break;
+            yield return null;
+        }
+        if (!AwaitingFailureReplay()) yield break;
+
+        if (PrepSceneManager.IsYuyukoPrepActive)
+        {
+            PrepSceneManager.EndYuyukoPrep();
+            // 面板视图按打开的面板缓存，因此它给出的名字与实例仍是原版面板本身；先关掉压在其上的面板，
+            // 再走原版关闭路径，并等待关闭淡出结束。
+            var panel = Listeners.PrepSync.ConfigPanel;
+            if (panel is { IsOpen: true })
+            {
+                SgrYuki.Utils.Panel.ClosePanelUntil(panel.Name, []);
+                var closed = panel.CloseWithFadeToken();
+                while (!closed.IsCancellationRequested)
+                {
+                    if (!AwaitingFailureReplay()) yield break;
+                    yield return null;
+                }
+            }
+        }
+        if (!AwaitingFailureReplay()) yield break;
+
+        QueueService("challenge failure replay", services => services.Challenge.ReplayFailure());
+    }
+
+    /// <summary>本机是否仍在挑战里等待失败收尾。</summary>
+    private static bool AwaitingFailureReplay() =>
+        failurePending && GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge;
 
     #endregion
 

@@ -16,14 +16,14 @@ check_empty() {
   fi
 }
 
-check_empty "无 BepInEx（缺口文件与 CompatPatches 除外）" \
-  "grep -rn --include=*.cs -e 'using BepInEx' -e 'BepInEx\.' $MOD | grep -v '/obj/' | grep -v 'Patches/Compat/' | grep -v 'CompatPatches.cs'"
-check_empty "无 HarmonyLib（缺口文件与 CompatPatches 除外）" \
-  "grep -rl --include=*.cs -e HarmonyLib -e HarmonyPatch $MOD | grep -v '/obj/' | grep -v 'Patches/Compat/' | grep -v 'CompatPatches.cs'"
+check_empty "无 BepInEx" \
+  "grep -rn --include=*.cs -e 'using BepInEx' -e 'BepInEx\.' $MOD | grep -v '/obj/'"
+check_empty "无 HarmonyLib" \
+  "grep -rl --include=*.cs -e HarmonyLib -e HarmonyPatch $MOD | grep -v '/obj/'"
 check_empty "无 BasePlugin" "grep -rn --include=*.cs BasePlugin $MOD | grep -v '/obj/'"
 check_empty "无 IGuestDirector 实现" "grep -rn --include=*.cs IGuestDirector $MOD | grep -v '/obj/'"
-check_empty "无 HarmonyReversePatch（缺口文件除外）" \
-  "grep -rn --include=*.cs HarmonyReversePatch $MOD | grep -v '/obj/' | grep -v 'Patches/Compat/'"
+check_empty "无 HarmonyReversePatch" \
+  "grep -rn --include=*.cs HarmonyReversePatch $MOD | grep -v '/obj/'"
 check_empty "无 UnityEngine.Debug" "grep -rn --include=*.cs 'UnityEngine.Debug' $MOD | grep -v '/obj/'"
 check_empty "无 ManualLogSource" "grep -rn --include=*.cs ManualLogSource $MOD | grep -v '/obj/'"
 check_empty "无 MyPluginInfo" "grep -rn --include=*.cs MyPluginInfo $MOD | grep -v '/obj/'"

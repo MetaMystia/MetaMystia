@@ -1,4 +1,4 @@
-{
+﻿{
     "BusinessStartWaiting": "Waiting for the other players to finish preparing.",
     "NetworkVersionDetails": "Local: game {0}, mod {1}, protocol {2}; remote: game {3}, mod {4}, protocol {5}.",
     "NetworkProtocolMismatch": "Network protocol mismatch. Use matching game and mod versions.",
@@ -82,7 +82,7 @@
     "YuyukoTimedNegativeSpellDisabled": "Periodically triggered negative spell cards are disabled in multiplayer.",
     "YuyukoPhase3PatientExtended": "In multiplayer, Yuyuko's order patience in phase three is tripled.",
     "AllReadyTransition": "All players are ready, transitioning...",
-    "ModPatchFailure": "Patch failure! The Mod will not function normally! Maybe your game version is not supported, please consider removing the mod!",
+    "ModInitFailure": "Initialization failed! The Mod will not function normally! Maybe your game version is not supported, please consider removing the mod!",
     "ModVersionMismatch": "Mod version mismatch, connection disconnected!",
     "GameVersionMismatch": "Game version mismatch, connection disconnected!",
     "GameResourcesNotLoaded": "Game resources are not fully loaded; cannot join multiplayer room",

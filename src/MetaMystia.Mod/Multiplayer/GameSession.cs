@@ -84,9 +84,9 @@ public static partial class GameSession
 
     private static bool CanStart()
     {
-        if (!CompatPatches.Applied || !GameFlow.IsMultiplayerAvailable || !GameFlow.CanJoin)
+        if (!ModRuntime.Ready || !GameFlow.IsMultiplayerAvailable || !GameFlow.CanJoin)
         {
-            InGameConsole.LogError((CompatPatches.Applied ? TextId.MpMainSceneRequired : TextId.ModPatchFailure).Get());
+            InGameConsole.LogError((ModRuntime.Ready ? TextId.MpMainSceneRequired : TextId.ModInitFailure).Get());
             return false;
         }
         PlayerManager.Local.ReloadResourceTable();
