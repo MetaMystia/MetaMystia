@@ -8,8 +8,7 @@ namespace MetaMystia;
 /// 旧 Harmony 补丁的应用入口。Compat 尚未清空，因此本节仍集中应用 <c>Patches/Compat</c> 下的缺口补丁；
 /// 其余行为一律走框架的监听与服务。
 /// <para>
-/// 当前在册缺口：<c>YuyukoMainLoopPatch</c>（主循环恢复位置上的阶段数据交换）、
-/// <c>YuyukoChallengeContextPatch</c>/<c>YuyukoRetakeContextPatch</c>（改判回调的台词与闭包倍率）、
+/// 当前在册缺口：<c>YuyukoChallengeContextPatch</c>/<c>YuyukoRetakeContextPatch</c>（改判回调的台词与闭包倍率）、
 /// <c>YuyukoBossDataPatch</c>（失败整段重放）、<c>YuyukoTimedNegativeSpellPatch</c>（限时负面符卡协程）、
 /// <c>YuyukoExtraDialogData__c__DisplayClass4_0Patch</c>（挑战确认回调）、
 /// <c>NightSceneDirectorPatch</c>（试炼返回标记与本体捕获）。每一份都写明了框架侧缺的能力。

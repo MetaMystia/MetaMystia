@@ -86,6 +86,26 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
 
     #endregion
 
+    #region 主循环步骤
+
+    /// <summary>
+    /// 挑战主循环的一步：主机在本体未绑定、或该位置的阶段数据还没广播之前挂起本步；客机在主机依据写入本机
+    /// 挑战闭包之前挂起本步。挂起期间该步的判定数据由营业场景循环读写（见
+    /// <see cref="YuyukoGuestSync.DriveChallenge"/>），放行后本步用的就是那次读写的数值。框架对挂起的步不
+    /// 派发「步已执行」通知，因此挂起与广播不会互相误判。原实现在同一处停止接受新的吞食。
+    /// </summary>
+    void IChallengeListener.OnPreChallengeStep(ChallengeStep step, ref bool cancelInvocation)
+    {
+        cancelInvocation = YuyukoGuestSync.ShouldHoldMainStep(step);
+        if (!cancelInvocation) YuyukoGuestSync.NoticePhaseState(step);
+    }
+
+    /// <summary>一步执行完：一阶段结账步之后（清场结账已在同一段里完成）广播最终营业额。</summary>
+    void IChallengeListener.OnChallengeStepRan(ChallengeStep step, ChallengeStep next) =>
+        YuyukoGuestSync.OnMainStepRan(step, next);
+
+    #endregion
+
     #region 阶段时钟
 
     /// <summary>

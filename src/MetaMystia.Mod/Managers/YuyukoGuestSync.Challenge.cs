@@ -10,14 +10,42 @@ namespace MetaMystia;
 /// <summary>
 /// 幽幽子挑战的阶段同步。原实现直接挂在挑战的编译器生成状态机上；本文件改为消费框架的挑战时间线
 /// （<see cref="IWorkSceneChallengeServices"/> 与 <c>IChallengeListener</c>），只保留阶段数据的收发、
-/// 吞厨具记录与生命值转发。需要读取挑战闭包或主循环恢复位置的少量工作留在
-/// <c>Patches/Compat/YuyukoMainLoopPatch</c>（本仓库唯一允许接触生成成员的地方），它把纯数值交给本文件。
+/// 吞厨具记录与生命值转发。
+/// <para>
+/// 阶段数据只在营业场景循环内读写：挑战服务要求场景作用域，而主循环的步骤回调发生在游戏自己的协程里
+/// （不在作用域内）。「某个位置的数据还没就绪」因此用挂起该步表达（见 <see cref="ShouldHoldMainStep"/>），
+/// 读写由该步被挂起的那一帧在 <see cref="DriveChallenge"/> 里完成，放行后该步判定用的就是这次读写的数值。
+/// </para>
 /// </summary>
 public static partial class YuyukoGuestSync
 {
-    /// <summary>主机按主循环恢复位置发布的阶段数据；客机按位置保存，允许消息先于本地剧情到达。</summary>
+    /// <summary>
+    /// 阶段数据在协议里的位置。取值沿用协议历史上的游戏状态编号，线格式不变；与游戏步骤的对应关系由框架
+    /// 的语义步骤给出，逻辑一律比对 <see cref="ChallengeStep"/>，不比对数字。
+    /// </summary>
+    private enum PhasePoint
+    {
+        Settled1 = 4,
+        CountingStopped2 = 9,
+        Settled2 = 10,
+        Ending3PreparingRetake = 15,
+        Ended3 = 16,
+    }
+
+    /// <summary>主机按位置发布的阶段数据；客机按位置保存，允许消息先于本地剧情到达。</summary>
     private static readonly Dictionary<int, YuyukoGuestMessage> phases = new();
+
+    /// <summary>主机已广播的位置。</summary>
     private static readonly HashSet<int> sentPhases = new();
+
+    /// <summary>客机已写入本机挑战闭包的位置。</summary>
+    private static readonly HashSet<int> appliedPhases = new();
+
+    /// <summary>客机正挂起等待写入的位置。</summary>
+    private static PhasePoint? heldPoint;
+
+    /// <summary>主机待广播的位置；由场景循环读出挑战闭包的数值后发送。</summary>
+    private static PhasePoint? pendingSend;
 
     /// <summary>主机广播的吞厨具索引，等待在营业场景循环内用挑战服务重放。</summary>
     private static readonly Queue<int> pendingSwallows = new();
@@ -38,67 +66,94 @@ public static partial class YuyukoGuestSync
     /// <summary>阶段同步是否生效；与是否已绑定本体无关。</summary>
     internal static bool PhaseSyncActive => GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge;
 
-    /// <summary>原版主循环里需要交换阶段数据的恢复位置；数字属于 4.4.0e 布局，由 <see cref="YuyukoMainLoopPatch"/> 核验。</summary>
-    internal static bool IsPhasePosition(int state) => state is 4 or 9 or 10 or 15 or 16;
+    /// <summary>框架的语义步骤对应的协议位置；不交换阶段数据的步骤为 null。</summary>
+    private static PhasePoint? PointOf(ChallengeStep step)
+    {
+        if (step == ChallengeStep.Phase1Settled) return PhasePoint.Settled1;
+        if (step == ChallengeStep.Phase2CountingStopped) return PhasePoint.CountingStopped2;
+        if (step == ChallengeStep.Phase2Settled) return PhasePoint.Settled2;
+        if (step == ChallengeStep.Phase3EndingPreparingRetake) return PhasePoint.Ending3PreparingRetake;
+        if (step == ChallengeStep.Phase3Ended) return PhasePoint.Ended3;
+        return null;
+    }
+
+    /// <summary>协议里的位置编号是否有效；对端可能发来本版本不认识的位置。</summary>
+    private static bool IsPhasePoint(int point) => (PhasePoint)point
+        is PhasePoint.Settled1 or PhasePoint.CountingStopped2 or PhasePoint.Settled2
+        or PhasePoint.Ending3PreparingRetake or PhasePoint.Ended3;
 
     /// <summary>该厨具是否仍被本次挑战的吞食锁定；吞食收尾后由挑战监听清除。</summary>
     internal static bool IsSwallowedCooker(int gridIndex) => PhaseSyncActive && swallowedCookers.Contains(gridIndex);
 
-    #region 主循环阶段数据
+    #region 主循环步骤上的阶段数据
 
     /// <summary>
-    /// 本次主循环恢复位置是否必须挂起：主机在绑定本体之前无法构造阶段消息；客机在收到主机依据之前不能
-    /// 用本机数据判定结果。非阶段同步期间一律放行。
+    /// 这一步是否必须挂起。
+    /// <para>
+    /// 主机：绑定本体之前无法广播；该位置的阶段数据还没广播之前也一样——广播要读挑战闭包的数值，而读只能
+    /// 在营业场景循环里做，因此挂起本步一帧，等场景循环读出并发出之后再放行。
+    /// </para>
+    /// <para>
+    /// 客机：主机依据还没写入本机挑战闭包之前不能用自己的数据判定，因此挂起本步，等场景循环写入后再放行。
+    /// 非阶段同步期间一律放行。
+    /// </para>
     /// </summary>
-    internal static bool ShouldHoldMainStep(int state)
+    internal static bool ShouldHoldMainStep(ChallengeStep step)
     {
-        if (!PhaseSyncActive || !IsPhasePosition(state)) return false;
-        return GameSession.IsRoomHost ? fsm == null : !phases.ContainsKey(state);
-    }
+        if (!PhaseSyncActive || PointOf(step) is not { } point) return false;
 
-    /// <summary>客机在相应恢复位置回填主机依据；返回 false 表示本机照常判定。</summary>
-    internal static bool TryApplyPhase(int state, out int fund, out int spell, out int life)
-    {
-        fund = 0;
-        spell = 0;
-        life = 0;
-        if (!GameSession.IsRoomClient || !PhaseSyncActive || !IsPhasePosition(state)) return false;
-        if (!phases.TryGetValue(state, out var message)) return false;
-        fund = message.Fund;
-        spell = message.PositiveSpellCount;
-        life = message.Life;
+        if (!GameSession.IsRoomHost)
+        {
+            if (appliedPhases.Contains((int)point))
+            {
+                heldPoint = null;
+                return false;
+            }
+            heldPoint = point;
+            return true;
+        }
+
+        if (fsm == null) return true;
+        // 一阶段的营业额要在它自己的清场结账之后才可用，因此它在步后广播（见 OnMainStepRan）。
+        if (point == PhasePoint.Settled1 || sentPhases.Contains((int)point)) return false;
+        pendingSend = point;
         return true;
     }
 
-    /// <summary>主机发布一个恢复位置的阶段数据；同一位置只发一次。</summary>
-    internal static void SendPhase(int state, int fund, int spell, int life)
+    /// <summary>这一步是否属于第三阶段收尾，需要停止接受新的吞食。</summary>
+    internal static void NoticePhaseState(ChallengeStep step)
     {
-        if (!GameSession.IsRoomHost || !PhaseSyncActive || !sentPhases.Add(state)) return;
+        if (step == ChallengeStep.Phase3EndingPreparingRetake || step == ChallengeStep.Phase3Ended) EndPhase3();
+    }
+
+    /// <summary>
+    /// 一步执行完。一阶段在结账步里清场结账并判定，随后停在失败等待或成功剧情等待，因此只有确实离开
+    /// 结账步、进入这两个位置时才广播最终营业额；数值由场景循环在该步之后读出，客机据此判定。
+    /// </summary>
+    internal static void OnMainStepRan(ChallengeStep step, ChallengeStep next)
+    {
+        if (!GameSession.IsRoomHost || !PhaseSyncActive) return;
+        if (step != ChallengeStep.Phase1Settled) return;
+        if (next != ChallengeStep.Phase1Failed && next != ChallengeStep.Phase1Story) return;
+        pendingSend = PhasePoint.Settled1;
+    }
+
+    /// <summary>主机发布一个位置的阶段数据；同一位置只发一次。</summary>
+    private static void SendPhase(int point, int fund, int spell, int life)
+    {
+        if (!GameSession.IsRoomHost || !PhaseSyncActive || !sentPhases.Add(point)) return;
         var message = Message(YuyukoGuestEvent.Phase);
-        message.PhaseState = state;
+        message.PhaseState = point;
         message.Fund = fund;
         message.PositiveSpellCount = spell;
         message.Life = life;
         YuyukoGuestMessage.Send(message);
-        Log.Info($"幽幽子阶段 {state} 已广播: fund={fund}, spell={spell}, life={life}");
-    }
-
-    /// <summary>
-    /// 一阶段在恢复位置 4 内清场结账并判定，阶段数据必须在同一段执行完之后才广播，
-    /// 否则客机拿到的是清场前金额。这里只回答「刚离开 4 且进入等待分支」这一种情况。
-    /// </summary>
-    internal static bool ShouldBroadcastAfterStep(int previousState, int currentState) =>
-        GameSession.IsRoomHost && PhaseSyncActive && previousState == 4 && currentState is 5 or 6;
-
-    /// <summary>该恢复位置是否属于第三阶段收尾，需要停止接受新的吞食。</summary>
-    internal static void NoticePhaseState(int state)
-    {
-        if (state is 15 or 16) EndPhase3();
+        Log.Info($"幽幽子阶段 {point} 已广播: fund={fund}, spell={spell}, life={life}");
     }
 
     private static void ReceivePhase(YuyukoGuestMessage message)
     {
-        if (IsPhasePosition(message.PhaseState)) phases.TryAdd(message.PhaseState, message);
+        if (IsPhasePoint(message.PhaseState)) phases.TryAdd(message.PhaseState, message);
     }
 
     #endregion
@@ -142,6 +197,9 @@ public static partial class YuyukoGuestSync
         EndPhase3();
         phases.Clear();
         sentPhases.Clear();
+        appliedPhases.Clear();
+        heldPoint = null;
+        pendingSend = null;
         phase3Ended = false;
         ResetLife();
     }
@@ -176,31 +234,41 @@ public static partial class YuyukoGuestSync
     #region 每帧驱动
 
     /// <summary>
-    /// 客机是否已收到某个阶段对应恢复位置的主机依据。阶段与恢复位置的对应属于 4.4.0e 布局，
-    /// 与 <see cref="YuyukoMainLoopPatch"/> 使用的编号一致。
+    /// 客机是否已收到某个阶段对应位置的主机依据。阶段与位置的对应沿用原实现：一阶段结账、二阶段停止
+    /// 计数、三阶段两种收尾。
     /// </summary>
     internal static bool IsHostPhaseReady(ChallengePhase phase, ChallengeRunKind kind)
     {
-        int state = phase switch
+        var step = phase switch
         {
-            ChallengePhase.One => 4,
-            ChallengePhase.Two => 9,
-            ChallengePhase.Three when kind == ChallengeRunKind.Retake => 16,
-            ChallengePhase.Three => 15,
-            _ => -1,
+            ChallengePhase.One => ChallengeStep.Phase1Settled,
+            ChallengePhase.Two => ChallengeStep.Phase2CountingStopped,
+            ChallengePhase.Three when kind == ChallengeRunKind.Retake => ChallengeStep.Phase3Ended,
+            ChallengePhase.Three => ChallengeStep.Phase3EndingPreparingRetake,
+            _ => default,
         };
-        return state >= 0 && phases.ContainsKey(state);
+        return PointOf(step) is { } point && phases.ContainsKey((int)point);
     }
 
     /// <summary>
-    /// 在营业场景循环内落实挑战服务动作：客机在拿到主机阶段依据后结束本地阶段时钟（与
-    /// <see cref="YuyukoChallengeSync.OnChallengeClockElapsed"/> 的挂起互补）、重放待处理的吞厨具、
-    /// 并把主机生命值写回面板。场景服务只在场景循环内有效，因此这些动作只能在这里执行。
+    /// 在营业场景循环内落实阶段数据交换与挑战服务动作。主机把待广播位置的阶段数据读出来发出；客机把
+    /// 挂起位置的主机依据写入本机挑战闭包、重放待处理的吞厨具、把主机生命值写回面板，并在拿到主机依据后
+    /// 结束本地阶段时钟（与 <see cref="YuyukoChallengeSync.OnChallengeClockElapsed"/> 的挂起互补）。
+    /// 场景服务只在场景循环内有效，因此这些读写只能在这里执行。
     /// </summary>
     internal static void DriveChallenge(IWorkSceneChallengeServices challenge)
     {
-        if (!PhaseSyncActive || !GameSession.IsRoomClient) return;
+        if (!PhaseSyncActive) return;
 
+        if (GameSession.IsRoomHost)
+        {
+            if (pendingSend is not { } send) return;
+            pendingSend = null;
+            SendPhase((int)send, challenge.EarnedFund, challenge.PositiveSpellCount, challenge.BossLife);
+            return;
+        }
+
+        ApplyHeldPhase(challenge);
         PlayPendingSwallows(challenge);
 
         if (hostLife is { } life && appliedLife != life)
@@ -211,6 +279,22 @@ public static partial class YuyukoGuestSync
 
         if (challenge.Clock != default && IsHostPhaseReady(challenge.Phase, challenge.RunKind))
             challenge.EndPhaseClock();
+    }
+
+    /// <summary>
+    /// 客机把挂起位置的主机依据写入本机挑战闭包，使该步用主机的营业额、符卡数与生命值判定。本体尚未绑定时
+    /// 不写（此时框架的本体镜像还没接上，写入会落到空处），挂起继续等待即可。
+    /// </summary>
+    private static void ApplyHeldPhase(IWorkSceneChallengeServices challenge)
+    {
+        if (fsm == null || heldPoint is not { } point) return;
+        if (appliedPhases.Contains((int)point)) return;
+        if (!phases.TryGetValue((int)point, out var message)) return;
+
+        challenge.EarnedFund = message.Fund;
+        challenge.PositiveSpellCount = message.PositiveSpellCount;
+        challenge.BossLife = message.Life;
+        appliedPhases.Add((int)point);
     }
 
     private static void PlayPendingSwallows(IWorkSceneChallengeServices challenge)
