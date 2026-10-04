@@ -54,7 +54,8 @@ jobs:
             throw '编译依赖 SHA-256 不匹配'
           }
           Expand-Archive .tmp/deps.zip -DestinationPath .tmp/deps
-          '<Project><PropertyGroup><BepInExPath>$(MSBuildThisFileDirectory).tmp/deps</BepInExPath></PropertyGroup></Project>' |
+          # deps 包里的 interop/ 就是本次构建需要的互操作目录（实测：诊断与用框架 artifacts/interop 一致）。
+          '<Project><PropertyGroup><MystiaInteropDir>$(MSBuildThisFileDirectory).tmp/deps/interop/</MystiaInteropDir></PropertyGroup></Project>' |
             Set-Content MetaMystia.local.props -Encoding utf8
           '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' |
             Set-Content global.json -Encoding utf8
@@ -78,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: MetaMystia-${{ github.sha }}
-          path: src/MetaMystia.Mod/bin/Release/MetaMystia-v*.dll
+          path: src/MetaMystia.Mod/bin/Release/net10.0/MetaMystia.dll
           if-no-files-found: error
           retention-days: 14
 
