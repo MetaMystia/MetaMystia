@@ -25,7 +25,7 @@
 | 项 | 结果 |
 | --- | --- |
 | 框架构建 `dotnet build MystiaExtensionFramework.slnx -c Debug` | **0 错 0 警告** |
-| 框架测试 `dotnet test src/Mystia.Net.Sdk.Tests` | **228/228** |
+| 框架测试 `dotnet test src/Mystia.Net.Sdk.Tests` | **244/244** |
 | SDK 打包 `dotnet pack sdk/Mystia.Extension.Sdk/Mystia.Extension.Sdk.Pack.csproj -c Release` | 成功（`artifacts/nuget/Mystia.Extension.Sdk.2.0.0.nupkg`） |
 | 样例工程 ×3（`samples/SampleMod.{A,B,Skip}`） | 0 错 0 警告（每次重打 SDK 后需重建） |
 | 模组构建 `dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Debug` | 见下表；**尚未全绿**，剩余工作见 §6 |
