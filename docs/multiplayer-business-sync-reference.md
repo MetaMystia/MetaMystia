@@ -113,7 +113,7 @@ flowchart TD
 
 原游戏已维护的状态，能可靠读取就直接读取。额外记录的联机状态应有明确用途，例如保存各玩家的选择、一次确认是否已处理，或当前等待哪个业务结果。
 
-具体写法遵循 [Harmony Hook](harmony-hook-style.md)、[网络 Action](network-message-style.md)、[线程与调度](threading-and-scheduling.md) 和 [协程](coroutine-style.md) 规范。现有代码可以参考思路，新增代码仍应补齐必要的接收约束，不照搬旧实现的缺漏。
+具体写法遵循 [网络 Action](network-message-style.md)、[线程与调度](threading-and-scheduling.md) 和 [协程](coroutine-style.md) 规范。现有代码可以参考思路，新增代码仍应补齐必要的接收约束，不照搬旧实现的缺漏。
 
 ## 7. 按主线逐步开发和验证
 

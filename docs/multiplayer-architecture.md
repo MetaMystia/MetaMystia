@@ -86,16 +86,16 @@
 Interop 引用路径配置在 `MetaMystia.local.props`。独立服务器与模组共用网络程序集，服务器不初始化游戏。
 
 ```powershell
-dotnet build MetaMystia.sln -c Release -p:DeployToGame=false
+dotnet build MetaMystia.sln -c Release
 dotnet run --project src/MetaMystia.Network.Tests -c Release --no-build
 dotnet run --project src/MetaMystia.Flow.Tests -c Release --no-build
 dotnet run --project src/MetaMystia.Server -c Release --no-build -- 40815 16
 ```
 
-`DeployToGame=false` 仅生成本地构建产物，模组输出到项目的 `bin/Release`。独立服务器输入命令后按回车执行，使用 `stop` 或 Ctrl+C 退出；管理命令与日志见[服务端控制台](server-console.md)。
+独立服务器输入命令后按回车执行，使用 `stop` 或 Ctrl+C 退出；管理命令与日志见[服务端控制台](server-console.md)。
 
-普通构建同时部署主模组到 `BepInEx/plugins`、预加载组件到 `BepInEx/patchers/MetaMystia`。网络程序集由 Costura 嵌入主模组；预加载组件在插件发现前执行主模组的模块初始化，注册内嵌依赖解析。
+模组以「一份目录：模组 dll + `mod.json`」的形式放进启动器的 `mods/`，由 Mystia Extension 的启动器与宿主挂载；注入管线只存在于框架侧，模组不再自带 patcher／preloader。`MetaMystia.Network` 是独立程序集，与模组输出在同一目录，不通过 Costura 嵌入。构建产物在 `src/MetaMystia.Mod/bin/<配置>/net10.0/`。
 
 网络测试覆盖 TCP 顺序、阶段、房间管理、权限和消息隔离；流程测试覆盖入口确认、营业等待与场景转换，使用替代的游戏和传输入口。
 
-已完成源码审计、编译和离线检查，预加载启动验证通过。双机验证按具体场景记录，启动与离线检查不代表完整营业／试炼已实测通过。
+已完成源码审计、编译与离线检查（含框架侧的挂点启动校验）。双机验证按具体场景记录，离线检查不代表完整营业／试炼已实测通过。

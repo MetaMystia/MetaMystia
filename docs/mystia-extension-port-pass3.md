@@ -13,8 +13,8 @@
 
 | 仓库 | 分支 | HEAD | 状态 |
 | --- | --- | --- | --- |
-| `MetaMystia`（本仓库） | `mystia-extension-fx-port` | `ac7e1c5` | 工作树干净（`.spinney/`、`*.local.props`、`*.local.md` 已忽略） |
-| `MystiaExtensionFramework`（同名目录） | `main` | `c36099b` | 工作树干净 |
+| `MetaMystia`（本仓库） | `mystia-extension-fx-port` | `787a34d` | 工作树干净（`.spinney/`、`*.local.props`、`*.local.md` 已忽略） |
+| `MystiaExtensionFramework`（同名目录） | `main` | `43b36e3` | 工作树干净 |
 
 两侧都**未推送**。`MetaMystia` 领先 `origin/mystia-extension-fx-port` 若干提交，需要时自行 push。
 
@@ -25,27 +25,27 @@
 | 项 | 结果 |
 | --- | --- |
 | 框架构建 `dotnet build MystiaExtensionFramework.slnx -c Debug` | **0 错 0 警告** |
-| 框架测试 `dotnet test src/Mystia.Net.Sdk.Tests` | **220/220** |
+| 框架测试 `dotnet test src/Mystia.Net.Sdk.Tests` | **228/228** |
 | SDK 打包 `dotnet pack sdk/Mystia.Extension.Sdk/Mystia.Extension.Sdk.Pack.csproj -c Release` | 成功（`artifacts/nuget/Mystia.Extension.Sdk.2.0.0.nupkg`） |
-| 样例工程 ×3（`samples/SampleMod.{A,B,Skip}`） | 0 错（每次重打 SDK 后需重建） |
-| 模组构建 `dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Debug` | 见下表；**尚未全绿**，剩余工作见 §5 |
-| `bash docs/port/static-check.sh` | 8/8（上一轮实测） |
-| `MetaMystia.Flow.Tests` | 构建 0 错；断言数需重跑确认（原 103） |
-| `MetaMystia.Network.Tests` | 需重跑（原 214） |
+| 样例工程 ×3（`samples/SampleMod.{A,B,Skip}`） | 0 错 0 警告（每次重打 SDK 后需重建） |
+| 模组构建 `dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Debug` | 见下表；**尚未全绿**，剩余工作见 §6 |
+| `bash docs/port/static-check.sh` | 8/8（已去掉豁免） |
+| `MetaMystia.Flow.Tests` | 构建 0 错；103 断言全通过 |
+| `MetaMystia.Network.Tests` | 214 断言全通过 |
 
 模组侧诊断（去重后，`dotnet build` 的计数是它的两倍）：
 
 | 诊断 | 数量 | 含义 |
 | --- | --- | --- |
-| `MYSTIA1004` | 597 | 仍在用 `UnityEngine` 类型（主要在 `ResourceEx/**`、`Utils/ExportUtils.cs`、`Managers/**`） |
-| `MYSTIA1001` | 43 | `HarmonyLib`/BepInEx（`Patches/Compat/**` 的留册补丁） |
-| `CS1503` | 34 | **本轮新增**：监听/管理器仍用游戏类型，而 SDK 已换成句柄/代理 |
-| `MYSTIA1002` | 28 | `Il2CppInterop` 注入/启动 |
-| `MYSTIA1005` | 24 | 编译器生成成员名 |
-| `MYSTIA1003` | 17 | `System.Reflection` |
-| 可空性警告 | 约 680 | 既有，非本轮引入 |
+| `MYSTIA1004` | 583 | 仍在用 `UnityEngine` 类型（几乎全在 `ResourceEx/**`） |
+| `MYSTIA1002` | 28 | `Il2CppInterop` 注入/启动（`ResourceEx` 的 provider 与地址表） |
+| `MYSTIA1003` | 17 | `System.Reflection`（`Utils/MetaMikuUtils.cs` 等裸指针工具） |
+| 纯 CS | 6 | 全部是 `ResourceEx/Registries` 的资产形状落差（见 §6） |
+| **去重总错误** | **634** | |
 
-**关键机制提醒（务必记住）**：Roslyn 在存在**声明级**错误时会跳过方法体分析，**分析器也不执行**。所以只要还有声明级错误（现在的 34 个 `CS1503`），模组侧就看不到方法体级错误与 `MYSTIA100x` 诊断。反之，方法体错误清完后每减少一批声明级错误，都会"新暴露"一批此前不可见的错误——这是正常现象，不要用禁用注释或兼容层掩盖。
+`MYSTIA1001`（Harmony/BepInEx）与 `MYSTIA1005`（编译器生成成员名）已清零：`Patches/`、`CompatPatches`、`HarmonyPrefixFlow` 与 `HarmonyX` 引用全部删除。
+
+**关键机制提醒（务必记住）**：Roslyn 在存在**声明级**错误时会跳过方法体分析，**分析器也不执行**。所以只要还有声明级错误（现在的 6 个纯 CS），模组侧就看不到方法体级错误与 `MYSTIA100x` 诊断。反之，方法体错误清完后每减少一批声明级错误，都会"新暴露"一批此前不可见的错误——这是正常现象，不要用禁用注释或兼容层掩盖。
 
 ## 4. 框架已落地的能力（mod 可直接用）
 
@@ -54,27 +54,34 @@
 - **场景能力**：`IPresentationServices`（`ShakeCamera`/`PlayVfx`/`PlayScreenOverlay`/`PlayAudio`/`PlayerPosition`/`TablePosition`/`TryRegisterPrefab`/`Bind`/`SpawnLabel`/`AttachLabel`），各场景服务上的 `Presentation`；`ICoroutineDispatcher`（`Owner` + `StartOn(ICoroutineOwner, …)` + `CoroutineAwait` 等待令牌）。
 - **实体**（`Mystia.Scenes`）：`GuestHandle/GuestProxy`、`OrderHandle/OrderProxy`、`DishHandle/DishProxy`、`GuestDescription`、`GuestKind/GuestLeaveType/GuestEvaluation/OrderKind/OrderGenerationOutcome/DishKind`、`EntitySession`（会话轮换由 `SceneLoopHost.Shutdown` 驱动）。
 - **视图与面板**：`ServePannelView`（含 `TryGetGuest` 类入口与 `PendingFood/PendingBeverage` 代理）、`ServeCallbackView`/`ServeCallbackKind`（按每次开面板包装四个回调）、`GuideMapView`、`PrepConfigView`、`ShopPannelView`。
-- **挑战时间线**：`IWorkSceneServices.Challenge`（阶段/时钟 `EndPhaseClock`/`SetPhaseSeconds`、刷客闸门、`BossOrderEnabled`、`BossLife`、`Boss` 句柄、`AllowLeaveScene`、`SwallowCooker`）+ `IChallengeListener`（阶段、时钟、刷客、失败开始、buff 结束、本体生命值、吞厨具、`OnPreBossEvaluated`/`OnBossEvaluated`）。
+- **聊天确认**：`IChatConfirmationListener` + `ChatConfirmationView`（`Kind`/`Confirmed`/`Confirm`）：确认动作随通知交给监听器，取消即扣住它，稍后运行它就是游戏本来要做的调用（幽幽子挑战开始确认在册）。
+- **挑战时间线**：`IWorkSceneServices.Challenge`（阶段/时钟 `EndPhaseClock`/`SetPhaseSeconds`/`BasePhaseSeconds`、刷客闸门、`BossOrderEnabled`、`BossLife`、`Boss` 句柄、`AllowLeaveScene`、`SwallowCooker`、停机与失败重放 `StopRun`/`ReplayFailure`）+ `IChallengeListener`（`OnPreChallengeStep`/`OnChallengeStepRan` 的语义步骤 `ChallengeStep`、阶段、时钟、刷客、失败开始、buff 结束、本体生命值、吞厨具、`OnPreBossEvaluated`/`OnBossEvaluated`）。
 - **资产/数据**：`IAssetFactory`（贴图/精灵/音频/PixelBuffer/纯色贴图/`TryGetTextureSize`/`TryReadPixels`/`TryCreateCharacterSpriteSet`）、`IAssetLocator`、`IDayMapBuilder` + `DayMapSpec` 家族、`IGameDataBuilder`（对话包 + 任务/事件节点）、`IPortraitProvider`。
 - **IMGUI**：`Mystia.Imgui`（`IIMGUIDrawer`/`ImguiEvent`/`TextStyleHandle`（含 `Clone`）/`SkinHandle`/`FontHandle`/`TextureHandle`/`TextInputState`/`CreateFontFromOsFont`/`WhiteTexture`）。
 - **护栏**：`Mystia.Net.Sdk.Analyzers`（`MYSTIA1001`–`1006`）+ 宿主加载期引用清单告警（告警不拒绝加载）。
 
-## 5. 未完成的迁移（按优先级）
+## 5. 本会话（波 9）做了什么
 
-1. **模组实体迁移（34 个 `CS1503` 的根因，最大一块）**：`Managers/GuestFSM.cs`（约 1,258 行，持有 `GuestGroupController`/`Sellable`）、`Managers/GuestService.cs`、`Listeners/GuestSync.cs`、`Listeners/WorkSync.cs` 等改走 `GuestHandle/GuestProxy`/`OrderHandle/OrderProxy`/`DishHandle/DishProxy` 与 `Challenge` 服务。`WorkSync` 的典型报错：`ServePannelView.Guest` 现在是 `GuestProxy`、`DishProxy` 不等于 `Sellable`。
-2. **`Patches/Compat/` 剩余 7 个**（各缺什么见 pass2 §5 波 7 里程碑表）：幽幽子评价 ×2（缺 `out string message` 覆盖台词与闭包 `dmgMultiplier`）、主循环（缺 `ChallengeStep` 语义常量）、本体数据（缺失败整段重放面）、挑战确认回调、限时负面符卡、`NightSceneDirectorPatch`（缺"本次离开来自最终试炼"与本体控制器捕获面）。这些缺口应**在框架补面**后删除补丁，而不是在模组里重写注入。
-3. **`ResourceEx` 剩余数据消费者**：`Players/PlayerSkin.cs` 的立绘入口（`IPortraitProvider` 仍是 Sprite 进出）、`ResourceEx/Registries/{ClothRegistry,DialogRegistry,PixelSpriteFactory,SpecialGuestRegistry.Visual}.cs`、`ResourceEx/Mappers/Mappers.cs` 的商人段。
-4. **`Utils/ExportUtils.cs` 去留**（全仓库无调用点；为救活它已自研 PNG 编码器与坐标公式反推）：建议删除，或把 PNG 编码器上移 MEFX 资产模块。
-5. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/harmony-hook-style.md` 退役；`docs/multiplayer-architecture.md` 的"构建与验证"仍写 Costura/BepInEx plugins/Preloader（过时）；框架 `docs/extension-api-plan.md` 已部分更新。
+1. **模组实体迁移（完成）**：`GuestsMap` 以 `GuestHandle` 为键；`GuestFSM` 全入口/重放走 `GuestProxy`/`OrderProxy`；`GuestSync` 的 9 个监听器改 `GuestHandle` 并写成显式接口实现；`GuestService` 重放走 `IWorkSceneGuests.SpawnNormal/SpawnSpecial`；`YuyukoGuestSync` 与 `WorkSync`、`Spell_Mai`、五个顾客消息 DTO 对齐。
+2. **挑战主循环（完成）**：删 `YuyukoMainLoopPatch`。阶段数据交换改用 `IChallengeListener.OnPreChallengeStep/OnChallengeStepRan` 与框架的语义步骤常量；挑战服务只在场景作用域内可用，所以「某位置的数据还没就绪」用挂起该步表达，读写在该步被挂起的那一帧由营业场景循环完成（主机在那里读营业额/符卡数/生命值并广播，客机把主机依据写入本机闭包再放行；一阶段的结账数据在步后广播）。
+3. **挑战确认回调（完成）**：删 `YuyukoExtraDialogData__c__DisplayClass4_0Patch`。框架新增 `IChatConfirmationListener` + `ChatConfirmationView`：确认动作随通知交给监听器，取消即扣住它，稍后运行它就是游戏本来要做的调用。
+4. **挑战数据两项纯数值（完成）**：`SingleRoundSeconds` 由框架的 `IWorkSceneChallengeServices.BasePhaseSeconds` 给出；`DamageMultiplier` 由 `IChallengeBossEvaluation` 带来。
+5. **失败整段重放（完成）**：删 `YuyukoBossDataPatch`。框架新增 `IWorkSceneChallengeServices.StopRun()`/`ReplayFailure()`：先停主循环与它启动的协程、收回重打 buff（并释放框架自己的厨具锁），等调用方的剧情与准备面板收尾后再清场并启动游戏的失败剧情。模组侧由 `YuyukoFailedMessage` 排队进营业场景循环（原实现在收包线程上直接跑）。
+6. **兼容层清零（完成）**：`Patches/`（含 `HarmonyPrefixFlow.cs`）、`CompatPatches.cs`、`HarmonyX` 引用全部删除；`CompatPatches.Applied` 的 4 处门控改读 `ModRuntime.Ready`（失败原因 `ModRuntime.Failure`），提示文案由「补丁注入失败」改为「初始化失败」（`TextId.ModInitFailure`）。`static-check.sh` 的豁免全部去掉。
 
-## 6. 建议的波 9 顺序
+## 6. 未完成的迁移（按优先级）
 
-1. 模组实体迁移（§5.1）——一次只动一至两个文件，每步都跑 `dotnet build` 看声明级错误是否下降（下降会暴露新错误，属正常）。
-2. 框架补 §5.2 的 5 个缺口 → 删 `Patches/Compat/**` 到 0 → `CompatPatches`/`HarmonyPrefixFlow.cs` 一并删除。
-3. `ResourceEx` 剩余消费者 + `ExportUtils` 裁决。
-4. 全量验收与文档收尾。
+1. **`ResourceEx` 资产四件（6 个纯 CS 错误，也是 `MYSTIA1002/1003/1004` 的大头）**：`ClothRegistry`/`PixelSpriteFactory`/`SpecialGuestRegistry.Visual` 的 `SpriteHandle ↔ Sprite`、`DialogRegistry` 的 `AssetReference` 与 `Utils.FindAndProcessResources`。**卡在 §11 第 4 项**（`IPortraitProvider` 是否继续代理化、是否需要"包装游戏自带精灵集"的入口）。
+2. **`Utils/ExportUtils.cs` 去留**（全仓库无调用点；为救活它已自研 PNG 编码器与坐标公式反推）：建议删除。
+3. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/harmony-hook-style.md` 退役（本会话已删，`AGENTS.md` 的引用一并移除）；`docs/multiplayer-architecture.md` 的"构建与验证"仍写 Costura/BepInEx plugins/Preloader（过时）；`docs/mystia-extension-port-gaps.md` 为首轮口径。
 
-## 7. 环境搭建（换一台机器要做的四件事）
+## 7. 波 9 之后的顺序
+
+1. 定 §11 第 4 项 → 收 `ResourceEx` 资产四件（目标：模组编译全绿）。
+2. `ExportUtils` 裁决（§11 第 1 项）。
+3. 全量验收与文档收尾。
+
+## 8. 环境搭建（换一台机器要做的四件事）
 
 1. 两个仓库放**同级目录**（本仓库的 `nuget.config` 用相对路径 `../MystiaExtensionFramework/artifacts/nuget` 指向本地 SDK 源）。
 2. 复制 `MetaMystia.local.props.example` 为 `MetaMystia.local.props`，填 `MystiaInteropDir`（指向框架 `artifacts/interop`，注意结尾带分隔符）；框架侧默认已指向自己的 `artifacts/interop`。
@@ -88,7 +95,7 @@
    **互操作不入库，所以换机时它不会跟着 git 走**：如果新机器的托管备份里没有 `ResourceProviderBase.Release`（不同构建的裁剪口味不同），最省事的做法是**把已有机器上的 `artifacts/interop` 目录整份拷过去**（两台机器 pin 的是同一个 `GameAssembly.dll`/`global-metadata.dat`，产物通用）。`Library/ScriptAssemblies` **不是**可用退路：未裁剪的项目程序集与裁剪过的引擎模块混用会让生成器抛 `NullReferenceException`（两台机器都复现了）。
 4. 每次重打 SDK 后清缓存：`rm -rf ~/.nuget/packages/mystia.extension.sdk`，然后重建样例工程（`samples/SampleMod.*`），因为框架测试会加载它们的**预编译产物**。
 
-## 8. 常用命令
+## 9. 常用命令
 
 ```text
 # 框架
@@ -106,7 +113,7 @@ bash docs/port/static-check.sh
 
 坑：在 Git Bash 里用 `-p:MystiaInteropDir=<Windows 路径>` 会被转义弄坏（出现 `MetaMystia.Network` 侧的假错误），优先靠 `MetaMystia.local.props`；确要传就用正斜杠形式。
 
-## 9. 本作（pin 住的 4.4.0e）实测的硬限制
+## 10. 本作（pin 住的 4.4.0e）实测的硬限制
 
 这些是**互操作/玩家二进制本身没有**的能力，任何工作流都无法实现，只能降级或改设计：
 
@@ -121,7 +128,7 @@ bash docs/port/static-check.sh
 - **成员是否存在必须读成员表**：对托管程序集用 `strings`/`grep` 判成员会给出**假阴性**（已证：`Library/ScriptAssemblies/Unity.ResourceManager.dll` 明确声明 `Release`，而 `grep -cx Release` 返回 0）。判断符号存在性一律用元数据表（`PEReader`/`MetadataReader`，或 Il2CppDumper/反编译器的成员表）。
 - **`ResourceProviderBase.Release` 属于"运行时真的有"那一侧，但它是否出现在互操作里由托管备份的口味决定**：本机 `Build/Symbols/.../Managed/Unity.ResourceManager.dll` 用成员表读**有**该成员（互操作也有），而另一台机器的备份里被 UnityLinker 裁掉了（互操作因此没有 → `AssetProviders.cs` 三处 override 报 `CS0115`）。所以缺它时应换备份或跨机拷贝产物，**不要删那三处 override**。
 
-## 10. 待用户裁决
+## 11. 待用户裁决
 
 1. `Utils/ExportUtils.cs`：删除还是把 PNG 编码器上移 MEFX？（无调用点）
 2. `PeerPlayer` 的触发器方案是否接受（另一选择是照游戏剧情角色直接销毁碰撞体）。
@@ -129,12 +136,12 @@ bash docs/port/static-check.sh
 4. `IPortraitProvider` 是否需要代理化（现在仍 `ClothesProfile.Clothes` → `Sprite`），以及是否需要"包装游戏自带精灵集"的入口（`/skin set` 目前直接调游戏方法）。
 5. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
 
-## 11. 必须实机验证的清单（全部结论目前都是源码/编译级）
+## 12. 必须实机验证的清单（全部结论目前都是源码/编译级）
 
 幽幽子挑战：阶段推进与时钟、两段刷客闸门、吞厨具重放（主机原版吞食的过滤时序）、评价 seam（改写结果/台词/倍率）、失败与重打、本体生命值镜像、终局离开场景闸门；存档载体：带模组写入 → 完全卸载 → 原版读档推进保存 → 重装校验一致（含中文/嵌套/大字符串）；资产：PNG 解码与精灵集上屏、白天地图构建与切图、Addressables 位置注册、特效/遮罩/音频、浮字与名牌、联网皮肤（含旋转覆盖）；挑战时间线挂点的启动校验；派发契约在真实 Harmony 下的表现；`AssetBundle` 的 stall 语义。
 
-## 12. 文档地图
+## 13. 文档地图
 
 - **当前事实来源**：本文件、`mystia-extension-port-pass2.md`（API 形状与计划）、框架 `docs/extension-api-plan.md`（框架侧已实现面）。
-- **历史记录**（不要当现状读）：`mystia-extension-port.md`、`mystia-extension-port-plan.md`、`mystia-extension-port-report.md`、`docs/port/**` 的 handoff/audit 文档、`docs/harmony-hook-style.md`（待退役）。
+- **历史记录**（不要当现状读）：`mystia-extension-port.md`、`mystia-extension-port-plan.md`、`mystia-extension-port-report.md`、`docs/port/**` 的 handoff/audit 文档。
 - **需要校正**：`docs/multiplayer-architecture.md`（构建与部署段仍写 Costura/BepInEx plugins/Preloader）、`docs/mystia-extension-port-gaps.md`（首轮口径，16 个缺口已被 pass2/pass3 全面覆盖）。
