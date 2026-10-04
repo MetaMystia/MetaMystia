@@ -38,10 +38,10 @@
 | 诊断 | 数量 | 含义 |
 | --- | --- | --- |
 | `MYSTIA1004` | 207 | 仍在用 `UnityEngine` 类型（`VfxBundle`、`InGameConsole`/面板 IMGUI 层、`DialogRegistry`、`Spell_Mai`、网络层） |
-| `MYSTIA1003` | 17 | `System.Reflection`（`SvgYuki/Functional.cs`、`L10n.cs`、`IdRangeValidator.cs`、`NativeDllExtractor.cs`、两个 il2cpp 工具） |
-| `MYSTIA1002` | 14 | `Il2CppInterop` 裸 il2cpp（`Utils/MetaMikuUtils.cs` 12、`Utils/Il2CppOutDelegate.cs` 2） |
+| `MYSTIA1003` | 16 | `System.Reflection`（`SgrYuki/Functional.cs`、`L10n.cs`、`IdRangeValidator.cs`、`NativeDllExtractor.cs`、`Utils/Il2CppOutDelegate.cs`） |
+| `MYSTIA1002` | 2 | `Il2CppInterop` 裸 il2cpp（`Utils/Il2CppOutDelegate.cs`） |
 | 纯 CS | 0 | 声明级错误已清零（这正是分析器能全量报告的原因） |
-| **去重总错误** | **238** | |
+| **去重总错误** | **225** | |
 
 `MYSTIA1001`（Harmony/BepInEx）与 `MYSTIA1005`（编译器生成成员名）保持 0；`ResourceEx` 的自建注入管线（`ResourceEx/Addressables/**` 的 `ClassInjector` provider 与 `RuntimeAddressables`）已作为死代码删除，模组的 `MYSTIA1002` 因此从 28 降到 14。
 
@@ -69,14 +69,15 @@
 5. **失败整段重放（完成）**：删 `YuyukoBossDataPatch`。框架新增 `IWorkSceneChallengeServices.StopRun()`/`ReplayFailure()`：先停主循环与它启动的协程、收回重打 buff（并释放框架自己的厨具锁），等调用方的剧情与准备面板收尾后再清场并启动游戏的失败剧情。模组侧由 `YuyukoFailedMessage` 排队进营业场景循环（原实现在收包线程上直接跑）。
 6. **兼容层清零（完成）**：`Patches/`（含 `HarmonyPrefixFlow.cs`）、`CompatPatches.cs`、`HarmonyX` 引用全部删除；`CompatPatches.Applied` 的 4 处门控改读 `ModRuntime.Ready`（失败原因 `ModRuntime.Failure`），提示文案由「补丁注入失败」改为「初始化失败」（`TextId.ModInitFailure`）。`static-check.sh` 的豁免全部去掉。
 7. **资产/立绘面收尾（完成，声明级错误清零）**：`IPortraitProvider` 代理化（`int clothIndex` + `out SpriteHandle`）；`ClothRegistry`／`SpecialGuestRegistry.Visual`／`PlayerSkin` 立绘链改走句柄；框架新增 `IAssetFactory.TryWrapSprite`（把游戏自己持有的精灵包成句柄）与 `TryUnwrapCharacterSpriteSet`（把游戏自己的角色像素集拆成帧与样式）；`DialogRegistry` 的引擎资源引用按 `AssetReference.Address` 重建，`OnTransitionToNight` 改走框架 `IDialogCatalog.TryResolve`（原来是 `Resources.FindObjectsOfTypeAll`）。
-8. **死代码删除**：`Utils/ExportUtils.cs`（1101 行、无调用点，其 PNG 编码器已上移 MEFX）、`ResourceEx/Registries/PixelSpriteFactory.cs`（无调用点）、`ResourceEx/Mappers/**`（779 行，无调用点）、`ResourceEx/Addressables/**`（563 行自建 Addressables 注入，只被自己的初始化调用）。
+8. **死代码删除**：`Utils/ExportUtils.cs`（1101 行、无调用点，其 PNG 编码器已上移 MEFX）、`ResourceEx/Registries/PixelSpriteFactory.cs`（无调用点）、`ResourceEx/Mappers/**`（779 行，无调用点）、`ResourceEx/Addressables/**`（563 行自建 Addressables 注入，只被自己的初始化调用）、`Utils/MetaMikuUtils.cs`（装箱字典 workaround，无调用点）。
 
 ## 6. 未完成的迁移（按优先级）
 
-1. **`Utils` 的裸 il2cpp 与反射（`MYSTIA1002` 14 + `MYSTIA1003` 17）**：`MetaMikuUtils.cs`、`Il2CppOutDelegate.cs` 需要 SDK 提供 out 委托适配与字符串读取；`SgrYuki/Functional.cs`、`IdRangeValidator.cs`、`L10n.cs`、`NativeDllExtractor.cs` 的反射要么改强类型、要么搬进框架。
-2. **`MYSTIA1004` 残余（207）**：热点是 `VfxBundle.cs`、`InGameConsole.cs`／`PlayerListPanel.cs` 等 IMGUI 面板、`DialogRegistry.cs`、`Spell_Mai.cs`、`NetPlayer.cs`、`GuestSync.cs`。多数要换 `Mystia.Imgui` 与 `IPresentationServices`。
-3. **`PlayerSkin` 的游戏自带皮肤旋转覆盖**：框架已具备拆解（`TryUnwrapCharacterSpriteSet`）与重建（`TryCreateCharacterSpriteSet`）两个入口，接线即把该路径从「记警告」变成「重建后套用」；但重建出的集其裁剪取游戏 fallback 像素集，未获确认前不接线。
-4. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/mystia-extension-port-gaps.md` 为首轮口径。
+1. **`Utils/Il2CppOutDelegate.cs`（`MYSTIA1002` 2）**：`UI/DaySceneSelectionMenu.cs` 用它把带 `out` 参数的 C# lambda 包成游戏的 `GetSelectionConfigurationCallback`。正解是让这个菜单改走框架的 `IChatMenuProvider`（菜单项 + 选中回调），随之删掉该文件；若框架的来源枚举不够用，再补一个 `ChatMenuOrigin`。
+2. **`System.Reflection` 四处（`MYSTIA1003` 16）**：`SgrYuki/Functional.cs`、`L10n.cs`（按枚举名取本地化）、`IdRangeValidator.cs`、`NativeDllExtractor.cs`（释放原生 DLL）——要么改强类型，要么搬进框架。
+3. **`MYSTIA1004` 残余（207）**：热点是 `VfxBundle.cs`、`InGameConsole.cs`／`PlayerListPanel.cs` 等 IMGUI 面板、`DialogRegistry.cs`、`Spell_Mai.cs`、`NetPlayer.cs`、`GuestSync.cs`。多数要换 `Mystia.Imgui` 与 `IPresentationServices`。
+4. **`PlayerSkin` 的游戏自带皮肤旋转覆盖**：框架已具备拆解（`TryUnwrapCharacterSpriteSet`）与重建（`TryCreateCharacterSpriteSet`）两个入口，接线即把该路径从「记警告」变成「重建后套用」；但重建出的集其裁剪取游戏 fallback 像素集，未获确认前不接线。
+5. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/mystia-extension-port-gaps.md` 为首轮口径。
 
 ## 7. 之后的顺序
 
