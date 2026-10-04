@@ -28,10 +28,10 @@ namespace MetaMystia;
 /// 停掉动画协程再换装」的语义）。旋转覆盖用 <see cref="CharacterSpriteSetStyle"/> 重建一份集，
 /// 与原实现克隆 ScriptableObject 并改 <c>IsHina</c> 等价。</para>
 ///
-/// <para><b>游戏自带像素集</b>：这类皮肤仍直接交给角色（框架的 <c>ApplyCharacterSprite</c> 只套用框架自建的
-/// 集）。旋转覆盖需要一份重建的集：框架的 <c>IAssetFactory.TryUnwrapCharacterSpriteSet</c> 已能把游戏自带的
-/// 集拆成帧与样式，<c>TryCreateCharacterSpriteSet</c> 再按 <see cref="CharacterSpriteSetStyle"/> 重建，但重建
-/// 出的集其裁剪（trims）取游戏 fallback 像素集而非该皮肤自己的，因此本轮未接线，先记警告。</para>
+/// <para><b>游戏自带像素集</b>：没有旋转覆盖时直接交给角色；有覆盖时用框架的
+/// <c>IAssetFactory.TryCopyCharacterSpriteSet</c> 复制该皮肤并把 <c>IsHina</c> 改成裁决值，再经
+/// <c>ApplyCharacterSprite</c> 套用。复制而非按帧重建，是因为复制连裁剪（trims）与 <c>Initialize</c> 不接受
+/// 的那些值（笔记本里的角色偏移、白天交互高亮几何）都一起保留。</para>
 /// <para>立绘出入的是框架的不透明句柄（<c>IPortraitProvider</c> 已代理化），游戏自带那张由
 /// <c>IAssetFactory.TryWrapSprite</c> 包成句柄。</para>
 /// </summary>
@@ -61,14 +61,23 @@ public partial class PlayerSkin
     private NetSkin? _netSpriteSetSource;
     [MemoryPackIgnore]
     private bool? _netSpriteSetRotate;
+
+    // 游戏自带皮肤 + 旋转覆盖的副本缓存：与来源像素集及覆盖值一一对应。
     [MemoryPackIgnore]
-    private bool? _reportedRotationGap;
+    private CharacterSpriteSetHandle? _gameSpriteSet;
+    [MemoryPackIgnore]
+    private CharacterSpriteSetCompact _gameSpriteSetSource;
+    [MemoryPackIgnore]
+    private bool? _gameSpriteSetRotate;
 
     private void InvalidateSpriteSetCache()
     {
         _netSpriteSet = null;
         _netSpriteSetSource = null;
         _netSpriteSetRotate = null;
+        _gameSpriteSet = null;
+        _gameSpriteSetSource = null;
+        _gameSpriteSetRotate = null;
     }
 
     /// <summary>
@@ -287,12 +296,12 @@ public partial class PlayerSkin
     /// <summary>
     /// 将当前皮肤应用到指定角色。
     /// <para>
-    /// 在线皮肤：套用走 <c>IPresentationServices.ApplyCharacterSprite</c>（<c>restart</c> 语义），
-    /// 该服务只在场景循环的服务窗口内可用，因此动作排进 <see cref="ScenePresentation"/>，由场景循环逐帧执行。
+    /// 在线皮肤与「游戏自带皮肤 + 旋转覆盖」：套用走 <c>IPresentationServices.ApplyCharacterSprite</c>
+    /// （<c>restart</c> 语义），该服务只在场景循环的服务窗口内可用，因此动作排进
+    /// <see cref="ScenePresentation"/>，由场景循环逐帧执行。
     /// </para>
     /// <para>
-    /// 游戏自带皮肤：框架的 <c>ApplyCharacterSprite</c> 只接受框架自建精灵集，故仍直接交给角色；旋转覆盖
-    /// 需要按游戏自带帧重建一份集（框架已具备拆解与重建两个入口，见类注释），本轮未接线，只记一次警告。
+    /// 游戏自带皮肤：无覆盖时直接交给角色；有覆盖时先用框架复制一份改过 <c>IsHina</c> 的集（见类注释）。
     /// </para>
     /// </summary>
     /// <param name="unit"></param>
@@ -304,32 +313,72 @@ public partial class PlayerSkin
         {
             if (TryResolveNetSpriteSet(out var set))
             {
-                var name = NetSkinName;
-                ScenePresentation.Enqueue(services =>
-                {
-                    if (services.BindCharacter(unit) is not { } character)
-                    {
-                        Log.Warning($"网络皮肤「{name}」套用失败：角色不可用");
-                        return;
-                    }
-
-                    if (!services.ApplyCharacterSprite(character, set, restart: true))
-                        Log.Warning($"网络皮肤「{name}」套用失败");
-                });
+                ApplySet(unit, set, $"网络皮肤「{NetSkinName}」");
                 return;
             }
 
             // 未就绪：先用 Fallback 游戏像素集占位（与原实现一致），下载完成后 NetSkinManager 会重新刷新。
         }
-        else if (RotateOverride.HasValue && _reportedRotationGap != RotateOverride)
+        else if (RotateOverride.HasValue && ResolveSkin() is { } rotatedSkin)
         {
-            // 旋转覆盖只对框架自建精灵集可表达（CharacterSpriteSetStyle）；游戏自带像素集没有重建入口。
-            _reportedRotationGap = RotateOverride;
-            Log.Warning("旋转覆盖需要重建像素集，而游戏自带像素集没有重建入口（框架缺口），本次忽略。");
+            if (TryResolveRotatedSkinSet(rotatedSkin, out var rotated))
+            {
+                ApplySet(unit, rotated, $"游戏自带皮肤（角色 {CharacterId}，样式 {SelectedType} {SkinIndex}）");
+                return;
+            }
+
+            Log.Warning("旋转覆盖需要复制一份游戏自带像素集，复制失败，本次忽略。");
         }
 
         if (ResolveSkin() is { } gameSkin)
             unit.UpdateCharacterSprite(gameSkin);
+    }
+
+    /// <summary>
+    /// 游戏自带皮肤 + 旋转覆盖：复制该皮肤并按裁决改 <c>IsHina</c>，按来源像素集与覆盖值缓存。
+    /// 复制保留裁剪与 <c>Initialize</c> 不接受的那些值，因此与原皮肤只差这一个标志。
+    /// </summary>
+    private bool TryResolveRotatedSkinSet(
+        CharacterSpriteSetCompact skin,
+        [NotNullWhen(true)] out CharacterSpriteSetHandle rotated)
+    {
+        rotated = null;
+        if (_gameSpriteSet is not null
+            && ReferenceEquals(_gameSpriteSetSource, skin)
+            && _gameSpriteSetRotate == RotateOverride)
+        {
+            rotated = _gameSpriteSet;
+            return true;
+        }
+
+        if (ModRuntime.Assets is not { } assets)
+            return false;
+
+        var style = new CharacterSpriteSetStyle { IsHina = RotateOverride };
+        if (!assets.TryCopyCharacterSpriteSet(skin, style, out var copy))
+            return false;
+
+        _gameSpriteSetSource = skin;
+        _gameSpriteSetRotate = RotateOverride;
+        _gameSpriteSet = copy;
+        rotated = copy;
+        return true;
+    }
+
+    /// <summary>把一份框架精灵集排进场景循环套用到角色；服务只在该窗口内可用，故不能就地调用。</summary>
+    private static void ApplySet(CharacterControllerUnit unit, CharacterSpriteSetHandle set, string what)
+    {
+        ScenePresentation.Enqueue(services =>
+        {
+            if (services.BindCharacter(unit) is not { } character)
+            {
+                Log.Warning($"{what}套用失败：角色不可用");
+                return;
+            }
+
+            if (!services.ApplyCharacterSprite(character, set, restart: true))
+                Log.Warning($"{what}套用失败");
+        });
     }
 
     /// <summary>
