@@ -38,10 +38,10 @@
 | 诊断 | 数量 | 含义 |
 | --- | --- | --- |
 | `MYSTIA1004` | 207 | 仍在用 `UnityEngine` 类型（`VfxBundle`、`InGameConsole`/面板 IMGUI 层、`DialogRegistry`、`Spell_Mai`、网络层） |
-| `MYSTIA1003` | 5 | `System.Reflection`（`UI/L10n.cs` 4 条读自带嵌资、`Utils/Il2CppOutDelegate.cs` 1 条 `Marshal`） |
+| `MYSTIA1003` | 1 | `Utils/Il2CppOutDelegate.cs` 的 `Marshal`（手搓 IL2CPP out 委托） |
 | `MYSTIA1002` | 2 | `Il2CppInterop` 裸 il2cpp（`Utils/Il2CppOutDelegate.cs`） |
 | 纯 CS | 0 | 声明级错误已清零（这正是分析器能全量报告的原因） |
-| **去重总错误** | **214** | |
+| **去重总错误** | **210** | |
 
 `MYSTIA1001`（Harmony/BepInEx）与 `MYSTIA1005`（编译器生成成员名）保持 0；`ResourceEx` 的自建注入管线（`ResourceEx/Addressables/**` 的 `ClassInjector` provider 与 `RuntimeAddressables`）已作为死代码删除，模组的 `MYSTIA1002` 因此从 28 降到 14。
 
@@ -100,20 +100,18 @@
 - **`DialogRegistry` 的 `AssetReferenceSprite`/`AssetReferenceT`（16 条）**：模组自建 `DialogPackage` 并往游戏对话行的引擎引用字段里写 `new AssetReferenceSprite(reference.Address)`。框架的 `DialogActionSpec` 已经用 `SpriteHandle` 表达这些字段（`IGameDataBuilder` 那条路），因此正解是把 `DialogRegistry` 迁到框架的对话构建器；代价中等（模组对话还带 `OverrideReplaceTextCallback` 之类的自定义行为，需要先确认框架面能覆盖）。
 - 建议次序：**先做值类型那 ≈110 条**（机械、无新面、可离线计分），再按文件处置引擎对象段。
 
-### 6.6 `UI/L10n.cs`（`MYSTIA1003` 4 条）—— 待定
+### 6.6 `UI/L10n.cs`（已完成）
 
-`L10n.Initialize` 用 `Assembly.GetExecutingAssembly().GetManifestResourceStream` 读自己内嵌的 `UI/Locales/{en,zh-CN}.json`（`MergeJson` 里的 `Enum.TryParse<TextId>` 不触发禁令，反射只为读嵌资）。覆盖路径 `LoadLocaleOverride` 本来就按 `ModRuntime.Directory` 读文件。
+两份 locale JSON 不再作为嵌资读取：`MetaMystia.Generators` 新增一个生成器，把它们当 `AdditionalFiles` 读入，编译期写成原始字符串字面量常量（`MetaMystia.UI.LocaleResources`），`L10n.Initialize` 拿常量喂同一个 `MergeJson`。运行时既不读嵌资也不碰反射，模组仍是"一份 dll + mod.json"；文本逐字节与源文件一致（已比对），字面量定界符宽度按内容里最长的连续引号数算，将来文本变化也不会破坏它。
 
-三个选项：
+### 6.7 CI（`.github/workflows/ci.yml`）—— 缺互操作来源，待定
 
-1. **改自带文件**：csproj 把两个 JSON 从 `EmbeddedResource` 改成 `Content … CopyToOutputDirectory`（`mod.json` 已是这种做法），`Initialize` 直接调现成的 `LoadLanguageFromFile` → −10 行、无新面。**代价**：模组目录从"一份 dll + mod.json"变成多两个文件，部署/发布产物要跟着改（CI 的 artifact 也要带上）。
-2. **生成器内联**：用仓库里现成的 `MetaMystia.Generators`（Roslyn 生成器，已经负责 `[AutoLog]`）在编译期把两份 JSON 生成常量 → 无反射、无额外文件、部署形态不变；代价是生成器约 60–100 行。
-3. **框架给"读本模组自带资源"的面**（如 `IMod.TryOpenResource`）：保持单份 dll，但为一件小事扩 SDK 面。
-
-### 6.7 CI（`.github/workflows/ci.yml`）—— 部分完成
-
-- **已做**：删掉"编译 Preloader"与"保存 Preloader 产物"两步 —— 那个工程随注入管线一起删了，而 CI 还在发布它的产物；顺带去掉已不存在的 `-p:DeployToGame=false`。
-- **待定（整段与旧 BepInEx 构建绑死）**：CI 现在下载一份 deps 包并把它当 `BepInExPath`，而当前构建需要的是**框架**（`nuget.config` 指向 `../MystiaExtensionFramework/artifacts/nuget`）与 `MystiaInteropDir`；产物路径 `MetaMystia-v*.dll` 也是旧 csproj 的 `RenamedAssembly`（已在移植时删除），现在产出的是 `MetaMystia.dll`。这需要决定"CI 怎么拿到框架与互操作"，不宜由执行者猜。
+- **已做**：删掉"编译 Preloader"与"保存 Preloader 产物"两步（那个工程随注入管线一起删了，而 CI 还在发布它的产物）；去掉已不存在的 `-p:DeployToGame=false`；**SDK 改为仓库自带的 vendor 副本**——新增 `vendor/nuget/Mystia.Extension.Sdk.<版本>.nupkg`（含 `vendor/README.md` 写明同步步骤与包缓存问题），CI 在依赖步骤里像写 `MetaMystia.local.props`/`global.json` 一样写一份只指向 `vendor/nuget` 的 `nuget.config`。本机开发不变：仓库里的 `nuget.config` 仍指向同级框架的 `artifacts/nuget`，两份副本不会互相遮蔽。已用"只配 vendor 源"的还原+构建验证：诊断与用同级源时完全相同（210 条）。
+- **仍缺（CI 现在还建不起来）**：`MystiaInteropDir` 指向的**互操作程序集**（45 MB / 93 个 DLL，见 §8）。三个方向：
+  1. **也 vendor 进仓库**：CI 自足，代价是仓库 +45 MB（其中 `Assembly-CSharp.dll` 单个 13 MB；按需裁剪可能降到 ~20 MB，但要靠"删了再编译"逐轮试）。
+  2. **CI 下载框架发布的固定产物**（像现在的 deps 那样一对 `INTEROP_URL`/`INTEROP_SHA256`）：仓库干净、可校验；需要框架仓库那边加一个发布步骤。
+  3. **CI checkout 框架并现场生成互操作**：需要 deps 里含游戏托管程序集与引擎模块；但 §10 已记，本机 `Build/…/Managed` 是裁剪态且缺 `ResourceProviderBase.Release`，非 Symbols 备份生成会失败——这条路最不可靠。
+- 另外：产物的文件名仍是 `MetaMystia-v*.dll`（旧 csproj 的 `RenamedAssembly`，移植时已删），现在产出 `MetaMystia.dll`，发布步骤里 `mv package/MetaMystia-${TAG}.dll` 也要跟着定。
 
 ## 7. 之后的顺序
 
