@@ -25,7 +25,7 @@
 | 项 | 结果 |
 | --- | --- |
 | 框架构建 `dotnet build MystiaExtensionFramework.slnx -c Debug` | **0 错 0 警告** |
-| 框架测试 `dotnet test src/Mystia.Net.Sdk.Tests` | **244/244** |
+| 框架测试 `dotnet test src/Mystia.Net.Sdk.Tests` | **245/245** |
 | SDK 打包 `dotnet pack sdk/Mystia.Extension.Sdk/Mystia.Extension.Sdk.Pack.csproj -c Release` | 成功（`artifacts/nuget/Mystia.Extension.Sdk.2.0.0.nupkg`） |
 | 样例工程 ×3（`samples/SampleMod.{A,B,Skip}`） | 0 错 0 警告（每次重打 SDK 后需重建） |
 | 模组构建 `dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Debug` | 见下表；**尚未全绿**，剩余工作见 §6 |
@@ -136,11 +136,61 @@ bash docs/port/static-check.sh
 ## 11. 待用户裁决
 
 1. ~~`Utils/ExportUtils.cs` 去留~~ —— 已裁决：删除，PNG 编码器上移 MEFX（已完成，见 §6 第 8 项）。
-2. `PeerPlayer` 的触发器方案是否接受（另一选择是照游戏剧情角色直接销毁碰撞体）。
-3. `NoteBookSkinPortrait` 配置项在笔记本补丁删除后空转：由 `ClothPortraitProvider` 按开关过滤，还是删配置项？
-4. ~~`IPortraitProvider` 是否代理化 + 是否需要"包装游戏自带精灵集"的入口~~ —— 已裁决：两者都做（已完成，见 §6 第 7 项）。
-5. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
-6. **新**：`PlayerSkin` 的游戏自带皮肤旋转覆盖要不要接线（重建后套用；代价是重建集的裁剪取游戏 fallback 像素集）？见 §6 第 3 项。
+2. ~~`IPortraitProvider` 是否代理化 + 是否需要"包装游戏自带精灵集"的入口~~ —— 已裁决：两者都做（已完成，见 §6 第 7 项）。
+3. `PeerPlayer` 的碰撞方案（见下 A）。
+4. `PlayerSkin`「笔记本立绘」开关（`Experimental/NoteBookSkinPortrait`）的去留（见下 B）。
+5. `PlayerSkin` 游戏自带皮肤的旋转覆盖要不要接线（见下 C）。
+6. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
+
+### A. `PeerPlayer` 的碰撞方案
+
+**现状**：远端角色是游戏 `CharacterBase` prefab 的克隆，构造时 `Initialize(skin, speed, shouldTurnOnCollider: true)` 保留碰撞体，随后 `cl2d.isTrigger = true`（`PeerPlayer.cs:87/126-129`）。原因是互操作里 `Physics2D` 只剩查询，`IgnoreCollision`/`IgnoreLayerCollision` 都没有、2D 碰撞矩阵也不能运行时改，做不到「碰撞对」级过滤。
+
+**方案 A（现状）**：保留触发器碰撞体。挡不住任何人（本地玩家与其他远端角色都能穿过），也不与地图障碍碰撞（位置完全由网络位置驱动）；但游戏自己的 `CharacterControllerUnit.hasCollider` 仍是 **true**，且触发器仍会产生触发事件。
+
+**方案 B**：`Initialize(..., shouldTurnOnCollider: false)` —— 游戏自己的「无碰撞体」状态（`CharacterControllerUnit.cs:187` 直接 `Destroy(cl2d)`、`hasCollider = false`）；游戏剧情角色走的就是这条（`SceneDirector.cs:406`）。
+
+**两者的差别（都有源码证据，除标注外）**：
+
+| | 方案 A（触发器） | 方案 B（游戏自己销毁） |
+| --- | --- | --- |
+| 阻挡本地玩家/其他远端 | 不挡 | 不挡 |
+| 与地图障碍碰撞 | 不碰（位置纯网络驱动） | 不碰 |
+| 游戏 `hasCollider` | true → 角色携带的可拆卸装饰（`RemovableTrim`）会**带碰撞体**（`CharacterControllerUnit.cs:519-530`），`UpdateColliderStatus` 可用 | false → 装饰不带碰撞体；`UpdateColliderStatus` 会打一行错误日志（`CharacterControllerUnit.cs:289`，目前只有 `Spell_Shinmyoumaru` 调它，且只对本地玩家） |
+| 触发器事件 | **会发**：全游戏只有 4 个 `OnTrigger*2D` 处理器，其中 `Day/Interactables/Entities/InteractableArea.cs:51` 用 `CompareTag("Player")` 过滤 —— 远端角色若仍是 `Player` tag（prefab 继承，未在模组侧改过），白天交互区会被远端角色触发 | 不发（没有碰撞体） |
+| 依赖碰撞体的查询 | 找得到碰撞体 | 找不到 |
+
+**要判的点**：白天交互区（`InteractableArea`）被远端角色触发是否会造成可见问题（例如互相刷出交互提示）；以及是否有任何逻辑依赖远端角色存在碰撞体（模组旧注释称"联机角色需保留碰撞体"，但没有给出具体依赖，游戏自己的剧情角色证明引擎不需要它）。
+
+**建议**：倾向方案 B（用游戏自己的参数，语义一致、无触发器事件）；但在实机两机走一遍（远端角色穿过白天交互区、穿过地图障碍、穿过顾客）之前不擅自改。若判定 B 会造成问题，则保留 A，并把注释改成现在的证据版本。
+
+### B. `Experimental/NoteBookSkinPortrait` 开关的去留
+
+**背景**：这个开关（默认 **false**，`ConfigManager.cs:126`）原本由已退役的 `NoteBookProfilePannelPatch` 使用，含义是"在笔记本里为皮肤系统启用立绘替换"。迁移后框架的立绘 seam 是 `DataBaseCharacter.SetupPortrayalVisual` 的前缀，而**白天 HUD 与笔记本档案页走的是同一个调用**（框架注释里已记：`UIManager.cs:193` 与 `NoteBookProfilePannel.cs:72`），因此模组的立绘现在**两个面板都替换**，开关不再有任何作用。
+
+也就是说：迁移把"笔记本里默认不替换"变成了"总是替换"（对用过默认值的玩家是可见变化），这也与交付报告里"可见结果相同"的说法不符。
+
+**选项**：
+1. **删掉开关**：承认"两个面板都替换"是目标行为，删配置项与两处文档里的提及。改动最小、语义干净，但要接受上面那次默认行为的变化。
+2. **让开关真的生效**：需要框架知道"这次是哪个面板在要立绘"。做法是给 `IPortraitProvider` 的请求加一个目标身份（例如 `PortraitTarget.DayHud / NoteBook`），由桥接在 seam 里判定（`Image` 的祖先里有笔记本面板组件即 NoteBook）——框架侧约 30 行 + SDK 形状变更 + 模组按开关过滤。代价是"哪个面板"要从 `Image` 的层级推断。
+3. **折中**：保留开关但改语义为"整个立绘替换的开关"（两个面板一起关）。最小改动、不撒谎，但用户看到的开关含义变了，且默认关闭时皮肤立绘完全不生效（可能不是原意）。
+
+**建议**：若"皮肤立绘在两个面板都生效"就是要的效果 → 选 1；若笔记本需要能单独关掉 → 选 2（我可以一并做框架面）。
+
+### C. `PlayerSkin` 游戏自带皮肤的旋转覆盖
+
+**背景**：玩家皮肤分两类 —— 在线皮肤（框架自建像素集）与游戏自带皮肤（`ResolveSkin()` 拿到的游戏 `CharacterSpriteSetCompact`）。旋转覆盖（`RotateOverride`，由对端皮肤描述带来）对在线皮肤用 `CharacterSpriteSetStyle` 重建即可；对游戏自带皮肤，`ApplyToUnit` 目前只记一次警告（`PlayerSkin.cs:317-322`），因为框架原来没有"导入既有游戏像素集"的入口。
+
+**现在**：入口已就位 —— `IAssetFactory.TryUnwrapCharacterSpriteSet(set, out frames, out style)`（把游戏自带像素集拆成帧句柄 + 样式）与 `TryCreateCharacterSpriteSet(kind, frames, style)`（按样式重建）。接线后游戏自带皮肤的旋转覆盖会真的生效。
+
+**代价/风险**：重建出的集，其**裁剪**（`RemovableTrims`／前后 trim 贴图与其帧速）不是该皮肤自己的，而是**游戏 fallback 像素集**的（`CharacterSprites.Build*` 一直如此，在线皮肤早就如此）——若某个自带皮肤带装饰性 trim，重建后装饰可能与该皮肤原本的外观不一致。另一个小点：每次套用都会重建一份集（36~60 个帧句柄 + 一个 ScriptableObject），需要按皮肤+覆盖值缓存（`PlayerSkin` 已有同类缓存模式）。
+
+**选项**：
+1. **接线**（按皮肤+覆盖缓存）：功能补全，代价是上面那条 trim 差异（只在"该皮肤带 trim 且开了旋转覆盖"时可感知）。
+2. **不接线**：保持警告，玩家/对端的旋转请求对自带皮肤无效（现状）。
+3. **先只服务无 trim 的皮肤**：需要判断某个集有没有 trim（`RemovableTrims.Length == 0`），有 trim 就继续警告、没有就重建 —— 逻辑小但把"框架的一个已知不完美"藏进了模组分支。
+
+**建议**：选 1 或 3 都由你定；我倾向 3（先把确定安全的范围做掉），但它让行为依赖游戏数据的细节。若你更看重观感一致，选 2 也完全站得住。
 
 ## 12. 必须实机验证的清单（全部结论目前都是源码/编译级）
 
