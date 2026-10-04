@@ -1,4 +1,4 @@
-using System.CommandLine;
+﻿using System.CommandLine;
 using System.CommandLine.Invocation;
 using UnityEngine;
 
@@ -78,7 +78,7 @@ public static class CallCommands
                 int rot = ctx.ParseResult.GetValueForArgument(moveRotArg);
                 var mapKey = mapLabel.ToMapKey();
                 GameData.RunTime.DaySceneUtility.RunTimeDayScene.MoveCharacter(
-                    characterKey, mapKey, new Vector2(x, y), rot, out _);
+                    characterKey, mapKey, new(x, y), rot, out _);
                 ctx.Log(TextId.CharacterMoved.Get(characterKey, x, y, rot, mapLabel.GetDisplayName()));
             }
             catch (System.Exception e)

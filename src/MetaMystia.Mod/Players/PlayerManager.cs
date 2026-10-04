@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Linq;
 
 using Mystia.Numerics;
@@ -288,15 +288,15 @@ public static partial class PlayerManager
     /// <summary>
     /// 在 FixedUpdate 中为所有 Peer 执行位置修正
     /// </summary>
-    public static void OnFixedUpdate()
+    public static void OnFixedUpdate(float delta)
     {
         foreach (var peer in Peers.Values)
         {
-            peer.OnFixedUpdate();
+            peer.OnFixedUpdate(delta);
         }
         foreach (var peer in PublicPeers.Values)
         {
-            peer.OnFixedUpdate();
+            peer.OnFixedUpdate(delta);
         }
     }
 

@@ -57,7 +57,7 @@ public sealed partial class ModLoop : IGlobalGameLoop, IIMGUIProvider
         {
             case Scene.DayScene:
             case Scene.WorkScene:
-                PlayerManager.OnFixedUpdate();
+                PlayerManager.OnFixedUpdate(delta);
                 break;
         }
     }

@@ -145,7 +145,8 @@ public partial class PeerPlayer : NetPlayer
         positionOffset = Vector2.Zero;
     }
 
-    public void OnFixedUpdate()
+    /// <param name="delta">全局循环 FixedUpdate 的步长，就是原来的 <c>Time.fixedDeltaTime</c>。</param>
+    public void OnFixedUpdate(float delta)
     {
         if (!CanRender || character == null || GameFlow.InStory) return;
         if (Scene == Scene.DayScene && DayScene.SceneManager.Instance.IsMapSwapping)
@@ -155,8 +156,7 @@ public partial class PeerPlayer : NetPlayer
             return;
         }
         var correction = positionOffset / 0.5f / 5f;
-        // Time.fixedDeltaTime 没有框架替代入口（全局循环的 FixedUpdate 才有 delta，调用点不在本文件），保留现状。
-        positionOffset -= correction * UnityEngine.Time.fixedDeltaTime * 5f * character.sprintMultiplier;
+        positionOffset -= correction * delta * 5f * character.sprintMultiplier;
         var velocity = new Vector2(InputDirection.X + correction.X, InputDirection.Y + correction.Y);
         if (velocity.SqrMagnitude < 0.0001f) velocity = Vector2.Zero;
         character.IsMoving = velocity != Vector2.Zero;
