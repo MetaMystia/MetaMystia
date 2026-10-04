@@ -157,8 +157,8 @@ bash docs/port/static-check.sh
 4. ~~`PeerPlayer` 的碰撞方案~~ —— 已裁决：方案 B（用游戏自己的参数）。已完成。
 5. ~~`NoteBookSkinPortrait` 开关去留~~ —— 已裁决：让开关真生效。已完成：框架把"哪个面板在要立绘"作为 `PortraitTarget` 交给提供者，模组在笔记本上按开关过滤。
 6. ~~`PlayerSkin` 游戏自带皮肤的旋转覆盖~~ —— 已裁决：路 2（复制游戏那份集）+ 接线。已完成。
-7. 阶段时钟的拉伸要不要改成"按倍率、由框架在时钟启动那一刻施加"（见下 E）——现状是模组每帧把绝对秒数下放，理论上"与挑战启动同帧开跑的时钟"会漏掉拉伸。
-8. `CharacterSpriteSetStyle` 要不要补上那两个"只有美术资源才带"的字段（见下 D）。
+7. ~~阶段时钟的拉伸要不要改成"按倍率、由框架在时钟启动那一刻施加"~~ —— **已关闭：没有缺 API**。迁移前是 Harmony prefix 在计时协程入口写 `资产 singleRoundDuration × 倍率`（`YuyukoChallengeContextPatch`，`7347e76`）；现在框架的 `SetPhaseSeconds` 把值存进 `_armed[phase]`，并在该阶段时钟的第一个步取用（`ChallengeClockSeams.StartClock`）——**写什么、何时生效都逐字一致**，模组每帧下放只是"随时早于时钟启动都有效"。所谓一帧窗口要求"阶段时钟早于营业场景循环的第一次 `Update`"，而挑战主循环在该场景里先 `yield return null` 才进阶段时钟，实际不可达。
+8. ~~`CharacterSpriteSetStyle` 要不要补那两个"只有美术资源才带"的字段~~ —— **已关闭：不是回归、也没有缺 API**。迁移前模组自建像素集走的就是游戏的 `Initialize(...)`（`PixelSpriteFactory`），而那两个字都不在它的参数表里 → **旧代码同样拿到 0**；MEFX 想表达它们也能（两个成员 + 互操作字段 setter），只是没有任何调用方需要（框架为模组特殊客人建集的那条路 `GameRecords.Skins` 也走同一个 `Initialize`）。唯一差异是"模组美术 vs 游戏自带美术"，已列进 §12。
 
 ### A. `PeerPlayer` 的碰撞方案
 
@@ -225,23 +225,21 @@ bash docs/port/static-check.sh
 
 **建议**：选项 1——它把两条件（自建 / 复制）在"未声明"这一点上的语义对齐，也顺手给了模组声明自己美术偏移的能力；代价很小。
 
-### E. 阶段时钟：绝对秒数还是倍率（待裁决）
+### E. 阶段时钟（已关闭：无缺 API）
 
-**现状**：模组在联机时把挑战三个阶段都拉长（`YuyukoChallengeSync.ArmPhaseSeconds`），做法是**每帧**（营业场景循环的 `Update`）下放**绝对秒数** `BasePhaseSeconds × 倍率`（框架的 `SetPhaseSeconds`）。框架在**该阶段时钟的第一个步**里读游戏自己的时长并把已预置的秒数写回（`ChallengeClockSeams.StartClock`），所以在时钟启动前任意时刻下放都等价。
+**迁移前的原实现**（`Patches/NightScene/YuyukoChallengeContextPatch.cs`，`7347e76` 引入、`1908e4a` 前一直有效）：
 
-**理论缺口**：如果某个阶段的时钟在"模组第一次以 `PhaseSyncActive` 跑 `Update`"之前就启动（文档原话是"与挑战启动同帧"），那一次下放就来不及，该阶段拿不到拉伸。实际上挑战从准备场景进夜晚、到阶段时钟启动之间隔着若干帧，所以**大概率只在极端情况下可见**；写成待裁决是因为它无法离线证明。
+```csharp
+[HarmonyPatch(typeof(YuyukoBossData.__c__DisplayClass16_0))]                     // 三阶段共用闭包
+[HarmonyPatch("Method_Internal_IEnumerator_Func_1_Boolean_0")]                  // = <MainChallengeLoop>g__Timing|2：计时协程入口
+[HarmonyPrefix]
+int originalDuration = __instance.__4__this.singleRoundDuration;   // 资产字段（基准），不是闭包当前值
+__instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭包
+```
 
-**两条路**：
+**现在**：模组每帧下放 `SetPhaseSeconds(phase, BasePhaseSeconds × 倍率)`；框架存进 `_armed[phase]`，在该阶段时钟的第一个步取用（`ChallengeClockSeams.StartClock`）。⇒ 写的是同一个量（资产基准 × 倍率）、生效点是同一个（时钟启动），**逐字一致**；"每帧下放"等价于"随时早于启动都有效"，因为框架会一直持有到那一刻。所谓一帧窗口要求阶段时钟早于营业场景循环的第一次 `Update`，而主循环在该场景里先 `yield return null`，不可达。
 
-| | (a) 保持现状 | (b) 改成倍率，由框架在时钟启动那一刻施加 |
-| --- | --- | --- |
-| 框架面 | 不变 | `SetPhaseSeconds` 旁边加一个 `ScalePhaseSeconds(phase, factor)`：`StartClock` 取"游戏自己的秒数 × 倍率"（未预置绝对秒数时） |
-| 模组侧 | 不变（每帧下放绝对秒数，需要 `BasePhaseSeconds`） | 只需下放倍率（不再需要 `BasePhaseSeconds`，那个面可一并退役） |
-| 时机 | 理论上有一帧窗口 | 窗口消失：倍率由框架在同一个步内施加 |
-| 语义差异 | 绝对值 = `资产基准时长 × 倍率`，**替换**游戏自己的时长 | 相对值 = `游戏当前时长 × 倍率`，**缩放**它；而游戏自己会在第三阶段把该时长 +30 秒（`YuyukoBossData.cs:378`），于是第三阶段会变成 `(基准+30) × 倍率` 而不是 `基准 × 倍率` |
-| 需要实机 | 看拉伸是否生效 | 看三阶段时长（尤其第三阶段）是否符合预期 |
-
-**建议**：若你要的是"每个阶段都按倍率变长"，选 (b)（语义更准、顺带退役一个面），但要接受第三阶段把游戏的 +30 也一起放大；若你要保持与迁移前**逐字一致**的时长（含"忽略 +30"这一点），选 (a)，只在文档里写明那个一帧窗口。
+**唯一仍值得在实机上看一眼的**：三阶段时长是否都是"基准 × 倍率"（含游戏自己在第三阶段把时长 +30 秒那一次——迁移前的 prefix 也是在那个时钟启动时用 `资产基准 × 倍率` 覆盖它，所以现在与迁移前一致）。
 
 ## 12. 必须实机验证的清单（全部结论目前都是源码/编译级）
 
