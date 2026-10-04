@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text.Json;
 using UnityEngine.UI;
 
@@ -398,26 +397,13 @@ public static class L10n
     private static Dictionary<TextId, Dictionary<Language, string>> Table = new();
 
     /// <summary>
-    /// Load translations from embedded JSON resources.
-    /// Call once during plugin initialization.
+    /// 装载内置语言表。两份 JSON 由 <c>MetaMystia.Generators</c> 在编译期内联
+    /// （<see cref="LocaleResources"/>），因此运行时既不读嵌资也不碰反射。
     /// </summary>
     public static void Initialize()
     {
-        var asm = Assembly.GetExecutingAssembly();
-        LoadLanguageFromResource(asm, Language.English, "MetaMystia.UI.Locales.en.json");
-        LoadLanguageFromResource(asm, Language.ChineseSimplified, "MetaMystia.UI.Locales.zh-CN.json");
-    }
-
-    private static void LoadLanguageFromResource(Assembly asm, Language lang, string resourceName)
-    {
-        using var stream = asm.GetManifestResourceStream(resourceName);
-        if (stream == null)
-        {
-            ModRuntime.Log.Warning($"L10n resource not found: {resourceName}");
-            return;
-        }
-        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
-        MergeJson(lang, reader.ReadToEnd());
+        MergeJson(Language.English, LocaleResources.English);
+        MergeJson(Language.ChineseSimplified, LocaleResources.ChineseSimplified);
     }
 
     private static void LoadLanguageFromFile(Language lang, string path, bool warnIfMissing = false)

@@ -23,8 +23,9 @@
   <!-- 幽幽子挑战相关文件已按 4.4.0e 互操作成员布局完成适配，不再排除编译。 -->
 
   <ItemGroup>
-    <EmbeddedResource Include="UI\Locales\en.json" />
-    <EmbeddedResource Include="UI\Locales\zh-CN.json" />
+    <!-- 交给 MetaMystia.Generators 在编译期内联成 LocaleResources 常量，运行时不再读嵌资。 -->
+    <AdditionalFiles Include="UI\Locales\en.json" />
+    <AdditionalFiles Include="UI\Locales\zh-CN.json" />
   </ItemGroup>
 
   <ItemGroup>
