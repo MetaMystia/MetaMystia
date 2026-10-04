@@ -35,11 +35,12 @@
 
 模组侧诊断（去重后，`dotnet build` 的计数是它的两倍）：
 
-| 诊断 | 数量 | 含义 |
-| --- | --- | --- |
-| `MYSTIA1004` | 18 | 仍在用 `UnityEngine` 类型：其中 **18 条是已声明的保留**（`VfxBundle` 的 AssetBundle／预制体读取 12、`NetPlayer` 的 `Rigidbody2D`/`Collider2D`/`Transform` 6，两处都在代码里写明理由），其余 13 条在等框架补面（见 §6） |
-| `MYSTIA1001` / `MYSTIA1002` / `MYSTIA1003` / `MYSTIA1005` | 0 | Harmony/BepInEx、裸 il2cpp、反射、编译器生成成员名全部清零 |
-| 纯 CS | 0 | 声明级与方法体级错误都已清零 |
+| 诊断 | 数量 |
+| --- | --- |
+| `MYSTIA1001` / `MYSTIA1002` / `MYSTIA1003` / `MYSTIA1004` / `MYSTIA1005` | **全部为 0** |
+| 纯 CS | **0** |
+
+即：模组侧不再出现 Harmony／BepInEx、裸 il2cpp、反射、`UnityEngine` 类型、编译器生成成员名，声明级与方法体级错误也都清零——**本轮第一次能构建出产物**（`-c Release` 产出 `MetaMystia.dll` + `MetaMystia.Network.dll` + `mod.json` + `Mystia.Net.Sdk.dll`，正是 CI 要打包给启动器的那份目录）。
 
 **关键机制提醒（务必记住）**：Roslyn 在存在**声明级**错误时会跳过方法体分析，**分析器也不执行**。所以只要还有声明级错误，模组侧就看不到方法体级错误与 `MYSTIA100x` 诊断。反之，方法体错误清完后每减少一批声明级错误，都会"新暴露"一批此前不可见的错误——这是正常现象，不要用禁用注释或兼容层掩盖。
 
