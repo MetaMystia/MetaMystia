@@ -18,15 +18,20 @@ namespace MetaMystia.Data.ResourceEx;
 /// 3. 未命中则原版逻辑照常。
 ///
 /// 迁移前该前缀会跳过原方法，现在原方法照常执行而 <c>overrideSprite</c> 优先，
-/// 可见结果相同；笔记本面板的 <c>ConfigManager.NoteBookSkinPortrait</c> 开关仍由
-/// <c>ClothRegistry</c>／配置过滤承担。
+/// 可见结果相同；笔记本档案页由 <c>ConfigManager.NoteBookSkinPortrait</c> 单独把关
+/// （框架把「哪个面板在要立绘」作为 <see cref="PortraitTarget"/> 交给提供者）。
 /// </summary>
 [AutoLog]
 public sealed partial class ClothPortraitProvider : IPortraitProvider
 {
-    public bool TryResolvePortrait(int clothIndex, [NotNullWhen(true)] out SpriteHandle? portrait)
+    public bool TryResolvePortrait(int clothIndex, PortraitTarget target, [NotNullWhen(true)] out SpriteHandle? portrait)
     {
         portrait = null;
+
+        // 笔记本档案页由 Experiment/NoteBookSkinPortrait 单独把关：关掉时该页仍用游戏自己的立绘。
+        // 迁移前这一页由独立补丁承担，开关是它唯一的入口；两页现在共用同一条链，开关因此在这里过滤。
+        if (target == PortraitTarget.NoteBook && !ConfigManager.NoteBookSkinPortrait.Value)
+            return false;
 
         // /skin 立绘覆盖
         if (PlayerManager.Local?.IsCustomSkinOverride == true)

@@ -79,12 +79,15 @@ public partial class PeerPlayer : NetPlayer
             character = UnityEngine.Object.Instantiate(DataBaseCharacter.CharacterBase, owner.transform)
                 .GetComponent<CharacterControllerUnit>();
             character.name = CharacterId;
-            // 剧情用的 SpawnCharacter 会删除碰撞体，联机角色需保留碰撞体。
-            character.Initialize(Skin.ResolveSkin(), motion.Speed, true);
+            // 游戏自己的参数决定要不要碰撞体：传 false 会让 CharacterControllerUnit.Initialize 直接
+            // Destroy(cl2d) 并置 hasCollider = false（游戏剧情角色走的就是这条，SceneDirector.cs:406）。
+            // 与「保留碰撞体再改成触发器」相比，物理结果相同（都不挡人、不与地图障碍碰撞，位置由网络驱动），
+            // 但这里连触发事件也不会再发（白天交互区 InteractableArea 是按 Player tag 过滤的），
+            // 而且游戏自己的 hasCollider 状态与实际一致。代价：远端角色身上的装饰件同样不带碰撞体。
+            character.Initialize(Skin.ResolveSkin(), motion.Speed, false);
             owner.characterCollection.Add(CharacterId, character);
             character.AddInputProcessor<HeightBlendedInputProcessorComponent>();
             Skin.ApplyToUnit(character);
-            MakeColliderNonBlocking();
             Log.Info($"Created peer '{CharacterId}' in {Scene}");
         }
 
@@ -115,17 +118,6 @@ public partial class PeerPlayer : NetPlayer
         SetZ(visible ? 0 : -40815);
         character.cl2d.enabled = visible;
         FloatingTextHelper.SetPlayerLabel(Uid, LiveModeManager.GetDisplayName(Uid), character);
-    }
-
-    /// <summary>
-    /// 远端角色的碰撞体不再阻挡任何人。互操作里 <c>Physics2D</c> 被裁得只剩查询
-    /// （<c>IgnoreCollision</c>/<c>IgnoreLayerCollision</c> 都不存在，2D 碰撞矩阵也无法在运行时改），
-    /// 做不到「碰撞对」级过滤，因此改用触发器：与本地玩家、其他远端角色都不再产生碰撞响应。
-    /// 代价：它也不再与地图障碍碰撞，位置完全由网络位置与速度修正驱动。
-    /// </summary>
-    private void MakeColliderNonBlocking()
-    {
-        character.cl2d.isTrigger = true;
     }
 
     /// <summary>场景卸载由游戏销毁对象；中途离线由模组移除自己的角色。</summary>
