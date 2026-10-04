@@ -109,11 +109,12 @@
 **红线（先写清楚）**：`artifacts/interop` 是**从游戏二进制归纳出来的派生物**（类型壳 + `il2cpp_runtime_invoke` 转调桩，没有方法体），虽然生成要 pin `GameAssembly.dll` 的 SHA256、且始终只在本机存在，但它属于"不得分发"的一类。**它不进任何仓库、不进任何发布物，CI 也不得要求它**——这与模组只引用互操作、不引用游戏程序集是同一条边界的两面。游戏逆向源码同理，只留在私有的自建 git 服务器上。
 
 - **已做**：删掉"编译 Preloader"与"保存 Preloader 产物"两步（那个工程随注入管线一起删了，而 CI 还在发布它的产物）；去掉已不存在的 `-p:DeployToGame=false`；**SDK 改为仓库自带的 vendor 副本**——新增 `vendor/nuget/Mystia.Extension.Sdk.<版本>.nupkg`（含 `vendor/README.md` 写明同步步骤与包缓存问题），CI 像写 `MetaMystia.local.props`/`global.json` 一样写一份只指向 `vendor/nuget` 的 `nuget.config`。本机开发不变（`nuget.config` 仍指向同级框架的 `artifacts/nuget`），已用"只配 vendor 源"的还原+构建验证：诊断与用同级源时完全相同（210 条）。SDK 包里只有框架自己的东西（`Mystia.Net.Sdk.dll` + 分析器 + props），不含任何游戏派生物。
-- **仍缺**：`MystiaInteropDir` 指向的互操作。公开 runner 上没有游戏二进制就**不可能**构建模组（模组只能引用互操作），所以可选项只有：
-  1. **自托管 runner**（跑在拥有游戏的机器上，那里本机已有安装与已生成的互操作）——推荐；发布物里只有 `MetaMystia.dll`/`MetaMystia.Network.dll`/`mod.json`。
-  2. **CI 只做不需要互操作的部分**（`MetaMystia.Generators`、网络/流程测试），模组本体构建留在本地或发布前手跑。
-  3. **保留现状**（下载 deps 包）——但**先核清那份 deps 里有什么**（见下）。
-- **顺带查到的既有风险（与本次改动无关，需要你们核）**：CI 现在下载 `DEPS_URL = https://github.com/MetaMystia/TouhouMystiaIzakaya-deps/releases/download/Release4.4.0e/deps-Release4.4.0e.zip`，并把它当 `BepInExPath`（旧构建引用**游戏程序集**的位置）。这暗示该 zip 里含游戏的托管程序集，而它挂在**公开 release** 上。本机无外网无法拉清单；请用 `gh release view Release4.4.0e` 或直接看 zip 内容核实，若确有游戏程序集，应挪到私有渠道。
+- **已做（机械修正）**：CI 写 `MystiaInteropDir = .tmp/deps/interop/`（原来写的是没人再读的 `BepInExPath`，于是它下载了互操作却从没用上）；产物路径由 `MetaMystia-v*.dll`（移植时删掉的 `RenamedAssembly` 遗留、匹配不到任何文件）改成实际产出的 `MetaMystia.dll`。**实测**：把 `MystiaInteropDir` 指向解开的 deps `interop/` 构建模组，诊断与用框架 `artifacts/interop` 完全一致（210 条）。
+- **仍待决定**：① deps 的公开/私有限制（见上）；② 发布产物该是"一个 dll"还是"启动器要的整份目录（dll + `MetaMystia.Network.dll` + `mod.json`）"——现在发布步骤把单个 dll 重命名成 `MetaMystia-<tag>.dll`，与启动器的 `mods/<名字>/` 形态不符。
+- **既有暴露面（已核实，与本次改动无关，但需要你们决定）**：CI 下载的 `deps-Release4.4.0e.zip`（公开 release 资产，14.1 MB，SHA256 与 CI pin 的 `427951e1…` 逐字节一致）里是两半：
+  - `core/`（37 个 DLL，6.3 MB）= 第三方**逆向工具链**（Iced、AsmResolver、Cpp2IL.Core、LibCpp2IL、Mono.Cecil、Gee.External.Capstone、Il2CppInterop.Generator/Runtime、0Harmony、dobby…），开源可再分发；
+  - `interop/`（122 个 DLL，54.5 MB）= **互操作程序集**（`Assembly-CSharp.dll` 13.7 MB、`Il2CppSystem.dll`、`Il2Cppmscorlib.dll`、`UnityEngine.*Module.dll`…）。抽查 `interop/Assembly-CSharp.dll`：14,759 个 `NativeMethodInfoPtr_*` / 12,428 个 `NativeFieldInfoPtr_*`、调用走 `il2cpp_runtime_invoke` → 是 Il2CppInterop 生成的**壳**，**不含方法体（游戏逻辑代码）**，但含游戏完整的**类型/成员名与签名**（13.7 MB 元数据）。
+  也就是说，公开出去的是"游戏 API 面"而不是游戏源码；但它仍然是游戏派生物，且这份产物挂在公开 release 上、被 CI 匿名下载。可选处置：① 转私有/自建服务器（CI 改成带凭据或自托管 runner）；② 只公开 `core/`、把 `interop/` 转私有；③ 维持现状（至少把这件事实记录下来）。
 - **另外**：产物文件名仍是旧 csproj 的 `MetaMystia-v*.dll`（`RenamedAssembly`，移植时已删），现在产出 `MetaMystia.dll`，发布步骤里的 `mv package/MetaMystia-${TAG}.dll` 也要跟着定。
 
 ## 7. 之后的顺序
