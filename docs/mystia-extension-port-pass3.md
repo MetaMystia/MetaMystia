@@ -76,7 +76,7 @@
 1. **`Utils/Il2CppOutDelegate.cs`（`MYSTIA1002` 2）**：`UI/DaySceneSelectionMenu.cs` 用它把带 `out` 参数的 C# lambda 包成游戏的 `GetSelectionConfigurationCallback`。正解是让这个菜单改走框架的 `IChatMenuProvider`（菜单项 + 选中回调），随之删掉该文件；若框架的来源枚举不够用，再补一个 `ChatMenuOrigin`。
 2. **`System.Reflection` 四处（`MYSTIA1003` 16）**：`SgrYuki/Functional.cs`、`L10n.cs`（按枚举名取本地化）、`IdRangeValidator.cs`、`NativeDllExtractor.cs`（释放原生 DLL）——要么改强类型，要么搬进框架。
 3. **`MYSTIA1004` 残余（207）**：热点是 `VfxBundle.cs`、`InGameConsole.cs`／`PlayerListPanel.cs` 等 IMGUI 面板、`DialogRegistry.cs`、`Spell_Mai.cs`、`NetPlayer.cs`、`GuestSync.cs`。多数要换 `Mystia.Imgui` 与 `IPresentationServices`。
-4. **历史遗留值面缺口（新发现，未处理）**：`CharacterSpriteSetStyle` 只镜像移动类标志，而 `CharacterSpriteSetCompact` 还有三个 `Initialize` 不接受的序列化字段（`spriteOffsetInNoteBook`、`daySceneInteractableHighlightOffset`、`daySceneInteractableColliderAdditiveRadius`）。**任何框架按帧自建的集**（含在线皮肤）今天都把它们丢成默认值——按帧自建这条路无法修（游戏没提供写入入口），要修只能在需要时改用 `TryCopyCharacterSpriteSet` 从游戏那份集复制。是否要为在线皮肤也这么做（它没有游戏来源集）需要单独讨论。
+4. **值面缺两个成员（新发现，未处理，细节见 §11-D）**：`CharacterSpriteSetStyle` 只镜像移动类标志；`CharacterSpriteSetCompact` 另有两个"只有美术资源才带"的序列化字段（`spriteOffsetInNoteBook`、`daySceneInteractableColliderAdditiveRadius`，`Initialize` 不接受、也没有 SDK 成员），因此**按帧自建**的集（含在线皮肤）在这两处拿到 0，而游戏自带的集拿到它自己美术的值——这与 `CharacterSpriteSetStyle` 文档承诺的"未声明即用游戏自带像素画的值"不符。（第三个字段 `daySceneInteractableHighlightOffset` 不算缺口：游戏自己的 `Initialize` 就把它显式置零。）
 5. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/mystia-extension-port-gaps.md` 为首轮口径。
 
 ## 7. 之后的顺序
@@ -141,7 +141,7 @@ bash docs/port/static-check.sh
 4. ~~`NoteBookSkinPortrait` 开关去留~~ —— 已裁决：让开关真生效。已完成：框架把"哪个面板在要立绘"作为 `PortraitTarget` 交给提供者，模组在笔记本上按开关过滤。
 5. ~~`PlayerSkin` 游戏自带皮肤的旋转覆盖~~ —— 已裁决：路 2（复制游戏那份集）+ 接线。已完成。
 6. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
-7. **新**：框架按帧自建的集（含在线皮肤）会丢 `Initialize` 不接受的三个字段（笔记本里的角色偏移、白天交互高亮几何）——是否要为在线皮肤另想办法（见 §6 第 4 项）。
+7. **新**：`CharacterSpriteSetStyle` 要不要补上那两个"只有美术资源才带"的字段（见下 D / §6 第 4 项）。
 
 ### A. `PeerPlayer` 的碰撞方案
 
@@ -185,6 +185,28 @@ bash docs/port/static-check.sh
 **落地（路 2）**：框架新增 `IAssetFactory.TryCopyCharacterSpriteSet(object set, CharacterSpriteSetStyle style, out CharacterSpriteSetHandle? copy)` —— 用引擎自己的 `Object.Instantiate` 复制那份集，只写调用方声明的标志；帧、裁剪、②的三个字段全部随副本保留（已用互操作成员表核实 `isHina`/`animSpeedMultiplier`/`spriteOffsetInNoteBook` 等都是可读写属性，且 `Instantiate<T>(T)` 在互操作里）。模组侧 `PlayerSkin.ApplyToUnit` 在"自带皮肤 + 旋转覆盖"时走复制（按来源集与覆盖值缓存），经 `IPresentationServices.ApplyCharacterSprite` 套用；无覆盖时仍直接交给角色（行为不变）。顺带把"把集排进场景循环套用"抽成一处（网络皮肤与复制的自带皮肤同形）。
 
 **残留**：见 §6 第 4 项（按帧自建这条路对 ② 的丢失；在线皮肤是否有替代来源需要单独讨论）。
+
+### D. 按帧自建的集缺的两个字段（待裁决）
+
+**是什么**：`CharacterSpriteSetCompact` 里有两个字段既不被游戏自己的 `Initialize` 写入、也没有对应的 SDK 成员：
+
+| 字段 | 游戏里的读者 | 作用 | 按帧自建的集拿到什么 | 游戏自带集有什么 |
+| --- | --- | --- | --- | --- |
+| `spriteOffsetInNoteBook`（Vector2） | `SpecialGuestDescriber.cs:280,282`、`DLC5_RogueLikePurchasePanel.cs:313,321`、`CreatorsBoxTimelineElement.cs:73` | 把角色像素画摆进这些面板时用的锚点偏移 | `Vector2.zero`（`CreateInstance` 的默认值） | 该美术资源自己的值 |
+| `daySceneInteractableColliderAdditiveRadius`（float） | `CharacterConditionComponent.cs:100` | 白天交互区圆形碰撞体的附加半径 | `0` | 该美术资源自己的值 |
+| （`daySceneInteractableHighlightOffset`） | `CharacterConditionComponent.cs:99,215` | 交互提示与高亮的偏移 | `Vector2.zero` | **游戏自己的 `Initialize` 就把它置零**（`CharacterSpriteSetCompact.cs:107`），所以自建集与游戏集在这一点上一致 → **不算缺口** |
+
+**影响范围**：只有**按帧自建**的集（目前只有在线皮肤）会差；游戏自带皮肤、以及 `TryCopyCharacterSpriteSet` 的副本（保留源对象的一切）都不受影响。可见后果是几个面板里角色像素画的摆放位置、以及白天交互区提示/碰撞半径，属于小尺寸的观感差异。
+
+**为什么之前写得比实际严重**：我把三个字段都算成了"丢值"，但其中一个（高亮偏移）是游戏 `Initialize` 主动置零的、自建集本就该是零；真正"少了一个值"的只有两个。
+
+**选项**：
+
+1. **把这两个当成普通样式成员**（推荐）：`CharacterSpriteSetStyle` 加 `NotebookOffset`（`Vector2`）与 `InteractableColliderAdditiveRadius`（`float`，可空），桥接在 `Build*` 里按 `style.X ?? 游戏 fallback 像素集.X` 写过去（互操作三个字段都有可写属性，已核实），`TryUnwrapCharacterSpriteSet` 顺带把它们报出来 → 于是"未声明即用游戏自带像素画的值"这句话对它们也成立，且读数-重建/复制往返无损。代价：SDK 两个成员 + 桥接约 10 行 + 契约测试；无引擎进不去单测，需实机看一眼在线皮肤在那几个面板里的摆放。
+2. **只改文档**：在 `CharacterSpriteSetStyle` 文档里写明"按帧自建的集这两个字段是 0"，不补成员。零风险、零新面，但把"自建集不如游戏集"固定成现状，且模组作者无从声明自己的偏移。
+3. **不动**（现状）。
+
+**建议**：选项 1——它把两条件（自建 / 复制）在"未声明"这一点上的语义对齐，也顺手给了模组声明自己美术偏移的能力；代价很小。
 
 ## 12. 必须实机验证的清单（全部结论目前都是源码/编译级）
 
