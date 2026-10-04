@@ -39,7 +39,7 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
         if (YuyukoGuestSync.PhaseSyncActive)
         {
             // 本体的框架句柄由挑战服务提供（服务只在场景循环内有效），拿到之后监听器与消息都按句柄判断。
-            YuyukoGuestSync.CaptureHandle(challenge.BossGuest);
+            YuyukoGuestSync.Capture(challenge.BossGuest);
 
             // 阶段时钟一旦跑过就不能再改该阶段时长，重复下发是幂等的。
             ArmPhaseSeconds(challenge);
@@ -160,6 +160,14 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
     /// </summary>
     void IChallengeListener.OnTimedNegativeSpellSuppressed() =>
         InGameConsole.ShowPassive(TextId.YuyukoTimedNegativeSpellDisabled.Get());
+
+    /// <summary>
+    /// 挑战自己的退场开始（框架放行游戏的 TryLeaveSession）：标记本次场景加载是最终试炼的返回。
+    /// </summary>
+    void IChallengeListener.OnChallengeLeaveStarted() => GameFlow.ReturningFromTrial = true;
+
+    /// <summary>退场结束：清掉标记。</summary>
+    void IChallengeListener.OnChallengeLeaveFinished() => GameFlow.ReturningFromTrial = false;
 
     #endregion
 }

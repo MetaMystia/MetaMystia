@@ -61,7 +61,7 @@ public partial class GuestFSM
     /// <summary>联机消息里的顾客身份，由 <see cref="GuestsMap.StoreGuest(int, GuestFSM)"/> 写入。</summary>
     public int RuntimeId { get; internal set; }
 
-    public int DeskCode => Proxy?.DeskCode ?? ManualController?.DeskCode ?? -1;
+    public int DeskCode => Proxy?.DeskCode ?? -1;
 
     /// <summary>当前正在考虑的那一单（订单栈顶）；没有订单时为 null。</summary>
     public OrderProxy? CurrentOrder => Proxy is { } guest && guest.TryGetPendingOrder(out var order) ? order : null;

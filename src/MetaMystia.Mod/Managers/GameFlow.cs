@@ -18,6 +18,13 @@ public static partial class GameFlow
     public static DayDestination Destination { get; private set; }
     public static bool IsCooperative => Destination != DayDestination.None;
     public static bool IsFinalTrial => Destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain;
+
+    /// <summary>
+    /// 本次场景离开来自挑战自己的退场。框架在放行游戏的 <c>TryLeaveSession</c> 前后通知，
+    /// 因此 <see cref="BeforeSceneLoad"/> 读到的就是「这次加载是不是最终试炼的返回」。
+    /// 取代原 <c>NightSceneDirectorPatch.ReturningFromTrial</c>。
+    /// </summary>
+    public static bool ReturningFromTrial { get; internal set; }
     public static GameStage Stage => LocalScene switch
     {
         Scene.MainScene => GameStage.MainMenu,
@@ -116,7 +123,7 @@ public static partial class GameFlow
     public static void BeforeSceneLoad(Scene target)
     {
         bool supported = CanKeepRoom(LocalScene, target, Destination,
-            DayDestinationManager.ReplayingChallenge, Patch.NightSceneDirectorPatch.ReturningFromTrial);
+            DayDestinationManager.ReplayingChallenge, ReturningFromTrial);
         if (GameSession.IsConnectingOrOnline && !supported) LeaveRoomForTransition();
         if (!IsCooperative) DayDestinationManager.WithdrawLocal();
         OnSceneTransit(Scene.LoadScene);

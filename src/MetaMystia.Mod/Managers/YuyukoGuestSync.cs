@@ -21,74 +21,65 @@ namespace MetaMystia;
 /// <summary>
 /// 将剧情创建的幽幽子本体接入主机权威同步，保留两端原版实体和剧情回调。
 /// 本文件处理绑定、手动订单和评价；Challenge 部分处理阶段判定与吞厨具。
+///
+/// 本体按<b>框架句柄</b>识别：剧情实体由游戏创建，句柄由框架的挑战服务给出
+/// （<c>IWorkSceneChallengeServices.BossGuest</c>），因此本类不再持有控制器；
+/// 需要场景服务的动作（手动订单、评价、清理）排进营业场景循环执行，因为本类的处理协程不在服务作用域内。
 /// </summary>
 [AutoLog]
 public static partial class YuyukoGuestSync
 {
-    private static GuestGroupController body;
+    private static GuestHandle body;
     private static GuestFSM fsm;
     private static Guid session;
     private static YuyukoGuestMessage binding;
     private static YuyukoGuestMessage pendingClear;
     private static readonly HashSet<int> boundPeers = new();
     private static readonly Queue<YuyukoGuestMessage> incoming = new();
-    private static OrderBase pendingOrder;
+    private static OrderHandle pendingOrder;
+    private static bool hasPendingOrder;
     private static Il2CppSystem.Action<EvaluationResult> pendingCallback;
     private static Il2CppSystem.Action<EvaluationResult> orderCallback;
-    private static Il2CppSystem.Action<EvaluationResult> wrappedCallback;
+    private static System.Action<EvaluationResult> wrappedCallback;
     private static EvaluationResult? localCompleted;
     private static EvaluationResult? hostCompleted;
     private static YuyukoGuestMessage replayEvaluation;
-    private static bool installing;
     private static bool running;
     private static int lifetime;
     private static int orderVersion;
     private static string evaluationMessage;
     private static bool comboProtect;
 
+    /// <summary>本体的投影；尚未捕获或句柄过期时为 null。</summary>
+    private static GuestProxy? Body => body.TryGet(out var guest) ? guest : null;
+
     /// <summary>
-    /// 判断句柄是否为当前联机挑战已捕获的本体。句柄由挑战服务补上（<see cref="CaptureHandle"/>），
-    /// 之后一切框架面（监听器、服务、消息）都用它判断。
+    /// 判断句柄是否为当前联机挑战已捕获的本体。之后一切框架面（监听器、服务、消息）都用它判断。
     /// </summary>
     internal static bool IsBody(GuestHandle handle) =>
         GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge
         && !handle.IsNone && fsm != null && fsm.Handle == handle;
 
-    /// <summary>
-    /// 控制器口径的本体判断：剧情补丁手里拿的是控制器，按底层地址比较，句柄尚未补上时也成立。
-    /// </summary>
-    internal static bool IsControllerBody(GuestGroupController controller) =>
-        GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge && controller != null
-        && body?.Pointer == controller.Pointer;
-
-    /// <summary>补上本体的框架句柄。由营业场景循环内的挑战服务读出后转交（服务只在循环内有效）。</summary>
-    internal static void CaptureHandle(GuestHandle handle)
-    {
-        if (handle.IsNone || fsm == null) return;
-        fsm.SetManualHandle(handle);
-    }
-
     /// <summary>判断网络编号是否属于已绑定本体，供上菜消息在剧情期间接收并暂存。</summary>
     internal static bool OwnsRuntimeId(int runtimeId) => fsm != null && fsm.RuntimeId == runtimeId;
-    /// <summary>原版订单安装调用正在执行；安装 Hook 据此放行，避免再次将订单暂存。</summary>
-    internal static bool IsInstalling => installing;
+
     /// <summary>当前正同步调用客机评价重放；异步评价完成由完成回调另外跟踪。</summary>
     internal static bool IsReplayingEvaluation => replayEvaluation != null;
 
     /// <summary>
     /// 捕获剧情创建或查询到的本体，不重放普通顾客出生。
     /// 主机建立会话并分配网络编号；客机等待绑定消息，尚未收到时请求主机补发。
-    /// 同一底层实体的重复捕获不重新初始化。
+    /// 同一实体的重复捕获不重新初始化。
     /// </summary>
-    internal static void Capture(GuestGroupController controller)
+    internal static void Capture(GuestHandle handle)
     {
-        if (!GameSession.HasRoomPeers || !PrepSceneManager.IsYuyukoChallenge || controller == null) return;
-        if (body?.Pointer == controller.Pointer) return;
-        body = controller;
+        if (!GameSession.HasRoomPeers || !PrepSceneManager.IsYuyukoChallenge || handle.IsNone) return;
+        if (!body.IsNone && body == handle) return;
+        body = handle;
         if (GameSession.IsRoomHost)
         {
             session = Guid.NewGuid();
-            fsm = GuestFSM.BindManual(body);
+            fsm = GuestFSM.BindManual(handle);
             SendBinding();
         }
         else if (binding == null) YuyukoGuestBoundMessage.Send(Guid.Empty, 0);
@@ -142,9 +133,12 @@ public static partial class YuyukoGuestSync
     /// </summary>
     private static void TryBind()
     {
-        if (!GameSession.IsRoomClient || body == null || binding == null || fsm != null) return;
-        body.GetFund = binding.Fund;
-        body.MaxFundCarry = binding.MaxFund;
+        if (!GameSession.IsRoomClient || body.IsNone || binding == null || fsm != null) return;
+        if (body.TryGet(out var guest))
+        {
+            guest.SetFund(binding.Fund);
+            guest.SetMaxFundCarry(binding.MaxFund);
+        }
         fsm = GuestFSM.BindManual(body, binding.RuntimeId);
         YuyukoGuestBoundMessage.Send(session, fsm.RuntimeId);
         Log.Info($"幽幽子本体已绑定 #{fsm.RuntimeId}");
@@ -171,8 +165,9 @@ public static partial class YuyukoGuestSync
     private static void SendBinding()
     {
         var message = Message(YuyukoGuestEvent.Bind);
-        message.Fund = body.GetFund;
-        message.MaxFund = body.MaxFundCarry;
+        var guest = Body;
+        message.Fund = guest?.Fund ?? 0;
+        message.MaxFund = guest?.MaxFundCarry ?? 0;
         YuyukoGuestMessage.Send(message);
     }
 
@@ -191,9 +186,10 @@ public static partial class YuyukoGuestSync
     /// 暂存原版准备安装的手动订单及完成回调，原挑战协程仍等待该回调。
     /// 主机等待绑定确认；客机等待同序号的主机订单，再由处理协程安装。
     /// </summary>
-    internal static void QueueOrder(OrderBase order, Il2CppSystem.Action<EvaluationResult> callback)
+    internal static void QueueOrder(OrderHandle order, Il2CppSystem.Action<EvaluationResult> callback)
     {
         pendingOrder = order;
+        hasPendingOrder = true;
         pendingCallback = callback;
         Start();
     }
@@ -229,24 +225,30 @@ public static partial class YuyukoGuestSync
                     {
                         CancelOrder();
                         fsm.SetManualOrderSeq(pendingClear.OrderSeq);
-                        if (body.AllOrdersCount > 0) GuestsManager.Instance.CleanOrderInfo(body);
+                        if (Body is { PendingOrderCount: > 0 } guest)
+                            QueueService($"body clean #{fsm.RuntimeId}", services => services.Guests.CleanOrderInfo(guest.Handle));
                     }
                     pendingClear = null;
                 }
-                if (GameSession.IsRoomHost && pendingOrder != null
+                if (GameSession.IsRoomHost && hasPendingOrder
                     && PlayerManager.Peers.Keys.All(boundPeers.Contains))
                 {
                     var order = pendingOrder;
-                    Install(order, fsm.OrderSeq + 1);
-                    var message = Message(YuyukoGuestEvent.Order);
-                    message.OrderType = order.Type;
-                    message.FoodRequest = order.foodRequest;
-                    message.BeverageRequest = order.beverageRequest;
-                    message.DeskCode = order.DeskCode;
-                    message.NotShowInUI = order.NotShowInUI;
-                    message.FreeOrder = order.FreeOrder;
-                    message.Mood = body.Mood;
-                    YuyukoGuestMessage.Send(message);
+                    var seq = fsm.OrderSeq + 1;
+                    hasPendingOrder = false;
+                    Install(order, seq);
+                    if (order.TryGet(out var pending))
+                    {
+                        var message = Message(YuyukoGuestEvent.Order);
+                        message.OrderType = (GuestsManager.OrderBase.OrderType)(int)pending.Kind;
+                        message.FoodRequest = pending.FoodRequest;
+                        message.BeverageRequest = pending.BeverageRequest;
+                        message.DeskCode = pending.DeskCode;
+                        message.NotShowInUI = pending.Hidden;
+                        message.FreeOrder = pending.IsFree;
+                        message.Mood = Body?.Mood ?? 0;
+                        YuyukoGuestMessage.Send(message);
+                    }
                 }
                 if (GameSession.IsRoomClient && incoming.TryPeek(out var received) && Apply(received))
                     incoming.Dequeue();
@@ -261,13 +263,14 @@ public static partial class YuyukoGuestSync
             running = false;
             incoming.Clear();
             pendingClear = null;
-            if (pendingOrder != null)
+            if (hasPendingOrder)
             {
                 var order = pendingOrder;
+                hasPendingOrder = false;
+                pendingOrder = default;
                 var callback = pendingCallback;
-                pendingOrder = null;
                 pendingCallback = null;
-                GuestsManager.Instance.SetManualControllerOrderInternal(body, callback, order);
+                QueueManualInstall(order, callback, fsm?.OrderSeq + 1 ?? 0);
             }
             else if (localCompleted.HasValue && orderCallback != null)
                 ContinueOrder(localCompleted.Value);
@@ -286,20 +289,16 @@ public static partial class YuyukoGuestSync
         {
             case YuyukoGuestEvent.Order:
                 if (message.OrderSeq <= fsm.OrderSeq) return true;
-                if (pendingOrder == null || body.DeskCode != message.DeskCode) return false;
+                if (!hasPendingOrder || Body is not { } waiting || waiting.DeskCode != message.DeskCode) return false;
                 if (message.OrderSeq != fsm.OrderSeq + 1) return false;
-                OrderBase order = message.OrderType == OrderBase.OrderType.Normal
-                    ? new GuestsManager.NormalOrder(body.GetAllGuests().ToArray().First(), message.FoodRequest,
-                        message.BeverageRequest, message.DeskCode, message.NotShowInUI, message.FreeOrder)
-                    : new GuestsManager.SpecialOrder(body.Cast<SpecialGuestsController>().SpecialGuest,
-                        message.FoodRequest, message.BeverageRequest, message.DeskCode, message.NotShowInUI, message.FreeOrder);
-                body.Mood = message.Mood;
-                Install(order, message.OrderSeq);
+                Body?.SetMood(message.Mood);
+                InstallPending((OrderKind)(int)message.OrderType, message.FoodRequest, message.BeverageRequest,
+                    message.DeskCode, message.NotShowInUI, message.FreeOrder, message.OrderSeq);
                 return true;
             case YuyukoGuestEvent.Evaluate:
                 if (message.OrderSeq < fsm.OrderSeq) return true;
                 if (message.OrderSeq != fsm.OrderSeq) return false;
-                if (body.HasEvaluated || fsm.CurrentState == GuestFSM.State.Manual) return true;
+                if (Body is not { HasEvaluated: false } || fsm.CurrentState == GuestFSM.State.Manual) return true;
                 if (fsm.CurrentState != GuestFSM.State.WaitingServe) return false;
                 ReplayEvaluation(message);
                 return true;
@@ -313,38 +312,93 @@ public static partial class YuyukoGuestSync
         }
     }
 
-    /// <summary>
-    /// 将当前手动订单交给原版安装，并进入等待上菜状态。
-    /// 保存本地剧情回调，清除上一单完成标记；包装回调记录生命周期、订单版本和序号，以拒绝旧回调。
-    /// 安装期间临时放行自身 Hook，避免原版安装调用再次进入暂存流程。
-    /// </summary>
-    private static void Install(OrderBase order, int seq)
+    /// <summary>主机侧安装：待处理的是本机自己的那一单（句柄已在手）。</summary>
+    private static void Install(OrderHandle order, int seq)
     {
         orderCallback = pendingCallback;
-        pendingOrder = null;
         pendingCallback = null;
+        pendingOrder = default;
+        hasPendingOrder = false;
         localCompleted = null;
         hostCompleted = null;
         fsm.SetManualOrderSeq(seq);
-        int generation = lifetime;
-        int version = ++orderVersion;
-        wrappedCallback = (System.Action<EvaluationResult>)(result => OnCompleted(generation, version, seq, result));
-        installing = true;
-        try
+
+        if (!order.TryGet(out var pending))
         {
-            GuestsManager.Instance.SetManualControllerOrderInternal(body, wrappedCallback, order);
+            fsm.Kill();
+            return;
         }
-        finally { installing = false; }
-        fsm.SetManualState(GuestFSM.State.WaitingServe);
-        Log.Info($"幽幽子本体订单 #{fsm.RuntimeId}/{seq}: {order.Type}");
+
+        ArmManualOrder(pending.Kind, pending.FoodRequest, pending.BeverageRequest,
+            pending.DeskCode, pending.Hidden, pending.IsFree, seq);
+    }
+
+    /// <summary>客机侧安装：按主机消息里的订单内容在本机造一单再安装。</summary>
+    private static void InstallPending(
+        OrderKind kind, int foodRequest, int beverageRequest, int deskCode, bool hidden, bool free, int seq)
+    {
+        fsm.SetManualOrderSeq(seq);
+        ArmManualOrder(kind, foodRequest, beverageRequest, deskCode, hidden, free, seq);
     }
 
     /// <summary>
-    /// 普通实体直接放行；本体必须等待上菜，且由主机发起或处于客机重放期间，才允许手动评价。
+    /// 将当前手动订单交给原版安装，并进入等待上菜状态。
+    /// 保存本地剧情回调，清除上一单完成标记；包装回调记录生命周期、订单版本和序号，以拒绝旧回调。
+    /// 造单与安装都要走场景服务，因此排进营业场景循环执行。
     /// </summary>
-    internal static bool CanEvaluate(GuestGroupController controller) =>
-        !IsControllerBody(controller) || (fsm?.CurrentState == GuestFSM.State.WaitingServe
-            && (GameSession.IsRoomHost || IsReplayingEvaluation));
+    private static void ArmManualOrder(
+        OrderKind kind, int foodRequest, int beverageRequest, int deskCode, bool hidden, bool free, int seq)
+    {
+        var generation = lifetime;
+        var version = ++orderVersion;
+        wrappedCallback = result => OnCompleted(generation, version, seq, result);
+        QueueManualInstall(kind, foodRequest, beverageRequest, deskCode, hidden, free, seq);
+        QueueManualEvaluate(install: true);
+        fsm.SetManualState(GuestFSM.State.WaitingServe);
+        Log.Info($"幽幽子本体订单 #{fsm.RuntimeId}/{seq}: {kind}");
+    }
+
+    /// <summary>断线交回原版：待处理的那一单已经在手，直接装回（不再广播）。</summary>
+    private static void QueueManualInstall(OrderHandle order, Il2CppSystem.Action<EvaluationResult> callback, int seq)
+    {
+        _ = seq;
+        var handle = body;
+        QueueService($"body install #{fsm?.RuntimeId}", services =>
+        {
+            if (!handle.TryGet(out _)) return;
+            var created = order;
+            if (created.IsNone) return;
+            services.Guests.BeginManualOrder(handle, created, verdict => callback?.Invoke((EvaluationResult)(int)verdict));
+        });
+    }
+
+    /// <summary>本体订单的安装（造单 + 安装）排进场景服务作用域。</summary>
+    private static void QueueManualInstall(
+        OrderKind kind, int foodRequest, int beverageRequest, int deskCode, bool hidden, bool free, int seq)
+    {
+        var handle = body;
+        QueueService($"body order #{fsm?.RuntimeId}/{seq}", services =>
+        {
+            var order = services.Guests.CreateOrder(handle, kind, foodRequest, beverageRequest, deskCode, hidden, free);
+            if (order.IsNone) return;
+            services.Guests.BeginManualOrder(handle, order, Verdict);
+        });
+    }
+
+    /// <summary>本体订单的评价排进场景服务作用域。</summary>
+    private static void QueueManualEvaluate(bool install)
+    {
+        _ = install;
+        var handle = body;
+        QueueService($"body evaluate #{fsm?.RuntimeId}", services => services.Guests.EvaluateManual(handle, Verdict));
+    }
+
+    /// <summary>把包装回调交给框架：框架报回来的评价枚举与游戏的一一对应。</summary>
+    private static void Verdict(GuestEvaluation evaluation) => wrappedCallback?.Invoke((EvaluationResult)(int)evaluation);
+
+    /// <summary>把需要场景服务的动作排进营业场景循环（本类的协程不在服务作用域内）。</summary>
+    private static void QueueService(string tag, Action<IWorkSceneServices> apply) =>
+        Listeners.GuestSync.EnqueueReplay(tag, apply);
 
     /// <summary>
     /// 主机确认菜酒上齐后调用原版手动评价，并传入已包装的完成回调。
@@ -353,7 +407,7 @@ public static partial class YuyukoGuestSync
     internal static void EvaluateConfirmed()
     {
         if (fsm?.CurrentState == GuestFSM.State.WaitingServe && GameSession.IsRoomHost)
-            GuestsManager.Instance.EvaulateManualOrder(body, wrappedCallback);
+            QueueManualEvaluate(install: false);
     }
 
     /// <summary>
@@ -361,10 +415,10 @@ public static partial class YuyukoGuestSync
     /// 手动评价不经过普通 TryOverrideEvaluateByBuff Hook，需在 Evaluate 入口处理。
     /// </summary>
     /// <returns>是否已提供结果；为 true 时调用方跳过原版计算。</returns>
-    internal static bool OverrideEvaluation(GuestGroupController controller, ref int result)
+    internal static bool OverrideEvaluation(GuestHandle handle, ref int result)
     {
-        if (!IsControllerBody(controller) || replayEvaluation == null) return false;
-        controller.HasEvaluated = true;
+        if (!IsBody(handle) || replayEvaluation == null) return false;
+        QueueService($"body evaluated #{fsm?.RuntimeId}", services => services.Guests.SetEvaluated(handle));
         result = (int)replayEvaluation.Result;
         return true;
     }
@@ -406,15 +460,18 @@ public static partial class YuyukoGuestSync
     internal static void BeforePostEvaluation(GuestHandle handle, GuestEvaluation result)
     {
         if (!IsBody(handle) || fsm == null) return;
-        if (replayEvaluation != null) body.Mood = replayEvaluation.Mood;
-        if (GameSession.IsRoomHost)
+        var guest = Body;
+        if (replayEvaluation != null && guest is not null) guest.SetMood(replayEvaluation.Mood);
+        if (GameSession.IsRoomHost && guest is not null)
         {
             var message = Message(YuyukoGuestEvent.Evaluate);
-            var order = body.PeekOrders();
-            message.Food = SellableFood.FromSellable(order.ServFood);
-            message.Beverage = SellableFood.FromSellable(order.ServBeverage);
+            if (guest.TryGetPendingOrder(out var pending))
+            {
+                message.Food = SellableFood.FromProxy(pending.Food);
+                message.Beverage = SellableFood.FromProxy(pending.Beverage);
+            }
             message.Result = (EvaluationResult)(int)result;
-            message.Mood = body.Mood;
+            message.Mood = guest.Mood;
             message.EvaluationMessage = evaluationMessage;
             message.ComboProtect = comboProtect;
             message.DamageMultiplier = YuyukoBossDataPatch.DamageMultiplier;
@@ -429,21 +486,21 @@ public static partial class YuyukoGuestSync
     /// </summary>
     private static void ReplayEvaluation(YuyukoGuestMessage message)
     {
-        var order = body.PeekOrders();
-        GuestFSM.TryCloseServePanel(body.DeskCode);
-        order.ServFood = message.Food.ToSellable();
-        order.ServBeverage = message.Beverage.ToSellable();
-        order.ServedFoodInAir = null;
-        order.ServedBeverageInAir = null;
+        if (Body is not { } guest || !guest.TryGetPendingOrder(out var order)) return;
+
+        GuestFSM.TryCloseServePanel(guest.DeskCode);
         replayEvaluation = message;
-        try
+        QueueService($"body replay #{fsm?.RuntimeId}", services =>
         {
-            GuestsManager.Instance.EvaulateManualOrder(body, wrappedCallback);
-        }
-        finally
-        {
-            replayEvaluation = null;
-        }
+            var food = services.Dishes.DishOf(message.Food?.ToSellable());
+            var beverage = services.Dishes.DishOf(message.Beverage?.ToSellable());
+            order.SetFood(food);
+            order.SetBeverage(beverage);
+            order.SetFoodInAir(null);
+            order.SetBeverageInAir(null);
+        });
+        QueueManualEvaluate(install: false);
+        QueueService($"body replay clear #{fsm?.RuntimeId}", _ => replayEvaluation = null);
     }
 
     /// <summary>
@@ -492,9 +549,9 @@ public static partial class YuyukoGuestSync
     /// 响应本体订单清理或手动离场：主机广播当前序号的取消，两端废弃本地订单回调。
     /// 此路径表示取消，不调用正常评价完成回调推进剧情。
     /// </summary>
-    internal static void OnClean(GuestGroupController controller)
+    internal static void OnClean(GuestHandle handle)
     {
-        if (!IsControllerBody(controller) || fsm == null) return;
+        if (!IsBody(handle) || fsm == null) return;
         if (GameSession.IsRoomHost) YuyukoGuestMessage.Send(Message(YuyukoGuestEvent.Clear));
         CancelOrder();
     }
@@ -507,8 +564,9 @@ public static partial class YuyukoGuestSync
     {
         orderVersion++;
         fsm?.CancelManualOrder();
-        if (body != null) GuestFSM.TryCloseServePanel(body.DeskCode);
-        pendingOrder = null;
+        if (Body is { } guest) GuestFSM.TryCloseServePanel(guest.DeskCode);
+        pendingOrder = default;
+        hasPendingOrder = false;
         pendingCallback = null;
         orderCallback = null;
         wrappedCallback = null;
@@ -529,13 +587,12 @@ public static partial class YuyukoGuestSync
         CancelOrder();
         if (fsm != null) GuestsMap.Remove(fsm.RuntimeId);
         fsm = null;
-        body = null;
+        body = GuestHandle.None;
         session = Guid.Empty;
         binding = null;
         pendingClear = null;
         boundPeers.Clear();
         incoming.Clear();
-        installing = false;
         replayEvaluation = null;
         running = false;
     }
