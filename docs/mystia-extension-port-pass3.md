@@ -25,7 +25,7 @@
 | 项 | 结果 |
 | --- | --- |
 | 框架构建 `dotnet build MystiaExtensionFramework.slnx -c Debug` | **0 错 0 警告** |
-| 框架测试 `dotnet test src/Mystia.Net.Sdk.Tests` | **245/245** |
+| 框架测试 `dotnet test src/Mystia.Net.Sdk.Tests` | **246/246** |
 | SDK 打包 `dotnet pack sdk/Mystia.Extension.Sdk/Mystia.Extension.Sdk.Pack.csproj -c Release` | 成功（`artifacts/nuget/Mystia.Extension.Sdk.2.0.0.nupkg`） |
 | 样例工程 ×3（`samples/SampleMod.{A,B,Skip}`） | 0 错 0 警告（每次重打 SDK 后需重建） |
 | 模组构建 `dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Debug` | 见下表；**尚未全绿**，剩余工作见 §6 |
@@ -76,7 +76,7 @@
 1. **`Utils/Il2CppOutDelegate.cs`（`MYSTIA1002` 2）**：`UI/DaySceneSelectionMenu.cs` 用它把带 `out` 参数的 C# lambda 包成游戏的 `GetSelectionConfigurationCallback`。正解是让这个菜单改走框架的 `IChatMenuProvider`（菜单项 + 选中回调），随之删掉该文件；若框架的来源枚举不够用，再补一个 `ChatMenuOrigin`。
 2. **`System.Reflection` 四处（`MYSTIA1003` 16）**：`SgrYuki/Functional.cs`、`L10n.cs`（按枚举名取本地化）、`IdRangeValidator.cs`、`NativeDllExtractor.cs`（释放原生 DLL）——要么改强类型，要么搬进框架。
 3. **`MYSTIA1004` 残余（207）**：热点是 `VfxBundle.cs`、`InGameConsole.cs`／`PlayerListPanel.cs` 等 IMGUI 面板、`DialogRegistry.cs`、`Spell_Mai.cs`、`NetPlayer.cs`、`GuestSync.cs`。多数要换 `Mystia.Imgui` 与 `IPresentationServices`。
-4. **`PlayerSkin` 的游戏自带皮肤旋转覆盖**：框架已具备拆解（`TryUnwrapCharacterSpriteSet`）与重建（`TryCreateCharacterSpriteSet`）两个入口，接线即把该路径从「记警告」变成「重建后套用」；但重建出的集其裁剪取游戏 fallback 像素集，未获确认前不接线。
+4. **历史遗留值面缺口（新发现，未处理）**：`CharacterSpriteSetStyle` 只镜像移动类标志，而 `CharacterSpriteSetCompact` 还有三个 `Initialize` 不接受的序列化字段（`spriteOffsetInNoteBook`、`daySceneInteractableHighlightOffset`、`daySceneInteractableColliderAdditiveRadius`）。**任何框架按帧自建的集**（含在线皮肤）今天都把它们丢成默认值——按帧自建这条路无法修（游戏没提供写入入口），要修只能在需要时改用 `TryCopyCharacterSpriteSet` 从游戏那份集复制。是否要为在线皮肤也这么做（它没有游戏来源集）需要单独讨论。
 5. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/mystia-extension-port-gaps.md` 为首轮口径。
 
 ## 7. 之后的顺序
@@ -138,9 +138,10 @@ bash docs/port/static-check.sh
 1. ~~`Utils/ExportUtils.cs` 去留~~ —— 已裁决：删除，PNG 编码器上移 MEFX（已完成，见 §6 第 8 项）。
 2. ~~`IPortraitProvider` 是否代理化 + 是否需要"包装游戏自带精灵集"的入口~~ —— 已裁决：两者都做（已完成，见 §6 第 7 项）。
 3. ~~`PeerPlayer` 的碰撞方案~~ —— 已裁决：方案 B（用游戏自己的参数）。已完成。
-4. ~~`NoteBookSkinPortrait` 开关去留~~ —— 已裁决：让开关真生效（选项 ②）。已完成：框架把"哪个面板在要立绘"作为 `PortraitTarget` 交给提供者，模组在笔记本上按开关过滤。
-5. `PlayerSkin` 游戏自带皮肤的旋转覆盖要不要接线（见下 C）。
+4. ~~`NoteBookSkinPortrait` 开关去留~~ —— 已裁决：让开关真生效。已完成：框架把"哪个面板在要立绘"作为 `PortraitTarget` 交给提供者，模组在笔记本上按开关过滤。
+5. ~~`PlayerSkin` 游戏自带皮肤的旋转覆盖~~ —— 已裁决：路 2（复制游戏那份集）+ 接线。已完成。
 6. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
+7. **新**：框架按帧自建的集（含在线皮肤）会丢 `Initialize` 不接受的三个字段（笔记本里的角色偏移、白天交互高亮几何）——是否要为在线皮肤另想办法（见 §6 第 4 项）。
 
 ### A. `PeerPlayer` 的碰撞方案
 
@@ -175,24 +176,15 @@ bash docs/port/static-check.sh
 
 **落地**：`PortraitTarget.NoteBook` 时开关关闭 → 提供者不回答 → 框架的前缀照常跑游戏自己的逻辑 → 该页显示游戏自己的立绘（比迁移前的 `DefaultPic` 更合理）。开关打开 → 与白天 HUD 同一条链（先 `/skin`，再资源包立绘）。
 
-### C. `PlayerSkin` 游戏自带皮肤的旋转覆盖（待裁决：接线与否 + 用哪条路）
+### C. `PlayerSkin` 游戏自带皮肤的旋转覆盖（已定：路 2 + 接线，已完成）
 
-**问题是什么**：玩家皮肤分两类——在线皮肤（框架用 `TryCreateCharacterSpriteSet` 自建像素集）与游戏自带皮肤（`ResolveSkin()` 拿到游戏自己的 `CharacterSpriteSetCompact`）。旋转覆盖（`RotateOverride`，由对端皮肤描述带来）对前者用 `CharacterSpriteSetStyle` 重建即可；对后者，`ApplyToUnit` 目前只记一次警告（`PlayerSkin.cs:317-322`）。
+**原本的问题**：玩家皮肤分两类——在线皮肤（框架按帧自建像素集）与游戏自带皮肤（`ResolveSkin()` 拿到游戏自己的集）。旋转覆盖（`RotateOverride`，由对端皮肤描述带来）对前者用 `CharacterSpriteSetStyle` 重建即可；对后者原本只记一次警告。
 
-**为什么之前说"重建会丢裁剪"**：框架造集走的是**"值 → 集"**这条路（`CharacterSpriteSetStyle` 只镜像*移动*类标志：眼睛/阴影/动画速度/Y 偏移/移动速度/自转/步态特效），裁剪那部分（`RemovableTrimProperty[]`、前后 trim 贴图数组、两条 trim 帧速）以及三个序列化字段（`spriteOffsetInNoteBook`、`daySceneInteractableHighlightOffset`、`daySceneInteractableColliderAdditiveRadius`）都不在这条路上，`BuildCompact/BuildFull` 只能拿游戏 fallback 像素集的值顶上。**这条损失不是"自带皮肤重建"独有的**：任何框架自建的集（包括在线皮肤）今天都这样。
+**为什么"按帧重建"到不了**：框架造集走**"值 → 集"**，而 `CharacterSpriteSetStyle` 只镜像*移动*类标志；集里另有 ① 裁剪（`RemovableTrimProperty[]`，每个 trim 本身又是一整个 `CharacterSpriteSetCompact`，外加前后 trim 贴图数组与两条帧速）与 ② 三个 `Initialize` 根本不接受的序列化字段（`spriteOffsetInNoteBook`、`daySceneInteractableHighlightOffset`、`daySceneInteractableColliderAdditiveRadius`）。① 可以加镜像补上；② 无论怎么补都补不了——游戏没有写入入口（除非直接写私有序列化字段）。**而且 ② 今天就已经在所有框架自建的集上丢失**（含在线皮肤），不是自带皮肤独有的问题。
 
-**"为什么不能在 MEFX 里做全支持"——能做，有两条路**：
+**落地（路 2）**：框架新增 `IAssetFactory.TryCopyCharacterSpriteSet(object set, CharacterSpriteSetStyle style, out CharacterSpriteSetHandle? copy)` —— 用引擎自己的 `Object.Instantiate` 复制那份集，只写调用方声明的标志；帧、裁剪、②的三个字段全部随副本保留（已用互操作成员表核实 `isHina`/`animSpeedMultiplier`/`spriteOffsetInNoteBook` 等都是可读写属性，且 `Instantiate<T>(T)` 在互操作里）。模组侧 `PlayerSkin.ApplyToUnit` 在"自带皮肤 + 旋转覆盖"时走复制（按来源集与覆盖值缓存），经 `IPresentationServices.ApplyCharacterSprite` 套用；无覆盖时仍直接交给角色（行为不变）。顺带把"把集排进场景循环套用"抽成一处（网络皮肤与复制的自带皮肤同形）。
 
-| | 路 1：把值面补全 | 路 2：复制游戏那份集（推荐） |
-| --- | --- | --- |
-| 做法 | SDK 加 `RemovableTrimProperty` 的镜像（层位枚举 4 值、`CanBeRemoved`、以及它自己的一个**嵌套集规格**：trim 也是 `CharacterSpriteSetCompact`，有自己的帧与样式），`CharacterSpriteSetStyle` 再加前后 trim 的句柄数组与两条帧速；桥接两个方向映射 | 框架 `Object.Instantiate` 复制游戏那份集，只写调用方要求改的标志 |
-| 覆盖度 | 裁剪、trim 全覆盖；`Initialize` 不接受的那三个字段（笔记本里的角色偏移、白天交互高亮偏移/半径）**仍然丢**（修它得直接写私有序列化字段） | **全覆盖**（三个字段、trim、其它一切随副本保留） |
-| 代价 | SDK 新镜像 + 双向映射 + 递归边界（trim 的集自带 trim？）+ 测试，约 150–250 行；SDK 面扩大 | 桥接约 30 行 + 一个 SDK 成员，不扩大值面 |
-| 与既有风格 | 与"值进值出"一致 | 与桥接既有做法一致：互操作把 `[SerializeField] private` 字段暴露成可读写属性（`isHina`、`animSpeedMultiplier`、`spriteOffsetInNoteBook` 都有 setter，已用 interop 成员表核实），`Object.Instantiate<T>(T)` 也在互操作里（核实过） |
-
-**结论**：没有任何结构性障碍。路 2 更小且无损；路 1 更"纯"，但即使做完也仍缺三个字段（而那三个字段**今天就已经**在所有框架自建集上丢失）。所以我建议：**路 2**（框架加一个 `IAssetFactory.TryCopyCharacterSpriteSet(object set, CharacterSpriteSetStyle style, out CharacterSpriteSetHandle?)`），然后接线（原选项 ①）——那时重建是无损的。
-
-**若选路 1**：我可以做，但要接受上面那条残留差异，并在 `CharacterSpriteSetStyle` 文档里写明。
+**残留**：见 §6 第 4 项（按帧自建这条路对 ② 的丢失；在线皮肤是否有替代来源需要单独讨论）。
 
 ## 12. 必须实机验证的清单（全部结论目前都是源码/编译级）
 
