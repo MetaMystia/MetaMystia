@@ -60,10 +60,7 @@ jobs:
             Set-Content global.json -Encoding utf8
 
       - name: 编译模组
-        run: dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
-
-      - name: 编译 Preloader
-        run: dotnet build src/MetaMystia.Preloader/MetaMystia.Preloader.csproj -c Release -p:DeployToGame=false
+        run: dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release
 
       - name: 网络测试
         run: dotnet run --project src/MetaMystia.Network.Tests -c Release
@@ -79,14 +76,6 @@ jobs:
         with:
           name: MetaMystia-${{ github.sha }}
           path: src/MetaMystia.Mod/bin/Release/MetaMystia-v*.dll
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: 保存 Preloader 产物
-        uses: actions/upload-artifact@v7
-        with:
-          name: MetaMystia.Preloader-${{ github.sha }}
-          path: src/MetaMystia.Preloader/bin/Release/net6.0/MetaMystia.Preloader.dll
           if-no-files-found: error
           retention-days: 14
 

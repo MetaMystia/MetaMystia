@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.CompilerServices;
 
 using Mystia;
@@ -33,12 +33,17 @@ public sealed class LogWrapper
     public void Error(string msg, bool withTag = true) => Inner.Error($"[{GetTime()}] {TagString(withTag)}{msg}");
     public void Fatal(string msg, bool withTag = true) => Inner.Fatal($"[{GetTime()}] {TagString(withTag)}{msg}");
 
-    public void DebugCaller(string msg, bool withTag = true) => Inner.Debug($"[{GetTime()}] {TagString(withTag)}[{GetOuterCallerName()}] {msg}");
-    public void InfoCaller(string msg, bool withTag = true) => Inner.Info($"[{GetTime()}] {TagString(withTag)}[{GetOuterCallerName()}] {msg}");
-    public void MessageCaller(string msg, bool withTag = true) => Inner.Message($"[{GetTime()}] {TagString(withTag)}[{GetOuterCallerName()}] {msg}");
-    public void WarningCaller(string msg, bool withTag = true) => Inner.Warning($"[{GetTime()}] {TagString(withTag)}[{GetOuterCallerName()}] {msg}");
-    public void ErrorCaller(string msg, bool withTag = true) => Inner.Error($"[{GetTime()}] {TagString(withTag)}[{GetOuterCallerName()}] {msg}");
-    public void FatalCaller(string msg, bool withTag = true) => Inner.Fatal($"[{GetTime()}] {TagString(withTag)}[{GetOuterCallerName()}] {msg}");
+    // 「Caller」变体多打一个调用者名字。名字由编译器填（[CallerMemberName]），不再走调用栈——
+    // 原来的 GetCallerName(3) 取的正是调用本方法的那个成员，结果一致而无需反射。
+    public void DebugCaller(string msg, bool withTag = true, [CallerMemberName] string caller = null) => Inner.Debug(CallerText(caller, withTag, msg));
+    public void InfoCaller(string msg, bool withTag = true, [CallerMemberName] string caller = null) => Inner.Info(CallerText(caller, withTag, msg));
+    public void MessageCaller(string msg, bool withTag = true, [CallerMemberName] string caller = null) => Inner.Message(CallerText(caller, withTag, msg));
+    public void WarningCaller(string msg, bool withTag = true, [CallerMemberName] string caller = null) => Inner.Warning(CallerText(caller, withTag, msg));
+    public void ErrorCaller(string msg, bool withTag = true, [CallerMemberName] string caller = null) => Inner.Error(CallerText(caller, withTag, msg));
+    public void FatalCaller(string msg, bool withTag = true, [CallerMemberName] string caller = null) => Inner.Fatal(CallerText(caller, withTag, msg));
+
+    private string CallerText(string caller, bool withTag, string msg) =>
+        $"[{GetTime()}] {TagString(withTag)}[{caller}] {msg}";
 
     public void LogDebug(string msg, bool withTag = true) => Debug(msg, withTag);
     public void LogInfo(string msg, bool withTag = true) => Info(msg, withTag);
@@ -47,9 +52,14 @@ public sealed class LogWrapper
     public void LogError(string msg, bool withTag = true) => Error(msg, withTag);
     public void LogFatal(string msg, bool withTag = true) => Fatal(msg, withTag);
 
-    public void LogStacktrace() => Functional.LogStacktrace(Inner);
-
-    public string GetCallerName([CallerMemberName] string caller = null) => caller;
-
-    public string GetOuterCallerName() => Functional.GetCallerName(3);
+    /// <summary>把当前调用栈整段写进日志；只在需要排查"谁把它逼到这里"时用（唯一调用点：GuestFSM.Kill）。</summary>
+    public void LogStacktrace()
+    {
+        var lines = Environment.StackTrace.Split([Environment.NewLine], StringSplitOptions.None);
+        var text = new System.Text.StringBuilder();
+        // 本方法与其直接调用者（LogWrapper）不入日志。
+        for (var i = 2; i < lines.Length; i++)
+            text.AppendLine(lines[i]);
+        Inner.Info(text.ToString());
+    }
 }

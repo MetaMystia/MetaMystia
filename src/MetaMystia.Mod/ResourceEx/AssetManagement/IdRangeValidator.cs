@@ -1,12 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-#pragma warning disable CA1416
-
 using MetaMystia.ResourceEx.Models;
 
 namespace MetaMystia.ResourceEx.AssetManagement;
@@ -28,7 +25,20 @@ public static partial class IdRangeValidator
     public const int UnmanagedIdMin = 1073741824;
     public const int UnmanagedIdMax = 2147483647;
 
-    private const string PublicKeyResourceName = "MetaMystia.ResourceEx.AssetManagement.public.pem";
+    /// <summary>
+    /// 验签用的公钥（PEM），与仓库里 `public.pem` 同源；公钥是公开信息，直接内联以免读自带嵌资。
+    /// </summary>
+    private const string PublicKeyPem = """
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqMQHiAlzJfhQtdB94TyI
+E/rVVv8lfNHwAxKEv5G3KQjP4jI5VKHqqlw3HIbM4Bznct+xOsAZf+jrpY07W3mA
+eyesQ3rbGtqx4I7KQHrYherUetRTRxFV5Wb5q86uO6I3gtPIcRqOSyskqVhpZ7AC
+bgonUdPA9YLnAb9k8LNGoeEADXN6N0kkWXegf35W4ZKKakGIks1ad03lZ8/QxhP1
+AjLir+86O60mj2wTR6VEP51PwvGDJSvoGgDBm3TYcZuot2ZNSz5Eattq4NlFAP18
+vU9L40AcBJOgsaNqIOlqgoeRwetrSzvRQ4JyaxlWce/k7VfaxsplNyKlHCfQoyaP
+cQIDAQAB
+-----END PUBLIC KEY-----
+""";
 
     private static RSA _publicKey;
 
@@ -40,29 +50,11 @@ public static partial class IdRangeValidator
         if (_publicKey != null)
             return _publicKey;
 
-        var pem = LoadEmbeddedPublicKey();
-
-        // Use explicit PROV_RSA_AES (24) for SHA256 support within CSP
-        var cspParams = new CspParameters();
-        cspParams.ProviderType = 24;
-        _publicKey = new RSACryptoServiceProvider(2048, cspParams);
-
+        _publicKey = RSA.Create();
         _publicKey.ImportSubjectPublicKeyInfo(
-            Convert.FromBase64String(ExtractBase64FromPem(pem)),
+            Convert.FromBase64String(ExtractBase64FromPem(PublicKeyPem)),
             out _);
         return _publicKey;
-    }
-
-    /// <summary>
-    /// Loads the PEM public key from the embedded resource.
-    /// </summary>
-    private static string LoadEmbeddedPublicKey()
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-        using var stream = assembly.GetManifestResourceStream(PublicKeyResourceName)
-            ?? throw new InvalidOperationException($"Embedded resource '{PublicKeyResourceName}' not found.");
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
     }
 
     /// <summary>
