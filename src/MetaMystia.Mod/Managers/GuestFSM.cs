@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using Il2CppInterop.Runtime;
@@ -43,25 +44,42 @@ public partial class GuestFSM
     }
 
     public State CurrentState { get; private set; } = State.None;
-    public GuestGroupController Controller { get; set; }
+
+    /// <summary>框架给的顾客身份，一次营业会话内有效。取代原来的控制器引用。</summary>
+    public GuestHandle Handle { get; set; }
+
+    /// <summary>句柄在本会话内的投影；句柄已过期（换过场）时为 null。</summary>
+    public GuestProxy? Proxy => Handle.TryGet(out var guest) ? guest : null;
+
+    /// <summary>普通顾客 / 特殊顾客。框架侧是 <see cref="GuestKind"/>，两者取值一致，模组侧仍用自己的域模型。</summary>
     public GuestType GuestType { get; private set; }
+
     public int[] Ids { get; private set; }
     public int Fund { get; private set; }
     public int MaxFundCarry { get; private set; }
 
-    public int DeskCode => Controller.DeskCode;
-    public OrderBase CurrentOrder => Controller?.PeekOrders();
-    public int OrderSeq => IsManualGuest ? manualOrderSeq : Controller?.AllOrdersCount ?? -1;
+    /// <summary>联机消息里的顾客身份，由 <see cref="GuestsMap.StoreGuest(int, GuestFSM)"/> 写入。</summary>
+    public int RuntimeId { get; internal set; }
+
+    public int DeskCode => Proxy?.DeskCode ?? ManualController?.DeskCode ?? -1;
+
+    /// <summary>当前正在考虑的那一单（订单栈顶）；没有订单时为 null。</summary>
+    public OrderProxy? CurrentOrder => Proxy is { } guest && guest.TryGetPendingOrder(out var order) ? order : null;
+
+    public int OrderSeq => IsManualGuest ? manualOrderSeq : Proxy?.PendingOrderCount ?? -1;
 
     public bool IsFirstOrder { get; private set; } = true; // TODO: OrderSeq == 1 ?
     public bool IsRepelling { get; private set; }
+
+    /// <summary>
+    /// 本端记着的待上菜槽位，内容是消息里传递的菜品。写入订单槽位或面板时经
+    /// <c>IWorkSceneServices.Dishes.DishOf</c> 换成框架的菜品投影。
+    /// </summary>
     public Sellable WillServeBeverage { get; set; }
     public Sellable WillServeFood { get; set; }
 
-    public GuestGroupController.EvaluationResult OverrideEvalResult { get; set; } =
-        GuestGroupController.EvaluationResult.Null;
-
-    public int RuntimeId => GuestsMap.GetRuntimeId(Controller);
+    /// <summary>客机重放评价时用来覆写结果。取值与游戏的 <c>EvaluationResult</c> 一一对应。</summary>
+    public GuestEvaluation OverrideEvalResult { get; set; } = GuestEvaluation.None;
 
     private const int PendingTtlMs = 30000;
     private readonly Queue<Pending> _pending = new();
@@ -167,26 +185,31 @@ public partial class GuestFSM
     /// 主机 Hook 到顾客创建事件，获取顾客类型、ids、金钱等基本信息，注册顾客并广播 GuestSpawnMessage
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnSpawn(GuestGroupController controller, PendingSpawnArgs? spawnArgs = null)
+    public static void OnSpawn(GuestHandle handle, PendingSpawnArgs? spawnArgs = null)
     {
-        var fsm = new GuestFSM();
-        fsm.CurrentState = State.Constructed;
-        fsm.Controller = controller;
-        fsm.GuestType = controller.ControllType;
-        fsm.Fund = controller.GetFund;
-        fsm.MaxFundCarry = controller.MaxFundCarry;
-        fsm.Ids = controller
-            .GetAllGuests()
-            .ToArray()
-            .Select(g => g.Id)
-            .ToArray();
+        if (!handle.TryGet(out var guest))
+        {
+            Log.Error($"Guest spawned with a handle that does not resolve: {handle}");
+            return;
+        }
+
+        var fsm = new GuestFSM
+        {
+            CurrentState = State.Constructed,
+            Handle = handle,
+            // 框架的 GuestKind 与游戏的 GuestType 取值一一对应（Normal = 0，Special = 1）。
+            GuestType = (GuestType)(int)guest.Kind,
+            Fund = guest.Fund,
+            MaxFundCarry = guest.MaxFundCarry,
+            Ids = guest.GuestIds.ToArray(),
+        };
 
         GuestsMap.StoreGuest(fsm);
         var spawnInfo = new GuestSpawnInfo
         {
             GuestType = fsm.GuestType,
             Ids = fsm.Ids,
-            Fund = controller.GetFund,
+            Fund = fsm.Fund,
             MaxFundCarry = fsm.MaxFundCarry,
         };
 
@@ -197,10 +220,10 @@ public partial class GuestFSM
             spawnInfo.HasSpecialSpawnArgs = fsm.GuestType == GuestType.Special;
             spawnInfo.GuestSpawnType = args.GuestSpawnType;
             spawnInfo.HasOverrideSpawnPosition = args.HasOverrideSpawnPosition;
-            spawnInfo.OverrideSpawnX = args.OverrideSpawnPosition.x;
-            spawnInfo.OverrideSpawnY = args.OverrideSpawnPosition.y;
-            spawnInfo.OverrideSpawnZ = args.OverrideSpawnPosition.z;
-            spawnInfo.LeaveType = args.LeaveType;
+            spawnInfo.OverrideSpawnX = args.OverrideSpawnPosition.X;
+            spawnInfo.OverrideSpawnY = args.OverrideSpawnPosition.Y;
+            spawnInfo.OverrideSpawnZ = args.OverrideSpawnPosition.Z;
+            spawnInfo.LeaveType = (GuestGroupController.LeaveType)(int)args.LeaveType;
             spawnInfo.TargetDeskCode = args.TargetDeskCode;
             spawnInfo.ShouldFade = args.ShouldFade;
         }
@@ -215,24 +238,26 @@ public partial class GuestFSM
     /// <param name="guestSpawnInfo"></param>
     public static void DoSpawn(int runtimeId, GuestSpawnInfo guestSpawnInfo)
     {
-        var fsm = new GuestFSM();
-        fsm.CurrentState = State.Constructed;
-        fsm.Controller = null;
-        fsm.GuestType = guestSpawnInfo.GuestType;
-        fsm.Ids = guestSpawnInfo.Ids;
-        fsm.Fund = guestSpawnInfo.Fund;
-        fsm.MaxFundCarry = guestSpawnInfo.MaxFundCarry;
+        // 客机此刻还没有句柄：组由重放生成、框架铸造出组之后才知道，届时有 GuestService 调 GuestsMap.Bind。
+        var fsm = new GuestFSM
+        {
+            CurrentState = State.Constructed,
+            GuestType = guestSpawnInfo.GuestType,
+            Ids = guestSpawnInfo.Ids,
+            Fund = guestSpawnInfo.Fund,
+            MaxFundCarry = guestSpawnInfo.MaxFundCarry,
+        };
 
         GuestsMap.StoreGuest(runtimeId, fsm);
 
         if (fsm.GuestType == GuestType.Normal)
         {
-            GuestService.ReplaySpawnNormalGuestGroupExtern(ref fsm, guestSpawnInfo);
+            GuestService.ReplaySpawnNormalGuestGroupExtern(ref fsm, guestSpawnInfo, Services);
             return;
         }
         if (fsm.GuestType == GuestType.Special)
         {
-            GuestService.ReplaySpawnSpecialGuestGroup(ref fsm, guestSpawnInfo);
+            GuestService.ReplaySpawnSpecialGuestGroup(ref fsm, guestSpawnInfo, Services);
             return;
         }
 
@@ -244,9 +269,9 @@ public partial class GuestFSM
     /// </summary>
     /// <param name="controller"></param>
     /// <param name="deskCode"></param>
-    public static void OnMoveToDesk(GuestGroupController controller, int deskCode)
+    public static void OnMoveToDesk(GuestHandle handle, int deskCode)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
 
         // 情况一：顾客组刚生成即可入座
         // 主机调用栈: PostInitializeGuestGroup -> TrySendToSeat(firstSpawn: true) -> MoveToDesk
@@ -272,25 +297,23 @@ public partial class GuestFSM
     public static bool DoMoveToDesk(int runtimeId, int deskCode)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
-        if (fsm == null || fsm.Controller == null) return false;
+        if (fsm?.Proxy is not { } guest) return false;
         if (fsm.CurrentState != State.Constructed && fsm.CurrentState != State.Queued) return false;
         if (deskCode < 0) return false;
 
-        var guestCount = fsm.Controller.guestInstances.Length;
         var deskAvailable = GuestsManager.Instance.TrueAvailableDesks.TryGetValue(deskCode, out var capacity) &&
-                            capacity >= guestCount;
+                            capacity >= guest.GuestCount;
         if (!deskAvailable)
         {
             // TODO: 能否直接返回 false
-            if (!GuestsManager.Instance.AllGuestInDeskCode.Contains(deskCode)) return false;
-
-            var inDesk = GuestsManager.Instance.GetInDeskGuest(deskCode);
-            if (inDesk == null || inDesk.Pointer != fsm.Controller.Pointer) return false;
+            // 桌位不足时只有「占着这张桌的正是本组」才继续，与原来按控制器指针比对等价。
+            if (!Services.Guests.TryGetSeated(deskCode, out var seated)) return false;
+            if (seated.Handle != fsm.Handle) return false;
         }
 
         // 目标桌位可用 => 直接尝试入座
         var firstSpawn = fsm.CurrentState == State.Constructed;
-        if (!Services.Guests.Seat(fsm.Controller, deskCode, firstSpawn))
+        if (!Services.Guests.Seat(fsm.Handle, deskCode, firstSpawn))
         {
             fsm.Kill(State.SeatMoving);
             return true;
@@ -303,13 +326,13 @@ public partial class GuestFSM
     /// 因座满，主机刚生成的顾客组需要先入队时，主机同步入队事件
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnMoveToQueue(GuestGroupController controller)
+    public static void OnMoveToQueue(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm.CurrentState == State.Constructed)
         {
             fsm.To(State.Queued);
-            FlowLog($"Guest #{GuestsMap.GetRuntimeId(controller)} moved to queue, FSM: Constructed -> Queued");
+            FlowLog($"Guest #{fsm.RuntimeId} moved to queue, FSM: Constructed -> Queued");
             MoveToQueueMessage.Send(fsm.RuntimeId);
             return;
         }
@@ -325,25 +348,12 @@ public partial class GuestFSM
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
         if (fsm.CurrentState != State.Constructed) return false;
-        if (!GuestGroupController.CanQueue(fsm.Controller.guestInstances.Length)) return false; // 因队满而临界阻塞
+        if (!Services.Guests.CanQueue(fsm.Handle)) return false; // 因队满而临界阻塞
 
-        // 客机不自驱排队耐心耗尽：等主机的 PatientDepletedQueueMessage 同步。
-        // 这里给 controller 挂一个 no-op OnPatientDepeletedCallback
-        var OnPatientDepleted = (GuestGroupController guest) =>
-        {
-            // 客机端：所有耐心耗尽决定权归主机，本地不自驱耐心耗尽离开
-        };
+        // 入队与耐心倒计时由框架按游戏自己的入队分支完成（含 SpawnGuest 登记）。客机不自驱耐心耗尽
+        // （等主机的 PatientDepletedQueueMessage 同步），框架的 TryQueue 正是这个口径：只通知、不裁决。
+        if (!Services.Guests.TryQueue(fsm.Handle)) return false;
 
-        var OnMoveFinish = (GuestGroupController groupController) =>
-        {
-            if (fsm.CurrentState != State.Queued || !groupController.queued) return;
-            groupController.OnStopInQueueCallback?.Invoke(groupController);
-            GuestsManager.Instance.AddToPatientCountdown(groupController, OnPatientDepleted);
-        };
-
-        // 无法入座但能入队，对应 PostInitializeGuestGroup 中 TrySendToSeat 失败后的尝试入队逻辑
-        fsm.Controller.MoveToQueue(OnMoveFinish, false);
-        GuestsManager.Instance.SpawnGuest(fsm.Controller);
         fsm.To(State.Queued);
         return true;
 
@@ -356,10 +366,8 @@ public partial class GuestFSM
     /// <param name="deskCode"></param>
     public static void OnPlayerRepell(int deskCode)
     {
-        var controller = GuestsManager.Instance.GetInDeskGuest(deskCode);
-        if (controller == null) return;
-
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        // 本方法由监听器回调触发，不在场景服务作用域内，因此按桌号从句柄投影里找（句柄解析不受作用域限制）。
+        var fsm = GuestsMap.GetGuestFsmAtDesk(deskCode);
         if (fsm == null) return;
 
         PlayerRepellMessage.Send(fsm.RuntimeId);
@@ -372,25 +380,23 @@ public partial class GuestFSM
     public static void DoPlayerRepell(int runtimeId)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
-        if (!GameSession.IsRoomHost || fsm?.Controller == null) return;
-        var controller = fsm.Controller;
-        if (fsm.CurrentState is State.Leaving or State.Left or State.Dead || !controller.HaveNotLeft()) return;
+        if (!GameSession.IsRoomHost || fsm?.Proxy is not { } guest) return;
+        if (fsm.CurrentState is State.Leaving or State.Left or State.Dead || guest.HasLeft) return;
         var manager = GuestsManager.Instance;
-        var occupant = manager.GetInDeskGuest(controller.DeskCode);
-        if (occupant == null || occupant.Pointer != controller.Pointer) return;
-        if (!manager.CheckCanPlayerRepelGuest(controller.DeskCode)) return;
+        if (Services.Guests.TryGetSeated(guest.DeskCode, out var seated) && seated.Handle != fsm.Handle) return;
+        if (!manager.CheckCanPlayerRepelGuest(guest.DeskCode)) return;
 
-        manager.PlayerRepell(controller.DeskCode);
+        manager.PlayerRepell(guest.DeskCode);
     }
 
     /// <summary>原版已决定驱赶；离桌入口发送结果，不能在玩家请求入口宣布成功。</summary>
-    public static void OnRepell(GuestGroupController controller)
+    public static void OnRepell(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm == null || fsm.CurrentState is State.Left or State.Dead) return;
         fsm.IsRepelling = true;
         fsm.To(State.Leaving);
-        TryCloseServePanel(controller.DeskCode);
+        TryCloseServePanel(fsm.DeskCode);
     }
 
     /// <summary>主机驱赶结果越过旧服务等待项，直接重放原版完整清理。</summary>
@@ -398,10 +404,8 @@ public partial class GuestFSM
     {
         var runtimeId = result.RuntimeId;
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
-        if (fsm?.Controller == null || fsm.CurrentState is State.Left or State.Dead) return;
-        var controller = fsm.Controller;
-        var occupant = GuestsManager.Instance.GetInDeskGuest(controller.DeskCode);
-        if (occupant != null && occupant.Pointer != controller.Pointer)
+        if (fsm?.Proxy is not { } guest || fsm.CurrentState is State.Left or State.Dead) return;
+        if (Services.Guests.TryGetSeated(guest.DeskCode, out var seated) && seated.Handle != fsm.Handle)
         {
             Log.Warning($"Ignoring repell #{runtimeId}: desk is occupied by another guest");
             return;
@@ -409,8 +413,8 @@ public partial class GuestFSM
 
         fsm.IsRepelling = true;
         fsm.To(State.Left);
-        controller.Left = true;
-        controller.Mood = result.Mood;
+        guest.MarkLeft();
+        guest.SetMood(result.Mood);
         var eventManager = NightScene.EventUtility.EventManager.Instance;
         eventManager.CurrentCombo = result.Combo;
         eventManager.LoseComboTimes = result.LoseComboTimes;
@@ -418,20 +422,20 @@ public partial class GuestFSM
         eventManager.LoseComboGuestSetNum = result.LoseComboGuestSetNum;
         eventManager.CallExternOnComboUpdate(result.Combo);
         eventManager.CallExternOnMusicIndexUpdate(eventManager.CurrentMusicLevelHandle.Invoke());
-        TryCloseServePanel(controller.DeskCode);
+        TryCloseServePanel(guest.DeskCode);
         // 原版驱逐清理改走服务（服务内部放行被关掉的离场开关）。结果包里的 leaveType/triggerLeaveBuff 不再需要：
         // 原版 LeaveFromDesk 收到 Move 时会改用控制器自身的 FinalLeaveType 结算（游戏 GuestsManager.LeaveFromDesk:2637），
         // 而 RepellAndLeaveNoPay 内的 TriggerLeaveBuff 固定为 true，与主机侧的发送口径一致。
-        Services.Guests.Leave(controller, GuestLeaveKind.RepelledUnpaid);
+        Services.Guests.Leave(fsm.Handle, GuestLeaveKind.RepelledUnpaid);
     }
 
     /// <summary>
     /// 主机用于确定 SeatMoving => SeatedDelay 的状态更新。
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnRefreshCurrentFundAndOrder(GuestGroupController controller)
+    public static void OnRefreshCurrentFundAndOrder(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         FlowLog($"Guest #{fsm.RuntimeId} refreshed fund and order, current FSM state: {fsm.CurrentState}");
 
         if (fsm.CurrentState == State.SeatMoving)
@@ -449,9 +453,9 @@ public partial class GuestFSM
     /// <c>RefreshCurrentFundAndOrder</c>，因此只在 SeatMoving 时推进；其它来源的刷新（法术等）不介入。
     /// </summary>
     /// <param name="controller"></param>
-    public static void ClientGuestGroupOnArrive(GuestGroupController controller)
+    public static void ClientGuestGroupOnArrive(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm == null || fsm.CurrentState != State.SeatMoving) return;
 
         FlowLog($"Guest #{fsm.RuntimeId} arrived at desk {fsm.DeskCode}, FSM: SeatMoving -> SeatedDelay");
@@ -464,9 +468,9 @@ public partial class GuestFSM
     /// 但注意，主机端是先执行了 TrySendToSeat 然后才获知需要出队的顾客组，因此初始状态为 SeatMoving。也可考虑 Hook TrySendToSeat。
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnSendFromQueue(GuestGroupController controller)
+    public static void OnSendFromQueue(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         FlowLog($"Guest #{fsm.RuntimeId} sent from queue, current FSM state: {fsm.CurrentState}");
 
         if (fsm.CurrentState == State.SeatMoving)
@@ -490,9 +494,9 @@ public partial class GuestFSM
         if (fsm == null) return false;
         if (fsm.CurrentState == State.SeatMoving)
         {
-            var controller = fsm.Controller;
-            controller.OnLeaveQueueCallback?.Invoke(controller);
-            GuestsManager.Instance.RemoveFromPatientCountdown(controller);
+            // 原实现里额外调用的 OnLeaveQueueCallback 全游戏无人赋值（GuestGroupController.cs:227 只声明），
+            // 是死回调，因此只保留「停在排队耐心倒计时」这一步。
+            Services.Guests.StopPatientCountdown(fsm.Handle);
             return true;
         }
         return false;
@@ -504,20 +508,24 @@ public partial class GuestFSM
     /// <param name="orderGenerationResult"></param>
     /// <param name="controller"></param>
     /// <param name="orderData"></param>
-    public static void OnGenerateOrderInternal(OrderGenerationResult orderGenerationResult, GuestGroupController controller, GuestsManager.OrderBase orderData)
+    public static void OnGenerateOrderInternal(GuestHandle handle, OrderGenerationOutcome result, OrderProxy order)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
+        if (fsm?.Proxy is not { } guest) return;
         FlowLog($"Guest #{fsm.RuntimeId} generated order, current FSM state: {fsm.CurrentState}");
 
         if (fsm.CurrentState == State.SeatedDelay || fsm.CurrentState == State.ContinueDecision)
         {
+            // 框架的结果枚举与游戏的 OrderGenerationResult 取值一一对应（桥接 Mirrors 负责映射），
+            // 消息与模组内部仍以游戏枚举表达。
+            var orderGenerationResult = (OrderGenerationResult)(int)result;
             OrderGenerationResult? overrideResult = null;
-            if (controller.ControllType == GuestType.Special)
+            if (guest.Kind == GuestKind.Special)
             {
                 // 游戏中仅对 Special Guest 执行无副作用的 CheckRemainingFund 以做等价预测
-                overrideResult = CheckRemainingFund(orderGenerationResult, controller);
+                overrideResult = CheckRemainingFund(orderGenerationResult, guest);
             }
-            GenerateOrderMessage.Send(fsm.RuntimeId, orderGenerationResult, overrideResult, orderData);
+            GenerateOrderMessage.Send(fsm.RuntimeId, orderGenerationResult, overrideResult, order);
 
             var finalResult = overrideResult ?? orderGenerationResult;
             if (finalResult == OrderGenerationResult.Succeed)
@@ -542,23 +550,24 @@ public partial class GuestFSM
     /// <param name="oldResult"></param>
     /// <param name="toGenerate"></param>
     /// <returns></returns>
-    private static OrderGenerationResult CheckRemainingFund(OrderGenerationResult oldResult, GuestGroupController toGenerate)
+    private static OrderGenerationResult CheckRemainingFund(OrderGenerationResult oldResult, GuestProxy guest)
     {
-        var filtered = toGenerate.AllOrders.ToArray().Where(x => !x.FreeOrder).ToArray();
+        var filtered = guest.Orders.Where(x => !x.IsFree).ToArray();
         int spent = filtered.Length > 0
             ? filtered.Select(x => x.Price).Aggregate((a, b) => a + b)
             : 0;
-        int totalFund = toGenerate.MaxFundCarry + toGenerate.ExtraFundByBuff;
+        int totalFund = guest.MaxFundCarry + guest.ExtraFundByBuff;
         if (spent <= totalFund)
         {
             return oldResult;
         }
         float enduranceMultiplier = 1f;
-        if (toGenerate.Mood > 50)
+        if (guest.Mood > 50)
         {
-            enduranceMultiplier = 1f + Mathf.Log(51f / (float)(101 - Mathf.Min(toGenerate.Mood, 100)), 25f);
+            // 原式是 Mathf.Log(51f / (101 - Mathf.Min(mood, 100)), 25f)，换成 System.Math 以免用掉 Unity 类型。
+            enduranceMultiplier = 1f + (float)Math.Log(51f / (101 - Math.Min(guest.Mood, 100)), 25d);
         }
-        return spent > totalFund * (toGenerate.EnduranceLimit * enduranceMultiplier)
+        return spent > totalFund * (guest.EnduranceLimit * enduranceMultiplier)
             ? OrderGenerationResult.ExceedEndurance
             : OrderGenerationResult.NoMoney;
     }
@@ -571,36 +580,48 @@ public partial class GuestFSM
     /// <param name="overrideResult">SpecialGuest 的订单覆盖结果(主机预测)</param>
     /// <param name="orderData">订单数据</param>
     /// <returns></returns>
-    public static bool DoGenerateOrderSession(int runtimeId, OrderGenerationResult orderGenerationResult, OrderGenerationResult? overrideResult, OrderBase orderData)
+    public static bool DoGenerateOrderSession(
+        int runtimeId,
+        OrderGenerationResult orderGenerationResult,
+        OrderGenerationResult? overrideResult,
+        OrderKind orderKind,
+        int foodRequest,
+        int beverageRequest,
+        int deskCode,
+        bool hidden,
+        bool free)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
         if (fsm.CurrentState != State.SeatedDelay && fsm.CurrentState != State.ContinueDecision) return false;
 
-        var controller = fsm.Controller;
         if (fsm.IsFirstOrder) // FirstOrder
         {
-            // 原 FirstOrder 里不经过订单开关的显示部分（心情条与回调）在此直接执行；
+            // 原 FirstOrder 里不经过订单开关的显示部分（心情条与回调）由服务照原样执行；
             // 点单会话本身由下面的服务放行。
-            var table = TileManager.Instance.GuestTables[controller.DeskCode].tableDisplayer;
-            table.ShowMood();
-            System.Action<float> onMoodUpdate = table.SetMoodProgress;
-            controller.OnMoodUpdateCallback = DelegateSupport.ConvertDelegate<Il2CppSystem.Action<float>>(onMoodUpdate);
-            controller.Mood = controller.Mood;
+            Services.Guests.ShowMood(fsm.Handle);
             fsm.IsFirstOrder = false;
         }
         else // MainOrderCycle
         {
             // 原 MainOrderCycle 的 SetPlayerCanRepelGuest 步骤；doContinue 已由主机的 Result 表达，无需同步。
-            GuestsManager.Instance.Register(GuestsManager.Instance.CanPlayerRepellGuest, controller);
+            Services.Guests.SetRepellable(fsm.Handle);
+        }
+
+        // 订单对象属于下这一单的这台机器，所以本机按主机滚出来的内容自己造一单。
+        var order = Services.Guests.CreateOrder(fsm.Handle, orderKind, foodRequest, beverageRequest, deskCode, hidden, free);
+        if (order.IsNone)
+        {
+            Log.Error($"Guest #{runtimeId} could not build the replayed order");
+            return false;
         }
 
         // 主机口径的订单与结果交给中间件的订单装载机制：服务放行原版 GenerateOrderSession，
         // 桥接在 GenerateOrder 前缀回写订单、在闭包 GenerateOrderInternal/CheckRemainingFund 回写结果。
-        Services.Guests.BeginOrderSession(controller, overrideResult ?? orderGenerationResult, orderData, string.Empty);
+        var result = (OrderGenerationOutcome)(int)(overrideResult ?? orderGenerationResult);
+        Services.Guests.BeginOrderSession(fsm.Handle, result, order, string.Empty);
 
-        var finalResult = overrideResult ?? orderGenerationResult;
-        if (finalResult == OrderGenerationResult.Succeed)
+        if ((overrideResult ?? orderGenerationResult) == OrderGenerationResult.Succeed)
         {
             fsm.To(State.WaitingServe);
         }
@@ -634,11 +655,11 @@ public partial class GuestFSM
     public static bool SellableEquals(Sellable a, Sellable b)
         => SellableFood.ContentEquals(SellableFood.FromSellable(a), SellableFood.FromSellable(b));
 
-    private static void RestoreFood(Sellable food)
+    private static void RestoreFood(DishProxy food)
     {
         if (food == null) return;
 
-        if (!food.HasModifier && food.AdditiveTags.Count == 0)
+        if (food.ModifierIds.Count == 0 && food.AdditiveTags.Count == 0)
         {
             Il2CppSystem.Collections.Generic.List<int> toRestore = new Il2CppSystem.Collections.Generic.List<int>(1);
             toRestore.Add(food.Id);
@@ -646,8 +667,12 @@ public partial class GuestFSM
             return;
         }
 
-        IzakayaConfigure.Instance.StoreFood(food);
+        Services.Storage.Store(food);
     }
+
+    /// <summary>订单槽位上的菜品（框架投影）与消息里的菜品是否为同一份内容。</summary>
+    private static bool ContentEquals(DishProxy slot, Sellable dish) =>
+        SellableFood.ContentEquals(SellableFood.FromProxy(slot), SellableFood.FromSellable(dish));
 
     /// <summary>
     /// 主机或客机在执行
@@ -657,9 +682,9 @@ public partial class GuestFSM
     /// <param name="controller"></param>
     /// <param name="sellable"></param>
     /// <param name="type"></param>
-    public static void OnServe(GuestGroupController controller, Sellable sellable, Sellable.SellableType type)
+    public static void OnServe(GuestHandle handle, Sellable sellable, Sellable.SellableType type)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         // 忽略手动顾客非待上菜状态下的上菜同步，避免进入异常分支销毁仍被剧情引用的实体。
         if (fsm?.IsManualGuest == true && fsm.CurrentState != State.WaitingServe) return;
         FlowLog($"Guest #{fsm.RuntimeId} served {sellable?.Text?.BriefName ?? "null"}, current FSM state: {fsm.CurrentState}");
@@ -727,11 +752,11 @@ public partial class GuestFSM
         if (fsm == null) return true;
         if (fsm.CurrentState != State.WaitingServe) return true;
         if (OrderSeqMismatch(fsm, orderSeq, nameof(DoServe))) return true;
-        var order = fsm.Controller.AllOrdersData.Peek();
+        if (fsm.CurrentOrder is not { } order) return true;
 
 
         var hostSlot = type == Sellable.SellableType.Food ? fsm.WillServeFood : fsm.WillServeBeverage;
-        var hostDeskSlot = type == Sellable.SellableType.Food ? order.ServFood : order.ServBeverage;
+        var hostDeskSlot = type == Sellable.SellableType.Food ? order.Food : order.Beverage;
         var conflict = (hostDeskSlot != null)   // Host 已有确认上菜 -> 一定冲突
             || (requested != null   // 所请求的料理非空 -> 可能存在冲突
             && hostSlot != null     // Host 端已有预期 -> 可能存在冲突，需检测所 requested 的料理与 Host 端预期是否一致；如果 Host 端没有预期，则不论所请求的料理是什么都不冲突
@@ -748,18 +773,18 @@ public partial class GuestFSM
         if (type == Sellable.SellableType.Food)
         {
             fsm.WillServeFood = requested;
-            order.ServedFoodInAir = null;
-            order.ServFood = null;
+            order.SetFoodInAir(null);
+            order.SetFood(null);
         }
         else
         {
             fsm.WillServeBeverage = requested;
-            order.ServedBeverageInAir = null;
-            order.ServBeverage = null;
+            order.SetBeverageInAir(null);
+            order.SetBeverage(null);
         }
 
-        TryUpdateServePanel(fsm.DeskCode, requested, type, canCancel: true);
-        UpdateServeDesk(fsm.DeskCode, requested, type);
+        TryUpdateServePanel(fsm.DeskCode, DishOf(requested), KindOf(type), canCancel: true);
+        UpdateServeDesk(fsm.DeskCode, DishOf(requested), KindOf(type));
 
         // 传原 senderUid，让原发起客机自己 echo-filter 掉，避免在客机上重复跑一次。
         ServeSellableMessage.Send(fsm.RuntimeId, orderSeq, requested, baseOn, type, senderUid);
@@ -786,15 +811,13 @@ public partial class GuestFSM
             || (orderSeq == fsm.OrderSeq && fsm.CurrentState != State.WaitingServe))) return true;
         if (fsm.CurrentState != State.WaitingServe) return false;
         if (OrderSeqMismatch(fsm, orderSeq, nameof(DoServe))) return true;
-        var controller = fsm.Controller;
-        var order = fsm.Controller.AllOrdersData.Peek();
 
         // TODO: 冲突检查和回滚执行
         if (type == Sellable.SellableType.Food)
         {
             if (fsm.WillServeFood != null && !SellableEquals(fsm.WillServeFood, baseOn))
             {
-                RestoreFood(fsm.WillServeFood);
+                RestoreFood(DishOf(fsm.WillServeFood));
             }
             fsm.WillServeFood = sellable;
         }
@@ -809,8 +832,8 @@ public partial class GuestFSM
             fsm.WillServeBeverage = sellable;
         }
 
-        TryUpdateServePanel(fsm.DeskCode, sellable, type, canCancel: true);
-        UpdateServeDesk(fsm.DeskCode, sellable, type);
+        TryUpdateServePanel(fsm.DeskCode, DishOf(sellable), KindOf(type), canCancel: true);
+        UpdateServeDesk(fsm.DeskCode, DishOf(sellable), KindOf(type));
 
         return true;
     }
@@ -823,21 +846,18 @@ public partial class GuestFSM
     /// <param name="deskCode"></param>
     /// <param name="sellable"></param>
     /// <param name="type"></param>
-    public static void UpdateServeDesk(int deskCode, Sellable sellable, Sellable.SellableType type)
+    public static void UpdateServeDesk(int deskCode, DishProxy? dish, DishKind kind)
     {
-        if (!TileManager.Instance.GuestTables.ContainsKey(deskCode)) return;
-        var displayer = TileManager.Instance.GuestTables[deskCode].tableDisplayer;
-        if (displayer == null) return;
-
-        if (type == Sellable.SellableType.Food)
-        {
-            displayer.SetFoodVisual(sellable?.Text?.Visual);
-        }
-        else // type == Sellable.SellableType.Beverage
-        {
-            displayer.SetBeverageVisual(sellable?.Text?.Visual);
-        }
+        // 桌面贴图由框架写（Unity 的 Sprite 不出桥接），模组只给桌号、菜品投影与槽位。
+        Services.Guests.ShowServedDish(deskCode, dish, kind);
     }
+
+    /// <summary>消息里的菜品类型对应的槽位。</summary>
+    private static DishKind KindOf(Sellable.SellableType type) =>
+        type == Sellable.SellableType.Food ? DishKind.Food : DishKind.Beverage;
+
+    /// <summary>消息里的菜品转成框架的菜品投影，供订单槽位、面板与桌面使用。</summary>
+    internal static DishProxy? DishOf(Sellable sellable) => GuestSync.ScopedServices?.Dishes.DishOf(sellable);
 
     /// <summary>
     /// 尝试更新上菜面板上的 food/bev 贴图
@@ -847,22 +867,22 @@ public partial class GuestFSM
     /// <param name="type"></param>
     /// <param name="canCancel"></param>
     /// <returns></returns>
-    public static bool TryUpdateServePanel(int deskCode, Sellable sellable, Sellable.SellableType type, bool canCancel)
+    public static bool TryUpdateServePanel(int deskCode, DishProxy? dish, DishKind kind, bool canCancel)
     {
         var panel = WorkSync.ServePanel;
         if (panel?.DeskCode != deskCode) return false;
 
-        if (type == Sellable.SellableType.Food)
+        if (kind == DishKind.Food)
         {
-            panel.PendingFood = sellable;
+            panel.PendingFood = dish;
             panel.RefreshPendingVisual();
             // 已确认上菜：原实现只在 UI 上以“不可取消”方式渲染、并不占用待上菜槽位；
             // 视图没有单独的视觉入口，故渲染后立刻清空槽位，保持面板关闭时不重复确认的语义。
             if (!canCancel) panel.PendingFood = null;
         }
-        else // type == Sellable.SellableType.Beverage
+        else // DishKind.Beverage
         {
-            panel.PendingBeverage = sellable;
+            panel.PendingBeverage = dish;
             panel.RefreshPendingVisual();
             if (!canCancel) panel.PendingBeverage = null;
         }
@@ -891,18 +911,22 @@ public partial class GuestFSM
     /// <param name="controller"></param>
     /// <param name="evalResult"></param>
     /// <returns></returns>
-    public static bool OnEvaluateOrder(GuestGroupController controller, GuestGroupController.EvaluationResult evalResult)
+    public static bool OnEvaluateOrder(GuestHandle handle, GuestEvaluation evalResult)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
-        if (fsm == null) return false;
+        var fsm = GuestsMap.GetGuestFsm(handle);
+        if (fsm?.Proxy is not { } guest) return false;
         if (fsm.CurrentState == State.WaitingServe)
         {
-            var order = controller.PeekOrders();
-            if (controller.HasEvaluated && order != null && order.IsFullfilled)
+            if (guest.HasEvaluated && guest.TryGetPendingOrder(out var order) && order.IsFulfilled)
             {
                 fsm.WillServeFood = null;
                 fsm.WillServeBeverage = null;
-                EvaluateOrderMessage.Send(fsm.RuntimeId, controller.AllOrdersCount, order.ServFood, order.ServBeverage, evalResult);
+                EvaluateOrderMessage.Send(
+                    fsm.RuntimeId,
+                    guest.PendingOrderCount,
+                    order.Food,
+                    order.Beverage,
+                    evalResult);
                 fsm.To(State.Evaluating);
                 return true;
             }
@@ -920,31 +944,33 @@ public partial class GuestFSM
     /// <param name="beverage"></param>
     /// <param name="evalResult"></param>
     /// <returns></returns>
-    public static bool DoEvaluateOrder(int runtimeId, int orderSeq, Sellable food, Sellable beverage, GuestGroupController.EvaluationResult evalResult)
+    public static bool DoEvaluateOrder(int runtimeId, int orderSeq, Sellable food, Sellable beverage, GuestEvaluation evalResult)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
         if (fsm.CurrentState != State.WaitingServe) return false;
         if (OrderSeqMismatch(fsm, orderSeq, nameof(DoEvaluateOrder))) return true;
-        var controller = fsm.Controller;
-        var order = controller.PeekOrders();
+        if (fsm.CurrentOrder is not { } order) return false;
+
+        var foodDish = DishOf(food);
+        var beverageDish = DishOf(beverage);
 
         fsm.WillServeFood = null;
         fsm.WillServeBeverage = null;
-        order.ServedFoodInAir = null;
-        order.ServedBeverageInAir = null;
-        order.ServFood = food;
-        order.ServBeverage = beverage;
+        order.SetFoodInAir(null);
+        order.SetBeverageInAir(null);
+        order.SetFood(foodDish);
+        order.SetBeverage(beverageDish);
         fsm.OverrideEvalResult = evalResult;
 
         TryCloseServePanel(fsm.DeskCode);
-        UpdateServeDesk(fsm.DeskCode, food, Sellable.SellableType.Food);
-        UpdateServeDesk(fsm.DeskCode, beverage, Sellable.SellableType.Beverage);
+        UpdateServeDesk(fsm.DeskCode, foodDish, DishKind.Food);
+        UpdateServeDesk(fsm.DeskCode, beverageDish, DishKind.Beverage);
 
         fsm.To(State.Evaluating);
         // 评价改走服务（服务内部同样以 isTriggerByPartner:false 调用原版，并放行被关掉的评价门控）。
-        Services.Guests.Evaluate(controller);
-        fsm.OverrideEvalResult = GuestGroupController.EvaluationResult.Null;
+        Services.Guests.Evaluate(fsm.Handle);
+        fsm.OverrideEvalResult = GuestEvaluation.None;
         return true;
     }
 
@@ -954,9 +980,9 @@ public partial class GuestFSM
     /// <param name="controller"></param>
     /// <param name="food"></param>
     /// <param name="beverage"></param>
-    public static void OnConfirmServe(GuestGroupController controller, Sellable food, Sellable beverage)
+    public static void OnConfirmServe(GuestHandle handle, DishProxy? food, DishProxy? beverage)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm == null) return;
         if (fsm.IsManualGuest && fsm.CurrentState != State.WaitingServe) return;
         if (fsm.IsRepelling) return;
@@ -996,72 +1022,74 @@ public partial class GuestFSM
         if (GameSession.IsRoomHost)
         {
             // 主机已上该 料理/酒水 => 丢弃
-            if ((fsm.CurrentOrder?.ServFood != null && food != null)
-                || (fsm.CurrentOrder?.ServBeverage != null && beverage != null))
+            if ((fsm.CurrentOrder?.Food != null && food != null)
+                || (fsm.CurrentOrder?.Beverage != null && beverage != null))
             {
                 return true;
             }
 
             // 主机已上该 料理/酒水 只不过还在投掷中 => 丢弃
-            if ((fsm.CurrentOrder?.ServedFoodInAir != null && food != null)
-                || (fsm.CurrentOrder?.ServedBeverageInAir != null && beverage != null))
+            if ((fsm.CurrentOrder?.FoodInAir != null && food != null)
+                || (fsm.CurrentOrder?.BeverageInAir != null && beverage != null))
             {
                 return true;
             }
 
             // 无冲突 => 接受客机的上菜确认，更新状态并广播，然后更新本地状态
-            ConfirmServeMessage.Send(fsm.RuntimeId, orderSeq, food, beverage, senderUid);
+            ConfirmServeMessage.Send(fsm.RuntimeId, orderSeq, DishOf(food), DishOf(beverage), senderUid);
         }
 
 
-        var controller = fsm.Controller;
-        var order = fsm.CurrentOrder;
-        if (order == null)
+        if (fsm.CurrentOrder is not { } order)
         {
             fsm.Kill();
             return true;
         }
 
+        var foodDish = DishOf(food);
+        var beverageDish = DishOf(beverage);
+
         if (food != null)
         {
-            var local = order.ServFood ?? order.ServedFoodInAir;
-            if (local != null && !SellableEquals(local, food))
+            // 槽位上是框架的菜品投影，回滚判定要与消息里的菜品比内容（含厨师）。
+            var local = order.Food ?? order.FoodInAir;
+            if (local != null && !ContentEquals(local, food))
             {
                 RestoreFood(local);
             }
 
-            order.ServedFoodInAir = null;
-            order.ServFood = food;
+            order.SetFoodInAir(null);
+            order.SetFood(foodDish);
             fsm.WillServeFood = null;
-            UpdateServeDesk(fsm.DeskCode, food, Sellable.SellableType.Food);
-            TryUpdateServePanel(fsm.DeskCode, food, Sellable.SellableType.Food, canCancel: false);
+            UpdateServeDesk(fsm.DeskCode, foodDish, DishKind.Food);
+            TryUpdateServePanel(fsm.DeskCode, foodDish, DishKind.Food, canCancel: false);
         }
         if (beverage != null)
         {
-            var local = order.ServBeverage ?? order.ServedBeverageInAir;
-            if (local != null && !SellableEquals(local, beverage))
+            var local = order.Beverage ?? order.BeverageInAir;
+            if (local != null && !ContentEquals(local, beverage))
             {
                 Il2CppSystem.Collections.Generic.List<int> toRestore = new Il2CppSystem.Collections.Generic.List<int>(1);
                 toRestore.Add(local.Id);
                 RunTimeStorage.BeverageInRange(toRestore.ToIEnumerable());
             }
 
-            order.ServedBeverageInAir = null;
-            order.ServBeverage = beverage;
+            order.SetBeverageInAir(null);
+            order.SetBeverage(beverageDish);
             fsm.WillServeBeverage = null;
-            UpdateServeDesk(fsm.DeskCode, beverage, Sellable.SellableType.Beverage);
-            TryUpdateServePanel(fsm.DeskCode, beverage, Sellable.SellableType.Beverage, canCancel: false);
+            UpdateServeDesk(fsm.DeskCode, beverageDish, DishKind.Beverage);
+            TryUpdateServePanel(fsm.DeskCode, beverageDish, DishKind.Beverage, canCancel: false);
         }
 
         // 收到并处理 ConfirmServeMessage 后发现订单已满 => 关闭活动面板，主机端执行评价
         // 注意：guest 可能已因 OnPanelClose 等路径离开 WaitingServe，此时不应重复触发评价
-        if (order.IsFullfilled)
+        if (order.IsFulfilled)
         {
             TryCloseServePanel(fsm.DeskCode);
             if (GameSession.IsRoomHost && fsm.CurrentState == State.WaitingServe)
             {
                 if (fsm.IsManualGuest) YuyukoGuestSync.EvaluateConfirmed();
-                else Services.Guests.Evaluate(controller);
+                else Services.Guests.Evaluate(fsm.Handle);
             }
         }
         return true;
@@ -1071,9 +1099,9 @@ public partial class GuestFSM
     /// 主机或客机顾客 <see cref="GuestsManager.EvaluateOrder"/> 结束，推进 Evaluating -> EatingDelay
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnEatingDelay(GuestGroupController controller)
+    public static void OnEatingDelay(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm == null) return;
         if (fsm.CurrentState == State.Evaluating)
         {
@@ -1089,9 +1117,9 @@ public partial class GuestFSM
     /// 用于推进 EatingDelay -> ContinueDecision
     /// </summary>
     /// <param name="controller"></param>
-    public static void OnPostEvaluation(GuestGroupController controller)
+    public static void OnPostEvaluation(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm == null) return;
         if (fsm.CurrentState == State.EatingDelay)
         {
@@ -1106,9 +1134,9 @@ public partial class GuestFSM
     /// 触发点：GuestGroupController.UpdatePatient → OnPatientDepeletedCallback
     /// (PostInitializeGuestGroup 内 OnPatientDepleted)
     /// </summary>
-    public static void OnPatientDepletedInQueue(GuestGroupController controller)
+    public static void OnPatientDepletedInQueue(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm.CurrentState == State.Queued)
         {
             FlowLog($"Guest #{fsm.RuntimeId} patient depleted in queue, FSM: Queued -> Leaving");
@@ -1128,9 +1156,8 @@ public partial class GuestFSM
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
         if (fsm.CurrentState != State.Queued) return false;
-        var controller = fsm.Controller;
-        GuestsManager.Instance.RemoveFromPatientCountdown(controller);
-        controller.MoveToSpawn();
+        Services.Guests.StopPatientCountdown(fsm.Handle);
+        fsm.Proxy?.MoveToSpawn();
         fsm.To(State.Leaving);
         return true;
     }
@@ -1138,9 +1165,9 @@ public partial class GuestFSM
     /// <summary>
     /// 主机判定桌上顾客耐心耗尽。同步并推进 WaitingServe -> Leaving。
     /// </summary>
-    public static void OnPatientDepletedAtDesk(GuestGroupController controller)
+    public static void OnPatientDepletedAtDesk(GuestHandle handle)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm.CurrentState == State.WaitingServe)
         {
             FlowLog($"Guest #{fsm.RuntimeId} patient depleted at desk, FSM: WaitingServe -> Leaving");
@@ -1161,12 +1188,11 @@ public partial class GuestFSM
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
         if (fsm.CurrentState != State.WaitingServe) return false;
-        var controller = fsm.Controller;
 
         fsm.To(State.Leaving);
         TryCloseServePanel(fsm.DeskCode);
         // 耐心耗尽改走服务：服务内部放行被关掉的离场开关，并在末端重放原版的订单清理与回调。
-        Services.Guests.Leave(controller, GuestLeaveKind.Patience);
+        Services.Guests.Leave(fsm.Handle, GuestLeaveKind.Patience);
         return true;
     }
 
@@ -1174,20 +1200,20 @@ public partial class GuestFSM
     /// 主机客人离桌，部分来源将被 LeaveFromDesk SkipPatch。
     /// </summary>
     public static void OnLeaveFromDesk(
-        GuestGroupController controller,
-        GuestGroupController.LeaveType leaveType,
+        GuestHandle handle,
+        GuestLeaveType leaveType,
         bool triggerLeaveBuff,
         bool broadcast = true)
     {
-        var fsm = GuestsMap.GetGuestFsm(controller);
+        var fsm = GuestsMap.GetGuestFsm(handle);
         if (fsm == null) return;
         FlowLog($"Guest #{fsm.RuntimeId} OnLeaveFromDesk from {fsm.CurrentState}, leaveType={leaveType}, triggerLeaveBuff={triggerLeaveBuff}, broadcast={broadcast}");
         if (broadcast)
         {
             if (fsm.IsRepelling)
-                GuestRepellMessage.Send(fsm.RuntimeId, controller, leaveType, triggerLeaveBuff);
+                GuestRepellMessage.Send(fsm.RuntimeId, handle, leaveType, triggerLeaveBuff);
             else
-                GuestLeaveMessage.Send(fsm.RuntimeId, leaveType, triggerLeaveBuff);
+                GuestLeaveMessage.Send(fsm.RuntimeId, (GuestGroupController.LeaveType)(int)leaveType, triggerLeaveBuff);
         }
         fsm.To(State.Left);
     }
@@ -1203,7 +1229,7 @@ public partial class GuestFSM
         FlowLog($"Guest #{runtimeId} DoLeaveFromDesk from {fsm.CurrentState}, leaveType={leaveType}, triggerLeaveBuff={triggerLeaveBuff}");
         // 服务只按 GuestLeaveKind 选择原版离场方法，原版 LeaveFromDesk 内部一律以控制器自身的
         // FinalLeaveType 结算（游戏 GuestsManager.LeaveFromDesk:2637），与主机发来的 leaveType 等价。
-        Services.Guests.Leave(fsm.Controller, GuestLeaveKind.Other);
+        Services.Guests.Leave(fsm.Handle, GuestLeaveKind.Other);
         fsm.To(State.Left);
         return true;
     }
@@ -1214,7 +1240,7 @@ public partial class GuestFSM
     /// <param name="state"></param>
     private void To(State state)
     {
-        FlowLog($"Guest #{GuestsMap.GetRuntimeId(Controller)} FSM: {CurrentState} -> {state}");
+        FlowLog($"Guest #{RuntimeId} FSM: {CurrentState} -> {state}");
 #if DEBUG
         Common.UI.ReceivedObjectDisplayerController.Instance.NotifyTextMessage($"#{RuntimeId}: {CurrentState} -> {state}");
         UI.InGameConsole.ShowPassive($"#{RuntimeId}: {CurrentState} -> {state}");
@@ -1245,14 +1271,14 @@ public partial class GuestFSM
 
         if (GameSession.IsRoomHost)
         {
-            GuestKillMessage.Send(rid, stateBefore, Controller?.DeskCode ?? -1);
+            GuestKillMessage.Send(rid, stateBefore, DeskCode);
         }
 
         To(State.Dead);
         // 强制清理会调用被关掉的离场/入座接口，且 Kill 也可能由游戏调用栈（作用域外）触发，
         // 因此排队到营业场景循环的服务作用域内执行。
-        var controller = Controller!;
-        GuestSync.EnqueueReplay($"cleanup #{rid}", services => GuestService.ReplayForceCleanupGuest(services, controller));
+        var handle = Handle;
+        GuestSync.EnqueueReplay($"cleanup #{rid}", services => GuestService.ReplayForceCleanupGuest(services, handle));
         GuestsMap.Remove(rid);
     }
 }

@@ -4,6 +4,7 @@ using DEYU.Utils;
 using GameData.Core.Collections;
 using Il2CppSystem.IO;
 using MemoryPack;
+using Mystia.Scenes;
 
 namespace MetaMystia.Multiplayer.Messages;
 
@@ -72,6 +73,30 @@ public partial class SellableFood
             res.CookId = cooker.Id;
         }
         return res;
+    }
+
+    /// <summary>
+    /// 从框架的菜品投影构造同一种内容形式，用于与消息里的菜品（<see cref="FromSellable"/>）做内容对比。
+    /// 没有厨师时两侧都记 0，与 <see cref="FromSellable"/> 的默认值一致。
+    /// </summary>
+    public static SellableFood FromProxy(DishProxy dish)
+    {
+        if (dish == null) return null;
+
+        if (dish.Kind == DishKind.Beverage)
+        {
+            return new SellableFood { Id = dish.Id, Type = Sellable.SellableType.Beverage };
+        }
+
+        return new SellableFood
+        {
+            Type = Sellable.SellableType.Food,
+            Id = dish.Id,
+            Level = dish.Level,
+            ModifierIds = dish.ModifierIds.ToArray(),
+            AdditiveTags = dish.AdditiveTags.ToArray(),
+            CookId = dish.CookerId < 0 ? 0 : dish.CookerId,
+        };
     }
 
     /// <summary>

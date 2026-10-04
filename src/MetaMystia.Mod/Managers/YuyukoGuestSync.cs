@@ -5,6 +5,8 @@ using System.Linq;
 
 using Il2CppSystem.Linq;
 
+using Mystia.Scenes;
+
 using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer;
@@ -45,11 +47,26 @@ public static partial class YuyukoGuestSync
     private static bool comboProtect;
 
     /// <summary>
-    /// 判断顾客是否为当前联机挑战已捕获的本体。按底层对象地址比较，避免将同角色的其他实体纳入同步。
+    /// 判断句柄是否为当前联机挑战已捕获的本体。句柄由挑战服务补上（<see cref="CaptureHandle"/>），
+    /// 之后一切框架面（监听器、服务、消息）都用它判断。
     /// </summary>
-    internal static bool IsBody(GuestGroupController controller) =>
+    internal static bool IsBody(GuestHandle handle) =>
+        GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge
+        && !handle.IsNone && fsm != null && fsm.Handle == handle;
+
+    /// <summary>
+    /// 控制器口径的本体判断：剧情补丁手里拿的是控制器，按底层地址比较，句柄尚未补上时也成立。
+    /// </summary>
+    internal static bool IsControllerBody(GuestGroupController controller) =>
         GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge && controller != null
         && body?.Pointer == controller.Pointer;
+
+    /// <summary>补上本体的框架句柄。由营业场景循环内的挑战服务读出后转交（服务只在循环内有效）。</summary>
+    internal static void CaptureHandle(GuestHandle handle)
+    {
+        if (handle.IsNone || fsm == null) return;
+        fsm.SetManualHandle(handle);
+    }
 
     /// <summary>判断网络编号是否属于已绑定本体，供上菜消息在剧情期间接收并暂存。</summary>
     internal static bool OwnsRuntimeId(int runtimeId) => fsm != null && fsm.RuntimeId == runtimeId;
@@ -326,7 +343,7 @@ public static partial class YuyukoGuestSync
     /// 普通实体直接放行；本体必须等待上菜，且由主机发起或处于客机重放期间，才允许手动评价。
     /// </summary>
     internal static bool CanEvaluate(GuestGroupController controller) =>
-        !IsBody(controller) || (fsm?.CurrentState == GuestFSM.State.WaitingServe
+        !IsControllerBody(controller) || (fsm?.CurrentState == GuestFSM.State.WaitingServe
             && (GameSession.IsRoomHost || IsReplayingEvaluation));
 
     /// <summary>
@@ -346,7 +363,7 @@ public static partial class YuyukoGuestSync
     /// <returns>是否已提供结果；为 true 时调用方跳过原版计算。</returns>
     internal static bool OverrideEvaluation(GuestGroupController controller, ref int result)
     {
-        if (!IsBody(controller) || replayEvaluation == null) return false;
+        if (!IsControllerBody(controller) || replayEvaluation == null) return false;
         controller.HasEvaluated = true;
         result = (int)replayEvaluation.Result;
         return true;
@@ -361,7 +378,7 @@ public static partial class YuyukoGuestSync
     internal static bool ReplayBossEvaluation(GuestGroupController controller, ref EvaluationResult result,
         ref string message, ref bool protect)
     {
-        if (!IsBody(controller) || replayEvaluation == null) return false;
+        if (!IsControllerBody(controller) || replayEvaluation == null) return false;
         result = replayEvaluation.Result;
         message = replayEvaluation.EvaluationMessage;
         protect = replayEvaluation.ComboProtect;
@@ -375,7 +392,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void CaptureBossEvaluation(GuestGroupController controller, string message, bool protect)
     {
-        if (!IsBody(controller)) return;
+        if (!IsControllerBody(controller)) return;
         evaluationMessage = message;
         comboProtect = protect;
     }
@@ -384,9 +401,9 @@ public static partial class YuyukoGuestSync
     /// 在最终改判已完成、稀客后续评价处理开始前同步数据，并将本体设为评价中。
     /// 主机发送菜酒、最终评价及附带状态；客机重放时对齐心情。真正完成仍由包装回调通知。
     /// </summary>
-    internal static void BeforePostEvaluation(GuestGroupController controller, EvaluationResult result)
+    internal static void BeforePostEvaluation(GuestHandle handle, GuestEvaluation result)
     {
-        if (!IsBody(controller) || fsm == null) return;
+        if (!IsBody(handle) || fsm == null) return;
         if (replayEvaluation != null) body.Mood = replayEvaluation.Mood;
         if (GameSession.IsRoomHost)
         {
@@ -394,7 +411,7 @@ public static partial class YuyukoGuestSync
             var order = body.PeekOrders();
             message.Food = SellableFood.FromSellable(order.ServFood);
             message.Beverage = SellableFood.FromSellable(order.ServBeverage);
-            message.Result = result;
+            message.Result = (EvaluationResult)(int)result;
             message.Mood = body.Mood;
             message.EvaluationMessage = evaluationMessage;
             message.ComboProtect = comboProtect;
@@ -475,7 +492,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void OnClean(GuestGroupController controller)
     {
-        if (!IsBody(controller) || fsm == null) return;
+        if (!IsControllerBody(controller) || fsm == null) return;
         if (GameSession.IsRoomHost) YuyukoGuestMessage.Send(Message(YuyukoGuestEvent.Clear));
         CancelOrder();
     }

@@ -34,6 +34,9 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
 
         if (YuyukoGuestSync.PhaseSyncActive)
         {
+            // 本体的框架句柄由挑战服务提供（服务只在场景循环内有效），拿到之后监听器与消息都按句柄判断。
+            YuyukoGuestSync.CaptureHandle(challenge.BossGuest);
+
             // 阶段时钟一旦跑过就不能再改该阶段时长，重复下发是幂等的。
             ArmPhaseSeconds(challenge);
             ArmsOrderFlag(challenge);

@@ -1,5 +1,6 @@
 using Mystia.Listeners;
-using UnityEngine;
+using Mystia.Numerics;
+using Mystia.Scenes;
 
 using GameData.Core.Collections.NightSceneUtility;
 using NightScene.GuestManagementUtility;
@@ -17,7 +18,7 @@ public readonly struct PendingSpawnArgs
 
     public Vector3 OverrideSpawnPosition { get; init; }
 
-    public GuestGroupController.LeaveType LeaveType { get; init; }
+    public GuestLeaveType LeaveType { get; init; }
 
     public int TargetDeskCode { get; init; }
 

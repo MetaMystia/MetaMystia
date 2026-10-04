@@ -191,11 +191,13 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
 
         var deskCode = view.DeskCode;
-        if (deskCode == -1 || !GuestsManager.Instance.AllGuestInDeskCode.Contains(deskCode)) return;
+        if (deskCode == -1) return;
 
-        var fsm = GuestsMap.GetGuestFsm(GuestsManager.Instance.GetInDeskGuest(deskCode));
-        view.PendingFood = fsm.WillServeFood;
-        view.PendingBeverage = fsm.WillServeBeverage;
+        // 监听器回调不在场景服务作用域内，因此按桌号从句柄投影找 FSM，而不是问服务。
+        var fsm = GuestsMap.GetGuestFsmAtDesk(deskCode);
+        if (fsm == null) return;
+        view.PendingFood = GuestFSM.DishOf(fsm.WillServeFood);
+        view.PendingBeverage = GuestFSM.DishOf(fsm.WillServeBeverage);
         view.RefreshPendingVisual();
     }
 
@@ -211,12 +213,12 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         if (GameSession.IsRoomHost)
         {
-            GuestFSM.OnConfirmServe(view.Guest, view.PendingFood, view.PendingBeverage);
+            GuestFSM.OnConfirmServe(HandleOf(view.Guest), view.PendingFood, view.PendingBeverage);
             return;
         }
         if (GameSession.IsRoomClient)
         {
-            GuestFSM.OnConfirmServe(view.Guest, view.PendingFood, view.PendingBeverage);
+            GuestFSM.OnConfirmServe(HandleOf(view.Guest), view.PendingFood, view.PendingBeverage);
             return;
         }
         throw new InvalidOperationException("Unexpected network state in OnPreServePanelClosed");
@@ -226,8 +228,8 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
     {
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
 
-        if ((dish.Type == Sellable.SellableType.Food && view.Order.ServFood != null) ||
-            (dish.Type == Sellable.SellableType.Beverage && view.Order.ServBeverage != null))
+        if ((dish.Type == Sellable.SellableType.Food && view.Order?.Food != null) ||
+            (dish.Type == Sellable.SellableType.Beverage && view.Order?.Beverage != null))
         {
             // 已有 料理/酒水，跳过本次上菜
             Log.Info($"Already have {(dish.Type == Sellable.SellableType.Food ? "food" : "beverage")} in order, skipping Patch & Send");
@@ -238,7 +240,7 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
         if (GameSession.IsRoomHost || GameSession.IsRoomClient)
         {
             Log.Warning($"Send {dish?.Text?.BriefName}");
-            GuestFSM.OnServe(view.Guest, dish, dish.Type);
+            GuestFSM.OnServe(HandleOf(view.Guest), dish, dish.Type);
             return;
         }
         throw new InvalidOperationException("Unexpected network state in OnPreDishServed");
@@ -261,7 +263,7 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
         if (GameSession.IsRoomHost || GameSession.IsRoomClient)
         {
             Log.Warning($"Cancel {dish?.Text?.BriefName}");
-            GuestFSM.OnServe(view.Guest, null, dish.Type);
+            GuestFSM.OnServe(HandleOf(view.Guest), null, dish.Type);
             return;
         }
         throw new InvalidOperationException("Unexpected network state in OnPreDishCancelled");
@@ -271,20 +273,23 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
 
     #region 本体投掷上菜的延迟回调
 
+    /// <summary>句柄投影的句柄；视图没给组时是空句柄（各入口据此判空）。</summary>
+    private static GuestHandle HandleOf(GuestProxy? guest) => guest?.Handle ?? GuestHandle.None;
+
     /// <summary>
     /// 本体订单打开上菜面板时记下它的订单序号，取代原 <c>WorkSceneSustainedPannelPatch</c> 前缀在
     /// 8 参回调外面套的一层订单身份判断。一条订单一个序号，因此同一面板的多次开启互不覆盖。
     /// </summary>
-    private static readonly Dictionary<nint, int> s_yuyukoOpenOrders = new();
+    private static readonly Dictionary<OrderHandle, int> s_yuyukoOpenOrders = new();
 
     public void OnServeCallbacksRegistered(ServeCallbackView callbacks)
     {
-        var guest = callbacks.Guest;
+        var guest = HandleOf(callbacks.Guest);
         if (!YuyukoGuestSync.IsBody(guest)) return;
 
         var fsm = GuestsMap.GetGuestFsm(guest);
         if (fsm == null) return;
-        s_yuyukoOpenOrders[callbacks.Order.Pointer] = fsm.OrderSeq;
+        s_yuyukoOpenOrders[callbacks.Order.Handle] = fsm.OrderSeq;
     }
 
     /// <summary>
@@ -294,15 +299,15 @@ public sealed partial class WorkSync : ICookListener, IWorkListener, IWorkSceneG
     public void OnPreServeCallback(ServeCallbackView callbacks, ServeCallbackKind kind, ref bool cancelInvocation)
     {
         if (kind == ServeCallbackKind.PatientRecover) return;
-        if (!s_yuyukoOpenOrders.TryGetValue(callbacks.Order.Pointer, out int seq)) return;
+        if (!s_yuyukoOpenOrders.TryGetValue(callbacks.Order.Handle, out int seq)) return;
 
         var guest = callbacks.Guest;
-        var fsm = guest == null ? null : GuestsMap.GetGuestFsm(guest);
+        var fsm = guest == null ? null : GuestsMap.GetGuestFsm(guest.Handle);
         bool current = guest != null && fsm != null
-            && guest.AllOrdersCount > 0
-            && fsm.CurrentOrder?.Pointer == callbacks.Order.Pointer
+            && guest.PendingOrderCount > 0
+            && fsm.CurrentOrder?.Handle == callbacks.Order.Handle
             && (!GameSession.HasRoomPeers
-                || (YuyukoGuestSync.IsBody(guest) && fsm.OrderSeq == seq && fsm.CurrentState == GuestFSM.State.WaitingServe));
+                || (YuyukoGuestSync.IsBody(guest.Handle) && fsm.OrderSeq == seq && fsm.CurrentState == GuestFSM.State.WaitingServe));
         if (current) return;
 
         cancelInvocation = true;

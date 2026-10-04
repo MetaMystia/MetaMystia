@@ -1,5 +1,7 @@
 using MemoryPack;
 
+using Mystia.Scenes;
+
 using GameData.Core.Collections;
 using NightScene.GuestManagementUtility;
 
@@ -26,19 +28,19 @@ public partial class EvaluateOrderMessage : MultiplayerMessage
         var seq = OrderSeq;
         var food = Food?.ToSellable();
         var bev = Beverage?.ToSellable();
-        var result = EvalResult;
+        var result = (GuestEvaluation)(int)EvalResult;
         var fsm = GuestsMap.GetGuestFsm(rid);
         QueueForGuest(fsm, nameof(GuestFSM.DoEvaluateOrder),
             () => GuestFSM.DoEvaluateOrder(rid, seq, food, bev, result));
     }
 
-    public static void Send(int runtimeId, int orderSeq, Sellable food, Sellable beverage, GuestGroupController.EvaluationResult result) =>
+    public static void Send(int runtimeId, int orderSeq, DishProxy? food, DishProxy? beverage, GuestEvaluation result) =>
         new EvaluateOrderMessage
         {
             RuntimeId = runtimeId,
             OrderSeq = orderSeq,
-            Food = SellableFood.FromSellable(food),
-            Beverage = SellableFood.FromSellable(beverage),
-            EvalResult = result
+            Food = SellableFood.FromProxy(food),
+            Beverage = SellableFood.FromProxy(beverage),
+            EvalResult = (GuestGroupController.EvaluationResult)(int)result
         }.Enqueue();
 }

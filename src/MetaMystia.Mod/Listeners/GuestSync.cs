@@ -41,8 +41,8 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     private const int MaxNormalGuestRerollAttempts = 32;
     private const int ReimuProtectionGuestId = 7;
 
-    /// <summary>本帧出队入座的顾客组指针；供 <see cref="OnGroupSeated"/> 判定是否广播出队。</summary>
-    private nint _seatingFromQueue;
+    /// <summary>本帧出队入座的顾客组句柄；供 <see cref="OnGroupSeated"/> 判定是否广播出队。</summary>
+    private GuestHandle _seatingFromQueue;
 
     /// <summary>
     /// 本模组重放的离场（崩溃顾客清理）期间挂起 <see cref="OnGroupLeft"/> 的广播，
@@ -92,7 +92,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
 
     public void Setup(IWorkSceneServices services)
     {
-        _seatingFromQueue = 0;
+        _seatingFromQueue = GuestHandle.None;
         _driverArmed = false;
         _spawnGateHeld = false;
         s_pendingNormalSpawnArgs = null;
@@ -103,7 +103,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
 
     public void Shutdown(IWorkSceneServices services)
     {
-        _seatingFromQueue = 0;
+        _seatingFromQueue = GuestHandle.None;
         _driverArmed = false;
         _spawnGateHeld = false;
         s_pendingNormalSpawnArgs = null;
@@ -271,7 +271,8 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
             var guests = guestGroups.ToArray();
             if (!IsNormalGuestGroupAvailable(guests)) continue;
 
-            services.Guests.SpawnNormal(guests, -1);
+            // 重抽的判定仍在本机（要看全局可用性），交给服务生成时只传客人 id。
+            services.Guests.SpawnNormal(guests.Select(g => new GuestDescription(g.Id)).ToArray(), -1);
             return;
         }
 
@@ -367,7 +368,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     /// 原 <c>SpawnNormalGuestGroup(*)_Prefix</c> 的方法级短路（<see cref="OnNormalGuestsGenerating"/> 只改写生成列表）：
     /// 客机不生成顾客，主机保留本次生成参数供 <see cref="OnGroupSpawned"/> 广播。
     /// </summary>
-    public void OnPreSpawnNormalGuests(ref GuestSpawnRequest request, ref bool cancelInvocation)
+    void IGuestSpawnModifier.OnPreSpawnNormalGuests(ref GuestSpawnRequest request, ref bool cancelInvocation)
     {
         if (!SyncActive) return;
 
@@ -382,7 +383,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     }
 
     /// <summary>原 <c>SpawnSpecialGuestGroup_Prefix</c> 的方法级短路、重抽与参数暂存。</summary>
-    public void OnPreSpawnSpecialGuest(ref GuestSpawnRequest request, ref int guestId, ref bool cancelInvocation)
+    void IGuestSpawnModifier.OnPreSpawnSpecialGuest(ref GuestSpawnRequest request, ref int guestId, ref bool cancelInvocation)
     {
         if (!SyncActive) return;
         if (IsReimuProtectionGuestId(guestId)) return; // 灵梦赛钱箱不参与同步
@@ -406,7 +407,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     }
 
     /// <summary>原 <c>SpawnSpecialGuestGroup_Prefix</c> 的稀客重抽：灵梦赛钱箱（防保护）不参与重抽。</summary>
-    public void OnSpecialGuestGenerating(ref int guestId)
+    void IGuestSpawnModifier.OnSpecialGuestGenerating(ref int guestId)
     {
         if (!SyncActive || !GameSession.IsRoomHost) return;
         if (IsReimuProtectionGuestId(guestId)) return;
@@ -415,7 +416,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     }
 
     /// <summary>原 <c>PostInitializeGuestGroup_Prefix</c>：主机把刚生成的顾客组连同生成参数广播给客机。</summary>
-    public void OnGroupSpawned(GuestGroupController group, GuestSpawnRequest request)
+    void IGuestGroupListener.OnGroupSpawned(GuestHandle group, GuestSpawnRequest request)
     {
         if (IsReimuProtectionGuest(group)) return;
         if (!SyncActive) return;
@@ -423,19 +424,20 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
 
         // 生成参数取 OnPreSpawn* 暂存的那份（与原补丁一致，按顾客类型分别暂存）；
         // 未被暂停存覆盖的生成途径回落到框架随通知给出的请求。
-        GuestFSM.OnSpawn(group, ConsumeSpawnArgs(group.ControllType) ?? PendingSpawnArgs.FromRequest(request));
+        var kind = group.TryGet(out var guest) ? guest.Kind : GuestKind.Normal;
+        GuestFSM.OnSpawn(group, ConsumeSpawnArgs(kind) ?? PendingSpawnArgs.FromRequest(request));
     }
 
     /// <summary>取走对应顾客类型在生成时暂存的参数。</summary>
-    private static PendingSpawnArgs? ConsumeSpawnArgs(GuestsManager.GuestType guestType)
+    private static PendingSpawnArgs? ConsumeSpawnArgs(GuestKind kind)
     {
-        switch (guestType)
+        switch (kind)
         {
-            case GuestsManager.GuestType.Normal:
+            case GuestKind.Normal:
                 var normal = s_pendingNormalSpawnArgs;
                 s_pendingNormalSpawnArgs = null;
                 return normal;
-            case GuestsManager.GuestType.Special:
+            case GuestKind.Special:
                 var special = s_pendingSpecialSpawnArgs;
                 s_pendingSpecialSpawnArgs = null;
                 return special;
@@ -448,7 +450,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     /// 原 <c>PlayerRepell_Prefix</c>：主机放行原版赶客；客机把请求发给主机并取消本地赶客
     /// （离场开关关掉后 <c>OnGroupLeft(PlayerRepelled)</c> 不再产生，请求入口由本回调承担）。
     /// </summary>
-    public void OnPrePlayerRepel(int deskCode, ref bool cancelInvocation)
+    void IGuestGroupListener.OnPrePlayerRepel(int deskCode, ref bool cancelInvocation)
     {
         if (!SyncActive) return;
         if (GameSession.IsRoomHost) return;
@@ -458,30 +460,31 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     }
 
     /// <summary>原 <c>GuestService.HijackCheckAndSendFromQueue</c> 的广播侧：出队入座同步。</summary>
-    public void OnGroupSeated(GuestGroupController group, int desk)
+    void IGuestGroupListener.OnGroupSeated(GuestHandle group, int desk)
     {
         if (!SyncActive) return;
         if (!GameSession.IsRoomHost) return;
-        if (group.Pointer != _seatingFromQueue) return;
+        if (group != _seatingFromQueue) return;
 
-        _seatingFromQueue = 0;
+        _seatingFromQueue = GuestHandle.None;
         GuestFSM.OnSendFromQueue(group);
     }
 
     /// <summary>原 <c>GuestsManager__c__DisplayClass174_0Patch.GenerateOrderInternal_Postfix</c>：主机捕获订单并广播。</summary>
-    public void OnGroupOrderGenerated(GuestGroupController group, GuestsManager.OrderGenerationResult result, ref GuestsManager.OrderBase order)
+    void IGuestGroupListener.OnGroupOrderGenerated(GuestHandle group, OrderGenerationOutcome result, ref OrderHandle? order)
     {
         if (!SyncActive) return;
         if (!GameSession.IsRoomHost) return;
+        if (order?.TryGet(out var generated) != true) return;
 
-        GuestFSM.OnGenerateOrderInternal(result, group, order);
+        GuestFSM.OnGenerateOrderInternal(group, result, generated);
     }
 
     /// <summary>
     /// 原 <c>TryOverrideEvaluateByBuff_Postfix</c>（评价结果同步）与 <c>EvaluateOrder_Postfix</c>
     /// （Evaluating → EatingDelay 推进）。手动（幽幽子）评价走 <c>EvaulateManualOrder</c>，原补丁未覆盖，这里同样不介入。
     /// </summary>
-    public void OnGroupEvaluated(GuestGroupController group, ref GuestGroupController.EvaluationResult result)
+    void IGuestGroupListener.OnGroupEvaluated(GuestHandle group, ref GuestEvaluation result)
     {
         if (!SyncActive) return;
 
@@ -497,7 +500,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
 
         if (GameSession.IsRoomClient)
         {
-            if (fsm.OverrideEvalResult == GuestGroupController.EvaluationResult.Null) return;
+            if (fsm.OverrideEvalResult == GuestEvaluation.None) return;
 
             result = fsm.OverrideEvalResult;
             if (fsm.CurrentState == GuestFSM.State.Evaluating) GuestFSM.OnEatingDelay(group);
@@ -513,7 +516,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     /// 框架把两条 PostEvaluation 都合成本通知，因此本体的 <c>BeforePostEvaluation</c> 落在原版
     /// <c>PostEvaluation</c> 体之后（原补丁在前缀里、体之前）。
     /// </remarks>
-    public void OnGroupPostEvaluated(GuestGroupController group, GuestGroupController.EvaluationResult result)
+    void IGuestGroupListener.OnGroupPostEvaluated(GuestHandle group, GuestEvaluation result)
     {
         if (YuyukoGuestSync.IsBody(group))
         {
@@ -526,7 +529,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     }
 
     /// <summary>原 <c>RefreshCurrentFundAndOrder_Prefix</c>：到达桌位。</summary>
-    public void OnGroupArrived(GuestGroupController group)
+    void IGuestGroupListener.OnGroupArrived(GuestHandle group)
     {
         if (YuyukoGuestSync.IsBody(group)) return;
         if (!SyncActive) return;
@@ -543,20 +546,20 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     }
 
     /// <summary>原 <c>MoveToDesk_Prefix</c>：入座方向同步；出队入座的来源在此标记。</summary>
-    public void OnGroupMovingToDesk(GuestGroupController group, int desk)
+    void IGuestGroupListener.OnGroupMovingToDesk(GuestHandle group, int desk)
     {
         if (YuyukoGuestSync.IsBody(group)) return;
         if (IsReimuProtectionGuest(group)) return;
         if (!SyncActive) return;
         if (!GameSession.IsRoomHost) return;
 
-        if (GuestsMap.GetGuestFsm(group)?.CurrentState == GuestFSM.State.Queued) _seatingFromQueue = group.Pointer;
+        if (GuestsMap.GetGuestFsm(group)?.CurrentState == GuestFSM.State.Queued) _seatingFromQueue = group;
 
         GuestFSM.OnMoveToDesk(group, desk);
     }
 
     /// <summary>原 <c>MoveToQueue_Postfix</c>：座满先入队。</summary>
-    public void OnGroupQueued(GuestGroupController group)
+    void IGuestGroupListener.OnGroupQueued(GuestHandle group)
     {
         if (!SyncActive) return;
         if (!GameSession.IsRoomHost) return;
@@ -571,7 +574,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     /// <c>LeaveFromDesk</c> 形参，游戏内部同样以 FinalLeaveType 结算）；<c>triggerLeaveBuff</c> 沿用原版默认 true。
     /// 嵌套离场由框架的离场 seam 只派发最外层一次，原 <c>GuestReentryPermits</c> 的嵌套放行不再需要。
     /// </summary>
-    public void OnGroupLeft(GuestGroupController group, GuestLeaveKind kind)
+    void IGuestGroupListener.OnGroupLeft(GuestHandle group, GuestLeaveKind kind)
     {
         if (IsReimuProtectionGuest(group)) return;
         if (YuyukoGuestSync.IsBody(group)) return;
@@ -585,7 +588,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
             case GuestLeaveKind.RepelledUnpaid:
             case GuestLeaveKind.PlayerRepelled:
                 GuestFSM.OnRepell(group);
-                GuestFSM.OnLeaveFromDesk(group, group.FinalLeaveType, true);
+                GuestFSM.OnLeaveFromDesk(group, FinalLeaveTypeOf(group), true);
                 break;
 
             case GuestLeaveKind.Patience:
@@ -593,18 +596,35 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
                 break;
 
             default:
-                GuestFSM.OnLeaveFromDesk(group, group.FinalLeaveType, true);
+                GuestFSM.OnLeaveFromDesk(group, FinalLeaveTypeOf(group), true);
                 break;
         }
     }
 
+    /// <summary>组的离场类型；句柄已过期时按 Move 结算（游戏自身在离场时也是以控制器的 FinalLeaveType 为准）。</summary>
+    private static GuestLeaveType FinalLeaveTypeOf(GuestHandle group) =>
+        group.TryGet(out var guest) ? guest.FinalLeaveType : GuestLeaveType.Move;
+
     /// <summary>原 <c>TryCloseIzakaya_Prefix</c> 的主机分支：广播打烊。</summary>
-    public void OnIzakayaClosing()
+    void IGuestGroupListener.OnIzakayaClosing()
     {
         if (!SyncActive) return;
         if (!GameSession.IsRoomHost) return;
 
         IzakayaCloseMessage.Send();
+    }
+
+    /// <summary>
+    /// 排队中的顾客耐心耗尽（框架的 <c>QueueCountdown</c> 补丁派发，一次耗尽只通知一次）。
+    /// 框架只通知、不动顾客，裁决归主机：主机在这里广播；客机不动，等主机的
+    /// <c>PatientDepletedQueueMessage</c> 重放。本回调不在场景服务作用域内，因此只推状态与发消息。
+    /// </summary>
+    void IGuestGroupListener.OnGroupQueuePatienceDepleted(GuestHandle group)
+    {
+        if (!SyncActive) return;
+        if (!GameSession.IsRoomHost) return;
+
+        GuestFSM.OnPatientDepletedInQueue(group);
     }
 
     /// <summary>
@@ -649,16 +669,12 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     private static bool IsReimuProtectionGuestId(int id)
         => ScheduleSync.IsDuringReimuProtection && id == ReimuProtectionGuestId;
 
-    private static bool IsReimuProtectionGuest(GuestGroupController controller)
+    private static bool IsReimuProtectionGuest(GuestHandle group)
     {
-        if (!ScheduleSync.IsDuringReimuProtection
-            || controller == null
-            || controller.ControllType != GuestsManager.GuestType.Special)
-        {
-            return false;
-        }
+        if (!ScheduleSync.IsDuringReimuProtection) return false;
+        if (!group.TryGet(out var guest) || guest.Kind != GuestKind.Special) return false;
 
-        var guests = controller.GetAllGuests().ToArray();
-        return guests.Length == 1 && guests[0].Id == ReimuProtectionGuestId;
+        var ids = guest.GuestIds;
+        return ids.Count == 1 && ids[0] == ReimuProtectionGuestId;
     }
 }

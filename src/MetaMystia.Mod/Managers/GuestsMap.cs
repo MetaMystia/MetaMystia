@@ -1,23 +1,24 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
-using NightScene.EventUtility;
-using NightScene.GuestManagementUtility;
-using UnityEngine;
+using Mystia.Scenes;
 
 namespace MetaMystia;
 
+/// <summary>
+/// 顾客注册表：运行时流水号（<see cref="GuestFSM.RuntimeId"/>，联机消息的身份）与框架句柄
+/// （<see cref="GuestHandle"/>，一次营业会话内的顾客身份）双向查找。
+/// 取代原来按控制器指针扫描的写法：控制器在模组侧已经不可见，句柄才是框架给的身份。
+/// </summary>
 [AutoLog]
 public static partial class GuestsMap
 {
     private const int InvalidRuntimeId = 0;
     private static int _nextRuntimeId = 1;
-    private static Dictionary<int, GuestFSM> _allGuests = new();
+    private static readonly Dictionary<int, GuestFSM> ByRuntimeId = [];
+    private static readonly Dictionary<GuestHandle, GuestFSM> ByHandle = [];
 
     private static int AllocateRuntimeId() => _nextRuntimeId++;
-    private static bool HasGuest(int runtimeId) => _allGuests.ContainsKey(runtimeId);
-    private static bool HasGuest(GuestGroupController controller) => controller != null && _allGuests.Values.Any(g => g.Controller != null && g.Controller.Pointer == controller.Pointer);
-
 
     public static void StoreGuest(int runtimeId, GuestFSM fsm)
     {
@@ -27,73 +28,93 @@ public static partial class GuestsMap
             return;
         }
 
-        if (_allGuests.TryGetValue(runtimeId, out var existing) && !ReferenceEquals(existing, fsm))
+        if (ByRuntimeId.TryGetValue(runtimeId, out var existing) && !ReferenceEquals(existing, fsm))
         {
             Log.Error($"RuntimeId conflict: overwriting guest #{runtimeId}, old FSM state: {existing.CurrentState}, new FSM state: {fsm.CurrentState}");
         }
 
-        _allGuests[runtimeId] = fsm;
+        fsm.RuntimeId = runtimeId;
+        ByRuntimeId[runtimeId] = fsm;
         if (runtimeId >= _nextRuntimeId)
         {
             _nextRuntimeId = runtimeId + 1;
         }
+
+        Bind(fsm);
     }
 
     public static int StoreGuest(GuestFSM fsm)
     {
         var runtimeId = AllocateRuntimeId();
         StoreGuest(runtimeId, fsm);
-        if (fsm.Controller != null)
-        {
-            Log.Warning($"Guest stored: #{runtimeId} <- 0x{fsm.Controller.Pointer:X16}");
-        }
-        else
-        {
-            Log.Warning($"Guest stored: #{runtimeId} <- null");
-        }
+        Log.Warning(fsm.Handle.IsNone
+            ? $"Guest stored: #{runtimeId} <- no handle yet"
+            : $"Guest stored: #{runtimeId} <- {fsm.Handle}");
         return runtimeId;
     }
-    public static int GetRuntimeId(GuestGroupController controller)
+
+    /// <summary>
+    /// 顾客拿到框架句柄后登记。主机的句柄随生成事件一起来，客机的句柄要等重放生成、框架铸造出组之后才有，
+    /// 所以这一步与 <see cref="StoreGuest(int, GuestFSM)"/> 分开。
+    /// </summary>
+    public static void Bind(GuestFSM fsm)
     {
-        if (!HasGuest(controller))
-        {
-            if (controller != null)
-            {
-                Log.Error($"Attempted to get RuntimeId of a guest that is not stored: 0x{controller.Pointer:X16}");
-            }
-            else
-            {
-                Log.Error("Attempted to get RuntimeId of a null guest");
-            }
-            return InvalidRuntimeId;
-        }
-        return _allGuests.First(kv => kv.Value.Controller != null && kv.Value.Controller.Pointer == controller.Pointer).Key;
+        if (fsm == null || fsm.Handle.IsNone) return;
+        ByHandle[fsm.Handle] = fsm;
     }
+
+    public static int GetRuntimeId(GuestHandle handle)
+    {
+        if (TryGet(handle, out var fsm)) return fsm.RuntimeId;
+
+        Log.Error(handle.IsNone
+            ? "Attempted to get RuntimeId of a guest that has no handle"
+            : $"Attempted to get RuntimeId of a guest that is not stored: {handle}");
+        return InvalidRuntimeId;
+    }
+
     public static GuestFSM GetGuestFsm(int runtimeId)
     {
-        if (!HasGuest(runtimeId))
+        if (!ByRuntimeId.TryGetValue(runtimeId, out var fsm))
         {
             Log.Error($"Attempted to get a guest that is not stored: #{runtimeId}");
             return null;
         }
-        return _allGuests[runtimeId];
+
+        return fsm;
     }
 
-    public static GuestFSM GetGuestFsm(GuestGroupController controller)
+    public static GuestFSM GetGuestFsm(GuestHandle handle)
     {
-        if (!HasGuest(controller))
+        if (TryGet(handle, out var fsm)) return fsm;
+
+        Log.Error(handle.IsNone
+            ? "Attempted to get FSM of a guest that has no handle"
+            : $"Attempted to get FSM of a guest that is not stored: {handle}");
+        return null;
+    }
+
+    /// <summary>句柄对应的 FSM，句柄为空或未登记时为 false（不记日志，供内部查询用）。</summary>
+    public static bool TryGet(GuestHandle handle, out GuestFSM fsm)
+    {
+        fsm = null;
+        return !handle.IsNone && ByHandle.TryGetValue(handle, out fsm);
+    }
+
+    /// <summary>
+    /// 桌上那一组的 FSM。游戏保证一张桌只有一个组，这里按句柄投影的桌号扫描：投影解析不依赖场景服务
+    /// 作用域，因此监听器回调与收包线程都能用（它们不在作用域内，不能调 <c>IWorkSceneGuests</c>）。
+    /// </summary>
+    public static GuestFSM GetGuestFsmAtDesk(int deskCode)
+    {
+        if (deskCode < 0) return null;
+
+        foreach (var fsm in ByRuntimeId.Values)
         {
-            if (controller != null)
-            {
-                Log.Error($"Attempted to get FSM of a guest that is not stored: 0x{controller.Pointer:X16}");
-            }
-            else
-            {
-                Log.Error("Attempted to get FSM of a null guest");
-            }
-            return null;
+            if (fsm.Proxy is { HasLeft: false } guest && guest.DeskCode == deskCode) return fsm;
         }
-        return _allGuests.First(kv => kv.Value.Controller != null && kv.Value.Controller.Pointer == controller.Pointer).Value;
+
+        return null;
     }
 
     /// <summary>
@@ -102,10 +123,17 @@ public static partial class GuestsMap
     /// </summary>
     public static void Remove(int runtimeId)
     {
-        if (_allGuests.Remove(runtimeId))
+        if (!ByRuntimeId.Remove(runtimeId, out var fsm))
         {
-            Log.Warning($"Guest #{runtimeId} removed from GuestsMap");
+            return;
         }
+
+        if (!fsm.Handle.IsNone && ByHandle.TryGetValue(fsm.Handle, out var bound) && ReferenceEquals(bound, fsm))
+        {
+            ByHandle.Remove(fsm.Handle);
+        }
+
+        Log.Warning($"Guest #{runtimeId} removed from GuestsMap");
     }
 
     /// <summary>
@@ -114,8 +142,8 @@ public static partial class GuestsMap
     /// </summary>
     public static void TickAllPending()
     {
-        if (_allGuests.Count == 0) return;
-        // 快照：FallBack→Remove 会在 Drain 内部修改 _allGuests，避免迭代中变更。
-        foreach (var fsm in _allGuests.Values.ToList()) fsm.TickPending();
+        if (ByRuntimeId.Count == 0) return;
+        // 快照：FallBack→Remove 会在 Drain 内部修改 ByRuntimeId，避免迭代中变更。
+        foreach (var fsm in ByRuntimeId.Values.ToList()) fsm.TickPending();
     }
 }

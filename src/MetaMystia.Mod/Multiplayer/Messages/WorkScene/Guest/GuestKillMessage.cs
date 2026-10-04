@@ -1,5 +1,7 @@
 using MemoryPack;
 
+using MetaMystia.Listeners;
+
 namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>
@@ -30,7 +32,8 @@ public partial class GuestKillMessage : MultiplayerMessage
         var fsm = GuestsMap.GetGuestFsm(rid);
         if (fsm == null)
         {
-            GuestService.CleanGuestOrderRegistrationForDesk(deskCode);
+            // 清理要走场景服务（HUD 订单与桌位回调的注销），收包线程不在作用域内，因此排进重放队列。
+            GuestSync.EnqueueReplay($"cleanup desk {deskCode}", services => GuestService.CleanGuestOrderRegistrationForDesk(services, deskCode));
             return;
         }
 

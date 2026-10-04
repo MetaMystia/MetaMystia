@@ -75,7 +75,7 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
     private CoroutineHandle _serveLoop;
 
     /// <summary>客机记录本轮已播放过投掷动画的订单（按原生指针），避免同一订单每秒重复投掷。</summary>
-    private HashSet<IntPtr> _animatedOrders;
+    private HashSet<OrderHandle> _animatedOrders;
 
     /// <summary>
     /// 联机客机只播放动画、不改订单：上酒由主机的符卡实际生效，订单补齐后主机结算，
@@ -91,7 +91,7 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
 
     private IEnumerator PositiveRoutine(IWorkSceneServices scene, ICoroutineDispatcher coroutines, ILog log)
     {
-        var origin = GuestPosition(scene) ?? scene.Presentation.PlayerPosition;
+        var origin = GuestPosition(scene) ?? Unity(scene.Presentation.PlayerPosition);
         var cast = Vfx.PlayOneShot(CastVfx, origin);
         yield return coroutines.AfterSeconds(2f);
         Vfx.Stop(cast);
@@ -124,7 +124,7 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
     private static string BuffDescription(int currentTime, string description) =>
         description.Replace("$c", currentTime.ToString());
 
-    /// <summary>符卡目标（首个客人）的世界坐标；虚客或找不到目标时返回 null，调用方回退到玩家位置。</summary>
+    /// <summary>符卡目标（指定稀客）的世界坐标；虚客或找不到目标时返回 null，调用方回退到玩家位置。</summary>
     private static Vector3? GuestPosition(IWorkSceneServices scene)
     {
         var guestId = scene.Spells.GuestId;
@@ -133,15 +133,17 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
 
         foreach (var group in scene.Guests.InDeskGuests)
         {
-            if (group is not SpecialGuestsController controller || controller.SpecialGuest?.Id != guestId)
+            if (!group.TryGet(out var guest) || guest.Kind != GuestKind.Special || guest.GuestIds[0] != guestId)
                 continue;
 
-            var instances = controller.guestInstances;
-            if (instances is { Length: > 0 } && instances[0] != null)
-                return instances[0].transform.position;
+            if (scene.Presentation.TryGetGuestPosition(group, out var position))
+                return Unity(position);
         }
         return null;
     }
+
+    /// <summary>框架的镜像向量转成 Unity 向量：模组的特效层（VfxBundle）仍直接操作 Unity 对象。</summary>
+    private static Vector3 Unity(Mystia.Numerics.Vector3 value) => new(value.X, value.Y, value.Z);
 
     private void StopServeLoop(ICoroutineDispatcher coroutines)
     {
@@ -165,49 +167,49 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
     {
         foreach (var guest in scene.Guests.InDeskGuests)
         {
-            var order = scene.Guests.PendingOrder(guest);
-            if (order is null || order.ServBeverage != null || order.ServedBeverageInAir != null)
+            if (!scene.Guests.TryGetPendingOrder(guest, out var order))
+                continue;
+            if (order.Beverage != null || order.BeverageInAir != null)
                 continue;
 
             // 玩家正在这桌的上菜面板里：面板提交时不复查订单，抢先上酒会被覆盖并重复结算。
             if (WorkSync.ServePanel?.DeskCode == order.DeskCode)
                 continue;
 
-            // 只处理普通订单（NormalOrder），按订单而非客人类型判断。
-            var beverage = order.TryCast<GuestsManager.NormalOrder>()?.RequestBeverage;
-            if (beverage is null)
+            // 只处理普通订单（按订单类型判断）；点单里的酒水按 id 现取一份（原来取订单的 RequestBeverage）。
+            if (order.Kind != OrderKind.Normal || order.BeverageRequest < 0)
                 continue;
 
-            if (AnimationOnly && !_animatedOrders.Add(order.Pointer))
+            if (AnimationOnly && !_animatedOrders.Add(order.Handle))
                 continue;
 
-            Serve(scene, coroutines, guest, order, beverage);
+            Serve(scene, coroutines, guest, order, order.BeverageRequest.AsNewBeverage());
             return;
         }
     }
 
     /// <summary>
     /// 复用游戏原本的上酒流程：先登记在空中并通知伙伴，播放投掷动画，
-    /// 落地后复查订单，再写入 ServBeverage，订单齐备时结算。客机只播放动画。
+    /// 落地后复查订单，再写入酒水槽位，订单齐备时结算。客机只播放动画。
     /// </summary>
     private void Serve(
         IWorkSceneServices scene,
         ICoroutineDispatcher coroutines,
-        GuestGroupController guest,
-        GuestsManager.OrderBase order,
+        GuestHandle guest,
+        OrderProxy order,
         Sellable beverage)
     {
-        var origin = scene.Presentation.PlayerPosition;
-        var target = scene.Presentation.TablePosition(order.DeskCode);
+        var origin = Unity(scene.Presentation.PlayerPosition);
+        var target = Unity(scene.Presentation.TablePosition(order.DeskCode));
         var visual = beverage.Text?.Visual;
         var animationOnly = AnimationOnly;
+        var dish = scene.Dishes.DishOf(beverage);
 
         if (!animationOnly)
         {
-            scene.Guests.SetBeverageInAir(guest, beverage);
+            scene.Guests.SetBeverageInAir(guest, dish);
             // 与原版玩家上菜一致，发射时即通知：正端着酒赶往这桌的伙伴会就此中断。
-            scene.Guests.NotifyOrderStatusUpdate(
-                order, PartnerManager.OrderChangeContext.BeverageDelivered, -1);
+            scene.Guests.NotifyOrderStatusUpdate(order.Handle, PartnerOrderContext.BeverageDelivered, -1);
         }
         coroutines.StartOn(coroutines.Owner, _ => ThrowThenServe());
 
@@ -223,19 +225,19 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
 
             if (animationOnly || !IsStillInAir()) yield break;
 
-            order.ServBeverage = beverage;
-            order.ServedBeverageInAir = null;
-            TileManager.Instance.GuestTables[order.DeskCode].tableDisplayer.SetBeverageVisual(visual);
+            order.SetBeverage(dish);
+            order.SetBeverageInAir(null);
+            scene.Guests.ShowServedDish(order.DeskCode, dish, DishKind.Beverage);
 
-            if (order.IsFullfilled)
-                GuestsManager.Instance.EvaluateOrder(guest, true, null);
+            if (order.IsFulfilled)
+                scene.Guests.Evaluate(guest);
         }
 
         // 飞行期间客人可能离开、桌位换人，或空中酒水被其他投掷覆盖；任一情况都放弃这杯。
         bool IsStillInAir() =>
-            scene.Guests.At(order.DeskCode)?.Pointer == guest.Pointer
-            && scene.Guests.PendingOrder(guest)?.Pointer == order.Pointer
-            && order.ServedBeverageInAir?.Pointer == beverage.Pointer;
+            scene.Guests.TryGetSeated(order.DeskCode, out var seated) && seated.Handle == guest
+            && scene.Guests.TryGetPendingOrder(guest, out var pending) && pending.Handle == order.Handle
+            && order.BeverageInAir?.Handle == dish?.Handle;
     }
 
     #endregion
@@ -255,7 +257,7 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
         }
 
         var frost = Vfx.PlayScreenOverlay(FrostFieldVfx);
-        var coolDown = Vfx.Play(CoolDownVfx, scene.Presentation.PlayerPosition);
+        var coolDown = Vfx.Play(CoolDownVfx, Unity(scene.Presentation.PlayerPosition));
         coroutines.StartOn(coroutines.Owner, _ => Shake());
 
         // 与原版 Spell_Kagerou 一致：协程只负责演出，buff 结束后的清理交给 onBuffEnd。

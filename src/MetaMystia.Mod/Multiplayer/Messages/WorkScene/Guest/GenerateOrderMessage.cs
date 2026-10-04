@@ -1,8 +1,8 @@
-using Il2CppSystem.IO;
-using MemoryPack;
-using System.Linq;
+﻿using MemoryPack;
 
-using GameData.Core.Collections.CharacterUtility;
+using Mystia.Scenes;
+
+using GameData.Core.Collections.NightSceneUtility;
 using NightScene.GuestManagementUtility;
 
 namespace MetaMystia.Multiplayer.Messages;
@@ -15,7 +15,7 @@ public partial class GenerateOrderMessage : MultiplayerMessage
     public int RuntimeId { get; set; }
     public GuestsManager.OrderGenerationResult Result { get; set; }
     public GuestsManager.OrderGenerationResult? OverrideResult { get; set; }
-    public GuestsManager.OrderBase.OrderType OrderType { get; set; }
+    public OrderKind OrderKind { get; set; }
     public int RequestFood { get; set; }
     public int RequestBev { get; set; }
     public int DeskCode { get; set; }
@@ -30,7 +30,7 @@ public partial class GenerateOrderMessage : MultiplayerMessage
         var rid = RuntimeId;
         var result = Result;
         var overrideResult = OverrideResult;
-        var orderType = OrderType;
+        var orderKind = OrderKind;
         var requestFood = RequestFood;
         var requestBev = RequestBev;
         var deskCode = DeskCode;
@@ -39,34 +39,28 @@ public partial class GenerateOrderMessage : MultiplayerMessage
 
         var fsm = GuestsMap.GetGuestFsm(rid);
         if (fsm == null) return;
-        QueueForGuest(fsm, nameof(GuestFSM.DoGenerateOrderSession), () =>
-        {
-            GuestsManager.OrderBase orderData;
-            if (orderType == GuestsManager.OrderBase.OrderType.Normal)
-            {
-                var guest = fsm.Controller.GetAllGuests().ToArray().First();
-                orderData = new GuestsManager.NormalOrder(guest, requestFood, requestBev, deskCode, notShowInUI, freeOrder);
-            }
-            else
-            {
-                var specialGuest = DataBaseCharacter.RefSGuest(fsm.Ids[0]);
-                orderData = new GuestsManager.SpecialOrder(specialGuest, requestFood, requestBev, deskCode, notShowInUI, freeOrder);
-            }
-            return GuestFSM.DoGenerateOrderSession(rid, result, overrideResult, orderData);
-        });
+        // 订单对象属于下这一单的那台机器，所以本机只把「滚出来的内容」交给重放，
+        // 由它在服务作用域内造出本机自己的一单（IWorkSceneGuests.CreateOrder）。
+        QueueForGuest(fsm, nameof(GuestFSM.DoGenerateOrderSession),
+            () => GuestFSM.DoGenerateOrderSession(
+                rid, result, overrideResult, orderKind, requestFood, requestBev, deskCode, notShowInUI, freeOrder));
     }
 
-    public static void Send(int runtimeId, GuestsManager.OrderGenerationResult result, GuestsManager.OrderGenerationResult? overrideResult, GuestsManager.OrderBase orderData) =>
+    public static void Send(
+        int runtimeId,
+        GuestsManager.OrderGenerationResult result,
+        GuestsManager.OrderGenerationResult? overrideResult,
+        OrderProxy order) =>
         new GenerateOrderMessage
         {
             RuntimeId = runtimeId,
             Result = result,
             OverrideResult = overrideResult,
-            OrderType = orderData?.Type ?? GuestsManager.OrderBase.OrderType.Normal,
-            RequestFood = orderData?.foodRequest ?? 0,
-            RequestBev = orderData?.beverageRequest ?? 0,
-            DeskCode = orderData?.DeskCode ?? -1,
-            NotShowInUI = orderData?.NotShowInUI ?? false,
-            FreeOrder = orderData?.FreeOrder ?? false
+            OrderKind = order?.Kind ?? OrderKind.Normal,
+            RequestFood = order?.FoodRequest ?? 0,
+            RequestBev = order?.BeverageRequest ?? 0,
+            DeskCode = order?.DeskCode ?? -1,
+            NotShowInUI = order?.Hidden ?? false,
+            FreeOrder = order?.IsFree ?? false
         }.Enqueue();
 }

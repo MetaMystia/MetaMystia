@@ -1,5 +1,7 @@
 using MemoryPack;
 
+using Mystia.Scenes;
+
 using GameData.Core.Collections;
 
 namespace MetaMystia.Multiplayer.Messages;
@@ -39,13 +41,13 @@ public partial class ConfirmServeMessage : MultiplayerMessage
             () => GuestFSM.DoConfirmServe(rid, seq, food, bev, senderUid));
     }
 
-    public static void Send(int runtimeId, int orderSeq, Sellable food, Sellable beverage, int senderUid = -1) =>
+    public static void Send(int runtimeId, int orderSeq, DishProxy? food, DishProxy? beverage, int senderUid = -1) =>
         new ConfirmServeMessage
         {
             RuntimeId = runtimeId,
             OrderSeq = orderSeq,
-            Food = SellableFood.FromSellable(food),
-            Beverage = SellableFood.FromSellable(beverage),
+            Food = SellableFood.FromProxy(food),
+            Beverage = SellableFood.FromProxy(beverage),
             ActorUid = senderUid == -1 ? PlayerManager.Local.Uid : senderUid
         }.Enqueue();
 }

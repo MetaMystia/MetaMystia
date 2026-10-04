@@ -1,5 +1,7 @@
 using MemoryPack;
 
+using Mystia.Scenes;
+
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 
@@ -38,16 +40,19 @@ public partial class GuestRepellMessage : MultiplayerMessage
         });
     }
 
-    public static void Send(int runtimeId, GuestGroupController controller, GuestGroupController.LeaveType leaveType, bool triggerLeaveBuff)
-        => new GuestRepellMessage
+    public static void Send(int runtimeId, GuestHandle handle, GuestLeaveType leaveType, bool triggerLeaveBuff)
+    {
+        var mood = handle.TryGet(out var guest) ? guest.Mood : 0;
+        new GuestRepellMessage
         {
             RuntimeId = runtimeId,
-            LeaveType = leaveType,
+            LeaveType = (GuestGroupController.LeaveType)(int)leaveType,
             TriggerLeaveBuff = triggerLeaveBuff,
-            Mood = controller.Mood,
+            Mood = mood,
             Combo = EventManager.Instance.CurrentCombo,
             LoseComboTimes = EventManager.Instance.LoseComboTimes,
             LoseComboTimeForPassion = EventManager.Instance.LoseComboTimeForPassion,
             LoseComboGuestSetNum = EventManager.Instance.LoseComboGuestSetNum,
         }.Enqueue();
+    }
 }
