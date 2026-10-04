@@ -58,6 +58,9 @@ jobs:
             Set-Content MetaMystia.local.props -Encoding utf8
           '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' |
             Set-Content global.json -Encoding utf8
+          # 模组 SDK 走仓库自带的 vendor 副本（CI 里没有同级框架仓库）。
+          '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear /><add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" /><add key="vendor" value="vendor/nuget" /></packageSources></configuration>' |
+            Set-Content nuget.config -Encoding utf8
 
       - name: 编译模组
         run: dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release

@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
-    <BepInExPath>/path/to/BepInEx</BepInExPath>
+    <!-- 必填：MEFX 生成的互操作程序集目录（框架仓库的 artifacts/interop），结尾带分隔符。 -->
+    <MystiaInteropDir>/path/to/MystiaExtensionFramework/artifacts/interop/</MystiaInteropDir>
   </PropertyGroup>
 </Project>
