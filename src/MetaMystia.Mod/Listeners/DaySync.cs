@@ -56,25 +56,16 @@ public sealed partial class DaySync : IDayListener, IDaySceneGameLoop
         s_pendingEnd = PendingEnd.None;
     }
 
-    /// <summary>原 <c>UniversalGameManagerPatch.OpenDialogMenu_Prefix</c> 的对话包回填与「最近阅读」记录。</summary>
+    /// <summary>
+    /// 原 <c>UniversalGameManagerPatch.OpenDialogMenu_Prefix</c> 的「最近阅读」记录。
+    /// 原补丁还回填过 <c>dialogContext</c>（自建对话包没有文本资源，模板包却必须有），
+    /// 现在模组的对话包都由框架按游戏自己的对话包复制而来，<c>dialogContext</c> 随模板一起带过来。
+    /// </summary>
     public void OnDialogOpened(DialogPackage package)
     {
         if (package is null)
         {
             return;
-        }
-
-        if (package.dialogContext is null)
-        {
-            if (DialogRegistry.ExampleDialog is null)
-            {
-                DialogRegistry.DumpExampleDialog();
-            }
-            if (DialogRegistry.ExampleDialog is not null)
-            {
-                package.dialogContext = DialogRegistry.ExampleDialog.dialogContext;
-                Log.Info("Replaced dialogPackage.dialogContext with ExampleDialog.dialogContext");
-            }
         }
 
         StoryReplayRecentHistory.Record(package);

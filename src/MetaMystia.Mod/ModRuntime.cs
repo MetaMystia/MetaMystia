@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 
 using Mystia;
 using Mystia.Assets;
+using Mystia.Scenes;
 
 namespace MetaMystia;
 
@@ -53,6 +54,18 @@ public static class ModRuntime
 
     /// <summary>由全局循环在 <c>Setup</c> 时取的对话包目录：按名字查当前游戏装载的对话包。</summary>
     public static IDialogCatalog Dialogs { get; internal set; }
+
+    /// <summary>由全局循环在 <c>Setup</c> 时取的聊天选择面板：打开与关闭本模组自己的选择列表。</summary>
+    public static IChatSelectionServices ChatSelection { get; internal set; }
+
+    /// <summary>由全局循环在 <c>Setup</c> 时取的时钟：不受 timeScale 的秒数，任意线程可读（最多滞后一帧）。</summary>
+    public static IClock Clock { get; internal set; }
+
+    /// <summary>由全局循环在 <c>Setup</c> 时取的按键轮询：全局热键走它，不再直接读引擎输入。</summary>
+    public static IInputServices Input { get; internal set; }
+
+    /// <summary>由全局循环在 <c>Setup</c> 时取的常驻服务集合：UI 导航开关、打开外链等零散能力从这里取。</summary>
+    public static ICommonServices CommonServices { get; internal set; }
 
     /// <summary>初始化失败的原因；为 null 表示可用。失败时联机功能主动拒绝进入。</summary>
     public static Exception Failure { get; internal set; }

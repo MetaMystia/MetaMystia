@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Core.Collections.NightSceneUtility;

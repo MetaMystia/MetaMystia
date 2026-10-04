@@ -5,7 +5,6 @@ using System.Linq;
 using Il2CppSystem.Linq;
 using Mystia.Listeners;
 using Mystia.Scenes;
-using UnityEngine;
 
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Core.Collections.NightSceneUtility;
@@ -57,6 +56,13 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     private float _lastPasserbySpawnTime;
     private float _lastSpecialSpawnTime;
 
+    /// <summary>
+    /// 本类自持的营业场景时钟（秒，进入场景时归零），取代原先直读的引擎启动秒数：由 <see cref="Update"/> 的
+    /// <c>delta</c> 累加（框架的营业场景循环传的就是按 timeScale 缩放后的帧间隔，与原读法口径一致）。
+    /// 三条刷客节奏只比较相对差，因此时钟原点无关。
+    /// </summary>
+    private float _sceneTime;
+
     /// <summary>刷客开关是否由本模组持有；<see cref="_spawnGateOriginal"/> 为其进入同步前的取值。</summary>
     private bool _spawnGateHeld;
     private bool _spawnGateOriginal;
@@ -93,6 +99,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     {
         _seatingFromQueue = GuestHandle.None;
         _driverArmed = false;
+        _sceneTime = 0f;
         _spawnGateHeld = false;
         s_pendingNormalSpawnArgs = null;
         s_pendingSpecialSpawnArgs = null;
@@ -104,6 +111,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     {
         _seatingFromQueue = GuestHandle.None;
         _driverArmed = false;
+        _sceneTime = 0f;
         _spawnGateHeld = false;
         s_pendingNormalSpawnArgs = null;
         s_pendingSpecialSpawnArgs = null;
@@ -115,6 +123,8 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
         s_scopeServices = services;
         try
         {
+            _sceneTime += delta;
+
             // 重放：顾客 FSM 的阻塞待处理项在本帧的服务作用域内执行，随后执行本帧排队的重放意图。
             GuestsMap.TickAllPending();
             DrainReplays(services);
@@ -131,15 +141,15 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
 
             if (!InstantiateLoopsStarted(eventManager) || eventManager.HasTimeDepeleted) return;
 
-            // 原版三条循环在同一时刻启动，间隔基准也随之对齐（原版 lastSpawnTimeStamp = Time.time）。
+            // 原版三条循环在同一时刻启动，间隔基准也随之对齐（原版 lastSpawnTimeStamp 取引擎时间，三条共用同一取值）。
             if (!_driverArmed)
             {
                 _driverArmed = true;
                 _nextNormalInterval = 0f;
                 _nextPasserbyInterval = 0f;
-                _lastNormalSpawnTime = Time.time;
-                _lastPasserbySpawnTime = Time.time;
-                _lastSpecialSpawnTime = Time.time;
+                _lastNormalSpawnTime = _sceneTime;
+                _lastPasserbySpawnTime = _sceneTime;
+                _lastSpecialSpawnTime = _sceneTime;
             }
 
             // 原版周期逻辑迁到模组侧：间隔与门槛沿用 EventManager 的公式。
@@ -243,11 +253,11 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     private void DriveNormalSpawn(IWorkSceneServices services, EventManager eventManager)
     {
         if (!eventManager.ShouldNormalGuestSpawn || !eventManager.ShouldGuestSpawnByBuff) return;
-        if (_nextNormalInterval * eventManager.TotalGuestSpawnSpeed(GuestsManager.GuestType.Normal) + _lastNormalSpawnTime > Time.time) return;
+        if (_nextNormalInterval * eventManager.TotalGuestSpawnSpeed(GuestsManager.GuestType.Normal) + _lastNormalSpawnTime > _sceneTime) return;
 
         SpawnNormalGroup(services);
-        _lastNormalSpawnTime = Time.time;
-        _nextNormalInterval = UnityEngine.Random.Range(
+        _lastNormalSpawnTime = _sceneTime;
+        _nextNormalInterval = RandomInterval(
             IzakayaConfigure.Instance.NormalGuestInterval.x,
             IzakayaConfigure.Instance.NormalGuestInterval.y);
     }
@@ -285,11 +295,11 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     {
         if (!IzakayaConfigure.Instance.SpawnPasserbyGuest) return;
         if (!eventManager.ShouldNormalGuestSpawn || !eventManager.ShouldGuestSpawnByBuff) return;
-        if (_nextPasserbyInterval * eventManager.TotalGuestSpawnSpeed(GuestsManager.GuestType.Normal) + _lastPasserbySpawnTime > Time.time) return;
+        if (_nextPasserbyInterval * eventManager.TotalGuestSpawnSpeed(GuestsManager.GuestType.Normal) + _lastPasserbySpawnTime > _sceneTime) return;
 
         eventManager.CallExternOnPasserbyGuestInstantiate();
-        _lastPasserbySpawnTime = Time.time;
-        _nextPasserbyInterval = UnityEngine.Random.Range(
+        _lastPasserbySpawnTime = _sceneTime;
+        _nextPasserbyInterval = RandomInterval(
             IzakayaConfigure.Instance.PasserbyGuestSpanInterval.x,
             IzakayaConfigure.Instance.PasserbyGuestSpanInterval.y);
     }
@@ -302,9 +312,9 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
         if (!eventManager.ShouldGuestSpawnByBuff) return;
         var configure = IzakayaConfigure.Instance;
         if (!configure.CanGacha) return;
-        if (configure.SpecialGuestGachaInterval * eventManager.TotalGuestSpawnSpeed(GuestsManager.GuestType.Special) + _lastSpecialSpawnTime > Time.time) return;
+        if (configure.SpecialGuestGachaInterval * eventManager.TotalGuestSpawnSpeed(GuestsManager.GuestType.Special) + _lastSpecialSpawnTime > _sceneTime) return;
 
-        _lastSpecialSpawnTime = Time.time;
+        _lastSpecialSpawnTime = _sceneTime;
 
         var id = configure.Gacha();
         if (id == -1) return; // 原版仅在抽取成功时才触发生成回调
@@ -649,6 +659,13 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
     private static bool IsNormalGuestGroupAvailable(IReadOnlyList<NormalGuest> guests)
         => guests.Count > 0 && guests.All(guest => PlayerManager.NormalGuestAvailable(guest.id));
 
+    /// <summary>
+    /// 取 <c>[min, max)</c> 区间内的随机值，取代原版使用的引擎浮点随机区间（原版两端都取得到，这里最大值取不到，
+    /// 对刷客间隔而言是浮点最小量级的差别）。
+    /// </summary>
+    private static float RandomInterval(float min, float max) =>
+        min + ((max - min) * System.Random.Shared.NextSingle());
+
     private static bool TryGetFallbackNormalGuest(out NormalGuest guest)
     {
         var candidates = DataBaseCharacter.GetAllNormalGuests()
@@ -661,7 +678,7 @@ public sealed partial class GuestSync : IGuestGroupListener, IGuestSpawnModifier
             return false;
         }
 
-        guest = candidates[UnityEngine.Random.Range(0, candidates.Length)];
+        guest = candidates[System.Random.Shared.Next(candidates.Length)];
         return true;
     }
 

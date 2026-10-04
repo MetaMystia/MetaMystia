@@ -1,12 +1,13 @@
 using System;
-using GameData.Profile;
-using MetaMystia.Listeners;
-using MetaMystia.Multiplayer;
-using UnityEngine;
 
 using Mystia;
 using Mystia.Imgui;
+using Mystia.Scenes;
 
+using GameData.Profile;
+
+using MetaMystia.Listeners;
+using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 
 using Rect = Mystia.Numerics.Rect;
@@ -41,29 +42,29 @@ public static partial class PluginManager
     /// </summary>
     public static void HandleShortcuts()
     {
-        if (Input.GetKeyDown(ConfigManager.KeyToggleLog.Value)) // KeyCode.RightShift
+        if (ModRuntime.Input.IsKeyDown(ConfigManager.KeyToggleLog.Value)) // MystiaKey.RightShift
         {
             Log.LogInfo($"\n");
         }
-        if (Input.GetKeyDown(ConfigManager.KeyToggleStatus.Value)) // KeyCode.Backslash
+        if (ModRuntime.Input.IsKeyDown(ConfigManager.KeyToggleStatus.Value)) // MystiaKey.Backslash
         {
             ToggleStatusVisibility();
         }
 
         if (DEBUG)
         {
-            if (Input.GetKeyDown(KeyCode.F1))
+            if (ModRuntime.Input.IsKeyDown(MystiaKey.F1))
             {
                 GameSession.StartHost();
                 InGameConsole.ShowPassive("[DEBUG] Started as Host");
             }
-            if (Input.GetKeyDown(KeyCode.F2))
+            if (ModRuntime.Input.IsKeyDown(MystiaKey.F2))
             {
                 GameSession.Connect("127.0.0.1");
                 InGameConsole.ShowPassive("[DEBUG] Connecting to Self");
             }
 
-            if (Input.GetKeyDown(KeyCode.F3))
+            if (ModRuntime.Input.IsKeyDown(MystiaKey.F3))
             {
                 QteSync.TriggerInfiniteFeverLocally(NightScene.CookingUtility.QTERewardManager.Instance?.CurrentBuffReward?.TryCast<MystiaQTEBuffReward>());
                 InGameConsole.ShowPassive("触发永续热火朝天");

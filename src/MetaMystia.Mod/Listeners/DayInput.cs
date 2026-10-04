@@ -1,9 +1,7 @@
-using UnityEngine;
-
-using Common.CharacterUtility;
 using Common.UI;
 
 using Mystia.Listeners;
+using Mystia.Numerics;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.UI;
@@ -14,12 +12,14 @@ namespace MetaMystia.Listeners;
 /// 白天场景的本地输入（原 <c>CharacterControllerInputGeneratorComponentPatch</c> 与
 /// <c>DayScenePlayerInputPatch</c>）。跳过原版由 <see cref="DaySync"/> 在
 /// <c>Update</c> 里按同一条件操作输入开关完成，这里只做通知带来的状态更新。
+/// 「是不是本地玩家」由框架在桥接里判定（它比对角色的 <c>"Self"</c>），此处只读
+/// <see cref="DayCharacter.IsLocalPlayer"/>。
 /// </summary>
 [AutoLog]
 public sealed partial class DayInput : IDayInputListener
 {
     /// <summary>原 <c>CharacterControllerInputGeneratorComponentPatch.UpdateInputDirection_Prefix</c>。</summary>
-    public void OnMoveInput(CharacterControllerUnit unit, Vector2 direction)
+    public void OnMoveInput(in DayCharacter unit, Vector2 direction)
     {
         if (!GameSession.IsOnline)
         {
@@ -31,19 +31,7 @@ public sealed partial class DayInput : IDayInputListener
             return;
         }
 
-        if (unit is null)
-        {
-            return;
-        }
-
-        var characterCollection = Common.SceneDirector.Instance.characterCollection;
-        if (characterCollection is null || !characterCollection.ContainsKey("Self"))
-        {
-            Log.Warning("characterCollection does not contain 'Self' key");
-            return;
-        }
-
-        if (unit.name != characterCollection["Self"].name)
+        if (!unit.IsLocalPlayer)
         {
             return;
         }

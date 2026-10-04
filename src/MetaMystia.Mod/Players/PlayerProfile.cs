@@ -59,9 +59,10 @@ public static class PlayerProfile
         if (GameFlow.LocalScene == Scene.DayScene && DayScene.SceneManager.Instance.IsMapSwapping) return;
         var direction = PlayerManager.LocalInputDirection;
         var position = PlayerManager.LocalPosition;
+        // 两侧都是镜像向量（Mystia.Numerics.Vector2）的分量，逐分量直传协议字段，无引擎换算。
         GameSession.Client.SendMotion(new()
         {
-            X = position.x, Y = position.y, DirectionX = direction.x, DirectionY = direction.y,
+            X = position.X, Y = position.Y, DirectionX = direction.X, DirectionY = direction.Y,
             Speed = PlayerManager.Local.Speed, Sprinting = PlayerManager.LocalIsSprinting,
             Map = PlayerManager.LocalMapLabel
         });

@@ -1,5 +1,6 @@
+﻿using System;
+
 using System.CommandLine;
-using UnityEngine;
 
 using MetaMystia.UI;
 
@@ -42,8 +43,16 @@ public static class LinkCommands
         CommandRegistry.RegisterCompletions("link", 0, "MetaMystia", "Izakaya");
     }
 
+    /// <summary>经框架打开外链：框架只接受绝对 http/https，其余拒绝，因此这里把拒绝变成一条控制台报错。</summary>
     private static void OpenUrl(string url)
     {
-        Application.OpenURL(url);
+        try
+        {
+            ModRuntime.CommonServices.OpenUrl(url);
+        }
+        catch (ArgumentException e)
+        {
+            InGameConsole.LogError(e.Message);
+        }
     }
 }

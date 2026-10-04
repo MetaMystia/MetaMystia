@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Il2CppInterop.Runtime;
 using Il2CppSystem.Linq;
@@ -31,7 +31,7 @@ public static class ContainerExtensions
                 if (list.Count == 0)
                     throw new InvalidOperationException("Collection is empty.");
 
-                return list[UnityEngine.Random.Range(0, list.Count)];
+                return list[System.Random.Shared.Next(list.Count)];
             }
 
             // 否则用水塘抽样
@@ -41,7 +41,7 @@ public static class ContainerExtensions
             foreach (var item in source)
             {
                 count++;
-                if (UnityEngine.Random.Range(0, count) == 0)
+                if (System.Random.Shared.Next(count) == 0)
                     result = item;
             }
 
@@ -275,7 +275,7 @@ public static class ContainerExtensions
 
                 try
                 {
-                    sb.Append((element as UnityEngine.Object).ToString());
+                    sb.Append(element);
                 }
                 catch (Exception ex)
                 {

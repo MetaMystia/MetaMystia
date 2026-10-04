@@ -58,7 +58,7 @@ public static partial class StoryReplayManager
         StoryReplayIndex.Rebuild();
         return new ChatMenuEntry(CollabMenuTitle, StoryReplayIndex.Packs.Count > 0, () =>
         {
-            ChatSync.CloseChatSelectionPanel();
+            ModRuntime.ChatSelection.Close();
             OpenReplayMenu();
         });
     }
@@ -71,7 +71,7 @@ public static partial class StoryReplayManager
                 GetPackTitle,
                 IsPackAvailable,
                 OpenPackContent),
-            CloseEndButton);
+            null);
     }
 
     private static string GetPackTitle(string pack) =>
@@ -108,7 +108,7 @@ public static partial class StoryReplayManager
                 StoryReplayIndex.GetDialogDisplayTitle,
                 _ => true,
                 PlayDialog),
-            BackTo(() => OpenPackMenu()));
+            () => OpenPackMenu());
     }
 
     private static void OpenCategoryMenu(string pack)
@@ -132,7 +132,7 @@ public static partial class StoryReplayManager
                 title => title,
                 _ => true,
                 category => OpenGroupMenu(pack, category)),
-            BackTo(() => OpenPackMenu()));
+            () => OpenPackMenu());
     }
 
     private static void OpenResourceExPackageMenu()
@@ -150,7 +150,7 @@ public static partial class StoryReplayManager
                 title => title,
                 pkg => StoryReplayIndex.GetDialogs("ResourceEx", pkg).Any(StoryReplayIndex.IsDialogAvailable),
                 pkg => OpenResourceExDialogMenu(pkg)),
-            BackTo(() => OpenPackMenu()));
+            () => OpenPackMenu());
     }
 
     private static void OpenResourceExDialogMenu(string package)
@@ -168,7 +168,7 @@ public static partial class StoryReplayManager
                 StoryReplayIndex.GetDialogDisplayTitle,
                 StoryReplayIndex.IsDialogAvailable,
                 PlayDialog),
-            BackTo(() => OpenResourceExPackageMenu()));
+            () => OpenResourceExPackageMenu());
     }
 
     private static void OpenGroupMenu(string pack, string category)
@@ -186,7 +186,7 @@ public static partial class StoryReplayManager
                 title => title,
                 group => StoryReplayIndex.GetDialogs(pack, category, group).Any(StoryReplayIndex.IsDialogAvailable),
                 group => OpenDialogMenu(pack, category, group)),
-            BackTo(() => OpenCategoryMenu(pack)));
+            () => OpenCategoryMenu(pack));
     }
 
     private static void OpenDialogMenu(string pack, string category, string group)
@@ -204,7 +204,7 @@ public static partial class StoryReplayManager
                 title => title,
                 StoryReplayIndex.IsDialogAvailable,
                 PlayDialog),
-            BackTo(() => OpenGroupMenu(pack, category)));
+            () => OpenGroupMenu(pack, category));
     }
 
     private static void PlayDialog(string dialogName)

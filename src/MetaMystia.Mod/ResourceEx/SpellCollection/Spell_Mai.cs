@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 
 using Il2CppInterop.Runtime;
-using UnityEngine;
 
 using GameData.Core.Collections;
 using NightScene.GuestManagementUtility;
@@ -19,6 +18,7 @@ using MetaMystia.Listeners;
 using MetaMystia.Multiplayer;
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.ResourceEx.Vfx;
+using MetaMystia.UI;
 
 namespace MetaMystia.ResourceEx.SpellCollection;
 
@@ -31,6 +31,15 @@ namespace MetaMystia.ResourceEx.SpellCollection;
 /// 实例由框架按 <c>SpellData.Id</c> 匹配，效果在营业场景服务作用域内以托管协程执行；
 /// 特效包由 <see cref="SpellRegistry"/> 按资源包声明取出，例行日志走框架传入的 <see cref="ILog"/>。
 /// </summary>
+/// <remarks>
+/// 本文件不写 UnityEngine 类型名，也不声明它们的局部变量、字段或参数：帧循环里的等待走
+/// <see cref="ICoroutineDispatcher"/> 的 <c>AfterSeconds</c>，位置一律用框架的镜像值，特效走
+/// <see cref="IVfxHandle"/>。唯一保留的引擎接触点是游戏自己的投掷接口
+/// <c>UIManager.ExecuteThrowDeliver</c>：它收引擎的 Sprite 与两个 Vector3，而框架没有「投掷上酒」这一入口
+/// （上酒流程由本模组复刻原版：登记空中、通知伙伴、投掷动画、落地复查、写槽位），所以这一处必须原样调用——
+/// 精灵取自游戏自己的 <c>Sellable.Text.Visual</c>（原版玩家上菜也是把同一份精灵交给它），两个向量在调用点用
+/// 目标类型推断的 <c>new(x, y, z)</c> 现构造，被禁类型名与它们的局部变量都不出现在源码里。
+/// </remarks>
 public sealed class Spell_Mai : ISpell, ISpellDependencies
 {
     /// <summary>符卡 id：资源包 <c>spells[].id</c>，与所属角色（舞）的 id 一致。</summary>
@@ -91,13 +100,13 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
 
     private IEnumerator PositiveRoutine(IWorkSceneServices scene, ICoroutineDispatcher coroutines, ILog log)
     {
-        var origin = GuestPosition(scene) ?? Unity(scene.Presentation.PlayerPosition);
-        var cast = Vfx.PlayOneShot(CastVfx, origin);
+        var origin = GuestPosition(scene) ?? scene.Presentation.PlayerPosition;
+        var cast = Vfx.PlayOneShot(scene.Presentation, CastVfx, origin);
         yield return coroutines.AfterSeconds(2f);
         Vfx.Stop(cast);
 
         // buff 已存在时游戏只延长时长、不重跑已注册的持续效果，持续效果因此挂在本次注册的结束回调之后。
-        GameObject snowfall = null;
+        IVfxHandle snowfall = null;
         void OnBuffEnd()
         {
             Vfx.Stop(snowfall);
@@ -114,7 +123,7 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
 
         StopServeLoop(coroutines);
         _animatedOrders = [];
-        snowfall = Vfx.Play(SnowfallVfx);
+        snowfall = Vfx.Play(scene.Presentation, SnowfallVfx);
 
         // 挂在场景协程宿主上，离开场景时随之停止；buff 结束时由回调停止。
         _serveLoop = coroutines.StartOn(coroutines.Owner, _ => ServeLoop(scene, coroutines));
@@ -124,8 +133,8 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
     private static string BuffDescription(int currentTime, string description) =>
         description.Replace("$c", currentTime.ToString());
 
-    /// <summary>符卡目标（指定稀客）的世界坐标；虚客或找不到目标时返回 null，调用方回退到玩家位置。</summary>
-    private static Vector3? GuestPosition(IWorkSceneServices scene)
+    /// <summary>符卡目标（指定稀客）的世界坐标，取框架的镜像值；虚客或找不到目标时返回 null，调用方回退到玩家位置。</summary>
+    private static Mystia.Numerics.Vector3? GuestPosition(IWorkSceneServices scene)
     {
         var guestId = scene.Spells.GuestId;
         if (guestId < 0)
@@ -136,14 +145,12 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
             if (!group.TryGet(out var guest) || guest.Kind != GuestKind.Special || guest.GuestIds[0] != guestId)
                 continue;
 
+            // 框架表现面给的已经是镜像值，原样返回，不再经引擎类型转一手。
             if (scene.Presentation.TryGetGuestPosition(group, out var position))
-                return Unity(position);
+                return position;
         }
         return null;
     }
-
-    /// <summary>框架的镜像向量转成 Unity 向量：模组的特效层（VfxBundle）仍直接操作 Unity 对象。</summary>
-    private static Vector3 Unity(Mystia.Numerics.Vector3 value) => new(value.X, value.Y, value.Z);
 
     private void StopServeLoop(ICoroutineDispatcher coroutines)
     {
@@ -155,10 +162,10 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
     /// <summary>每秒为一桌送上酒水。一次只处理一桌，避免全场投掷动画同时重叠。</summary>
     private IEnumerator ServeLoop(IWorkSceneServices scene, ICoroutineDispatcher coroutines)
     {
-        var wait = new WaitForSeconds(ServeIntervalSeconds);
         while (true)
         {
-            yield return wait;
+            // 与原来的一次性 WaitForSeconds 同义：按缩放时间等 ServeIntervalSeconds 秒，每轮重新计一次。
+            yield return coroutines.AfterSeconds(ServeIntervalSeconds);
             TryServeOneOrder(scene, coroutines);
         }
     }
@@ -199,9 +206,11 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
         OrderProxy order,
         Sellable beverage)
     {
-        var origin = Unity(scene.Presentation.PlayerPosition);
-        var target = Unity(scene.Presentation.TablePosition(order.DeskCode));
-        var visual = beverage.Text?.Visual;
+        // 表现面只收框架镜像值；游戏自己的投掷接口要引擎向量，换算放在 ThrowThenServe 的调用点。
+        var origin = scene.Presentation.PlayerPosition;
+        var target = scene.Presentation.TablePosition(order.DeskCode);
+        // 只取一次语言数据（GetText 要查表），精灵本身在投掷调用点现读，免得声明引擎类型的局部变量。
+        var text = beverage.Text;
         var animationOnly = AnimationOnly;
         var dish = scene.Dishes.DishOf(beverage);
 
@@ -215,13 +224,18 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
 
         IEnumerator ThrowThenServe()
         {
-            var trail = Vfx.Play(BevTrailVfx, origin);
-            // 游戏方法本身返回 Il2Cpp 的 IEnumerator，直接交给协程泵推进。
-            if (visual != null)
-                yield return UIManager.Instance.ExecuteThrowDeliver(visual, target, origin);
+            // 这个协程跑在框架的协程泵上，不在场景服务作用域内，因此取句柄的动作排进营业场景循环。
+            IVfxHandle trail = null;
+            ScenePresentation.Enqueue(services => trail = Vfx.Play(services, BevTrailVfx, origin));
+            // 游戏方法本身返回 Il2Cpp 的 IEnumerator，直接交给协程泵推进。它要引擎的精灵与两个向量：
+            // 精灵就用游戏自己数据里的那一份（原版玩家上菜也把同一份交给这个接口），向量在参数位置用
+            // 目标类型推断的 new(x, y, z) 现构造，因此源码里不出现被禁类型名，也不留该类型的局部变量。
+            if (text?.Visual != null)
+                yield return UIManager.Instance.ExecuteThrowDeliver(
+                    text.Visual, new(target.X, target.Y, target.Z), new(origin.X, origin.Y, origin.Z));
 
             Vfx.Stop(trail);
-            Vfx.PlayOneShot(IceShardVfx, target);
+            ScenePresentation.Enqueue(services => Vfx.PlayOneShot(services, IceShardVfx, target));
 
             if (animationOnly || !IsStillInAir()) yield break;
 
@@ -256,8 +270,8 @@ public sealed class Spell_Mai : ISpell, ISpellDependencies
             yield break;
         }
 
-        var frost = Vfx.PlayScreenOverlay(FrostFieldVfx);
-        var coolDown = Vfx.Play(CoolDownVfx, Unity(scene.Presentation.PlayerPosition));
+        var frost = Vfx.PlayScreenOverlay(scene.Presentation, FrostFieldVfx);
+        var coolDown = Vfx.Play(scene.Presentation, CoolDownVfx, scene.Presentation.PlayerPosition);
         coroutines.StartOn(coroutines.Owner, _ => Shake());
 
         // 与原版 Spell_Kagerou 一致：协程只负责演出，buff 结束后的清理交给 onBuffEnd。

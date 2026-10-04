@@ -1,7 +1,8 @@
-using UnityEngine;
+﻿using System;
 
 using Mystia;
 using Mystia.Imgui;
+using Mystia.Scenes;
 
 using Common.UI;
 
@@ -9,7 +10,6 @@ using MetaMystia.Multiplayer;
 
 using Color = Mystia.Numerics.Color;
 using Rect = Mystia.Numerics.Rect;
-using UnityVector2 = UnityEngine.Vector2;
 using Vector2 = Mystia.Numerics.Vector2;
 
 namespace MetaMystia.UI;
@@ -58,7 +58,7 @@ public static partial class PlayerListPanel
     {
         // Enter 键切换显示（控制台打开时不响应，避免与控制台 Enter 冲突）
         if (!InGameConsole.IsOpen &&
-            (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            (ModRuntime.Input.IsKeyDown(MystiaKey.Return) || ModRuntime.Input.IsKeyDown(MystiaKey.KeypadEnter)))
             _visible = !_visible;
     }
 
@@ -94,7 +94,7 @@ public static partial class PlayerListPanel
             if (w > maxW) maxW = w;
         }
 
-        float panelW = Mathf.Max(maxW + Padding * 2, 200f);
+        float panelW = Math.Max(maxW + Padding * 2, 200f);
         float panelH = lines.Count * lineH + DragHandleHeight + Padding * 2;
         float panelX = ConfigManager.PlayerListX.Value;
         float panelY = ConfigManager.PlayerListY.Value;
@@ -123,8 +123,9 @@ public static partial class PlayerListPanel
             {
                 float newX = e.MousePosition.X - _dragOffset.X;
                 float newY = e.MousePosition.Y - _dragOffset.Y;
-                ConfigManager.PlayerListX.Value = Mathf.Clamp(newX, 0, drawer.ScreenSize.X - panelW);
-                ConfigManager.PlayerListY.Value = Mathf.Clamp(newY, 0, drawer.ScreenSize.Y - panelH);
+                // 用 Min/Max 而不是 Math.Clamp：窗口小于面板时上界会小于下界，Clamp 会抛。
+                ConfigManager.PlayerListX.Value = Math.Min(Math.Max(newX, 0f), drawer.ScreenSize.X - panelW);
+                ConfigManager.PlayerListY.Value = Math.Min(Math.Max(newY, 0f), drawer.ScreenSize.Y - panelH);
                 e.Use();
             }
             if (e.Kind == ImguiEventKind.MouseUp)
@@ -159,11 +160,13 @@ public static partial class PlayerListPanel
         bool needsGameplayData = scene is Scene.DayScene or Scene.WorkScene or Scene.IzakayaPrepScene;
 
         // 本地玩家与房间身份均来自服务器。
+        // 坐标取出的同一行就换算成镜像 Vector2：NetPlayer.Position 仍是引擎向量，这里只取分量、
+        // 不写出引擎类型名；三元条件照旧，未进入游戏场景时不读坐标。
         var local = PlayerManager.Local;
         string localLine = FormatPlayer(
             local.Uid, local.Id, scene,
             needsGameplayData ? PlayerManager.LocalMapLabel : MapLabel.Unknown,
-            needsGameplayData ? local.Position : UnityVector2.zero,
+            needsGameplayData ? local.Position : Vector2.Zero,
             local.IsDayOver, local.IsPrepOver,
             local.IzakayaMapLabel, local.IzakayaLevel,
             isSelf: true, isHost: GameSession.IsRoomHost);
@@ -177,7 +180,7 @@ public static partial class PlayerListPanel
             string line = FormatPlayer(
                 peer.Uid, peer.Id, peer.Scene,
                 peer.HasMotion && peer.CanRender ? peer.MapLabel : MapLabel.Unknown,
-                peer.HasMotion && peer.CanRender ? peer.Position : UnityVector2.zero,
+                peer.HasMotion && peer.CanRender ? peer.Position : Vector2.Zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
                 isSelf: false, isHost: kvp.Key == GameSession.Room?.Host,
@@ -193,7 +196,7 @@ public static partial class PlayerListPanel
             string line = FormatPlayer(
                 peer.Uid, peer.Id, peer.Scene,
                 peer.HasMotion && peer.CanRender ? peer.MapLabel : MapLabel.Unknown,
-                peer.HasMotion && peer.CanRender ? peer.Position : UnityVector2.zero,
+                peer.HasMotion && peer.CanRender ? peer.Position : Vector2.Zero,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
                 isSelf: false, isHost: false,
@@ -205,10 +208,13 @@ public static partial class PlayerListPanel
         return lines;
     }
 
-    /// <summary>玩家位置来自游戏对象，仍是引擎的向量；渲染尺寸才走 <c>Mystia.Numerics</c>。</summary>
+    /// <summary>
+    /// 位置由调用点从角色接口取分量换算成镜像 <c>Mystia.Numerics.Vector2</c>，渲染尺寸同样走镜像值类型；
+    /// 本方法及以下格式化只用到镜像向量。
+    /// </summary>
     private static string FormatPlayer(
         int uid, string id, Scene scene,
-        MapLabel mapLabel, UnityVector2 pos,
+        MapLabel mapLabel, Vector2 pos,
         bool isDayOver, bool isPrepOver,
         MapLabel izakayaMapLabel, int izakayaLevel,
         bool isSelf, bool isHost, bool hasMotion = true,
@@ -237,7 +243,7 @@ public static partial class PlayerListPanel
             Scene.WorkScene when scopeTag == null && GameSession.HasRoomPeers
                 && PrepSceneManager.IsYuyukoChallenge && PrepSceneManager.IsYuyukoPrepActive =>
                 $"{name}  {ReadyTag(PrepSceneManager.IsYuyukoPrepReady(uid))}",
-            Scene.WorkScene => $"{name}  <color={dim}>({pos.x:F2}, {pos.y:F2})</color>",
+            Scene.WorkScene => $"{name}  <color={dim}>({pos.X:F2}, {pos.Y:F2})</color>",
             _ => name
         };
     }
@@ -246,16 +252,16 @@ public static partial class PlayerListPanel
     /// DayScene: 全员 DayOver 后显示选店信息，否则显示地图+坐标+状态
     /// </summary>
     private static string FormatDayLine(string name, string dim,
-        MapLabel mapLabel, UnityVector2 pos, bool isDayOver,
+        MapLabel mapLabel, Vector2 pos, bool isDayOver,
         MapLabel izakayaMapLabel, int izakayaLevel, int uid, bool inRoom)
     {
         var destination = inRoom && GameSession.HasRoomPeers ? DayDestinationManager.GetIntent(uid) : DayDestination.None;
         if (destination != DayDestination.None)
-            return $"{name}  <color={dim}>{mapLabel.GetDisplayName()}  ({pos.x:F2}, {pos.y:F2})</color>  {DayDestinationManager.ReadyText(destination)}";
+            return $"{name}  <color={dim}>{mapLabel.GetDisplayName()}  ({pos.X:F2}, {pos.Y:F2})</color>  {DayDestinationManager.ReadyText(destination)}";
         if (!PlayerManager.AllDayOver)
         {
             // 仍在白天探索
-            return $"{name}  <color={dim}>{mapLabel.GetDisplayName()}  ({pos.x:F2}, {pos.y:F2})  {ReadyTag(isDayOver)}</color>";
+            return $"{name}  <color={dim}>{mapLabel.GetDisplayName()}  ({pos.X:F2}, {pos.Y:F2})  {ReadyTag(isDayOver)}</color>";
         }
         // 全员进入选店
         string map = izakayaMapLabel.IsSelected()
@@ -301,7 +307,7 @@ public static partial class PlayerListPanel
 
         int fontSize = ConfigManager.PlayerListFontSize.Value > 0
             ? ConfigManager.PlayerListFontSize.Value
-            : Mathf.Clamp((int)drawer.ScreenSize.Y / 55, 12, 20);
+            : Math.Min(Math.Max((int)drawer.ScreenSize.Y / 55, 12), 20);
 
         _lineStyle = drawer.Skin.Label;
         _lineStyle.Font = font;
@@ -342,8 +348,8 @@ public static partial class PlayerListPanel
         int current = ConfigManager.PlayerListFontSize.Value;
         int effective = current > 0
             ? current
-            : Mathf.Clamp((int)drawer.ScreenSize.Y / 55, 12, 20);
-        int newSize = Mathf.Clamp(effective + delta, 10, 36);
+            : Math.Min(Math.Max((int)drawer.ScreenSize.Y / 55, 12), 20);
+        int newSize = Math.Min(Math.Max(effective + delta, 10), 36);
         ConfigManager.PlayerListFontSize.Value = newSize;
         ResetStyles();
     }

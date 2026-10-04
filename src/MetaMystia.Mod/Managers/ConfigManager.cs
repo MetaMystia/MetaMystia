@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.IO;
 
-using UnityEngine;
+using Mystia.Scenes;
 
 namespace MetaMystia;
 
@@ -62,12 +62,20 @@ public static partial class ConfigManager
     public static ConfigEntry<float> PlayerListY;
     public static ConfigEntry<int> PlayerListFontSize;
 
-    // Keybinds
-    public static ConfigEntry<KeyCode> KeyToggleLog;
-    public static ConfigEntry<KeyCode> KeyToggleStatus;
-    public static ConfigEntry<KeyCode> KeyOpenCommand;
-    public static ConfigEntry<KeyCode> KeyOpenChat;
+    // Keybinds：MystiaKey 的成员名与引擎 KeyCode 逐一相同，配置文件里的键名照旧可读
+    public static ConfigEntry<MystiaKey> KeyToggleLog;
+    public static ConfigEntry<MystiaKey> KeyToggleStatus;
+    public static ConfigEntry<MystiaKey> KeyOpenCommand;
+    public static ConfigEntry<MystiaKey> KeyOpenChat;
     public static ConfigEntry<LiveMode> LiveStreamingMode;
+
+    /// <summary>热键条目落在 MystiaKey 未定义的值上时回落默认值（旧配置里存过引擎 KeyCode 的数字）。</summary>
+    private static void NormalizeKey(ConfigEntry<MystiaKey> entry, MystiaKey fallback)
+    {
+        if (System.Enum.IsDefined(entry.Value)) return;
+        ModRuntime.Log.Warning($"热键配置 {entry.Key} 的值 {entry.Value} 不是有效按键，已回落为 {fallback}。");
+        entry.Value = fallback;
+    }
 
     public static void InitConfigs()
     {
@@ -163,14 +171,21 @@ public static partial class ConfigManager
             "Player list font size (0 = auto based on screen height)\n玩家列表字体大小（0=根据屏幕高度自动）");
 
         // Keybinds
-        KeyToggleLog = Config.Bind("Keybinds", "ToggleLog", KeyCode.RightShift,
+        KeyToggleLog = Config.Bind("Keybinds", "ToggleLog", MystiaKey.RightShift,
             "Key to print debug log\n打印调试日志的按键");
-        KeyToggleStatus = Config.Bind("Keybinds", "ToggleStatus", KeyCode.Backslash,
+        KeyToggleStatus = Config.Bind("Keybinds", "ToggleStatus", MystiaKey.Backslash,
             "Key to toggle status text visibility\n切换状态栏可见性的按键");
-        KeyOpenCommand = Config.Bind("Keybinds", "OpenCommand", KeyCode.Slash,
+        KeyOpenCommand = Config.Bind("Keybinds", "OpenCommand", MystiaKey.Slash,
             "Key to open command console (with '/' prefix)\n打开命令控制台的按键（带 '/' 前缀）");
-        KeyOpenChat = Config.Bind("Keybinds", "OpenChat", KeyCode.T,
+        KeyOpenChat = Config.Bind("Keybinds", "OpenChat", MystiaKey.T,
             "Key to open chat\n打开聊天的按键");
+
+        // 配置里的枚举按名字解析；旧配置可能存着引擎 KeyCode 的数字（本仓库早期按数字写盘），
+        // 那些值在 MystiaKey 里没有定义，会让热键静默失效，因此回落默认值并说明。
+        NormalizeKey(KeyToggleLog, MystiaKey.RightShift);
+        NormalizeKey(KeyToggleStatus, MystiaKey.Backslash);
+        NormalizeKey(KeyOpenCommand, MystiaKey.Slash);
+        NormalizeKey(KeyOpenChat, MystiaKey.T);
 
         LiveStreamingMode = Config.Bind("General", "LiveMode", LiveMode.Off,
             "Live streaming privacy mode\n直播隐私模式\n" +

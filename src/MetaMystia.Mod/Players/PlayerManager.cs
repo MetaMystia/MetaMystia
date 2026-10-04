@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Linq;
 
-using UnityEngine;
+using Mystia.Numerics;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.UI;
@@ -44,14 +44,18 @@ public static partial class PlayerManager
     public static string GetPeerName(int uid) =>
         LiveModeManager.GetDisplayName(uid);
 
+    // 下面两个向量的类型是镜像 Mystia.Numerics.Vector2（X/Y、Vector2.Zero），不再来自引擎；
+    // 与引擎 vector 的换算只发生在 NetPlayer 读/写角色位置的边界处。
     #region Local 便捷属性
 
     public static MapLabel LocalMapLabel => LocalPlayer.CurrentMapLabel;
     public static bool LocalIsSprinting { get => Local.IsSprinting; set => Local.IsSprinting = value; }
+    /// <summary>本地输入方向（镜像向量）。</summary>
     public static Vector2 LocalInputDirection { get => Local.InputDirection; set => Local.InputDirection = value; }
     public static bool CharacterSpawnedAndInitialized => Local.CharacterSpawnedAndInitialized;
     public static bool LocalIsDayOver { get => Local.IsDayOver; set => Local.IsDayOver = value; }
     public static bool LocalIsPrepOver { get => Local.IsPrepOver; set => Local.IsPrepOver = value; }
+    /// <summary>本地角色当前位置（镜像向量，由 <see cref="NetPlayer.Position"/> 逐分量换算）。</summary>
     public static Vector2 LocalPosition => Local.Position;
 
     #endregion

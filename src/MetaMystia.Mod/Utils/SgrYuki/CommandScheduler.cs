@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 
 namespace SgrYuki;
@@ -30,6 +31,9 @@ public static partial class CommandScheduler
         public string CommandId;
     }
 
+    /// <summary><see cref="Now"/> 的计时源；单调，且不受游戏流速倍率影响。</summary>
+    private static readonly Stopwatch s_clock = Stopwatch.StartNew();
+
     private static readonly ConcurrentQueue<Command> _pending = new();
 
     // 可执行 FIFO 队列（短任务 / 已到时间）
@@ -54,7 +58,19 @@ public static partial class CommandScheduler
         }
     }
 
-    public static float Now => UnityEngine.Time.unscaledTime;
+    /// <summary>
+    /// 调度器自持的单调时钟（秒），取代原先直读的引擎时间（不受流速倍率影响的运行时间）。
+    /// <para>
+    /// 本类的推进点是 <see cref="Tick"/>，由 <c>ModLoop.FixedUpdate</c> 调用且不带 delta；框架在那儿给的是固定步长
+    /// <c>fixedDeltaTime</c>（随流速倍率快慢），不是真实时间，所以这里取自身的 <see cref="Stopwatch"/> 读数。
+    /// 全部用法都只用相对差（<c>TriggerTime</c> ／ <c>ExpireTime</c> 的加减与比较），因此时钟原点（本类首次取值）
+    /// 与原「自进程启动起算」不同不影响行为。
+    /// </para>
+    /// <para>
+    /// 与原先的唯一差别：引擎时间只在每帧推进，而本实现在循环停摆期间也继续走；进程挂起恢复时两者都会跳变。
+    /// </para>
+    /// </summary>
+    public static float Now => (float)s_clock.Elapsed.TotalSeconds;
 
     // ================================
     // Public API

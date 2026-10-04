@@ -4,11 +4,20 @@ using UnityEngine;
 
 using Common.CharacterUtility;
 
+using Vector2 = Mystia.Numerics.Vector2;
+
 namespace MetaMystia;
 
 /// <summary>
 /// 玩家基类，包含本地玩家和远程对端玩家的公共状态和方法
 /// </summary>
+/// <remarks>
+/// 模组自己持有的向量状态（<see cref="InputDirection"/>、<see cref="Position"/>）一律是镜像值类型
+/// <c>Mystia.Numerics.Vector2</c>（<c>X</c>/<c>Y</c>、<c>Vector2.Zero</c>）；与引擎相接的换算只在读写角色
+/// 位置的地方逐分量发生。本文件里仍保留的引擎对象访问（<c>Rigidbody2D</c>／<c>Collider2D</c>／
+/// <c>Transform</c> 直取，以及 <see cref="SetZ"/> 写回的引擎向量）保持现状：这几处等框架的
+/// 角色/预制体面，本次不动；因此这里也照旧需要 <c>using UnityEngine;</c> 来写出这两个组件类型名。
+/// </remarks>
 [AutoLog]
 public abstract partial class NetPlayer
 {
@@ -27,6 +36,7 @@ public abstract partial class NetPlayer
 
 
     #region Unity角色组件便捷访问
+    // 保留的引擎对象面（Rigidbody2D／Collider2D／.transform 直取）：这几处等框架的角色/预制体面。
     /// <summary>
     /// 获取玩家角色的 CharacterControllerUnit 实例
     /// </summary>
@@ -104,12 +114,13 @@ public abstract partial class NetPlayer
     public void UpdateCharacterSprite() => Skin?.ApplyToUnit(unit);
 
     /// <summary>
-    /// 输入方向向量
+    /// 输入方向向量（镜像值类型，<c>X</c>/<c>Y</c>）
     /// </summary>
-    public Vector2 InputDirection { get; set; } = Vector2.zero;
+    public Vector2 InputDirection { get; set; } = Vector2.Zero;
 
     /// <summary>
-    /// 玩家角色当前位置
+    /// 玩家角色当前位置（镜像值类型）。角色的 <c>Transform.position</c> 是引擎侧的向量，
+    /// 这里逐分量取出 x/y 构造镜像向量，是模组侧唯一的「引擎 → 镜像」换算点。
     /// NOTE: 不要使用 `?.` 运算符检查 IL2Cpp Unity 对象，它只检查 C# null，
     ///       无法检测已销毁的 Unity 原生对象。使用 `== null` 以走 Unity 重载运算符。
     /// </summary>
@@ -118,10 +129,10 @@ public abstract partial class NetPlayer
         get
         {
             var r = rb2d;
-            if (r == null) return Vector2.zero;
+            if (r == null) return Vector2.Zero;
             var t = r.transform;
-            if (t == null) return Vector2.zero;
-            return (Vector2)t.position;
+            if (t == null) return Vector2.Zero;
+            return new Vector2(t.position.x, t.position.y);
         }
     }
     #endregion
@@ -134,7 +145,8 @@ public abstract partial class NetPlayer
     {
         if (rb2d == null) return;
         var pos = rb2d.transform.position;
-        rb2d.transform.position = new Vector3(pos.x, pos.y, z);
+        // 目标类型推断的 new：这里写回引擎自己的向量类型，不必在模组源码里写出它的名字。
+        rb2d.transform.position = new(pos.x, pos.y, z);
     }
 
     /// <summary>
@@ -155,6 +167,6 @@ public abstract partial class NetPlayer
     public virtual void ResetMotion()
     {
         IsSprinting = false;
-        InputDirection = Vector2.zero;
+        InputDirection = Vector2.Zero;
     }
 }

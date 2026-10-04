@@ -1,5 +1,3 @@
-using UnityEngine;
-
 using Common.CharacterUtility;
 using GameData.RunTime.Common;
 using JetBrains.Annotations;

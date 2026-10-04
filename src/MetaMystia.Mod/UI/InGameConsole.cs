@@ -3,8 +3,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
-using UnityEngine.EventSystems;
 
 using Mystia;
 using Mystia.Imgui;
@@ -30,7 +28,7 @@ public static partial class InGameConsole
     private class LogEntry
     {
         public string Text;
-        public float Timestamp; // Time.unscaledTime when added
+        public float Timestamp; // 建条目时的 ModRuntime.Clock.Now（不受 timeScale 的秒数）
 
         // Cached layout (invalidated when width/fontSize differ)
         public float CachedHeight;
@@ -41,7 +39,7 @@ public static partial class InGameConsole
         public LogEntry(string text)
         {
             Text = text;
-            Timestamp = Time.unscaledTime;
+            Timestamp = ModRuntime.Clock.Now;
         }
     }
 
@@ -257,30 +255,24 @@ public static partial class InGameConsole
             Log.LogWarning($"Console: Failed to update UniversalGameManager input: {e.Message}");
         }
 
-        var eventSystem = EventSystem.current;
-        if (eventSystem != null)
-        {
-            eventSystem.sendNavigationEvents = !IsOpen;
-        }
+        // 场景里没有事件系统时，写入是无操作、读取回落到 true，等价原先「取不到就跳过」。
+        ModRuntime.CommonServices.UiNavigationEnabled = !IsOpen;
     }
 
     public static void Update()
     {
-        if (IsOpen)
-        {
-            var es = EventSystem.current;
-            if (es != null && es.sendNavigationEvents)
-                es.sendNavigationEvents = false;
-        }
+        // 打开期间每帧强推一次：读到的仍是事件系统的真实开关，只有它为真时才写。
+        if (IsOpen && ModRuntime.CommonServices.UiNavigationEnabled)
+            ModRuntime.CommonServices.UiNavigationEnabled = false;
 
         if (justOpened) justOpened = false;
 
-        if (Input.GetKeyDown(ConfigManager.KeyOpenCommand.Value) || Input.GetKeyDown(ConfigManager.KeyOpenChat.Value))
+        if (ModRuntime.Input.IsKeyDown(ConfigManager.KeyOpenCommand.Value) || ModRuntime.Input.IsKeyDown(ConfigManager.KeyOpenChat.Value))
         {
             if (!IsOpen)
             {
                 IsOpen = true;
-                input = Input.GetKeyDown(ConfigManager.KeyOpenCommand.Value) ? "/" : "";
+                input = ModRuntime.Input.IsKeyDown(ConfigManager.KeyOpenCommand.Value) ? "/" : "";
                 focusTextField = true;
                 moveCursor = true;
                 justOpened = true;
@@ -315,7 +307,7 @@ public static partial class InGameConsole
 
         int fontSize = ConfigManager.ConsoleFontSize.Value > 0
             ? ConfigManager.ConsoleFontSize.Value
-            : Mathf.Clamp((int)drawer.ScreenSize.Y / 50, 14, 24);
+            : Math.Clamp((int)drawer.ScreenSize.Y / 50, 14, 24);
 
         _logStyle = drawer.Skin.Label;
         _logStyle.Font = font;
@@ -395,8 +387,8 @@ public static partial class InGameConsole
         int current = ConfigManager.ConsoleFontSize.Value;
         int effective = current > 0
             ? current
-            : Mathf.Clamp((int)drawer.ScreenSize.Y / 50, 14, 24);
-        int newSize = Mathf.Clamp(effective + delta, 10, 36);
+            : Math.Clamp((int)drawer.ScreenSize.Y / 50, 14, 24);
+        int newSize = Math.Clamp(effective + delta, 10, 36);
         ConfigManager.ConsoleFontSize.Value = newSize;
         ResetStyles();
     }
@@ -456,7 +448,7 @@ public static partial class InGameConsole
     // ====================================================================
     private static void DrawPassiveMode(IIMGUIDrawer drawer)
     {
-        float now = Time.unscaledTime;
+        float now = ModRuntime.Clock.Now;
         float cutoff = PassiveLingerTime + PassiveFadeTime;
 
         // Backward scan to collect last N still-visible entries; avoids LINQ over full _logs.
@@ -494,16 +486,17 @@ public static partial class InGameConsole
 
             float alpha = age < PassiveLingerTime
                 ? 1f
-                : 1f - Mathf.Clamp01((age - PassiveLingerTime) / PassiveFadeTime);
+                : 1f - Math.Clamp((age - PassiveLingerTime) / PassiveFadeTime, 0f, 1f);
 
             float itemH = entry.CachedHeight;
 
             if (entry.CachedTextWidth <= 0f)
             {
                 float tw = _logStyle!.CalcSize(StripRichText(entry.Text)).X + 16f;
-                entry.CachedTextWidth = Mathf.Clamp(tw, 100f, maxWidth);
+                // 用 Min/Max 而不是 Math.Clamp：控制台被缩窄时上界会小于下界，Clamp 会抛。
+                entry.CachedTextWidth = Math.Min(Math.Max(tw, 100f), maxWidth);
             }
-            float textWidth = Mathf.Min(entry.CachedTextWidth, maxWidth);
+            float textWidth = Math.Min(entry.CachedTextWidth, maxWidth);
 
             var prevColor = drawer.Color;
             Fill(drawer, new Rect(panelX + Padding, currentY, textWidth, itemH),
@@ -637,8 +630,8 @@ public static partial class InGameConsole
                 {
                     float newX = e.MousePosition.X - _dragOffset.X;
                     float newTopY = e.MousePosition.Y - _dragOffset.Y;
-                    ConfigManager.ConsoleX.Value = Mathf.Clamp(newX, 0, drawer.ScreenSize.X - panelW);
-                    ConfigManager.ConsoleY.Value = Mathf.Clamp(newTopY, 0, drawer.ScreenSize.Y - totalH);
+                    ConfigManager.ConsoleX.Value = Math.Min(Math.Max(newX, 0f), drawer.ScreenSize.X - panelW);
+                    ConfigManager.ConsoleY.Value = Math.Min(Math.Max(newTopY, 0f), drawer.ScreenSize.Y - totalH);
                     e.Use();
                 }
                 if (e.Kind == ImguiEventKind.MouseUp)
@@ -677,8 +670,8 @@ public static partial class InGameConsole
                 {
                     float dw = e.MousePosition.X - _resizeStart.X;
                     float dh = e.MousePosition.Y - _resizeStart.Y; // down = taller (console grows upward)
-                    ConfigManager.ConsoleWidth.Value = Mathf.Max(_resizeStartW + dw, MinPanelW);
-                    ConfigManager.ConsoleHeight.Value = Mathf.Max(_resizeStartH + dh, MinPanelH);
+                    ConfigManager.ConsoleWidth.Value = Math.Max(_resizeStartW + dw, MinPanelW);
+                    ConfigManager.ConsoleHeight.Value = Math.Max(_resizeStartH + dh, MinPanelH);
                     e.Use();
                 }
                 if (e.Kind == ImguiEventKind.MouseUp)
@@ -707,7 +700,7 @@ public static partial class InGameConsole
             contentHeight += GetEntryHeight(_logs[i], contentWidth);
 
         // Bottom-align: pad the top so content sits at the bottom of view when shorter.
-        float topPad = Mathf.Max(0f, logAreaH - contentHeight);
+        float topPad = Math.Max(0f, logAreaH - contentHeight);
         float totalContentH = contentHeight + topPad;
 
         var contentRect = new Rect(0, 0, contentWidth, totalContentH);
@@ -730,7 +723,7 @@ public static partial class InGameConsole
         // Auto-scroll to bottom
         if (_scrollToBottom && e.Kind == ImguiEventKind.Repaint)
         {
-            scrollPosition.Y = Mathf.Max(0f, totalContentH - logAreaH);
+            scrollPosition.Y = Math.Max(0f, totalContentH - logAreaH);
             _scrollToBottom = false;
         }
 

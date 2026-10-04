@@ -24,7 +24,7 @@ public static partial class GiftMailboxManager
         new(TextId.GiftMailboxTitle.Get(), GiftRegistry.Mailboxes.Count > 0, () =>
         {
             if (GiftRegistry.Mailboxes.Count == 0) return;
-            ChatSync.CloseChatSelectionPanel();
+            ModRuntime.ChatSelection.Close();
             OpenMailboxMenu();
         });
 
@@ -36,7 +36,7 @@ public static partial class GiftMailboxManager
                 : mailbox.Package.Config.packInfo.name,
             _ => true,
             OpenGiftMenu),
-        CloseEndButton);
+        null);
 
     private static void OpenGiftMenu(GiftRegistry.Mailbox mailbox) => OpenSelectionMenu(
         BuildSelectionItems(
@@ -46,7 +46,7 @@ public static partial class GiftMailboxManager
                 : mailbox.Gifts[index].title,
             index => mailbox.Available[index] && GiftRegistry.TryResolveGift(mailbox, index, out _),
             index => PlayGiftDialog(mailbox, index)),
-        BackTo(OpenMailboxMenu),
+        OpenMailboxMenu,
         BackButtonKey);
 
     private static void PlayGiftDialog(GiftRegistry.Mailbox mailbox, int index)

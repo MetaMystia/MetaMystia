@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 using DayScene.UI;
 using GameData.Core.Collections.DaySceneUtility;
@@ -53,17 +53,4 @@ public sealed partial class ChatSync : IChatOptionListener, IChatMenuProvider
         }
     }
 
-    /// <summary>
-    /// 关闭聊天选择面板。原菜单项拿到的 <c>closeChatSelectionPannelCallback</c> 就是面板自身的
-    /// <c>ClosePanel</c>；桥接给模组菜单项的选中回调不携带面板数据，因此从面板栈取当前面板。
-    /// </summary>
-    internal static void CloseChatSelectionPanel()
-    {
-        if (Panel.TopPanel?.ControlledPanel is DaySceneChatSelectionPannel panel)
-        {
-            panel.ClosePanel();
-            return;
-        }
-        Log.Warning("Chat selection panel is not on top, mod chat entry cannot close it.");
-    }
 }
