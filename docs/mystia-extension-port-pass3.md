@@ -104,14 +104,17 @@
 
 两份 locale JSON 不再作为嵌资读取：`MetaMystia.Generators` 新增一个生成器，把它们当 `AdditionalFiles` 读入，编译期写成原始字符串字面量常量（`MetaMystia.UI.LocaleResources`），`L10n.Initialize` 拿常量喂同一个 `MergeJson`。运行时既不读嵌资也不碰反射，模组仍是"一份 dll + mod.json"；文本逐字节与源文件一致（已比对），字面量定界符宽度按内容里最长的连续引号数算，将来文本变化也不会破坏它。
 
-### 6.7 CI（`.github/workflows/ci.yml`）—— 缺互操作来源，待定
+### 6.7 CI（`.github/workflows/ci.yml`）—— 缺互操作来源，且**不得**把互操作搬进 CI
 
-- **已做**：删掉"编译 Preloader"与"保存 Preloader 产物"两步（那个工程随注入管线一起删了，而 CI 还在发布它的产物）；去掉已不存在的 `-p:DeployToGame=false`；**SDK 改为仓库自带的 vendor 副本**——新增 `vendor/nuget/Mystia.Extension.Sdk.<版本>.nupkg`（含 `vendor/README.md` 写明同步步骤与包缓存问题），CI 在依赖步骤里像写 `MetaMystia.local.props`/`global.json` 一样写一份只指向 `vendor/nuget` 的 `nuget.config`。本机开发不变：仓库里的 `nuget.config` 仍指向同级框架的 `artifacts/nuget`，两份副本不会互相遮蔽。已用"只配 vendor 源"的还原+构建验证：诊断与用同级源时完全相同（210 条）。
-- **仍缺（CI 现在还建不起来）**：`MystiaInteropDir` 指向的**互操作程序集**（45 MB / 93 个 DLL，见 §8）。三个方向：
-  1. **也 vendor 进仓库**：CI 自足，代价是仓库 +45 MB（其中 `Assembly-CSharp.dll` 单个 13 MB；按需裁剪可能降到 ~20 MB，但要靠"删了再编译"逐轮试）。
-  2. **CI 下载框架发布的固定产物**（像现在的 deps 那样一对 `INTEROP_URL`/`INTEROP_SHA256`）：仓库干净、可校验；需要框架仓库那边加一个发布步骤。
-  3. **CI checkout 框架并现场生成互操作**：需要 deps 里含游戏托管程序集与引擎模块；但 §10 已记，本机 `Build/…/Managed` 是裁剪态且缺 `ResourceProviderBase.Release`，非 Symbols 备份生成会失败——这条路最不可靠。
-- 另外：产物的文件名仍是 `MetaMystia-v*.dll`（旧 csproj 的 `RenamedAssembly`，移植时已删），现在产出 `MetaMystia.dll`，发布步骤里 `mv package/MetaMystia-${TAG}.dll` 也要跟着定。
+**红线（先写清楚）**：`artifacts/interop` 是**从游戏二进制归纳出来的派生物**（类型壳 + `il2cpp_runtime_invoke` 转调桩，没有方法体），虽然生成要 pin `GameAssembly.dll` 的 SHA256、且始终只在本机存在，但它属于"不得分发"的一类。**它不进任何仓库、不进任何发布物，CI 也不得要求它**——这与模组只引用互操作、不引用游戏程序集是同一条边界的两面。游戏逆向源码同理，只留在私有的自建 git 服务器上。
+
+- **已做**：删掉"编译 Preloader"与"保存 Preloader 产物"两步（那个工程随注入管线一起删了，而 CI 还在发布它的产物）；去掉已不存在的 `-p:DeployToGame=false`；**SDK 改为仓库自带的 vendor 副本**——新增 `vendor/nuget/Mystia.Extension.Sdk.<版本>.nupkg`（含 `vendor/README.md` 写明同步步骤与包缓存问题），CI 像写 `MetaMystia.local.props`/`global.json` 一样写一份只指向 `vendor/nuget` 的 `nuget.config`。本机开发不变（`nuget.config` 仍指向同级框架的 `artifacts/nuget`），已用"只配 vendor 源"的还原+构建验证：诊断与用同级源时完全相同（210 条）。SDK 包里只有框架自己的东西（`Mystia.Net.Sdk.dll` + 分析器 + props），不含任何游戏派生物。
+- **仍缺**：`MystiaInteropDir` 指向的互操作。公开 runner 上没有游戏二进制就**不可能**构建模组（模组只能引用互操作），所以可选项只有：
+  1. **自托管 runner**（跑在拥有游戏的机器上，那里本机已有安装与已生成的互操作）——推荐；发布物里只有 `MetaMystia.dll`/`MetaMystia.Network.dll`/`mod.json`。
+  2. **CI 只做不需要互操作的部分**（`MetaMystia.Generators`、网络/流程测试），模组本体构建留在本地或发布前手跑。
+  3. **保留现状**（下载 deps 包）——但**先核清那份 deps 里有什么**（见下）。
+- **顺带查到的既有风险（与本次改动无关，需要你们核）**：CI 现在下载 `DEPS_URL = https://github.com/MetaMystia/TouhouMystiaIzakaya-deps/releases/download/Release4.4.0e/deps-Release4.4.0e.zip`，并把它当 `BepInExPath`（旧构建引用**游戏程序集**的位置）。这暗示该 zip 里含游戏的托管程序集，而它挂在**公开 release** 上。本机无外网无法拉清单；请用 `gh release view Release4.4.0e` 或直接看 zip 内容核实，若确有游戏程序集，应挪到私有渠道。
+- **另外**：产物文件名仍是旧 csproj 的 `MetaMystia-v*.dll`（`RenamedAssembly`，移植时已删），现在产出 `MetaMystia.dll`，发布步骤里的 `mv package/MetaMystia-${TAG}.dll` 也要跟着定。
 
 ## 7. 之后的顺序
 
