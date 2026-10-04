@@ -52,12 +52,12 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
 
     /// <summary>
     /// 联机下延长挑战阶段时长。原实现挂在阶段计时协程入口上直接改写闭包字段，框架按阶段接收绝对秒数，
-    /// 因此这里用挑战数据里的基准时长乘上本模组的倍率。基准时长只存在于挑战闭包中，由保留的
-    /// <see cref="YuyukoBossDataPatch"/> 以纯数值转出。
+    /// 因此这里用挑战数据里的基准时长（框架由 <see cref="IWorkSceneChallengeServices.BasePhaseSeconds"/>
+    /// 给出）乘上本模组的倍率。
     /// </summary>
     private static void ArmPhaseSeconds(IWorkSceneChallengeServices challenge)
     {
-        var baseSeconds = YuyukoBossDataPatch.SingleRoundSeconds;
+        var baseSeconds = challenge.BasePhaseSeconds;
         if (baseSeconds <= 0) return;
 
 #if DEBUG

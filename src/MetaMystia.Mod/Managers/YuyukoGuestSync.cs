@@ -49,6 +49,7 @@ public static partial class YuyukoGuestSync
     private static int orderVersion;
     private static string evaluationMessage;
     private static bool comboProtect;
+    private static float damageMultiplier = 1f;
 
     /// <summary>本体的投影；尚未捕获或句柄过期时为 null。</summary>
     private static GuestProxy? Body => body.TryGet(out var guest) ? guest : null;
@@ -451,6 +452,7 @@ public static partial class YuyukoGuestSync
     {
         evaluationMessage = evaluation.Message;
         comboProtect = evaluation.ComboProtect;
+        damageMultiplier = evaluation.DamageMultiplier;
     }
 
     /// <summary>
@@ -474,7 +476,7 @@ public static partial class YuyukoGuestSync
             message.Mood = guest.Mood;
             message.EvaluationMessage = evaluationMessage;
             message.ComboProtect = comboProtect;
-            message.DamageMultiplier = YuyukoBossDataPatch.DamageMultiplier;
+            message.DamageMultiplier = damageMultiplier;
             YuyukoGuestMessage.Send(message);
         }
         fsm.SetManualState(GuestFSM.State.Evaluating);

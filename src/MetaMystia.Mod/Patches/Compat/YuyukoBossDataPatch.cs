@@ -40,23 +40,6 @@ public partial class YuyukoBossDataPatch
 
     private static YuyukoBossData.__c__DisplayClass16_0 CurrentContext => currentLoop?.__8__1;
 
-    /// <summary>挑战闭包里本体当前受到的伤害倍率；评价消息与客机重放共用这一个值。</summary>
-    internal static float DamageMultiplier
-    {
-        get => CurrentContext?.dmgMultiplier ?? 1f;
-        set { if (CurrentContext is { } context) context.dmgMultiplier = value; }
-    }
-
-    /// <summary>挑战数据里的单阶段基准时长（秒）；挑战未开始时为 0。</summary>
-    internal static int SingleRoundSeconds
-    {
-        get
-        {
-            var data = currentLoop?.__4__this;
-            return data is null ? 0 : data.singleRoundDuration;
-        }
-    }
-
     [HarmonyPatch(nameof(YuyukoBossData.MainChallengeLoop))]
     [HarmonyPostfix]
     public static void MainChallengeLoop_Postfix(Il2CppSystem.Collections.IEnumerator __result)
