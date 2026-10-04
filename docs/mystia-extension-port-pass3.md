@@ -71,20 +71,50 @@
 7. **资产/立绘面收尾（完成，声明级错误清零）**：`IPortraitProvider` 代理化（`int clothIndex` + `out SpriteHandle`）；`ClothRegistry`／`SpecialGuestRegistry.Visual`／`PlayerSkin` 立绘链改走句柄；框架新增 `IAssetFactory.TryWrapSprite`（把游戏自己持有的精灵包成句柄）与 `TryUnwrapCharacterSpriteSet`（把游戏自己的角色像素集拆成帧与样式）；`DialogRegistry` 的引擎资源引用按 `AssetReference.Address` 重建，`OnTransitionToNight` 改走框架 `IDialogCatalog.TryResolve`（原来是 `Resources.FindObjectsOfTypeAll`）。
 8. **死代码删除**：`Utils/ExportUtils.cs`（1101 行、无调用点，其 PNG 编码器已上移 MEFX）、`ResourceEx/Registries/PixelSpriteFactory.cs`（无调用点）、`ResourceEx/Mappers/**`（779 行，无调用点）、`ResourceEx/Addressables/**`（563 行自建 Addressables 注入，只被自己的初始化调用）、`Utils/MetaMikuUtils.cs`（装箱字典 workaround，无调用点）。
 
-## 6. 未完成的迁移（按优先级）
+## 6. 未完成的迁移（按优先级，逐项已查清）
 
-1. **`Utils/Il2CppOutDelegate.cs`（`MYSTIA1002` 2）**：`UI/DaySceneSelectionMenu.cs` 用它把带 `out` 参数的 C# lambda 包成游戏的 `GetSelectionConfigurationCallback`。正解是让这个菜单改走框架的 `IChatMenuProvider`（菜单项 + 选中回调），随之删掉该文件；若框架的来源枚举不够用，再补一个 `ChatMenuOrigin`。
-2. **`System.Reflection` 四处（`MYSTIA1003` 16）**：`SgrYuki/Functional.cs`、`L10n.cs`（按枚举名取本地化）、`IdRangeValidator.cs`、`NativeDllExtractor.cs`（释放原生 DLL）——要么改强类型，要么搬进框架。
-3. **`MYSTIA1004` 残余（207）**：热点是 `VfxBundle.cs`、`InGameConsole.cs`／`PlayerListPanel.cs` 等 IMGUI 面板、`DialogRegistry.cs`、`Spell_Mai.cs`、`NetPlayer.cs`、`GuestSync.cs`。多数要换 `Mystia.Imgui` 与 `IPresentationServices`。
-4. **值面缺两个成员（新发现，未处理，细节见 §11-D）**：`CharacterSpriteSetStyle` 只镜像移动类标志；`CharacterSpriteSetCompact` 另有两个"只有美术资源才带"的序列化字段（`spriteOffsetInNoteBook`、`daySceneInteractableColliderAdditiveRadius`，`Initialize` 不接受、也没有 SDK 成员），因此**按帧自建**的集（含在线皮肤）在这两处拿到 0，而游戏自带的集拿到它自己美术的值——这与 `CharacterSpriteSetStyle` 文档承诺的"未声明即用游戏自带像素画的值"不符。（第三个字段 `daySceneInteractableHighlightOffset` 不算缺口：游戏自己的 `Initialize` 就把它显式置零。）
-5. **收尾**：模组全绿 → 三套测试 + `static-check.sh` + 样例工程全量验收；`docs/mystia-extension-port-gaps.md` 为首轮口径。
+> 这一段是本轮把剩余诊断逐条查清后的结果：下面每项都写了"它是什么 / 为什么被禁 / 正解 / 代价"，可直接照做。
+
+### 6.1 `Il2CppOutDelegate.cs`（`MYSTIA1002` ×2，另 1 条反射）
+
+- **它是什么**：把带 `out` 参数的托管 lambda 包成游戏的 `DaySceneChatSelectionPannel.GetSelectionConfigurationCallback`（IL2CPP 委托无法用 C# 委托直接表达 `out` 参数，所以要在运行期造代理）。
+- **谁在用**：唯一调用方是 `UI/DaySceneSelectionMenu.BuildSelectionItems`，而它服务于**模组自己打开的列表菜单** —— 礼物信箱（`GiftMailboxManager.OpenMailboxMenu`/`OpenGiftMenu`）与剧情回放（`StoryReplayManager` 三处），做法是自建回调数组交给游戏的 `UIManager.OpenAfterChatMenu`，外加一个结束按钮。
+- **正解**：框架给一条"模组自开列表菜单"的面（条目形状同 `ChatMenuEntry`：标题 + 可用性 + 选中回调，再加结束按钮），out 参数与委托转换留在桥接 —— 桥接里已经有 `ChatMenuPipeline` 那套机器，正是干这个的。模组侧 `DaySceneSelectionMenu` 与 `Il2CppOutDelegate` 一起删，两个 Manager 改成提供条目。
+- **代价**：SDK 一个成员 + 桥接复用既有管线；改动面是 3 个调用点。需实机点一遍信箱与回放列表（菜单是纯 UI 路径，离线测不到）。
+
+### 6.2 `Utils/SgrYuki/Functional.cs`（6 条反射）
+
+- `CheckStacktraceContains`（在调用栈里找函数名，补丁时代的旁路检测）**无调用方**；`ModifyReadonlyField`（反射写字段）**无调用方**；`GetCallerName`（`StackTrace.GetFrame`）只被 `LogWrapper.GetOuterCallerName()` 用，后者服务于 `LogWrapper.DebugCaller`/`InfoCaller`（`WorkSync.cs:322,352` 两处）。
+- **正解**：前两个删；`GetCallerName(3)` 换成 `[CallerMemberName]`（`LogWrapper` 里已有同名同形成员，行 52）—— 日志内容一字不差、反射归零。
+- **代价**：约 10 行，零风险，可离线验证。
+
+### 6.3 内嵌资源两处（`L10n.cs` 2 条 + `IdRangeValidator.cs` 3 条反射）
+
+- `L10n.Initialize` 读自己程序集里内嵌的 `UI/Locales/{en,zh-CN}.json`；`IdRangeValidator` 读内嵌的 `ResourceEx/AssetManagement/public.pem`（csproj 里 `<EmbeddedResource>`）。两者都用 `Assembly.GetExecutingAssembly().GetManifestResourceStream`。
+- **正解二选一**：① 随模组输出成**文件**（与 `mod.json` 一样 `CopyToOutputDirectory`），从 `ModRuntime.Directory` 读 —— 不新增 SDK 面，代价是模组目录多两个文件；② 框架给"读本模组自带资源"的面（如 `IMod.TryOpenResource(string name, out Stream?)`，桥接侧实现），保持单份 dll 的部署形态。
+- **代价**：各约 20 行。倾向 ①（少一层魔法），但 ② 更贴合"单文件模组"的现状。
+
+### 6.4 `Utils/SgrYuki/NativeDllExtractor.cs`（2 条反射，本身还是被禁的"自带原生 DLL"）
+
+把内嵌原生 DLL 释放到 `AppContext.BaseDirectory`；**全仓库无调用方** → 删（同时去掉一条"模组自带原生 DLL"的口子）。
+
+### 6.5 `MYSTIA1004` 残余（207 条，按被禁类型统计）
+
+| 类别 | 数量 | 内容与对策 |
+| --- | --- | --- |
+| 值类型与静态 API | ≈110 | `Vector2` 26、`Mathf` 19、`Time` 14、`KeyCode` 13、`Input` 10、`Vector3` 9、`Object` 8（`UnityEngine.Object`）、`Random` 5、`PlayState` 2、`WaitForSeconds` 2 —— 换 `Mystia.Numerics` 镜像 / `System.Math` / 场景循环给的 `delta` / `Mystia.Imgui` 的 `ImguiEvent`。多数是机械替换，不需要新面。 |
+| 引擎对象 | ≈90 | `GameObject` 21、`AssetReferenceSprite` 9 + `AssetReferenceT` 7、`CanvasGroup` 5、`AudioClip` 5、`EventSystem` 4、`AssetBundle` 3、`SpriteRenderer`/`Rigidbody2D`/`RawImage`/`ParticleSystem`/`Canvas` 各 2 —— 逐项判断"框架补面"还是"保留在模组引擎层"。`VfxBundle.cs`（52 条）是集中地，此前已明确 VFX 层直接用 Unity 对象。 |
+
+- **`DialogRegistry` 的 `AssetReferenceSprite`/`AssetReferenceT`（16 条）**：模组自建 `DialogPackage` 并往游戏对话行的引擎引用字段里写 `new AssetReferenceSprite(reference.Address)`。框架的 `DialogActionSpec` 已经用 `SpriteHandle` 表达这些字段（`IGameDataBuilder` 那条路），因此正解是把 `DialogRegistry` 迁到框架的对话构建器；代价中等（模组对话还带 `OverrideReplaceTextCallback` 之类的自定义行为，需要先确认框架面能覆盖）。
+- 建议次序：**先做值类型那 ≈110 条**（机械、无新面、可离线计分），再按文件处置引擎对象段。
 
 ## 7. 之后的顺序
 
-1. `Utils` 的裸 il2cpp（`MetaMikuUtils.cs`／`Il2CppOutDelegate.cs`）→ 框架补 out 委托适配与字符串读取。
-2. `System.Reflection` 四处（`Functional.cs`／`L10n.cs`／`IdRangeValidator.cs`／`NativeDllExtractor.cs`）。
-3. `MYSTIA1004` 残余：IMGUI 面板、`VfxBundle`、`Spell_Mai`、网络层。
-4. 全量验收与文档收尾。
+1. §6.2、§6.4（删死代码 + `[CallerMemberName]`）：最小、零风险。
+2. §6.3（内嵌资源两条路选一条）。
+3. §6.1（框架补"模组自开列表菜单"面 → 删 `Il2CppOutDelegate`）。
+4. §6.5 的值类型段（≈110 条），再引擎对象段（含 `DialogRegistry` 迁到框架对话构建器）。
+5. 全量验收与文档收尾。
 
 ## 8. 环境搭建（换一台机器要做的四件事）
 
