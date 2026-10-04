@@ -1,10 +1,9 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 
-using Il2CppInterop.Runtime;
 using Mystia;
+using Mystia.Assets;
 using Mystia.Scenes;
-using UnityEngine;
 
 using MetaMystia.ResourceEx.AssetManagement;
 
@@ -17,9 +16,8 @@ namespace MetaMystia.ResourceEx.Vfx;
 /// <see cref="IPresentationServices"/>，本类只把「包的 URI + 预制件名」映射成框架资产键。
 /// 由资源包的 assetBundles 声明，启动时经 AssetBundleRegistry 预加载，任何功能按 URI 取用。
 /// <para>
-/// <b>保留段</b>（见文件末尾「保留段」）：AssetBundle 的加载、预制体本身的读取，以及预制体到框架资产键的
-/// 桥接，仍直接使用 UnityEngine 与互操作类型——框架没有 AssetBundle 面（全仓没有任何 AssetBundle 入口），
-/// 这一段无法迁移。请不要为它造兼容层、加 <c>#pragma</c> 或改用反射；这段里的诊断是既定保留项，不是待办。
+/// 包的字节由框架的 <c>IAssetFactory.TryOpenBundle</c> 打开成一个不透明句柄：包里的预制件名单在返回时
+/// 已完整，登记给表现面按名字进行，本类因此不再持有任何引擎对象，也不再需要 Unity 或互操作类型。
 /// </para>
 /// </summary>
 [AutoLog]
@@ -40,20 +38,20 @@ public sealed partial class VfxBundle
 
     /// <summary>该包是否声明了名为 <paramref name="name"/> 的预制件。</summary>
     /// <remarks>
-    /// 查的是包自身的清单，不是框架的 <c>IAssetLocator.IsRegistered</c>：预制件要到第一次播放才登记进框架
-    /// 资产表（<c>TryRegisterPrefab</c> 要求处于场景服务窗口内，而 <see cref="Load"/> 跑在数据表注入期、
-    /// 窗口之外），登记之前那个键必然查不到，启动期的依赖检查会全部落空。语义与迁移前逐字一致。
+    /// 查的是包自身的清单（开包时就已完整读好，不等待），不是框架的 <c>IAssetLocator.IsRegistered</c>：
+    /// 预制件要到第一次播放才登记进框架资产表，登记之前那个键必然查不到，启动期的依赖检查会全部落空。
+    /// 语义与迁移前逐字一致。
     /// </remarks>
-    public bool Contains(string name) => _prefabs.ContainsKey(name);
+    public bool Contains(string name) => _bundle.ContainsPrefab(name);
 
     /// <summary>持续特效，需用 <see cref="Stop"/> 结束。</summary>
     public IVfxHandle? Play(IPresentationServices services, string name, NumericsVector3? position = null)
     {
-        if (!TryPrepare(services, name, out var key))
+        if (!TryPrepare(name, out var key, out var own))
             return null;
 
         // 不给位置时用预制体自身的坐标：迁移前是实例化后根本不写位置，而框架的 PlayVfx 总要写位置。
-        return services.PlayVfx(key, position ?? PrefabPosition(name));
+        return services.PlayVfx(key, position ?? own);
     }
 
     /// <summary>一次性特效：<paramref name="lifetime"/> 秒后停止发射，已发出的粒子排水消散后销毁。</summary>
@@ -91,7 +89,7 @@ public sealed partial class VfxBundle
     /// </summary>
     public IVfxHandle? PlayScreenOverlay(IPresentationServices services, string name)
     {
-        if (!TryPrepare(services, name, out var key))
+        if (!TryPrepare(name, out var key, out _))
             return null;
         return services.PlayScreenOverlay(key);
     }
@@ -102,61 +100,35 @@ public sealed partial class VfxBundle
     /// <summary>预制件的框架资产键：资产键是全进程共用的，故带上本包的 URI 以免撞名。</summary>
     private string KeyOf(string name) => $"{_uri}/{name}";
 
-    // ─────────────────────────────────────────────────────────────────────────────────────────────
-    // 保留段：AssetBundle、预制体，以及预制体到框架资产键的桥接。
-    // 框架没有 AssetBundle 面，这一段仍直接持有 UnityEngine/互操作类型；这里的诊断是保留项，不是待办。
-    // ─────────────────────────────────────────────────────────────────────────────────────────────
+    /// <summary>包句柄：预制件名单与登记都经它，本类不持有任何引擎对象；包与流由框架持有到进程结束。</summary>
+    private readonly AssetBundleHandle _bundle;
 
-    /// <summary>按名称缓存的预制件。</summary>
-    private readonly Dictionary<string, GameObject> _prefabs = [];
-
-    /// <summary><see cref="AssetBundle.LoadFromStream"/> 要求流的存活期长于 AssetBundle，故持有到进程结束。</summary>
-    private readonly Il2CppSystem.IO.MemoryStream _stream;
-
-    /// <summary>资源包保持加载（不调用 Unload），prefab 依赖其中的贴图与材质。</summary>
-    private VfxBundle(string uri, AssetBundle bundle, Il2CppSystem.IO.MemoryStream stream)
+    private VfxBundle(string uri, AssetBundleHandle bundle)
     {
         _uri = uri;
-        _stream = stream;
-        if (bundle == null)
-            return;
-
-        // 互操作里 LoadAllAssets 被裁掉（游戏未调用），只剩异步变体；读取尚未完成的 allAssets
-        // 会阻塞到加载结束，因此这里仍是启动期同步载入，与原来的 LoadAllAssets 等价。
-        // 仍用 Type 重载而非泛型 LoadAllAssetsAsync<T>：泛型要走游戏未实例化的 ConvertObjects<GameObject>。
-        foreach (var obj in bundle.LoadAllAssetsAsync(Il2CppType.Of<GameObject>()).allAssets)
-        {
-            var prefab = obj.TryCast<GameObject>();
-            if (prefab == null)
-                continue;
-            // 托管引用挡不住切场景时的 Resources.UnloadUnusedAssets，须显式标记。
-            prefab.hideFlags = HideFlags.DontUnloadUnusedAsset;
-            _prefabs[prefab.name] = prefab;
-        }
+        _bundle = bundle;
     }
 
     public static VfxBundle? Load(string uri)
     {
-        // 互操作里没有 AssetBundle.LoadFromMemory，改用等价的同步 LoadFromStream；
-        // 它要的是游戏的 System.IO.Stream，所以用 il2cpp 侧的 MemoryStream 包一层。
-        var stream = new Il2CppSystem.IO.MemoryStream(RexAssetRegistry.Assets[uri].Bytes);
-        var bundle = AssetBundle.LoadFromStream(stream, 0);
-        if (bundle == null)
+        if (!ModRuntime.CommonServices.Assets.TryOpenBundle(RexAssetRegistry.Assets[uri].Bytes, out var bundle))
         {
             Log.LogError($"AssetBundle 加载失败: {uri}");
             return null;
         }
 
-        var vfx = new VfxBundle(uri, bundle, stream);
-        Log.LogInfo($"{uri}: 已加载 {vfx._prefabs.Count} 个特效 prefab");
-        return vfx;
+        Log.LogInfo($"{uri}: 已加载 {bundle.PrefabNames.Count} 个特效 prefab");
+        return new VfxBundle(uri, bundle);
     }
 
-    /// <summary>取预制件并确保它已交进框架资产表（框架克隆一份、隐藏后登记），返回它的框架资产键。</summary>
-    private bool TryPrepare(IPresentationServices services, string name, out string key)
+    /// <summary>
+    /// 取预制件自身的位置，并确保它已交进框架资产表（框架克隆一份、隐藏后登记）。
+    /// 登记被拒（键不合规或资产表拒绝）时与原「找不到特效」一样不播放，只是日志不同。
+    /// </summary>
+    private bool TryPrepare(string name, out string key, out NumericsVector3 position)
     {
         key = KeyOf(name);
-        if (!_prefabs.TryGetValue(name, out var prefab))
+        if (!_bundle.TryGetPrefabPosition(name, out position))
         {
             Log.LogWarning($"找不到特效 {name}");
             return false;
@@ -164,20 +136,12 @@ public sealed partial class VfxBundle
         if (_registered.Contains(key))
             return true;
 
-        // 登记被拒（键不合规或资产表拒绝）时与原「找不到特效」一样不播放，只是日志不同。
-        if (!services.TryRegisterPrefab(key, prefab))
+        if (!_bundle.TryRegisterPrefab(key, name))
         {
             Log.LogWarning($"特效 {name} 未能登记进框架资产表");
             return false;
         }
         _registered.Add(key);
         return true;
-    }
-
-    /// <summary>预制体自身的世界坐标：不给位置时用它保持预制体的原位置。</summary>
-    private NumericsVector3 PrefabPosition(string name)
-    {
-        var position = _prefabs[name].transform.position;
-        return new NumericsVector3(position.x, position.y, position.z);
     }
 }

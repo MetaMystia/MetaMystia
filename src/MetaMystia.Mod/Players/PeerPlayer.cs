@@ -36,6 +36,9 @@ public partial class PeerPlayer : NetPlayer
 
     private CharacterControllerUnit character;
     private CharacterHandle handle;
+
+    /// <summary>远端角色由本模组创建，句柄就是创建时拿到的那个。</summary>
+    public override CharacterHandle? CharacterHandle => handle;
     private SceneDirector owner;
     private Vector2 positionOffset;
 
@@ -103,20 +106,21 @@ public partial class PeerPlayer : NetPlayer
         InputDirection = new(motion.DirectionX, motion.DirectionY);
         character.MoveSpeedMultiplier = Speed;
         character.sprintMultiplier = IsSprinting ? 1.5f : 1f;
+        var characters = ModRuntime.CommonServices.Characters;
         if (created || updateMotion)
         {
-            // 与引擎相接的向量换算集中在这几行：模组侧一律用镜像 Vector2，引擎类型不出现名字。
-            positionOffset = new Vector2(motion.X, motion.Y)
-                - new Vector2(character.rb2d.position.x, character.rb2d.position.y);
+            var at = characters.TryGetCharacterPosition(handle, out var current) ? current : Vector2.Zero;
+            positionOffset = new Vector2(motion.X, motion.Y) - at;
             if (created || positionOffset.SqrMagnitude > 9f)
             {
-                character.rb2d.position = new(motion.X, motion.Y);
+                characters.SetCharacterPosition(handle, new(motion.X, motion.Y));
                 positionOffset = Vector2.Zero;
             }
         }
         bool visible = Scene == Scene.WorkScene || IsSameMapAsLocal;
         SetZ(visible ? 0 : -40815);
-        character.cl2d.enabled = visible;
+        // 远端角色按游戏自己的参数创建（不带碰撞体，见 CharacterCreateSpec 的说明），因此这里不再开关
+        // 碰撞体：那个组件已被游戏销毁，写它会在每帧抛 MissingReferenceException。
         FloatingTextHelper.SetPlayerLabel(Uid, LiveModeManager.GetDisplayName(Uid), character);
     }
 

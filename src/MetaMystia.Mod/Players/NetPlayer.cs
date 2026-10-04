@@ -1,8 +1,10 @@
-
+﻿
 using System;
-using UnityEngine;
 
 using Common.CharacterUtility;
+
+using Mystia.Assets;
+using Mystia.Scenes;
 
 using Vector2 = Mystia.Numerics.Vector2;
 
@@ -12,6 +14,9 @@ namespace MetaMystia;
 /// 玩家基类，包含本地玩家和远程对端玩家的公共状态和方法
 /// </summary>
 /// <remarks>
+/// 角色的位置与渲染层级都经框架的角色面读写（<see cref="ICharacterServices"/>），本类不再持有
+/// <c>Rigidbody2D</c>/<c>Collider2D</c> 这类引擎组件；<see cref="GetCharacterUnit"/> 仍交给游戏自己的
+/// 角色单元用于速度等游戏 API。
 /// 模组自己持有的向量状态（<see cref="InputDirection"/>、<see cref="Position"/>）一律是镜像值类型
 /// <c>Mystia.Numerics.Vector2</c>（<c>X</c>/<c>Y</c>、<c>Vector2.Zero</c>）；与引擎相接的换算只在读写角色
 /// 位置的地方逐分量发生。本文件里仍保留的引擎对象访问（<c>Rigidbody2D</c>／<c>Collider2D</c>／
@@ -43,8 +48,12 @@ public abstract partial class NetPlayer
     public abstract CharacterControllerUnit GetCharacterUnit();
 
     public CharacterControllerUnit unit => GetCharacterUnit();
-    public Rigidbody2D rb2d => unit?.rb2d;
-    public Collider2D cl2d => unit?.cl2d;
+
+    /// <summary>
+    /// 该玩家角色的框架句柄：本地玩家按 label 现取，远端玩家用创建时拿到的那个；取不到时为 null
+    /// （位置与层级随之成为无操作）。
+    /// </summary>
+    public abstract CharacterHandle? CharacterHandle { get; }
     #endregion
 
 
@@ -118,23 +127,12 @@ public abstract partial class NetPlayer
     /// </summary>
     public Vector2 InputDirection { get; set; } = Vector2.Zero;
 
-    /// <summary>
-    /// 玩家角色当前位置（镜像值类型）。角色的 <c>Transform.position</c> 是引擎侧的向量，
-    /// 这里逐分量取出 x/y 构造镜像向量，是模组侧唯一的「引擎 → 镜像」换算点。
-    /// NOTE: 不要使用 `?.` 运算符检查 IL2Cpp Unity 对象，它只检查 C# null，
-    ///       无法检测已销毁的 Unity 原生对象。使用 `== null` 以走 Unity 重载运算符。
-    /// </summary>
-    public Vector2 Position
-    {
-        get
-        {
-            var r = rb2d;
-            if (r == null) return Vector2.Zero;
-            var t = r.transform;
-            if (t == null) return Vector2.Zero;
-            return new Vector2(t.position.x, t.position.y);
-        }
-    }
+    /// <summary>玩家角色当前位置（镜像值类型）；句柄无效时为零向量。</summary>
+    public Vector2 Position =>
+        CharacterHandle is { } handle
+        && ModRuntime.CommonServices.Characters.TryGetCharacterPosition(handle, out var at)
+            ? at
+            : Vector2.Zero;
     #endregion
 
     /// <summary>
@@ -143,10 +141,8 @@ public abstract partial class NetPlayer
     /// <param name="z"></param>
     public void SetZ(int z)
     {
-        if (rb2d == null) return;
-        var pos = rb2d.transform.position;
-        // 目标类型推断的 new：这里写回引擎自己的向量类型，不必在模组源码里写出它的名字。
-        rb2d.transform.position = new(pos.x, pos.y, z);
+        if (CharacterHandle is { } handle)
+            ModRuntime.CommonServices.Characters.SetCharacterZ(handle, z);
     }
 
     /// <summary>

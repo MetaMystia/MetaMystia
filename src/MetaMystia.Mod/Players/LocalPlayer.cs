@@ -1,6 +1,8 @@
-using Common.CharacterUtility;
+﻿using Common.CharacterUtility;
 using GameData.RunTime.Common;
+
 using JetBrains.Annotations;
+using Mystia.Assets;
 
 namespace MetaMystia;
 
@@ -11,6 +13,10 @@ namespace MetaMystia;
 public partial class LocalPlayer : NetPlayer
 {
     public bool CharacterSpawnedAndInitialized => GetCharacterUnit() != null;
+
+    /// <summary>本地玩家角色按游戏自己的 label 现取句柄；框架内部读的是同一张角色表。</summary>
+    public override CharacterHandle? CharacterHandle =>
+        ModRuntime.CommonServices.Characters.TryBindCharacter("Self", out var handle) ? handle : null;
 
     public override CharacterControllerUnit GetCharacterUnit()
     {
