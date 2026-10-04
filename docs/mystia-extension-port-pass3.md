@@ -38,10 +38,10 @@
 | 诊断 | 数量 | 含义 |
 | --- | --- | --- |
 | `MYSTIA1004` | 207 | 仍在用 `UnityEngine` 类型（`VfxBundle`、`InGameConsole`/面板 IMGUI 层、`DialogRegistry`、`Spell_Mai`、网络层） |
-| `MYSTIA1003` | 16 | `System.Reflection`（`SgrYuki/Functional.cs`、`L10n.cs`、`IdRangeValidator.cs`、`NativeDllExtractor.cs`、`Utils/Il2CppOutDelegate.cs`） |
+| `MYSTIA1003` | 5 | `System.Reflection`（`UI/L10n.cs` 4 条读自带嵌资、`Utils/Il2CppOutDelegate.cs` 1 条 `Marshal`） |
 | `MYSTIA1002` | 2 | `Il2CppInterop` 裸 il2cpp（`Utils/Il2CppOutDelegate.cs`） |
 | 纯 CS | 0 | 声明级错误已清零（这正是分析器能全量报告的原因） |
-| **去重总错误** | **225** | |
+| **去重总错误** | **214** | |
 
 `MYSTIA1001`（Harmony/BepInEx）与 `MYSTIA1005`（编译器生成成员名）保持 0；`ResourceEx` 的自建注入管线（`ResourceEx/Addressables/**` 的 `ClassInjector` provider 与 `RuntimeAddressables`）已作为死代码删除，模组的 `MYSTIA1002` 因此从 28 降到 14。
 
@@ -82,23 +82,15 @@
 - **正解**：框架给一条"模组自开列表菜单"的面（条目形状同 `ChatMenuEntry`：标题 + 可用性 + 选中回调，再加结束按钮），out 参数与委托转换留在桥接 —— 桥接里已经有 `ChatMenuPipeline` 那套机器，正是干这个的。模组侧 `DaySceneSelectionMenu` 与 `Il2CppOutDelegate` 一起删，两个 Manager 改成提供条目。
 - **代价**：SDK 一个成员 + 桥接复用既有管线；改动面是 3 个调用点。需实机点一遍信箱与回放列表（菜单是纯 UI 路径，离线测不到）。
 
-### 6.2 `Utils/SgrYuki/Functional.cs`（6 条反射）
+### 6.2 `Utils/SgrYuki/Functional.cs`、`NativeDllExtractor.cs`（已完成）
 
-- `CheckStacktraceContains`（在调用栈里找函数名，补丁时代的旁路检测）**无调用方**；`ModifyReadonlyField`（反射写字段）**无调用方**；`GetCallerName`（`StackTrace.GetFrame`）只被 `LogWrapper.GetOuterCallerName()` 用，后者服务于 `LogWrapper.DebugCaller`/`InfoCaller`（`WorkSync.cs:322,352` 两处）。
-- **正解**：前两个删；`GetCallerName(3)` 换成 `[CallerMemberName]`（`LogWrapper` 里已有同名同形成员，行 52）—— 日志内容一字不差、反射归零。
-- **代价**：约 10 行，零风险，可离线验证。
+`Functional` 的四个方法里，`CheckStacktraceContains`（补丁时代的栈扫描）与 `ModifyReadonlyField`（反射写字段）**全仓无调用方**；`GetCallerName` 换成 `[CallerMemberName]`（它读的栈帧本来就解析成同一个直接调用者，日志文本一字不变）；`LogStacktrace` 并入 `LogWrapper`。文件删除。`NativeDllExtractor`（把内嵌原生 DLL 释放到基目录、无调用方）一并删除。合计 −53 行。
 
-### 6.3 内嵌资源两处（`L10n.cs` 2 条 + `IdRangeValidator.cs` 3 条反射）
+### 6.3 `IdRangeValidator.cs` 的公钥（已完成）
 
-- `L10n.Initialize` 读自己程序集里内嵌的 `UI/Locales/{en,zh-CN}.json`；`IdRangeValidator` 读内嵌的 `ResourceEx/AssetManagement/public.pem`（csproj 里 `<EmbeddedResource>`）。两者都用 `Assembly.GetExecutingAssembly().GetManifestResourceStream`。
-- **正解二选一**：① 随模组输出成**文件**（与 `mod.json` 一样 `CopyToOutputDirectory`），从 `ModRuntime.Directory` 读 —— 不新增 SDK 面，代价是模组目录多两个文件；② 框架给"读本模组自带资源"的面（如 `IMod.TryOpenResource(string name, out Stream?)`，桥接侧实现），保持单份 dll 的部署形态。
-- **代价**：各约 20 行。倾向 ①（少一层魔法），但 ② 更贴合"单文件模组"的现状。
+公钥是公开信息，直接内联成常量（`PublicKeyPem`），删掉 `LoadEmbeddedPublicKey` 与 `public.pem` 及其 csproj 条目；导入改走跨平台的 `RSA.Create()`，顺手去掉 Windows-only 的 CSP 与 `#pragma CA1416`。
 
-### 6.4 `Utils/SgrYuki/NativeDllExtractor.cs`（2 条反射，本身还是被禁的"自带原生 DLL"）
-
-把内嵌原生 DLL 释放到 `AppContext.BaseDirectory`；**全仓库无调用方** → 删（同时去掉一条"模组自带原生 DLL"的口子）。
-
-### 6.5 `MYSTIA1004` 残余（207 条，按被禁类型统计）
+### 6.4 `MYSTIA1004` 残余（207 条，按被禁类型统计）
 
 | 类别 | 数量 | 内容与对策 |
 | --- | --- | --- |
@@ -108,12 +100,27 @@
 - **`DialogRegistry` 的 `AssetReferenceSprite`/`AssetReferenceT`（16 条）**：模组自建 `DialogPackage` 并往游戏对话行的引擎引用字段里写 `new AssetReferenceSprite(reference.Address)`。框架的 `DialogActionSpec` 已经用 `SpriteHandle` 表达这些字段（`IGameDataBuilder` 那条路），因此正解是把 `DialogRegistry` 迁到框架的对话构建器；代价中等（模组对话还带 `OverrideReplaceTextCallback` 之类的自定义行为，需要先确认框架面能覆盖）。
 - 建议次序：**先做值类型那 ≈110 条**（机械、无新面、可离线计分），再按文件处置引擎对象段。
 
+### 6.6 `UI/L10n.cs`（`MYSTIA1003` 4 条）—— 待定
+
+`L10n.Initialize` 用 `Assembly.GetExecutingAssembly().GetManifestResourceStream` 读自己内嵌的 `UI/Locales/{en,zh-CN}.json`（`MergeJson` 里的 `Enum.TryParse<TextId>` 不触发禁令，反射只为读嵌资）。覆盖路径 `LoadLocaleOverride` 本来就按 `ModRuntime.Directory` 读文件。
+
+三个选项：
+
+1. **改自带文件**：csproj 把两个 JSON 从 `EmbeddedResource` 改成 `Content … CopyToOutputDirectory`（`mod.json` 已是这种做法），`Initialize` 直接调现成的 `LoadLanguageFromFile` → −10 行、无新面。**代价**：模组目录从"一份 dll + mod.json"变成多两个文件，部署/发布产物要跟着改（CI 的 artifact 也要带上）。
+2. **生成器内联**：用仓库里现成的 `MetaMystia.Generators`（Roslyn 生成器，已经负责 `[AutoLog]`）在编译期把两份 JSON 生成常量 → 无反射、无额外文件、部署形态不变；代价是生成器约 60–100 行。
+3. **框架给"读本模组自带资源"的面**（如 `IMod.TryOpenResource`）：保持单份 dll，但为一件小事扩 SDK 面。
+
+### 6.7 CI（`.github/workflows/ci.yml`）—— 部分完成
+
+- **已做**：删掉"编译 Preloader"与"保存 Preloader 产物"两步 —— 那个工程随注入管线一起删了，而 CI 还在发布它的产物；顺带去掉已不存在的 `-p:DeployToGame=false`。
+- **待定（整段与旧 BepInEx 构建绑死）**：CI 现在下载一份 deps 包并把它当 `BepInExPath`，而当前构建需要的是**框架**（`nuget.config` 指向 `../MystiaExtensionFramework/artifacts/nuget`）与 `MystiaInteropDir`；产物路径 `MetaMystia-v*.dll` 也是旧 csproj 的 `RenamedAssembly`（已在移植时删除），现在产出的是 `MetaMystia.dll`。这需要决定"CI 怎么拿到框架与互操作"，不宜由执行者猜。
+
 ## 7. 之后的顺序
 
-1. §6.2、§6.4（删死代码 + `[CallerMemberName]`）：最小、零风险。
-2. §6.3（内嵌资源两条路选一条）。
-3. §6.1（框架补"模组自开列表菜单"面 → 删 `Il2CppOutDelegate`）。
-4. §6.5 的值类型段（≈110 条），再引擎对象段（含 `DialogRegistry` 迁到框架对话构建器）。
+1. §6.6 `L10n`（三选一）与 §6.7 CI（整段要重新设计）—— 都需要先定。
+2. §6.1（框架补"模组自开列表菜单"面 → 删 `Il2CppOutDelegate`）—— 需要框架面 + 实机。
+3. §6.4 的值类型段（≈110 条，机械、无新面），再引擎对象段（含 `DialogRegistry` 迁到框架对话构建器）。
+4. §11-D（`CharacterSpriteSetStyle` 补两个字段）与 §11 第 6 项（阶段时钟钩子）。
 5. 全量验收与文档收尾。
 
 ## 8. 环境搭建（换一台机器要做的四件事）
