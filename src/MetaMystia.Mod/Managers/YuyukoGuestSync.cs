@@ -370,31 +370,33 @@ public static partial class YuyukoGuestSync
     }
 
     /// <summary>
-    /// 客机重放专用改判回调时，回填主机最终评价、台词、连击保护和伤害倍率。
-    /// 剧情版的 Null 是有效评价，必须保留；重打版原回调会扣血或触发吞食，不能在客机再次执行。
-    /// 伤害倍率写在挑战闭包里，经保留的 <see cref="YuyukoBossDataPatch"/> 以纯数值转出。
+    /// 客机重放本体的专用改判：回填主机最终评价、台词、连击保护与伤害倍率。
+    /// 剧情版的 Null 是有效评价，必须保留；重打版原回调会扣血或触发吞食，因此调用方整体取消原回调。
+    /// 伤害倍率由框架写回挑战闭包，模组不再直接读闭包字段。
     /// </summary>
-    /// <returns>是否已替代专用回调；其他实体或非重放调用返回 false，放行原版。</returns>
-    internal static bool ReplayBossEvaluation(GuestGroupController controller, ref EvaluationResult result,
-        ref string message, ref bool protect)
+    /// <returns>是否已提供结果；为 false 时放行原回调（主机路径）。</returns>
+    internal static bool ReplayBossEvaluation(ref ChallengeBossEvaluation evaluation)
     {
-        if (!IsControllerBody(controller) || replayEvaluation == null) return false;
-        result = replayEvaluation.Result;
-        message = replayEvaluation.EvaluationMessage;
-        protect = replayEvaluation.ComboProtect;
-        YuyukoBossDataPatch.DamageMultiplier = replayEvaluation.DamageMultiplier;
+        if (replayEvaluation == null) return false;
+
+        evaluation = evaluation with
+        {
+            Result = (ChallengeEvaluationResult)(int)replayEvaluation.Result,
+            Message = replayEvaluation.EvaluationMessage,
+            ComboProtect = replayEvaluation.ComboProtect,
+            DamageMultiplier = replayEvaluation.DamageMultiplier,
+        };
         return true;
     }
 
     /// <summary>
-    /// 在本体专用改判回调返回后记录台词和连击保护，供后续评价消息使用。
-    /// 客机 Prefix 跳过原版时，Postfix 仍会执行，此时记录的是已回填的主机值。
+    /// 记录原回调结束时的台词、连击保护与伤害倍率，供后续评价消息使用。
+    /// 客机取消原回调时框架不派发本通知（回调没跑），模组也无需在客机记录。
     /// </summary>
-    internal static void CaptureBossEvaluation(GuestGroupController controller, string message, bool protect)
+    internal static void CaptureBossEvaluation(in ChallengeBossEvaluation evaluation)
     {
-        if (!IsControllerBody(controller)) return;
-        evaluationMessage = message;
-        comboProtect = protect;
+        evaluationMessage = evaluation.Message;
+        comboProtect = evaluation.ComboProtect;
     }
 
     /// <summary>

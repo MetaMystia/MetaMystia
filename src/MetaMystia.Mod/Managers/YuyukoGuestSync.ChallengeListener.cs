@@ -32,6 +32,10 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
     {
         var challenge = services.Challenge;
 
+        // 限时负面符卡（第二阶段）：联机时该效果归主机，本机抑制它（原 NightSceneDirector… 补丁在此跳过
+        // 原版协程体并补上提示）。这一条不依赖阶段同步，只要有同伴就成立。
+        challenge.TimedNegativeSpellEnabled = !GameSession.HasRoomPeers;
+
         if (YuyukoGuestSync.PhaseSyncActive)
         {
             // 本体的框架句柄由挑战服务提供（服务只在场景循环内有效），拿到之后监听器与消息都按句柄判断。
@@ -88,7 +92,7 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
     /// 第三阶段开始时给玩家一次提示。原实现挂在阶段计时协程入口上，与阶段时长一起下发；
     /// 现在由挑战时间线的阶段开始通知承担。
     /// </summary>
-    public void OnChallengePhaseStarted(ChallengePhaseInfo phase)
+    void IChallengeListener.OnChallengePhaseStarted(ChallengePhaseInfo phase)
     {
         if (!GameSession.HasRoomPeers) return;
         if (phase.Phase != ChallengePhase.Three) return;
@@ -100,7 +104,7 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
     /// <see cref="YuyukoGuestSync.DriveChallenge"/> 结束本地时钟，两端因而在同一阶段上继续。
     /// 主机与单机不受影响。
     /// </summary>
-    public void OnChallengeClockElapsed(ChallengeClock clock, ref bool holdClock)
+    void IChallengeListener.OnChallengeClockElapsed(ChallengeClock clock, ref bool holdClock)
     {
         if (!GameSession.HasRoomPeers || !GameSession.IsRoomClient || !PrepSceneManager.IsYuyukoChallenge) return;
         if (!YuyukoGuestSync.IsHostPhaseReady(clock.Phase, clock.Kind)) holdClock = true;
@@ -114,7 +118,7 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
     /// 客机：二三阶段的刷客由主机生成并通过普通顾客消息接入，这里挂住本次迭代。挂住只保留这一次刷客，
     /// 不会停止循环，因此原版收尾仍能正常停止它。一阶段的刷客跟随普通顾客同步，主机与单机一律放行原版。
     /// </summary>
-    public void OnPreChallengeGuestSpawn(ChallengeSpawnAttempt attempt, ref bool cancelInvocation)
+    void IChallengeListener.OnPreChallengeGuestSpawn(ChallengeSpawnAttempt attempt, ref bool cancelInvocation)
     {
         if (attempt.Phase is not (ChallengePhase.Two or ChallengePhase.Three)) return;
         if (!YuyukoGuestSync.PhaseSyncActive || !GameSession.IsRoomClient) return;
@@ -126,19 +130,36 @@ public sealed partial class YuyukoChallengeSync : IChallengeListener, IWorkScene
     #region 通知
 
     /// <summary>挑战失败剧情开始：主机广播失败结果，客机进入原版的失败重放。</summary>
-    public void OnChallengeFailureStarted() => YuyukoBossDataPatch.OnFailureStarted();
+    void IChallengeListener.OnChallengeFailureStarted() => YuyukoBossDataPatch.OnFailureStarted();
 
     /// <summary>重打第三阶段的 buff 收尾：厨具锁已由框架释放，这里结束同步侧的吞食处理。</summary>
-    public void OnChallengeBuffEnded() => YuyukoGuestSync.EndPhase3();
+    void IChallengeListener.OnChallengeBuffEnded() => YuyukoGuestSync.EndPhase3();
 
     /// <summary>挑战面板报告了本体生命值：主机把它作为权威值广播。</summary>
-    public void OnChallengeBossLifeChanged(int life) => YuyukoGuestSync.OnBossLifeChanged(life);
+    void IChallengeListener.OnChallengeBossLifeChanged(int life) => YuyukoGuestSync.OnBossLifeChanged(life);
 
     /// <summary>
     /// 本体吞食了一个厨具：游戏自身的吞食会让主机广播目标，模组经 <c>SwallowCooker</c> 触发的重放
     /// 走同一条通知，因此客机会把重放也登记为已锁定。
     /// </summary>
-    public void OnChallengeCookerSwallowed(int cookerIndex) => YuyukoGuestSync.OnCookerSwallowed(cookerIndex);
+    void IChallengeListener.OnChallengeCookerSwallowed(int cookerIndex) => YuyukoGuestSync.OnCookerSwallowed(cookerIndex);
+
+    /// <summary>
+    /// 本体的评价改判回调。客机回填主机结果、台词、连击保护与伤害倍率，并整体取消原回调
+    /// （重打版原回调会扣血、差评还会吞厨具，不能在客机再次执行）；主机放行原回调。
+    /// </summary>
+    void IChallengeListener.OnPreBossEvaluated(ref ChallengeBossEvaluation evaluation, ref bool cancelInvocation) =>
+        cancelInvocation = YuyukoGuestSync.ReplayBossEvaluation(ref evaluation);
+
+    /// <summary>原回调结束：记录它给出的台词与连击保护，供后续评价消息组装。</summary>
+    void IChallengeListener.OnBossEvaluated(in ChallengeBossEvaluation evaluation) =>
+        YuyukoGuestSync.CaptureBossEvaluation(evaluation);
+
+    /// <summary>
+    /// 限时负面符卡被框架抑制（联机时不落在本机，由主机拥有该效果）：补上原版那句提示。
+    /// </summary>
+    void IChallengeListener.OnTimedNegativeSpellSuppressed() =>
+        InGameConsole.ShowPassive(TextId.YuyukoTimedNegativeSpellDisabled.Get());
 
     #endregion
 }
