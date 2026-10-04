@@ -1,4 +1,6 @@
-using System.Linq;
+﻿using System.Linq;
+
+using MetaMystia;
 
 namespace SgrYuki.Utils;
 
@@ -10,7 +12,8 @@ public static partial class Panel
     public static DEYU.AdpUISystem.PanelCollection.UIPanelImpl TopPanel => TopPanelStack != null && TopPanelStack.Count > 0 ? TopPanelStack.Peek() : null;
     public static string TopPanelName => TopPanel?.ControlledPanelName;
     public static Common.DialogUtility.DialogPannel TopPanelAsDialog => TopPanel?.ControlledPanel as Common.DialogUtility.DialogPannel;
-    public static void CloseTopDialogPanel() => TopPanelAsDialog?.InterruptDialog(new UnityEngine.InputSystem.InputAction.CallbackContext());
+    /// <summary>快进/打断当前对话：框架按面板栈顶判断，顶层不是对话面板时为无操作（与原写法一致）。</summary>
+    public static void CloseTopDialogPanel() => ModRuntime.CommonServices?.InterruptDialog();
 
     private static Il2CppSystem.Action<DEYU.AdpUISystem.PanelCollection.FadeType> _dialog_panel_close_callback;
 

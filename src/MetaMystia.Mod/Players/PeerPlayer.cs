@@ -7,7 +7,9 @@ using MetaMystia.Multiplayer;
 using MetaMystia.Network;
 using MetaMystia.UI;
 
+using Mystia.Assets;
 using Mystia.Numerics;
+using Mystia.Scenes;
 
 namespace MetaMystia;
 
@@ -33,6 +35,7 @@ public partial class PeerPlayer : NetPlayer
         && (Scene == Scene.DayScene || (Scene == Scene.WorkScene && PlayerManager.Peers.ContainsKey(Uid)));
 
     private CharacterControllerUnit character;
+    private CharacterHandle handle;
     private SceneDirector owner;
     private Vector2 positionOffset;
 
@@ -74,28 +77,25 @@ public partial class PeerPlayer : NetPlayer
         if (created)
         {
             owner = SceneDirector.Instance;
-            // 角色 prefab 的实例化没有框架入口（框架只提供角色句柄与精灵集，没有生成角色的服务），
-            // 故仍直接实例化游戏自带 prefab 并注册进场景的角色集合（缺口见交付报告）。
-            character = UnityEngine.Object.Instantiate(DataBaseCharacter.CharacterBase, owner.transform)
-                .GetComponent<CharacterControllerUnit>();
-            character.name = CharacterId;
-            // 游戏自己的参数决定要不要碰撞体：传 false 会让 CharacterControllerUnit.Initialize 直接
-            // Destroy(cl2d) 并置 hasCollider = false（游戏剧情角色走的就是这条，SceneDirector.cs:406）。
-            // 与「保留碰撞体再改成触发器」相比，物理结果相同（都不挡人、不与地图障碍碰撞，位置由网络驱动），
-            // 但这里连触发事件也不会再发（白天交互区 InteractableArea 是按 Player tag 过滤的），
-            // 而且游戏自己的 hasCollider 状态与实际一致。代价：远端角色身上的装饰件同样不带碰撞体。
-            character.Initialize(Skin.ResolveSkin(), motion.Speed, false);
-            owner.characterCollection.Add(CharacterId, character);
-            character.AddInputProcessor<HeightBlendedInputProcessorComponent>();
+            handle = null;
+            // 生成走框架的角色面：它按游戏剧情的方式克隆 prefab、按 label 登记进场景角色表，
+            // 并让角色自己决定带不带碰撞体（false = 游戏自己的"不要碰撞体"，剧情角色就是这条）。
+            handle = ModRuntime.CommonServices.Characters.CreateCharacter(
+                new CharacterCreateSpec(CharacterId, Skin.ResolveSkin(), motion.Speed));
+            if (handle is null || !owner.characterCollection.TryGetValue(CharacterId, out character) || character == null)
+            {
+                handle = null;
+                character = null;
+                Log.Error($"Failed to create peer '{CharacterId}' in {Scene}");
+                return;
+            }
+
             Skin.ApplyToUnit(character);
             Log.Info($"Created peer '{CharacterId}' in {Scene}");
         }
 
-        var height = character.GetComponent<HeightBlendedInputProcessorComponent>();
-        if (Scene == Scene.DayScene)
-            height.Initialize(DayScene.SceneManager.Instance.CurrentActiveMap.height);
-        else
-            height.Initialize(NightScene.MapManager.Instance.height);
+        // 身高融合按当前运行场景的地图高度图重设，取代原来的 Scene 分支。
+        ModRuntime.CommonServices.Characters.SetCharacterHeightBlending(handle);
 
         MapLabel = motion.Map;
         Speed = motion.Speed;
@@ -126,14 +126,11 @@ public partial class PeerPlayer : NetPlayer
         if (!sceneUnloading)
         {
             FloatingTextHelper.RemovePlayerLabel(Uid);
-            if (character != null)
-            {
-                if (owner != null && owner.characterCollection.TryGetValue(CharacterId, out var registered)
-                    && registered == character)
-                    owner.characterCollection.Remove(CharacterId);
-                UnityEngine.Object.Destroy(character.gameObject);
-            }
+            // 场景卸载时不销毁：游戏自己会清空并销毁角色表里的对象。
+            if (handle != null)
+                ModRuntime.CommonServices.Characters.DestroyCharacter(handle);
         }
+        handle = null;
         character = null;
         owner = null;
         ResetMotion();

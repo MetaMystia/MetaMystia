@@ -1,6 +1,5 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
-using UnityEngine;
 
 using MetaMystia.UI;
 
@@ -103,9 +102,12 @@ public static class CallCommands
                 string characterKey = ctx.ParseResult.GetValueForArgument(sceneCharArg);
                 float x = ctx.ParseResult.GetValueForArgument(sceneXArg);
                 float y = ctx.ParseResult.GetValueForArgument(sceneYArg);
-                var arr = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector2>(1);
-                arr[0] = new Vector2(x, y);
-                Common.SceneDirector.Instance.MoveCharacter(characterKey, arr, 1f, new System.Action(() => { }));
+                if (!ModRuntime.CommonServices.Characters.WalkCharacter(characterKey, new(x, y)))
+                {
+                    ctx.Log(TextId.ErrorSceneMove.Get($"角色未登记：{characterKey}"));
+                    return;
+                }
+
                 ctx.Log(TextId.CharacterMovedScene.Get(characterKey, x, y));
             }
             catch (System.Exception e)

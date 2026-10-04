@@ -1,10 +1,9 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 using Common.UI;
 using Common.UI.GlobalMap;
 using GameData.Core.Collections;
 using GameData.RunTime.NightSceneUtility;
-using UnityEngine;
 
 using Mystia.Listeners;
 using Mystia.Scenes;
@@ -366,8 +365,11 @@ public sealed partial class PrepSync : IPrepListener, IPrepNightSceneGameLoop, I
         if (rate == 0f || rate == 1f || float.IsNaN(rate) || rate < 0f || rate >= 16f) return;
         if (configure == null) return;
 
-        var normalInterval = configure.NormalGuestInterval;
-        configure.NormalGuestInterval = new Vector2(normalInterval.x / rate, normalInterval.y / rate);
+        // 框架把游戏配置对象原样交给前缀：这里就地按倍率缩小两项间隔（目标类型推断构造，不写出引擎类型名；
+        // 也不能用 var 接字段——分析器会报推断出的引擎类型）。游戏每次 Initialize/UpdateValue 都会重算，
+        // 因此「每次都按当前值再除一次」与迁移前等价，不会累积。
+        configure.NormalGuestInterval =
+            new(configure.NormalGuestInterval.x / rate, configure.NormalGuestInterval.y / rate);
         configure.SpecialGuestGachaInterval /= rate;
         string rateText = rate.ToString("0.###", CultureInfo.InvariantCulture);
         Log.LogInfo($"Guest flow rate {rate}x applied to izakaya configuration.");

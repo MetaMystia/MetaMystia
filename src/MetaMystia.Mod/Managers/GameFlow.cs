@@ -85,8 +85,7 @@ public static partial class GameFlow
     public static void RefreshInStoryCache()
     {
         bool wasInStory = InStory;
-        var director = Common.SceneDirector.Instance?.playableDirector;
-        InStory = director != null && director.state is UnityEngine.Playables.PlayState.Playing or UnityEngine.Playables.PlayState.Delayed;
+        InStory = ModRuntime.CommonServices?.IsStoryPlaying == true;
         if (wasInStory && !InStory) DayDestinationManager.ContinueEntry();
     }
 
