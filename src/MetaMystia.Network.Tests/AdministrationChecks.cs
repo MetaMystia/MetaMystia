@@ -1,4 +1,4 @@
-using MetaMystia.Hosting;
+﻿using MetaMystia.Hosting;
 using MetaMystia.Network;
 
 static partial class Checks
@@ -72,7 +72,7 @@ static partial class Checks
         var chatLog = logs.Single(e => e.Level == ServerLogLevel.Chat);
         Assert(chatLog.Message.Contains("你好") && !chatLog.Message.Contains('\n') && !chatLog.Message.Contains('\u001b'), "聊天日志保留中文并转义换行及终端控制字符");
         Assert(logs.All(e => !e.Message.Contains("blocked-secret")), "拒绝的敏感聊天原文不写入日志");
-        guest.SetProfile("admin-renamed", new(), Common.UI.Scene.DayScene, GameStage.Day);
+        guest.SetProfile("admin-renamed", new(), PlayerScene.Day, GameStage.Day);
         await Until(() => logs.Any(e => e.Message.Contains("玩家改名")));
         Assert(logs.Any(e => e.Message.Contains("玩家上线")) && logs.Any(e => e.Message.Contains("房间解散"))
             && logs.Any(e => e.Message.Contains("管理员操作")), "连接、改名、房间及管理操作都有日志");

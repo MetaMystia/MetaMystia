@@ -5,9 +5,16 @@
     <Nullable>disable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Update="Assembly-CSharp" Aliases="GameInterop" Private="true" />
-    <Reference Update="Il2Cppmscorlib" Private="true" />
-    <Reference Update="UnityEngine.CoreModule" Private="true" />
+    <!-- 本工程直接编译模组源码（GameInterop 别名），是除模组本体外唯一需要游戏互操作的工程。 -->
+    <Reference Include="Assembly-CSharp" Aliases="GameInterop" Private="true">
+      <HintPath>$(MystiaInteropDir)Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib" Private="true">
+      <HintPath>$(MystiaInteropDir)Il2Cppmscorlib.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule" Private="true">
+      <HintPath>$(MystiaInteropDir)UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
     <Compile Include="../MetaMystia.Mod/Managers/DayDestinationManager.cs" Link="DayDestinationManager.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/BusinessStart.cs" Link="BusinessStart.cs" />

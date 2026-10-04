@@ -1,11 +1,8 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 
 using MemoryPack;
-
-using Common.UI;
-using GameData.Core.Collections.CharacterUtility;
 
 using MetaMystia;
 using MetaMystia.Network;
@@ -20,7 +17,7 @@ static partial class Checks
     static int checks;
     static Player Player(string name, ResourceDataBase? resources = null) => new()
     {
-        Name = name, Scene = Scene.DayScene, Stage = GameStage.Day, Skin = new() { SelectedType = CharacterSkinSets.SelectedType.Default },
+        Name = name, Scene = PlayerScene.Day, Stage = GameStage.Day, Skin = new() { SelectedType = SkinSelection.Default },
         Resources = resources ?? new() { DlcFlags = DlcPack.Core, PackIds = ["test.pack"] },
         Motion = new() { X = 7, DirectionX = 1, Speed = 2, Map = MapLabel.Home }
     };
@@ -86,7 +83,7 @@ static partial class Checks
         await Stages();
         await StationaryHostSnapshot();
         var data = Player("真实枚举");
-        Assert(MemoryPackSerializer.Deserialize<Player>(MemoryPackSerializer.Serialize(data))!.Scene == Scene.DayScene, "真实游戏枚举在无头进程读写");
+        Assert(MemoryPackSerializer.Deserialize<Player>(MemoryPackSerializer.Serialize(data))!.Scene == PlayerScene.Day, "真实游戏枚举在无头进程读写");
         Console.WriteLine($"SIZE motion body={Protocol.Pack(data.Motion).Length}, frame={Protocol.Encode(new(Kind.Motion, Protocol.Pack(data.Motion))).Length}, resources={Protocol.Pack(data.Resources).Length}");
         await using var server = new Server(new() { MaxPlayers = 5, Messages = rules, Timeout = TimeSpan.FromSeconds(2) });
         await server.StartAsync();

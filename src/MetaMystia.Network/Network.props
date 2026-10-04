@@ -8,21 +8,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
-  <ItemGroup Condition="'$(MystiaInteropDir)' != ''">
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(MystiaInteropDir)Assembly-CSharp.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-    <Reference Include="Il2Cppmscorlib">
-      <HintPath>$(MystiaInteropDir)Il2Cppmscorlib.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(MystiaInteropDir)UnityEngine.CoreModule.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Il2CppInterop.Runtime" Version="1.5.1" />
-  </ItemGroup>
+  <!--
+    这个 props 被 Network / Server / Network.Tests / Flow.Tests 共用。
+    共享网络程序集不再引用游戏类型（场景与皮肤选择都走 <c>Mystia.Data</c>／协议自有枚举的镜像），因此这里不放游戏程序集引用：
+    需要它们的工程（模组本体经 SDK 自动获得；Flow.Tests 直接编译模组源码）各自声明。
+  -->
 </Project>

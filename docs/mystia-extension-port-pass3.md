@@ -69,7 +69,10 @@
 5. **失败整段重放（完成）**：删 `YuyukoBossDataPatch`。框架新增 `IWorkSceneChallengeServices.StopRun()`/`ReplayFailure()`：先停主循环与它启动的协程、收回重打 buff（并释放框架自己的厨具锁），等调用方的剧情与准备面板收尾后再清场并启动游戏的失败剧情。模组侧由 `YuyukoFailedMessage` 排队进营业场景循环（原实现在收包线程上直接跑）。
 6. **兼容层清零（完成）**：`Patches/`（含 `HarmonyPrefixFlow.cs`）、`CompatPatches.cs`、`HarmonyX` 引用全部删除；`CompatPatches.Applied` 的 4 处门控改读 `ModRuntime.Ready`（失败原因 `ModRuntime.Failure`），提示文案由「补丁注入失败」改为「初始化失败」（`TextId.ModInitFailure`）。`static-check.sh` 的豁免全部去掉。
 7. **资产/立绘面收尾（完成，声明级错误清零）**：`IPortraitProvider` 代理化（`int clothIndex` + `out SpriteHandle`）；`ClothRegistry`／`SpecialGuestRegistry.Visual`／`PlayerSkin` 立绘链改走句柄；框架新增 `IAssetFactory.TryWrapSprite`（把游戏自己持有的精灵包成句柄）与 `TryUnwrapCharacterSpriteSet`（把游戏自己的角色像素集拆成帧与样式）；`DialogRegistry` 的引擎资源引用按 `AssetReference.Address` 重建，`OnTransitionToNight` 改走框架 `IDialogCatalog.TryResolve`（原来是 `Resources.FindObjectsOfTypeAll`）。
-8. **死代码删除**：`Utils/ExportUtils.cs`（1101 行、无调用点，其 PNG 编码器已上移 MEFX）、`ResourceEx/Registries/PixelSpriteFactory.cs`（无调用点）、`ResourceEx/Mappers/**`（779 行，无调用点）、`ResourceEx/Addressables/**`（563 行自建 Addressables 注入，只被自己的初始化调用）、`Utils/MetaMikuUtils.cs`（装箱字典 workaround，无调用点）。
+8. **共享网络层不再引用游戏类型（完成）**：`MetaMystia.Network` 原来直接用游戏的 `Common.UI.Scene` 与 `CharacterSkinSets.SelectedType`，于是**凡是构建它的工程都需要互操作**（服务端、网络测试也在内）。现在协议有自己的词汇（`PlayerScene`、`SkinSelection`，与已有的 `GameStage` 同形），游戏枚举只在模组侧转换（`GameFlow.ToProtocolScene`/`ToGameScene`、`PlayerProfile` 的两处皮肤转换）。**实测**：`MystiaInteropDir` 置空时 Network、Network.Tests（214 断言全过）、Server 都能构建——需要互操作的只剩模组本体与 Flow.Tests。
+9. **协议版本 0 → 1（`Versions.props`）**：场景字段的取值来源换了（游戏枚举 → 协议枚举），取值编号随之改变，因此新旧版本客户端会按协议号互相拒绝；皮肤选择字段的取值（0/1/2）不变。
+10. **CI 整体改到新体系（完成）**：见 §6.6。
+11. **死代码删除**：`Utils/ExportUtils.cs`（1101 行、无调用点，其 PNG 编码器已上移 MEFX）、`ResourceEx/Registries/PixelSpriteFactory.cs`（无调用点）、`ResourceEx/Mappers/**`（779 行，无调用点）、`ResourceEx/Addressables/**`（563 行自建 Addressables 注入，只被自己的初始化调用）、`Utils/MetaMikuUtils.cs`（装箱字典 workaround，无调用点）。
 
 ## 6. 未完成的迁移（按优先级，逐项已查清）
 
@@ -100,30 +103,36 @@
 - **`DialogRegistry` 的 `AssetReferenceSprite`/`AssetReferenceT`（16 条）**：模组自建 `DialogPackage` 并往游戏对话行的引擎引用字段里写 `new AssetReferenceSprite(reference.Address)`。框架的 `DialogActionSpec` 已经用 `SpriteHandle` 表达这些字段（`IGameDataBuilder` 那条路），因此正解是把 `DialogRegistry` 迁到框架的对话构建器；代价中等（模组对话还带 `OverrideReplaceTextCallback` 之类的自定义行为，需要先确认框架面能覆盖）。
 - 建议次序：**先做值类型那 ≈110 条**（机械、无新面、可离线计分），再按文件处置引擎对象段。
 
-### 6.6 `UI/L10n.cs`（已完成）
+### 6.5 `UI/L10n.cs`（已完成）
 
 两份 locale JSON 不再作为嵌资读取：`MetaMystia.Generators` 新增一个生成器，把它们当 `AdditionalFiles` 读入，编译期写成原始字符串字面量常量（`MetaMystia.UI.LocaleResources`），`L10n.Initialize` 拿常量喂同一个 `MergeJson`。运行时既不读嵌资也不碰反射，模组仍是"一份 dll + mod.json"；文本逐字节与源文件一致（已比对），字面量定界符宽度按内容里最长的连续引号数算，将来文本变化也不会破坏它。
 
-### 6.7 CI（`.github/workflows/ci.yml`）—— 缺互操作来源，且**不得**把互操作搬进 CI
+### 6.6 CI（已完成：整体改到新体系）
 
-**红线（先写清楚）**：`artifacts/interop` 是**从游戏二进制归纳出来的派生物**（类型壳 + `il2cpp_runtime_invoke` 转调桩，没有方法体），虽然生成要 pin `GameAssembly.dll` 的 SHA256、且始终只在本机存在，但它属于"不得分发"的一类。**它不进任何仓库、不进任何发布物，CI 也不得要求它**——这与模组只引用互操作、不引用游戏程序集是同一条边界的两面。游戏逆向源码同理，只留在私有的自建 git 服务器上。
+**红线（先写清楚，已与负责人确认）**：`artifacts/interop` 是社区从游戏编译产物逆向出来的构建物料，**允许**存在与分发（deps 包即为此），因此它不再作为待决的暴露面。仍然成立的是：互操作**不入本仓库**，发布物里也不含它——模组目录只装模组自己的 dll、依赖与 `mod.json`。
 
-- **已做**：删掉"编译 Preloader"与"保存 Preloader 产物"两步（那个工程随注入管线一起删了，而 CI 还在发布它的产物）；去掉已不存在的 `-p:DeployToGame=false`；**SDK 改为仓库自带的 vendor 副本**——新增 `vendor/nuget/Mystia.Extension.Sdk.<版本>.nupkg`（含 `vendor/README.md` 写明同步步骤与包缓存问题），CI 像写 `MetaMystia.local.props`/`global.json` 一样写一份只指向 `vendor/nuget` 的 `nuget.config`。本机开发不变（`nuget.config` 仍指向同级框架的 `artifacts/nuget`），已用"只配 vendor 源"的还原+构建验证：诊断与用同级源时完全相同（210 条）。SDK 包里只有框架自己的东西（`Mystia.Net.Sdk.dll` + 分析器 + props），不含任何游戏派生物。
-- **已做（机械修正）**：CI 写 `MystiaInteropDir = .tmp/deps/interop/`（原来写的是没人再读的 `BepInExPath`，于是它下载了互操作却从没用上）；产物路径由 `MetaMystia-v*.dll`（移植时删掉的 `RenamedAssembly` 遗留、匹配不到任何文件）改成实际产出的 `MetaMystia.dll`。**实测**：把 `MystiaInteropDir` 指向解开的 deps `interop/` 构建模组，诊断与用框架 `artifacts/interop` 完全一致（210 条）。
-- **仍待决定**：① deps 的公开/私有限制（见上）；② 发布产物该是"一个 dll"还是"启动器要的整份目录（dll + `MetaMystia.Network.dll` + `mod.json`）"——现在发布步骤把单个 dll 重命名成 `MetaMystia-<tag>.dll`，与启动器的 `mods/<名字>/` 形态不符。
-- **既有暴露面（已核实，与本次改动无关，但需要你们决定）**：CI 下载的 `deps-Release4.4.0e.zip`（公开 release 资产，14.1 MB，SHA256 与 CI pin 的 `427951e1…` 逐字节一致）里是两半：
-  - `core/`（37 个 DLL，6.3 MB）= 第三方**逆向工具链**（Iced、AsmResolver、Cpp2IL.Core、LibCpp2IL、Mono.Cecil、Gee.External.Capstone、Il2CppInterop.Generator/Runtime、0Harmony、dobby…），开源可再分发；
-  - `interop/`（122 个 DLL，54.5 MB）= **互操作程序集**（`Assembly-CSharp.dll` 13.7 MB、`Il2CppSystem.dll`、`Il2Cppmscorlib.dll`、`UnityEngine.*Module.dll`…）。抽查 `interop/Assembly-CSharp.dll`：14,759 个 `NativeMethodInfoPtr_*` / 12,428 个 `NativeFieldInfoPtr_*`、调用走 `il2cpp_runtime_invoke` → 是 Il2CppInterop 生成的**壳**，**不含方法体（游戏逻辑代码）**，但含游戏完整的**类型/成员名与签名**（13.7 MB 元数据）。
-  也就是说，公开出去的是"游戏 API 面"而不是游戏源码；但它仍然是游戏派生物，且这份产物挂在公开 release 上、被 CI 匿名下载。可选处置：① 转私有/自建服务器（CI 改成带凭据或自托管 runner）；② 只公开 `core/`、把 `interop/` 转私有；③ 维持现状（至少把这件事实记录下来）。
-- **另外**：产物文件名仍是旧 csproj 的 `MetaMystia-v*.dll`（`RenamedAssembly`，移植时已删），现在产出 `MetaMystia.dll`，发布步骤里的 `mv package/MetaMystia-${TAG}.dll` 也要跟着定。
+**新 CI 做的事**：
+
+| 步骤 | 说明 |
+| --- | --- |
+| 校验发布版本 | tag 必须等于 `Versions.props` 的 `Version`（原有） |
+| **校验模组清单版本** | `mod.json` 的 `version` 必须等于 `Versions.props` 的 `Version`——宿主把它当模组版本报给对端，握手比的就是它 |
+| 下载并校验编译依赖 | 仍用仓库自带的 `vendor/nuget` 里的 SDK（CI 里没有同级框架仓库），并写 `MystiaInteropDir = .tmp/deps/interop/` |
+| 编译模组 | 需要互操作（模组直接引用游戏类型） |
+| **网络测试** | **显式置空 `MystiaInteropDir`**：共享网络程序集若再引用游戏类型，这一步就会失败——把"共享层零游戏依赖"钉成 CI 断言 |
+| 流程测试 | 需要互操作（它直接编译模组源码） |
+| 构建服务端 | 同样置空 `MystiaInteropDir`（服务器不引用游戏类型） |
+| **汇编模组目录** | 把模组构建输出目录整份装进 `MetaMystia/` 并打成 zip——MEFX 启动器消费的就是这一个目录（dll + 依赖 + `mod.json`） |
+| 产物 | 模组目录 zip + 服务端 publish 目录；发布步骤把 zip 命名成 `MetaMystia-<tag>.zip`（连 `.sha256` 一起上传），不再发布单个 dll |
+
+顺带去掉的旧体系残留：`setup-dotnet` 只装 10.0.303（6.0.x 已无用）、删掉 `编译 Preloader`/`保存 Preloader 产物` 两步（那个工程随注入管线已删）、去掉已不存在的 `-p:DeployToGame=false`、产物路径不再是移植时删掉的 `RenamedAssembly` 名字。
 
 ## 7. 之后的顺序
 
-1. §6.6 `L10n`（三选一）与 §6.7 CI（整段要重新设计）—— 都需要先定。
-2. §6.1（框架补"模组自开列表菜单"面 → 删 `Il2CppOutDelegate`）—— 需要框架面 + 实机。
-3. §6.4 的值类型段（≈110 条，机械、无新面），再引擎对象段（含 `DialogRegistry` 迁到框架对话构建器）。
-4. §11-D（`CharacterSpriteSetStyle` 补两个字段）与 §11 第 6 项（阶段时钟钩子）。
-5. 全量验收与文档收尾。
+1. §6.1（框架补"模组自开列表菜单"面 → 删 `Il2CppOutDelegate`）—— 需要框架面 + 实机。
+2. §6.4 的值类型段（≈110 条，机械、无新面），再引擎对象段（含 `DialogRegistry` 迁到框架对话构建器）。
+3. §11-D（`CharacterSpriteSetStyle` 补两个字段）与 §11 第 7 项（阶段时钟钩子）。
+4. 全量验收与文档收尾。
 
 ## 8. 环境搭建（换一台机器要做的四件事）
 
@@ -161,7 +170,7 @@ bash docs/port/static-check.sh
 
 这些是**互操作/玩家二进制本身没有**的能力，任何工作流都无法实现，只能降级或改设计：
 
-- **`ImageConversion` 整体缺失**（`LoadImage`/`EncodeToPNG` 在 shipped metadata 里连字符串都没有）：框架自带 PNG 解码器与编码器（`PngImage`／`PngWriter`），**JPEG 不支持**；模组侧的 `ExportUtils` 已删除（§6 第 8 项）。
+- **`ImageConversion` 整体缺失**（`LoadImage`/`EncodeToPNG` 在 shipped metadata 里连字符串都没有）：框架自带 PNG 解码器与编码器（`PngImage`／`PngWriter`），**JPEG 不支持**；模组侧的 `ExportUtils` 已删除（§5 第 11 项）。
 - **`AssetBundle` 只剩 `LoadFromStream` 与异步 API**（无 `LoadFromMemory`/`LoadAllAssets`/同步 `LoadFromFile`）：特效包改为流式 + `allAssets`（依赖 Unity "访问未完成的 allAssets 会 stall" 的语义，**待实机确认**）；`IPresentationServices.TryRegisterPrefab` 是当前的模板入口。
 - **`Physics2D.IgnoreCollision`** 不存在（`Collider2D` 也只剩 `attachedRigidbody/isTrigger/offset`）：远端玩家改为 `isTrigger`，**不再阻挡任何东西**（含地图障碍与其他客人）。
 - **`SortingLayer.NameToID/IDToName`、`LayerMask.NameToLayer`、可读的 `Renderer.sortingLayerName`** 都没有：白天地图的层检查改走 `SortingGroup` 往返与内置层槽位。
@@ -174,13 +183,14 @@ bash docs/port/static-check.sh
 
 ## 11. 待用户裁决
 
-1. ~~`Utils/ExportUtils.cs` 去留~~ —— 已裁决：删除，PNG 编码器上移 MEFX（已完成，见 §6 第 8 项）。
-2. ~~`IPortraitProvider` 是否代理化 + 是否需要"包装游戏自带精灵集"的入口~~ —— 已裁决：两者都做（已完成，见 §6 第 7 项）。
-3. ~~`PeerPlayer` 的碰撞方案~~ —— 已裁决：方案 B（用游戏自己的参数）。已完成。
-4. ~~`NoteBookSkinPortrait` 开关去留~~ —— 已裁决：让开关真生效。已完成：框架把"哪个面板在要立绘"作为 `PortraitTarget` 交给提供者，模组在笔记本上按开关过滤。
-5. ~~`PlayerSkin` 游戏自带皮肤的旋转覆盖~~ —— 已裁决：路 2（复制游戏那份集）+ 接线。已完成。
-6. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
-7. **新**：`CharacterSpriteSetStyle` 要不要补上那两个"只有美术资源才带"的字段（见下 D / §6 第 4 项）。
+1. ~~`Utils/ExportUtils.cs` 去留~~ —— 已裁决：删除，PNG 编码器上移 MEFX（已完成，见 §5 第 11 项）。
+2. ~~`IPortraitProvider` 是否代理化 + 是否需要"包装游戏自带精灵集"的入口~~ —— 已裁决：两者都做（已完成，见 §5 第 7 项）。
+3. ~~deps 包的公开/私有限制~~ —— 已确认：社区从游戏编译产物逆向生成的构建物料，允许存在与分发；不接受本条作为待决项，只在 §6.6 记红线（互操作不入本仓库、不进发布物）。
+4. ~~`PeerPlayer` 的碰撞方案~~ —— 已裁决：方案 B（用游戏自己的参数）。已完成。
+5. ~~`NoteBookSkinPortrait` 开关去留~~ —— 已裁决：让开关真生效。已完成：框架把"哪个面板在要立绘"作为 `PortraitTarget` 交给提供者，模组在笔记本上按开关过滤。
+6. ~~`PlayerSkin` 游戏自带皮肤的旋转覆盖~~ —— 已裁决：路 2（复制游戏那份集）+ 接线。已完成。
+7. 是否需要把阶段时钟的写入时机做成"时钟启动前"的钩子（现在的每帧幂等下放会让一阶段在"与挑战启动同帧"时漏掉拉伸）。
+8. **新**：`CharacterSpriteSetStyle` 要不要补上那两个"只有美术资源才带"的字段（见下 D）。
 
 ### A. `PeerPlayer` 的碰撞方案
 

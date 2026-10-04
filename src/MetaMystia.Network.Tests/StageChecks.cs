@@ -1,5 +1,4 @@
-using Common.UI;
-
+﻿
 using MetaMystia.Network;
 
 static partial class Checks
@@ -10,8 +9,8 @@ static partial class Checks
         await server.StartAsync();
         var host = await Connect(server, "stage-host");
         var guest = await Connect(server, "stage-guest");
-        host.SetProfile("stage-host", new(), Scene.MainScene, GameStage.MainMenu);
-        guest.SetProfile("stage-guest", new(), Scene.MainScene, GameStage.MainMenu);
+        host.SetProfile("stage-host", new(), PlayerScene.Main, GameStage.MainMenu);
+        guest.SetProfile("stage-guest", new(), PlayerScene.Main, GameStage.MainMenu);
         await Pump(host.CreateRoomAsync());
         await Pump(host.SetJoinableAsync(true));
         await Pump(guest.JoinRoomAsync(host.State.Room!.Id));
@@ -23,9 +22,9 @@ static partial class Checks
         host.StateChanged += () => seen.Add(host.State.Room?.Members.SingleOrDefault(p => p.Uid == guest.Uid)?.Stage ?? GameStage.Unavailable);
         foreach (var (scene, stage) in new[]
         {
-            (Scene.LoadScene, GameStage.Loading), (Scene.DayScene, GameStage.Day),
-            (Scene.LoadScene, GameStage.Loading), (Scene.DayScene, GameStage.Day),
-            (Scene.LoadScene, GameStage.Loading), (Scene.MainScene, GameStage.MainMenu),
+            (PlayerScene.Loading, GameStage.Loading), (PlayerScene.Day, GameStage.Day),
+            (PlayerScene.Loading, GameStage.Loading), (PlayerScene.Day, GameStage.Day),
+            (PlayerScene.Loading, GameStage.Loading), (PlayerScene.Main, GameStage.MainMenu),
         }) guest.SetProfile("stage-guest", new(), scene, stage);
         await Until(() => seen.Count >= 6);
         Assert(seen.TakeLast(6).SequenceEqual(new[] { GameStage.Loading, GameStage.Day, GameStage.Loading,
@@ -35,12 +34,12 @@ static partial class Checks
 
         guest.LeaveRoom();
         await Until(() => host.State.Room!.Members.Length == 1 && !guest.IsLeavingRoom);
-        guest.SetProfile("stage-guest", new(), Scene.DayScene, GameStage.DayEnd);
+        guest.SetProfile("stage-guest", new(), PlayerScene.Day, GameStage.DayEnd);
         Assert(await Failure(guest.JoinRoomAsync(room)) == "PlayerNotAvailable", "仍在 DayScene 的结束白天阶段不能入房");
-        guest.SetProfile("stage-guest", new(), Scene.WorkScene, GameStage.Work);
+        guest.SetProfile("stage-guest", new(), PlayerScene.Work, GameStage.Work);
         Assert(await Failure(guest.CreateRoomAsync()) == "PlayerNotAvailable", "营业中不能通过建房绕过入口协调");
         Assert(guest.IsConnected, "独立服务器拒绝入房后保留世界连接");
-        guest.SetProfile("stage-guest", new(), Scene.DayScene, GameStage.Day);
+        guest.SetProfile("stage-guest", new(), PlayerScene.Day, GameStage.Day);
         await Pump(guest.JoinRoomAsync(room));
 
         var messages = new List<ReceivedMessage>();

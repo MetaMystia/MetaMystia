@@ -40,6 +40,8 @@
 
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.21.4" />
+    <!-- 模组侧仍直接使用 Il2Cpp 壳类型（L10n/委托等），共享网络层不再带这个依赖。 -->
+    <PackageReference Include="Il2CppInterop.Runtime" Version="1.5.1" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 </Project>

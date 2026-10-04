@@ -1,9 +1,8 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
 
-using Common.UI;
 
 namespace MetaMystia.Network;
 
@@ -204,12 +203,12 @@ public sealed class Client : IDisposable
         {
             var current = Require();
             var scene = state.World.First(p => p.Uid == uid).Scene;
-            if (scene != Scene.DayScene && (scene != Scene.WorkScene || state.Room == null)) return;
-            current.Wire!.Send(new(scene == Scene.DayScene ? Kind.Motion : Kind.RoomMotion, Protocol.Pack(motion), Room: state.Room?.Id ?? 0, Membership: MyMembership()));
+            if (scene != PlayerScene.Day && (scene != PlayerScene.Work || state.Room == null)) return;
+            current.Wire!.Send(new(scene == PlayerScene.Day ? Kind.Motion : Kind.RoomMotion, Protocol.Pack(motion), Room: state.Room?.Id ?? 0, Membership: MyMembership()));
             UpdatePlayer(uid, p => p with { Motion = motion, HasMotion = true });
         }
     }
-    public void SetProfile(string name, Skin skin, Scene scene, GameStage stage)
+    public void SetProfile(string name, Skin skin, PlayerScene scene, GameStage stage)
     {
         var profile = new Player { Name = name, Skin = skin, Scene = scene, Stage = stage };
         Protocol.Validate(profile, false);
@@ -331,8 +330,8 @@ public sealed class Client : IDisposable
             case Kind.Motion:
             case Kind.RoomMotion:
                 var self = state.World.FirstOrDefault(p => p.Uid == uid);
-                if (f.Kind == Kind.Motion && self?.Scene != Scene.DayScene) return;
-                if (f.Kind == Kind.RoomMotion && (self?.Scene != Scene.WorkScene || state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership)) return;
+                if (f.Kind == Kind.Motion && self?.Scene != PlayerScene.Day) return;
+                if (f.Kind == Kind.RoomMotion && (self?.Scene != PlayerScene.Work || state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership)) return;
                 var motion = Protocol.Read<Motion>(f.Body);
                 UpdatePlayer(f.Sender, p => p with { Motion = motion, HasMotion = true });
                 Invoke(() => StateChanged?.Invoke()); break;
@@ -361,7 +360,7 @@ public sealed class Client : IDisposable
         var scene = state.World.FirstOrDefault(p => p.Uid == uid)?.Scene;
         var room = state.Room;
         Player Filter(Player player) => player.Uid == uid || (player.Scene == scene &&
-            (scene == Scene.DayScene || (scene == Scene.WorkScene && room?.Members.Any(p => p.Uid == player.Uid) == true)))
+            (scene == PlayerScene.Day || (scene == PlayerScene.Work && room?.Members.Any(p => p.Uid == player.Uid) == true)))
             ? player : player with { Motion = new(), HasMotion = false };
         state = state with
         {

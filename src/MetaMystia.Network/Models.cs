@@ -1,7 +1,4 @@
-using MemoryPack;
-
-using Common.UI;
-using GameData.Core.Collections.CharacterUtility;
+﻿using MemoryPack;
 
 namespace MetaMystia.Network;
 
@@ -9,12 +6,23 @@ public sealed partial record Versions(int Protocol, string Game, string Mod);
 
 public enum GameStage : byte { Loading, MainMenu, Day, DayEnd, Preparation, Work, Result, Unavailable }
 
+/// <summary>
+/// 协议里的"玩家在哪个场景"。它只表达本次联机关心的大场景，与游戏的 <c>Common.UI.Scene</c> 刻意解耦：
+/// 共享网络程序集因此不引用游戏类型（服务器与网络测试也不必带互操作），游戏场景与它的互转只发生在模组侧。
+/// </summary>
+public enum PlayerScene : byte { Day, Main, Prep, Work, Result, Staff, Loading, Empty }
+
+/// <summary>
+/// 协议里的"皮肤选择方式"。取值与顺序同游戏内 <c>CharacterSkinSets.SelectedType</c>，但类型是协议自己的，
+/// 因此共享网络程序集不引用游戏类型。
+/// </summary>
+public enum SkinSelection : byte { Default, Explicit, Dlc }
 
 [MemoryPackable]
 public partial record Skin
 {
     public int CharacterId { get; init; } = -1;
-    public CharacterSkinSets.SelectedType SelectedType { get; init; }
+    public SkinSelection SelectedType { get; init; }
     public int SkinIndex { get; init; }
     public string NetSkinName { get; init; } = "";
     public bool? RotateOverride { get; init; }
@@ -42,7 +50,7 @@ public partial record Player
     public ResourceDataBase? Resources { get; init; }
     public Motion Motion { get; init; } = new();
     public bool HasMotion { get; init; }
-    public Scene Scene { get; init; }
+    public PlayerScene Scene { get; init; }
     public GameStage Stage { get; init; }
     public long Membership { get; init; }
 }

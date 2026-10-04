@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 
 using MetaMystia;
@@ -15,10 +15,10 @@ static partial class Checks
         await Pump(b.CreateRoomAsync());
         await Until(() => a.PendingFrames > 0);
         a.SendMotion(new() { X = 123, Map = MapLabel.Home });
-        a.SetProfile("new-name", new() { NetSkinName = "new-skin" }, Common.UI.Scene.WorkScene, GameStage.Work);
+        a.SetProfile("new-name", new() { NetSkinName = "new-skin" }, PlayerScene.Work, GameStage.Work);
         a.DispatchPending(); clients.Add(a);
         var local = a.State.World.Single(p => p.Uid == a.Uid);
-        Assert(!local.HasMotion && local.Motion.X == 0 && local.Name == "new-name" && local.Skin.NetSkinName == "new-skin" && local.Scene == Common.UI.Scene.WorkScene,
+        Assert(!local.HasMotion && local.Motion.X == 0 && local.Name == "new-name" && local.Skin.NetSkinName == "new-skin" && local.Scene == PlayerScene.Work,
             "切场景清空旧运动，旧快照不能恢复运动或覆盖新资料");
         b.Disconnect(); await WaitCount(server, 1);
         using (var cancel = new CancellationTokenSource(25))

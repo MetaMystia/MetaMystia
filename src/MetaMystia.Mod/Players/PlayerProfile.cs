@@ -1,6 +1,7 @@
-using System.Linq;
+﻿using System.Linq;
 
 using Common.UI;
+using GameData.Core.Collections.CharacterUtility;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.Network;
@@ -18,7 +19,7 @@ public static class PlayerProfile
         {
             Name = PlayerIdentity.Name,
             Skin = CaptureSkin(),
-            Scene = GameFlow.LocalScene,
+            Scene = GameFlow.LocalScene.ToProtocolScene(),
             Stage = GameFlow.Stage,
             Resources = resources
         };
@@ -29,14 +30,16 @@ public static class PlayerProfile
         var skin = PlayerManager.Local.Skin;
         return new()
         {
-            CharacterId = skin.CharacterId, SelectedType = skin.SelectedType, SkinIndex = skin.SkinIndex,
+            CharacterId = skin.CharacterId, SelectedType = (SkinSelection)(int)skin.SelectedType,
+            SkinIndex = skin.SkinIndex,
             NetSkinName = skin.NetSkinName ?? "", RotateOverride = skin.RotateOverride
         };
     }
 
     public static PlayerSkin ReadSkin(Skin skin) => new()
     {
-        CharacterId = skin.CharacterId, SelectedType = skin.SelectedType, SkinIndex = skin.SkinIndex,
+        CharacterId = skin.CharacterId, SelectedType = (CharacterSkinSets.SelectedType)(int)skin.SelectedType,
+        SkinIndex = skin.SkinIndex,
         NetSkinName = skin.NetSkinName, RotateOverride = skin.RotateOverride
     };
 
@@ -44,7 +47,7 @@ public static class PlayerProfile
     {
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (!GameSession.IsOnline) return;
-        GameSession.Client.SetProfile(PlayerIdentity.Name, CaptureSkin(), GameFlow.LocalScene, GameFlow.Stage);
+        GameSession.Client.SetProfile(PlayerIdentity.Name, CaptureSkin(), GameFlow.LocalScene.ToProtocolScene(), GameFlow.Stage);
         if (GameFlow.CharactersReady && PlayerManager.Local.unit != null)
             FloatingTextHelper.SetPlayerLabel(PlayerManager.Local.Uid, LiveModeManager.GetDisplayName(PlayerManager.Local.Uid), PlayerManager.Local.unit.transform);
     }

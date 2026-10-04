@@ -1,9 +1,8 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Threading.Channels;
 
-using Common.UI;
 
 namespace MetaMystia.Network;
 
@@ -197,8 +196,8 @@ public sealed partial class Server : IAsyncDisposable
                 case Kind.Motion:
                 case Kind.RoomMotion:
                     var motion = Protocol.Read<Motion>(f.Body); Protocol.Validate(motion);
-                    if (f.Kind == Kind.Motion && p.Player.Scene != Scene.DayScene) break;
-                    if (f.Kind == Kind.RoomMotion && (p.Player.Scene != Scene.WorkScene || p.Room == 0 || f.Room != p.Room || f.Membership != p.Player.Membership)) break;
+                    if (f.Kind == Kind.Motion && p.Player.Scene != PlayerScene.Day) break;
+                    if (f.Kind == Kind.RoomMotion && (p.Player.Scene != PlayerScene.Work || p.Room == 0 || f.Room != p.Room || f.Membership != p.Player.Membership)) break;
                     p.Player = p.Player with { Motion = motion, HasMotion = true };
                     foreach (var target in peers.Where(x => x != p && x.Player != null && CanSeeMotion(p, x)))
                         target.Wire.Send(new(f.Kind, f.Body, p.Player.Uid, Room: p.Room, Membership: p.Player.Membership, RecipientMembership: target.Player!.Membership));
@@ -430,8 +429,8 @@ public sealed partial class Server : IAsyncDisposable
     };
 
     private static bool CanSeeMotion(Peer source, Peer viewer) => source == viewer
-        || (source.Player!.Scene == Scene.DayScene && viewer.Player!.Scene == Scene.DayScene)
-        || (source.Player!.Scene == Scene.WorkScene && viewer.Player!.Scene == Scene.WorkScene && source.Room != 0 && source.Room == viewer.Room);
+        || (source.Player!.Scene == PlayerScene.Day && viewer.Player!.Scene == PlayerScene.Day)
+        || (source.Player!.Scene == PlayerScene.Work && viewer.Player!.Scene == PlayerScene.Work && source.Room != 0 && source.Room == viewer.Room);
 
     private static Player VisiblePlayer(Peer source, Peer? viewer) => viewer == null || CanSeeMotion(source, viewer)
         ? source.Player! : source.Player! with { Motion = new(), HasMotion = false };

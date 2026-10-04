@@ -1,5 +1,4 @@
-using Common.UI;
-
+﻿
 using MetaMystia;
 using MetaMystia.Network;
 
@@ -27,11 +26,11 @@ static partial class Checks
         await Pump(host.SetJoinableAsync(false));
         Assert(await Failure(outside.JoinRoomAsync(host.State.Room!.Id)) == "JoinClosed" && outside.IsConnected,
             "关闭确认后拒绝新成员，世界连接保留");
-        host.SetProfile("room-host", new(), Scene.WorkScene, GameStage.Work);
-        guest.SetProfile("room-guest", new(), Scene.WorkScene, GameStage.Work);
-        otherHost.SetProfile("other-host", new(), Scene.WorkScene, GameStage.Work);
-        otherGuest.SetProfile("other-guest", new(), Scene.WorkScene, GameStage.Work);
-        await Until(() => guest.State.World.Single(p => p.Uid == host.Uid).Scene == Scene.WorkScene);
+        host.SetProfile("room-host", new(), PlayerScene.Work, GameStage.Work);
+        guest.SetProfile("room-guest", new(), PlayerScene.Work, GameStage.Work);
+        otherHost.SetProfile("other-host", new(), PlayerScene.Work, GameStage.Work);
+        otherGuest.SetProfile("other-guest", new(), PlayerScene.Work, GameStage.Work);
+        await Until(() => guest.State.World.Single(p => p.Uid == host.Uid).Scene == PlayerScene.Work);
         host.SendMotion(new() { X = 987 });
         await Until(() => guest.State.World.Single(p => p.Uid == host.Uid).Motion.X == 987);
         var late = await Connect(server, "late-world");
@@ -67,12 +66,12 @@ static partial class Checks
         await Until(() => guest.State.Room == null);
         Assert(guest.IsConnected && !host.IsCurrent(context), "无头踢人只退出房间，旧玩法回调失效");
         await Pump(host.SetJoinableAsync(true));
-        guest.SetProfile("room-guest", new(), Scene.MainScene, GameStage.MainMenu);
+        guest.SetProfile("room-guest", new(), PlayerScene.Main, GameStage.MainMenu);
         await Pump(guest.JoinRoomAsync(host.State.Room!.Id));
         Assert(!host.IsCurrent(context), "重新进入同房间也不能恢复旧回调身份");
 
-        guest.SetProfile("room-guest", new(), Scene.WorkScene, GameStage.Work);
-        host.SetProfile("room-host", new(), Scene.DayScene, GameStage.Day);
+        guest.SetProfile("room-guest", new(), PlayerScene.Work, GameStage.Work);
+        host.SetProfile("room-host", new(), PlayerScene.Day, GameStage.Day);
         host.SendMotion(new() { X = 61 });
         await Until(() => outside.State.World.Single(p => p.Uid == host.Uid).Motion.X == 61);
         Assert(!guest.State.World.Single(p => p.Uid == host.Uid).HasMotion, "同房间也按各自昼夜隔离");
@@ -84,7 +83,7 @@ static partial class Checks
         otherGuest.LeaveRoom();
         Assert(!otherGuest.State.World.Single(p => p.Uid == otherHost.Uid).HasMotion,
             "本地退房立即清除旧房间运动，无需等待服务器通知");
-        outside.SetProfile("world-player", new(), Scene.WorkScene, GameStage.Work);
+        outside.SetProfile("world-player", new(), PlayerScene.Work, GameStage.Work);
         Assert(!outside.State.World.Single(p => p.Uid == host.Uid).HasMotion,
             "本地切入夜间立即隐藏白天位置");
         await Pump(host.SetJoinableAsync(false));

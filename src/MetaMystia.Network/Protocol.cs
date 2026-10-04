@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Text;
 
 using MemoryPack;
@@ -133,7 +133,7 @@ internal static class Protocol
     internal static void Validate(Player p, bool resources)
     {
         if (string.IsNullOrWhiteSpace(p.Name) || p.Name.Length > 64 || p.Name.Any(c => c is '<' or '>' || char.IsWhiteSpace(c) || char.IsControl(c)) || p.Skin == null ||
-            p.Skin.NetSkinName == null || p.Skin.NetSkinName.Length > 128 || !Enum.IsDefined(typeof(Common.UI.Scene), p.Scene)
+            p.Skin.NetSkinName == null || p.Skin.NetSkinName.Length > 128 || !Enum.IsDefined(typeof(PlayerScene), p.Scene)
             || !Enum.IsDefined(typeof(GameStage), p.Stage)) throw new InvalidDataException("Invalid profile");
         Validate(p.Motion);
         if (!resources) return;

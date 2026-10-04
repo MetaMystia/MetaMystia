@@ -1,7 +1,6 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 
-using Common.UI;
 
 using MetaMystia.Network;
 
@@ -16,12 +15,12 @@ static partial class Checks
         await Pump(host.CreateRoomAsync(2));
         await Pump(host.SetJoinableAsync(true));
         await Pump(guest.JoinRoomAsync(host.State.Room!.Id));
-        guest.SetProfile("exit-guest", Player("exit-guest").Skin, Scene.WorkScene, GameStage.Work);
+        guest.SetProfile("exit-guest", Player("exit-guest").Skin, PlayerScene.Work, GameStage.Work);
         guest.LeaveRoom();
         Assert(guest.IsConnected && guest.State.Room == null && !guest.State.IsLan,
             "独立服务器夜间客人退房保留世界连接");
         await Until(() => host.State.Room!.Members.Length == 1 && !guest.IsLeavingRoom);
-        guest.SetProfile("exit-guest", Player("exit-guest").Skin, Scene.DayScene, GameStage.Day);
+        guest.SetProfile("exit-guest", Player("exit-guest").Skin, PlayerScene.Day, GameStage.Day);
         await Until(() => host.State.World.Single(p => p.Uid == guest.Uid).Stage == GameStage.Day);
         await Pump(guest.JoinRoomAsync(host.State.Room!.Id));
         host.LeaveRoom();

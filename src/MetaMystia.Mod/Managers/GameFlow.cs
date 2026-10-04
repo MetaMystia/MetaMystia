@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 
 using Common.UI;
 using GameData.RunTime.Common;
@@ -18,6 +18,35 @@ public static partial class GameFlow
     public static DayDestination Destination { get; private set; }
     public static bool IsCooperative => Destination != DayDestination.None;
     public static bool IsFinalTrial => Destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain;
+
+    /// <summary>
+    /// 游戏场景 → 协议场景。协议（<see cref="PlayerScene"/>）刻意不认识游戏枚举，转换只发生在这两处，
+    /// 共享网络程序集因此不必引用游戏类型。
+    /// </summary>
+    public static PlayerScene ToProtocolScene(this Scene scene) => scene switch
+    {
+        Scene.DayScene => PlayerScene.Day,
+        Scene.MainScene => PlayerScene.Main,
+        Scene.IzakayaPrepScene => PlayerScene.Prep,
+        Scene.WorkScene => PlayerScene.Work,
+        Scene.ResultScene => PlayerScene.Result,
+        Scene.StaffScene => PlayerScene.Staff,
+        Scene.LoadScene => PlayerScene.Loading,
+        _ => PlayerScene.Empty,
+    };
+
+    /// <summary>协议场景 → 游戏场景，见 <see cref="ToProtocolScene"/>。</summary>
+    public static Scene ToGameScene(this PlayerScene scene) => scene switch
+    {
+        PlayerScene.Day => Scene.DayScene,
+        PlayerScene.Main => Scene.MainScene,
+        PlayerScene.Prep => Scene.IzakayaPrepScene,
+        PlayerScene.Work => Scene.WorkScene,
+        PlayerScene.Result => Scene.ResultScene,
+        PlayerScene.Staff => Scene.StaffScene,
+        PlayerScene.Loading => Scene.LoadScene,
+        _ => Scene.EmptyScene,
+    };
 
     /// <summary>
     /// 本次场景离开来自挑战自己的退场。框架在放行游戏的 <c>TryLeaveSession</c> 前后通知，

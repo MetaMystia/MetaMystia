@@ -1,4 +1,4 @@
-using Common;
+﻿using Common;
 using Common.CharacterUtility;
 using Common.UI;
 using GameData.Core.Collections.CharacterUtility;
@@ -24,7 +24,7 @@ public partial class PeerPlayer : NetPlayer
 {
     public string CharacterId => $"MetaMystia_{Uid}";
     public Player NetworkState { get; private set; }
-    public Scene Scene => NetworkState?.Scene ?? Scene.EmptyScene;
+    public Scene Scene => (NetworkState?.Scene ?? PlayerScene.Empty).ToGameScene();
     public bool HasMotion => NetworkState?.HasMotion == true;
     public bool IsSameMapAsLocal => MapLabel != MapLabel.Unknown && MapLabel == LocalPlayer.CurrentMapLabel;
     public bool CanRender => GameSession.IsOnline && GameFlow.CharactersReady

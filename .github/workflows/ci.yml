@@ -34,9 +34,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: |
-            6.0.x
-            10.0.303
+          dotnet-version: 10.0.303
 
       - name: 校验发布版本
         if: startsWith(github.ref, 'refs/tags/')
@@ -44,6 +42,15 @@ jobs:
           [xml]$versions = Get-Content Versions.props
           if ($env:GITHUB_REF_NAME -cne "v$($versions.Project.PropertyGroup.Version)") {
             throw '标签必须与 Versions.props 中的版本一致'
+          }
+
+      - name: 校验模组清单版本
+        # mod.json 的 version 是宿主报给对端的模组版本（握手比的就是它），必须与 Versions.props 一致。
+        run: |
+          [xml]$versions = Get-Content Versions.props
+          $manifest = Get-Content src/MetaMystia.Mod/mod.json -Raw | ConvertFrom-Json
+          if ($manifest.version -cne $versions.Project.PropertyGroup.Version) {
+            throw "mod.json 的版本（$($manifest.version)）与 Versions.props（$($versions.Project.PropertyGroup.Version)）不一致"
           }
 
       - name: 下载并校验编译依赖
@@ -54,7 +61,7 @@ jobs:
             throw '编译依赖 SHA-256 不匹配'
           }
           Expand-Archive .tmp/deps.zip -DestinationPath .tmp/deps
-          # deps 包里的 interop/ 就是本次构建需要的互操作目录（实测：诊断与用框架 artifacts/interop 一致）。
+          # 互操作只被「模组本体」与「流程测试」需要：共享网络程序集与服务端不引用游戏类型。
           '<Project><PropertyGroup><MystiaInteropDir>$(MSBuildThisFileDirectory).tmp/deps/interop/</MystiaInteropDir></PropertyGroup></Project>' |
             Set-Content MetaMystia.local.props -Encoding utf8
           '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' |
@@ -67,19 +74,32 @@ jobs:
         run: dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release
 
       - name: 网络测试
-        run: dotnet run --project src/MetaMystia.Network.Tests -c Release
+        # 显式不带互操作：共享网络程序集若再引用游戏类型，这一步就会失败。
+        run: dotnet run --project src/MetaMystia.Network.Tests -c Release -p:MystiaInteropDir=
 
       - name: 流程测试
         run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
 
       - name: 构建服务端
-        run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release --self-contained false -p:UseAppHost=false
+        run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release --self-contained false -p:UseAppHost=false -p:MystiaInteropDir=
+
+      - name: 汇编模组目录
+        # MEFX 启动器消费的是「一个目录」：模组 dll、它的依赖与 mod.json；这里就是构建输出目录本身。
+        # 全用绝对路径（$PWD 即工作区）：Compress-Archive 走 .NET 的当前目录，与 PowerShell 的相对路径
+        # 可能不是同一个，绝对路径让两者一致。
+        run: |
+          $out = Join-Path $PWD 'src/MetaMystia.Mod/bin/Release/net10.0'
+          $stage = Join-Path $PWD 'artifacts/mod/MetaMystia'
+          $zip = Join-Path $PWD "artifacts/MetaMystia-${{ github.sha }}.zip"
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item (Join-Path $out '*') $stage -Recurse -Force
+          Compress-Archive -Path $stage -DestinationPath $zip -Force
 
       - name: 保存模组产物
         uses: actions/upload-artifact@v7
         with:
           name: MetaMystia-${{ github.sha }}
-          path: src/MetaMystia.Mod/bin/Release/net10.0/MetaMystia.dll
+          path: artifacts/MetaMystia-${{ github.sha }}.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -87,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: MetaMystia.Server-${{ github.sha }}
-          path: src/MetaMystia.Server/bin/Release/net6.0/publish/
+          path: src/MetaMystia.Server/bin/Release/net10.0/publish/
           if-no-files-found: error
           retention-days: 14
 
@@ -111,8 +131,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          file="MetaMystia-${TAG}.dll"
-          mv "package/$file" "$file"
+          file="MetaMystia-${TAG}.zip"
+          mv "package/MetaMystia-${{ github.sha }}.zip" "$file"
           sha256sum "$file" > "$file.sha256"
           if gh release view "$TAG" --json isDraft > release.json; then
             test "$(jq -r .isDraft release.json)" = true
