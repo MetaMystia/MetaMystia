@@ -102,6 +102,32 @@ rex://example-pack/assets/image.png
 
 `dayMaps` 声明整数 ID 的独立白天地图，参与上述 ID 校验。PNG 切片、图层、装饰、矩形碰撞、出生点、相机和音乐由 JSON 配置。可选 `height.cells` 保存每格 `x/y/slope`，坡度范围 `[-1,1]`，加载为原生隐藏高度图；省略则为平地。地图 ID 冲突时全部停用；结构校验失败的地图不注册，错误记录在日志中。当前只通过单机指令进入，不加入世界地图面板。格式与操作见 [白天地图首版](resourceex-day-maps.md)。
 
+## 物品与服装
+
+顶层可选数组 `items` 声明普通物品，`clothes` 声明服装。两者都注册为 `DataBaseCore.Items` 中的 Item，共用以下字段：
+
+```json
+"items": [
+  {
+    "id": 10000,
+    "name": "神秘的信封",
+    "description": "散发着淡淡神秘力量的信封……",
+    "spritePath": "assets/Item/10000.png"
+  }
+]
+```
+
+| 字段 | 说明 |
+|---|---|
+| `id` | Item ID，参与 ID 范围校验 |
+| `name` / `description` | 名称与说明，`description` 缺省为空字符串 |
+| `spritePath` | 物品图标；读取失败时记录警告，图标为空 |
+
+- 服装在上述字段之外还有立绘、像素精灵与笔记本偏移等字段，额外注册 ClothesProfile。
+- 普通物品入库可叠加；服装、装饰、唱片按原生规则持有时不再入库。
+- `items` 与 `clothes` 共用 Item ID 空间。同一 ID 被多次声明时后加载者覆盖，并记录警告。
+- 可通过礼物邮箱、商人（`productType: Item`）、任务奖励（`GiveItem` + `objectType: Item`）发放，或在 `SubmitItem` 中以 `productType: Item` 要求提交。
+
 ## 礼物邮箱
 
 顶层可选数组 `gifts` 配置礼物邮箱；缺失、`null` 或空数组时不显示该包的邮箱。

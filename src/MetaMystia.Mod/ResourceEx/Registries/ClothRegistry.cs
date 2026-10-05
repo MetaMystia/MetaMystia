@@ -3,7 +3,6 @@ using System.Linq;
 
 using GameData.Core.Collections;
 using GameData.Core.Collections.CharacterUtility;
-using GameData.CoreLanguage.Collections;
 
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using UnityEngine;
@@ -14,7 +13,8 @@ using MetaMystia.ResourceEx.Models;
 namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
-/// 服装领域注册器：持有服装配置，负责 Item / ClothesProfile / 语言 / 像素精灵注册与立绘查询。
+/// 服装领域注册器：持有服装配置，负责 ClothesProfile / 像素精灵注册与立绘查询。
+/// 服装的 Item 与语言由 <see cref="ItemRegistry"/> 注册。
 /// </summary>
 [AutoLog]
 public static partial class ClothRegistry
@@ -63,26 +63,7 @@ public static partial class ClothRegistry
     }
 
 
-    // ========== Part 1: Item 注册 (DataBaseCore 初始化后) ==========
-
-    internal static void RegisterAllClothItems()
-    {
-        Log.Info("Registering all cloth Items from ResourceEx...");
-        foreach (var config in ClothConfigs.Values)
-        {
-            RegisterClothItem(config);
-        }
-    }
-
-    private static void RegisterClothItem(ClothConfig config)
-    {
-        var item = new Item(config.id);
-        DataBaseCore.Items[config.id] = item;
-        Log.Info($"Registered cloth Item ID {config.id} ({config.name})");
-    }
-
-
-    // ========== Part 2: ClothesProfile 注册 (DataBaseCore 初始化后) ==========
+    // ========== Part 1: ClothesProfile 注册 (DataBaseCore 初始化后) ==========
 
     internal static void RegisterAllClothProfiles()
     {
@@ -125,36 +106,7 @@ public static partial class ClothRegistry
     }
 
 
-    // ========== Part 3: Language 注册 (DataBaseLanguage 初始化后) ==========
-
-    internal static void RegisterAllClothLanguages()
-    {
-        Log.Info("Registering all cloth languages from ResourceEx...");
-        foreach (var config in ClothConfigs.Values)
-        {
-            RegisterClothLanguage(config);
-        }
-    }
-
-    private static void RegisterClothLanguage(ClothConfig config)
-    {
-        Sprite sprite = null;
-        if (!string.IsNullOrEmpty(config.spritePath))
-        {
-            RexAssetRegistry.TryGetSprite(config.spritePath, out sprite);
-        }
-
-        var lang = new GameData.CoreLanguage.ObjectLanguageBase(
-            name: config.name,
-            Description: config.description ?? "",
-            visual: sprite);
-
-        DataBaseLanguage.Items[config.id] = lang;
-        Log.Info($"Registered cloth language ID {config.id} ({config.name})");
-    }
-
-
-    // ========== Part 4: 像素精灵注册 (DataBaseCharacter 初始化后) ==========
+    // ========== Part 2: 像素精灵注册 (DataBaseCharacter 初始化后) ==========
 
     internal static void RegisterAllClothPixelSprites()
     {

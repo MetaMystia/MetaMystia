@@ -253,6 +253,18 @@ public static partial class IdRangeValidator
                 ids.Add(("Recipe", r.id));
         }
 
+        if (config.items != null)
+        {
+            foreach (var i in config.items)
+                ids.Add(("Item", i.id));
+        }
+
+        if (config.clothes != null)
+        {
+            foreach (var c in config.clothes)
+                ids.Add(("Cloth", c.id));
+        }
+
         if (config.spells != null)
         {
             foreach (var s in config.spells)

@@ -2,12 +2,8 @@ using System.Collections.Generic;
 
 namespace MetaMystia.ResourceEx.Models;
 
-public class ClothConfig
+public class ClothConfig : ItemConfig
 {
-    public int id { get; set; }
-    public string name { get; set; }
-    public string description { get; set; }
-    public string spritePath { get; set; }
     public string portraitPath { get; set; }
     public CharacterSpriteSetFullConfig pixelFullConfig { get; set; }
     public int izakayaSkinIndex { get; set; } = -1;
