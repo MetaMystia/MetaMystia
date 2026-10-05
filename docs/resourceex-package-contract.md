@@ -104,7 +104,7 @@ rex://example-pack/assets/image.png
 
 ## 物品与服装
 
-顶层可选数组 `items` 声明普通物品，`clothes` 声明服装。两者都注册为 `DataBaseCore.Items` 中的 Item，共用以下字段：
+顶层可选数组 `items` 声明普通物品，`clothes` 声明服装，`decorations` 声明装饰物。三者都注册到 `DataBaseCore.Items`，共用以下字段：
 
 ```json
 "items": [
@@ -125,7 +125,8 @@ rex://example-pack/assets/image.png
 
 - 服装在上述字段之外还有立绘、像素精灵与笔记本偏移等字段，额外注册 ClothesProfile。
 - 普通物品入库可叠加；服装、装饰、唱片按原生规则持有时不再入库。
-- `items` 与 `clothes` 共用 Item ID 空间。同一 ID 被多次声明时后加载者覆盖，并记录警告。
+- `items`、`clothes` 与 `decorations` 共用 Item ID 空间。同一 ID 被多次声明时后加载者覆盖，并记录警告；同包按上述顺序合并。
+- 装饰继承 `ItemConfig`，额外提供 `implementation`、`decorationType`、`conflictDecorationIds` 和可选 `buffId`；格式、效果及文案见 [装饰物](resourceex-decorations.md)。装饰 ID 参与范围校验，`buffId` 和冲突 ID 是引用。
 - 可通过礼物邮箱、商人（`productType: Item`）、任务奖励（`GiveItem` + `objectType: Item`）发放，或在 `SubmitItem` 中以 `productType: Item` 要求提交。
 
 ## 金钱奖励

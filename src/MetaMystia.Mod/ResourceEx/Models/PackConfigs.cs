@@ -33,6 +33,7 @@ public class ResourceConfig
     public List<BeverageConfig> beverages { get; set; }
     public List<ItemConfig> items { get; set; }
     public List<ClothConfig> clothes { get; set; }
+    public List<DecorationConfig> decorations { get; set; }
     public List<MissionNodeConfig> missionNodes { get; set; }
     public List<EventNodeConfig> eventNodes { get; set; }
     public List<MerchantConfig> merchants { get; set; }
