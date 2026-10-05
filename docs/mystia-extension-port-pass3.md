@@ -251,34 +251,29 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 - **历史记录**（不要当现状读）：`mystia-extension-port.md`、`mystia-extension-port-plan.md`、`mystia-extension-port-report.md`、`docs/port/**` 的 handoff/audit 文档。
 - **需要校正**：`docs/multiplayer-architecture.md`（构建与部署段仍写 Costura/BepInEx plugins/Preloader）、`docs/mystia-extension-port-gaps.md`（首轮口径，16 个缺口已被 pass2/pass3 全面覆盖）。
 
-## 14. 首轮实机结果与当前阻塞（2026-10-05）
+## 14. 首轮实机结果与当前状态（2026-10-05）
 
 **注入路线已换成 DLL 劫持。** 进程注入不可行：游戏 `SteamPlatform` 构造函数调用 `SteamAPI_RestartAppIfNecessary`，凡不是 Steam 客户端亲自启动的进程都会被要求退出、再由 Steam 重新拉起一份未注入的副本。现在 `Mystia.Syringe.exe` 把 `Mystia.Proxy.dll` 安装为游戏目录里的 `version.dll`（`UnityPlayer.dll` 静态导入 `VERSION.dll`，且它不在 `KnownDLLs`），代理把 17 个导出全部转发给系统 DLL，并读同目录的 `Mystia.Proxy.txt` 找到启动器目录、加载 `Mystia.Bootstrap.dll`。游戏依旧由 Steam 启动，DRM 既不修改也不绕过（`Player.log` 里云存档同步正常）。
 
-**已实测通过的部分**：`steam://run/1584090` → 游戏目录的 `VERSION.dll`（模块表实测）→ bootstrap 挂上 `il2cpp_init` → 托管宿主启动 → 桥装载 **188 个补丁方法、0 失败** → MetaMystia 0.29.3 加载成功（`host.log`：`Plugin MetaMystia is loaded!`、`CommandRegistry initialized`）。模组依赖由 `ModAssemblyResolver` 从模组目录解析，加载失败的模组只警告不致命。
+**已实测通过的部分**：`steam.exe -applaunch 1584090 --enable-mystia-extension-framework` → 游戏目录的 `VERSION.dll`（模块表实测）→ bootstrap 挂上 `il2cpp_init` → 托管宿主启动 → 桥装载 **187 个补丁方法、0 失败** → MetaMystia 0.29.3 加载成功（`host.log`：`Plugin MetaMystia is loaded!`、`CommandRegistry initialized`）。模组依赖由 `ModAssemblyResolver` 从模组目录解析，加载失败的模组只警告不致命。
 
-**当前阻塞**：模组加载后约 5 秒，游戏进程以 `0xC0000409`（`coreclr.dll` 内的 fail-fast）退出，`host.log` 停在正常帧尾。已定位到崩溃发生在**控制台的被动气泡绘制**（`InGameConsole.DrawPassiveMode`，经 `ModLoop.OnGui` → 框架 `GlobalHost.DrawGui`）：
+**崩溃已定位并修复：生成互操作的实值类型布局偏移全为 0。** Il2CppInterop 生成实值类型时强制 ExplicitLayout，并把每个字段的偏移**原样复制**输入程序集的 `FieldOffsetAttribute`（Il2CppDumper 式 dummy 的具名属性 `Offset`），从不按字段自身计算（`Il2CppInterop.Generator.Passes.Pass21GenerateValueTypeFields`：`val.FieldOffset = originalField.ExtractFieldOffset()`）。本项目生成时用的 managed backup 没有该属性，于是**所有**字段都落在偏移 0——连输入里显式声明了偏移的 `UnityEngine.Color32` 也丢失（dummy 声明 0/0/1/2/3，生成结果全 0）。管理侧 `Color`（引擎里 16 字节）因此只有 4 字节。
 
-| 实验 | 结果 |
+生成构造函数把 `Unsafe.AsPointer(ref this)` 交给 `il2cpp_runtime_invoke`，il2cpp 回写 16 字节 → 越过 4 字节的管理局部变量、覆盖调用者的栈 cookie → `0xC0000409`（子码 2 = 栈 cookie 校验失败）。证据链：
+
+| 证据 | 内容 |
 | --- | --- |
-| 0 个补丁（无消息可画） | 稳定（≥120 s，可重复） |
-| 关掉整个 `GlobalHost.DrawGui()` | 稳定 45 s（只做过一次） |
-| 只关掉 `DrawPassiveMode` | 稳定 45 s（只做过一次） |
-| 把 `DrawPassiveMode` 里所有引擎调用全关掉（`CalcSize`、`CalcHeight`、`Label`、`DrawTexture`、`Fill` 的 `GUI.color` 读写、样式的引擎回写） | **仍崩** |
+| WER 转储异常记录 | `0xC0000409`，ExceptionInformation[0]=2，RIP=`coreclr.dll+0x1851ad`（即 `mov ecx,2; int 29h`） |
+| 出错方法 | 反汇编 `rsp+0x38` 处的返回地址得 `Mystia.Modding.Bridge.ImguiDrawer.set_Color`（JIT 代码 0x7FFA3B8C0FB0；+0xF3 处 `call <gs 失败 thunk>`） |
+| cookie 槽 | `0x3E9851EC00000000`，正是本次所设 `Color` 四个 float 中的后两个（b=0、a=0.2976） |
+| 调用链 | `InGameConsole.Fill` → `ImguiDrawer.set_Color` → 内联的 `Color..ctor` → `il2cpp_runtime_invoke` |
+| 互操作对照 | `artifacts/interop` 中 659 个多字段实值类型偏移全 0；`BepInEx/interop`（Cpp2IL dummy 生成）同类型正确（`Color`=0/4/8/12） |
 
-⇒ 绘制路径只是**相关**，不是已确认的原因：把所有内部调用关掉后照样崩，说明先前两次“稳定”很可能只是时序运气。崩溃本身**不稳定**（同一配置既有 5 s 崩、也有 120 s 存活），因此二分结论只能采信“崩”的一侧（活的一侧不可靠）。`__fastfail` 绕过 vectored handler 与 `DOTNET_DbgEnableMiniDump`，进程内拿不到栈。
+**修复**：`Mystia.InteropGen` 生成后自行排布实值类型——已有偏移的类型保留（输入声明的显式布局不动），字段全 0 的按顺序布局算法排布（字段对齐取**自身类型的对齐**、上限 pack），无法确定大小的类型只报告不猜；另加 `--repair-layouts <dir>` 就地修复既有互操作。该 pass 只会上移字段，修复后的类型只会变大。已对 `artifacts/interop` 执行：659 个类型完成布局，1 个（`Il2CppSystem.Number+NumberBuffer`）无法确定大小。与 `BepInEx/interop` 逐字段对照 3200 个字段：448 个仍不同，全部是显式重叠（union）或带 `Size` 填充的原生结构（这些偏移在输入里本就丢失、无法恢复）；其余含全部 Unity 浮点结构（`Color`/`Vector2/3/4`、`Rect`、`Quaternion`、`Matrix4x4`、`Bounds`）逐字段一致。
 
-**崩溃栈（2026-10-05 08:46，WER 本地转储 + `dotnet-dump`）**：给游戏 exe 配上 `LocalDumps`（DumpType=2，`D:\Repos\MystiaExtensionFramework\.spinney\dumps`）后复现，1.5 GB 全转储里出错线程的栈是：
+**实机复核**：最终构建连续三次启动（Steam 启动 + `--enable-mystia-extension-framework`），`host.log` 都是 `seams: 187 patch methods applied, 0 failed` 加模组自身日志，进程分别存活 110 s / 110 s / 130 s 以上无异常，`Player.log` 无 `ArgumentNullException`；截图显示已进入白天场景与夜间营业场景，模组 HUD（左下角 `ModMeta v0.29.3`）与被动气泡正常绘制。
 
-```
-Mystia.Modding.Bridge.dll!DynamicClass.Invoker_VoidThis(IntPtr, Il2CppMethodInfo*, IntPtr, IntPtr*, IntPtr*) + 84
-Il2CppInterop.Runtime.dll!ILStubClass.IL_STUB_ReversePInvoke(Int64, Il2CppMethodInfo*, Int64, IntPtr*, IntPtr*)
-```
+**第二个缺陷（已定位并按现有手段回避）**：`PlatformInfoSeams` 原先 detour `SteamPlatformProfile.GetActiveKeys`（返回 `string[]`）。该 patch 生效后，游戏自己的 `GameDataProfile.get_ActiveDLCLabel` 收到 **null** 并 `AddRange(null)` → 弹出"加载资源时出现错误"。原因是读该返回值必须构造 `Il2CppStringArray`，而它的类型初始化器抛异常：`Il2CppSystem.String..cctor` 在 **MonoMod 的 JIT hook** 里以 `BadImageFormatException`（0x8007000B）失败；Il2CppInterop 的 native→managed trampoline 捕获该异常后返回默认值（null），游戏只看到 null。走 interop 直接调用 `PlatformBase.GetActiveDLCAppKey` 同样卡在 `Il2CppStringArray`。已移除该 seam：`PlatformInfo` 维持未解析，模组按既有兜底路径加载资源（`ResourceEx.OnDlcFlagsDetermined`）。
 
-⇒ 游戏从**原生侧调进“被补丁方法的调用器”**时崩在调用器内部（Il2CppInterop 为 Harmony 补丁生成的 invoker），不是崩在游戏自身逻辑里。取栈命令：`dotnet-dump analyze <.dmp> -c "clrstack -f -all"`（`dumpstack` 不被支持；`__fastfail` 仍然拿不到进程内栈）。
+**仍待解决（下一轮起点）**：MonoMod 的 JIT hook 仍被安装在进程里（崩溃转储中有线程停在 `MonoMod.Core...CompileMethodHook`），它会令个别方法 JIT 失败并连带 `Il2CppSystem.*` 类型初始化失败（`Il2CppStringArray`、`Il2CppSystem.String` 已实证）。框架已退订 HarmonyX 的两个 patcher（`NativeDetourMethodPatcher`/`ManagedMethodPatcher`），hook 仍被安装，**尚不知由谁安装**；根治它才能恢复 `IPlatformInfo` 的 keys 以及任何需要读引擎数组/引用返回值的能力。
 
-据此把 detour 改成**只偷 5 字节**：站点写 `E9 rel32` 跳到紧邻的 thunk，thunk 再 `FF 25` 绝对跳到托管补丁；原函数体放在 thunk 之后，`OriginalTrampoline` 指向它（先前偷 14 字节，在 setter、单行包装这类短函数上会越过函数末尾，把后一个函数的开头一起写掉、并重放不属于它的字节）。框架 **283 个测试全过**，但**崩溃依旧**（同配置约 5 秒崩）；期间两次“存活 60/90 秒”出现在该改动尚带 bug 的构建上，因此不能算修复。
-
-**下一步**：从转储里取出该帧的 `Il2CppMethodInfo*` 参数（寄存器/栈上有），映射回具体被补丁的方法名；或 WinDbg attach 到活进程，在 fail-fast 处断下。
-
-**下一步**（未做）：在 `DrawPassiveMode` 内继续隔离——先只留 `GUI.color` 读写、再单独恢复样式回写；或在 `UnityTextStyle` 回写处改成“只在值真的变化时写”，把写入次数降到最低后再逐项恢复。
