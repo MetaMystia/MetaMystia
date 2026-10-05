@@ -261,11 +261,13 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 
 | 实验 | 结果 |
 | --- | --- |
-| 关掉整个 `GlobalHost.DrawGui()` | 188 个补丁全开仍稳定 45 s 以上 |
-| 只关掉 `DrawPassiveMode` | 同上稳定 |
-| 分别关掉 `CalcSize`、`Label`、`DrawTexture` | 仍崩 |
-| 0 个补丁（无消息可画） | 不绘制、不崩 |
+| 0 个补丁（无消息可画） | 稳定（≥120 s，可重复） |
+| 关掉整个 `GlobalHost.DrawGui()` | 稳定 45 s（只做过一次） |
+| 只关掉 `DrawPassiveMode` | 稳定 45 s（只做过一次） |
+| 把 `DrawPassiveMode` 里所有引擎调用全关掉（`CalcSize`、`CalcHeight`、`Label`、`DrawTexture`、`Fill` 的 `GUI.color` 读写、样式的引擎回写） | **仍崩** |
 
-⇒ 只在“有内容要画”时崩；剩下的绘制调用只有 `GUI.color` 读写与**样式回写**（mod 写 `_logStyle.Normal.TextColor`、`_inputStyle.Normal.Background = null` 等，由 `TextStyleHandle` 在绘制那一刻落到引擎 `GUIStyle`/`GUIStyleState`）。这条 facade（`ImguiMirror`/`ImguiDrawer`）是本次迁移新写的，回写路径最可疑；`__fastfail` 绕过异常处理与 `DOTNET_DbgEnableMiniDump`，因此拿不到崩溃栈，只能二分。
+⇒ 绘制路径只是**相关**，不是已确认的原因：把所有内部调用关掉后照样崩，说明先前两次“稳定”很可能只是时序运气。崩溃本身**不稳定**（同一配置既有 5 s 崩、也有 120 s 存活），因此二分结论只能采信“崩”的一侧（活的一侧不可靠）。`__fastfail` 绕过 vectored handler 与 `DOTNET_DbgEnableMiniDump`，进程内拿不到栈。
+
+**下一步建议**：让崩溃留下栈——用管理员给本机开 WER 本地转储（`HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps`，DumpType=2 全转储），再 crash 一次，用 WinDbg/cdb 的 `!analyze -v` 读栈；或直接在 WinDbg 里 attach 后复现。有了栈再决定是 interop 调用、detour 还是 GC 侧的问题。
 
 **下一步**（未做）：在 `DrawPassiveMode` 内继续隔离——先只留 `GUI.color` 读写、再单独恢复样式回写；或在 `UnityTextStyle` 回写处改成“只在值真的变化时写”，把写入次数降到最低后再逐项恢复。
