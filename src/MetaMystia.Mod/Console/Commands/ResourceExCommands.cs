@@ -145,6 +145,7 @@ public static class ResourceExCommands
         if (config?.missionNodes?.Count > 0) parts.Add($"Missions: {config.missionNodes.Count}");
         if (config?.eventNodes?.Count > 0) parts.Add($"Events: {config.eventNodes.Count}");
         if (config?.merchants?.Count > 0) parts.Add($"Merchants: {config.merchants.Count}");
+        if (config?.items?.Count > 0) parts.Add($"Items: {config.items.Count}");
         if (config?.clothes?.Count > 0) parts.Add($"Clothes: {config.clothes.Count}");
 
         if (parts.Count > 0)

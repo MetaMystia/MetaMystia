@@ -34,6 +34,7 @@ public class MissionNodeConfig
 public class MissionRewardConfig
 {
     public Reward.RewardType rewardType { get; set; }
+    public int id { get; set; }
     public string rewardId { get; set; }
     public Reward.ObjectType? objectType { get; set; }
     public List<int> rewardIntArray { get; set; }

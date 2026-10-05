@@ -100,7 +100,7 @@ public static partial class ResourceExManager
         BeverageRegistry.RegisterAllBeverages();
         RecipeRegistry.RegisterAllRecipes();
         FoodRegistry.RegisterAllFoods();
-        ClothRegistry.RegisterAllClothItems();
+        ItemRegistry.RegisterAllItems();
         ClothRegistry.RegisterAllClothProfiles();
     }
     public static void OnDataBaseDayInitialized()
@@ -122,7 +122,7 @@ public static partial class ResourceExManager
         BeverageRegistry.RegisterAllBeverageLanguages();
         FoodRegistry.RegisterAllFoodLanguages();
         MissionNodeRegistry.RegisterAllMissionNodeLanguages();
-        ClothRegistry.RegisterAllClothLanguages();
+        ItemRegistry.RegisterAllItemLanguages();
         SpellRegistry.RegisterAllLanguages();
         BuffRegistry.RegisterAllBuffLanguages();
     }
@@ -290,6 +290,7 @@ public static partial class ResourceExManager
         MissionNodeRegistry.Merge(config, packageName);
         EventNodeRegistry.Merge(config, packageName);
         MerchantRegistry.Merge(config, packageName);
+        ItemRegistry.Merge(config, packageName);
         ClothRegistry.Merge(config, packageName);
         SpellRegistry.Merge(config, packageName);
         BuffRegistry.Merge(config, packageName);
@@ -373,6 +374,9 @@ public static partial class ResourceExManager
             foreach (var beverageConfig in config.beverages)
                 beverageConfig.spritePath = ResolveAssetUriOrSelf(beverageConfig.spritePath, packageLabel);
         }
+
+        foreach (var itemConfig in config.items ?? [])
+            itemConfig.spritePath = ResolveAssetUriOrSelf(itemConfig.spritePath, packageLabel);
 
         if (config.clothes != null)
         {

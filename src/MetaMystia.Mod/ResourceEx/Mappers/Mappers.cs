@@ -170,6 +170,9 @@ public static partial class Mappers
 
         switch (config.rewardType)
         {
+            case RewardType.GetFund:
+                reward.id = config.id;
+                break;
             case RewardType.UpgradeKizunaLevel:
                 reward.rewardId = config.rewardId;
                 break;
