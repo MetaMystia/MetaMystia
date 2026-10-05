@@ -277,3 +277,5 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 
 **仍待解决（下一轮起点）**：MonoMod 的 JIT hook 仍被安装在进程里（崩溃转储中有线程停在 `MonoMod.Core...CompileMethodHook`），它会令个别方法 JIT 失败并连带 `Il2CppSystem.*` 类型初始化失败（`Il2CppStringArray`、`Il2CppSystem.String` 已实证）。框架已退订 HarmonyX 的两个 patcher（`NativeDetourMethodPatcher`/`ManagedMethodPatcher`），hook 仍被安装，**尚不知由谁安装**；根治它才能恢复 `IPlatformInfo` 的 keys 以及任何需要读引擎数组/引用返回值的能力。
 
+**同一现象也会打崩游戏自身**：第 3 次复核截图又出现游戏错误页，这次是 `NullReferenceException`，位置在游戏自己的 `DataBaseCharacter.GetAllSpecialGuests()` ← `LoadingSceneManager.LoadCoreAsync()`（即 `SpecialGuest` 字典为 null，该字段由 `Initialize` 里 `characterData.Merge(...)` 赋值）。把模组目录移走后**同样复现**（同样的栈、同样的位置），所以既不是模组注入、也不是本轮布局修复（布局修复只影响托管侧对实值类型的读写，`Initialize` 是游戏原生代码）。它与上面同一悬案一致：本进程的 JIT 会间歇性失败（`Il2CppSystem.String..cctor` 的失败已实证），落在游戏加载链上就是这个 NRE；三次复核里前两次干净、第三次失败，与"间歇"相符。
+
