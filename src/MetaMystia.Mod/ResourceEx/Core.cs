@@ -122,6 +122,7 @@ public static partial class ResourceExManager
         BeverageRegistry.RegisterAllBeverageLanguages();
         FoodRegistry.RegisterAllFoodLanguages();
         MissionNodeRegistry.RegisterAllMissionNodeLanguages();
+        NewsNodeRegistry.RegisterAllNewsNodeLanguages();
         ClothRegistry.RegisterAllClothLanguages();
         SpellRegistry.RegisterAllLanguages();
         BuffRegistry.RegisterAllBuffLanguages();
@@ -135,7 +136,7 @@ public static partial class ResourceExManager
 
         MissionNodeRegistry.RegisterAllMissionNodes(); // 依赖 Dialog
         EventNodeRegistry.RegisterAllEventNodes(); // 依赖 Dialog
-
+        NewsNodeRegistry.RegisterAllNewsNodes();
         ClothRegistry.RegisterAllClothPixelSprites(); // 依赖 DataBaseCharacter
 
         SpellRegistry.RegisterAllCharacterHasSpell();
@@ -159,6 +160,7 @@ public static partial class ResourceExManager
         // RegisterAllEventNodes(); // 依赖 Dialog
         MissionNodeRegistry.RegisterAllMissionNodesMapping();
         EventNodeRegistry.RegisterAllEventNodesMapping();
+        NewsNodeRegistry.RegisterAllNewsNodesMapping();
     }
     public static void OnNightSceneLanguageInitialized()
     {
@@ -289,6 +291,7 @@ public static partial class ResourceExManager
         RecipeRegistry.Merge(config, packageName);
         MissionNodeRegistry.Merge(config, packageName);
         EventNodeRegistry.Merge(config, packageName);
+        NewsNodeRegistry.Merge(config, packageName);
         MerchantRegistry.Merge(config, packageName);
         ClothRegistry.Merge(config, packageName);
         SpellRegistry.Merge(config, packageName);
