@@ -286,3 +286,32 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 
 **实机复核（第二轮）**：最终构建连续三次启动，进程分别存活 140 s 以上，`host.log` 每次都是 `seams: 187 patch methods applied, 0 failed` + 模组日志 + `Active DLC keys: ...`，**trampoline 吞掉的异常 0 次、无任何异常栈**（唯一一条 WARN 是模组指标上报的 `SSL connection could not be established`，与游戏和桥无关）；截图显示游戏标题界面，DLC 标签栏由游戏自己列出 `DLC1 DLC2 DLCMUSIC DLC3 DLC4 DLC5`，左下角模组 HUD（IMGUI 路径）正常绘制。
 
+### 14.2 第三轮：五个发射缺陷，互操作现在自己就能编译（2026-10-05）
+
+**验收口径换了：不再拿 BepInEx 当参照。** 上一轮收尾时说剩下的 `BadImageFormatException`"与 BepInEx 的互操作数量一致，属上游遗留"，本轮的标准改为——**同一套 JIT 扫描必须归零**：生成器（`Mystia.InteropGen`）和桥都是我们自己的，上游参照不构成理由，"够不到所以不重要"也必须先证明够不到。扫描器（框架仓库的 `.spinney/jithook-probe/scan`）对每个程序集里每个方法执行 `RuntimeHelpers.PrepareMethod`，同一台机器实测：
+
+| 互操作目录 | 状态 | 参与编译的方法 | 失败 | 分类 |
+| --- | --- | --- | --- | --- |
+| `artifacts/interop-generated` | 2026-10-03 的原始生成 | 196631 | 206 | 169 `BadImageFormatException` / 18 `TypeLoadException` / 19 `MissingMethodException` |
+| `artifacts/interop` | 上一轮修复后（本轮起点） | 200930 | 40 | 18 / 19 / 3 |
+| `artifacts/interop` | 本轮五处修复后 | 200977 | **0** | 无，且没有任何类型加载失败 |
+| `BepInEx/interop` | 同一安装的对照 | 212654 | 258 | 212 `MissingMethodException` / 37 `TypeLoadException` / 3 `BadImageFormatException` / 2 `VerificationException` / 4 `InvalidProgramException` |
+
+做法是先按异常文本分组、再读生成出来的 IL 与元数据定位发射点，最后才改生成器。原有 `FieldLayoutPass`（值类型布局）与 `TypeNameCallPass`（类型名渲染）保留，新增四个 pass，对应五个缺陷：
+
+**1. 类型实参是 byref-like 类型（3 个方法，`BadImageFormatException`）**：`Il2CppSystem.TypedReference`、`Reflection.FieldInfo`、`Reflection.RuntimeFieldInfo` 的静态构造函数里有 `RenderTypeName<System.TypedReference>(bool)`。`System.TypedReference` 是生成器**唯一**不改写成 `Il2CppSystem.*` 镜像、而是原样交给运行时的类型（`AssemblyRewriteContext.RewriteTypeRef`：`typeRef.FullName == "System.TypedReference"`），而 byref-like 类型不是合法的类型实参，CLR 拒绝实例化，整个静态构造函数无法编译。修法与上一轮的指针同族：`TypeNameCallPass` 现在把 byref-like 类型实参也改写成 `RenderTypeName(typeof(T), marker)`（4 处）。
+
+**2. 用指针类型当构造函数把 `IntPtr` 转回指针（19 个方法，`MissingMethodException`）**：带 `byte*&`/`char*&`/`int*&` 参数的方法（`Text.UTF8Encoding`、`Number`、`SafeBuffer`、`ConsoleDriver`、InputSystem 的缓冲区等）写回参数时发射 `newobj System.Byte*::.ctor(System.IntPtr)`，即 .NET Framework 时代的托管指针构造函数（`System.Pointer`）。.NET Core 已经没有它，JIT 报 `Method not found: 'Void System.UIntPtr..ctor(IntPtr)'`——消息里的 `UIntPtr` 就是指针对应的构造函数，33 处全部如此。新增 `PointerConversionPass`：改写成 C# 对同一个 cast 发射的 `call instance void* System.IntPtr::ToPointer()`。
+
+**3. `params` 数组的 null 默认值建成了参数声明之外的数组（8 个方法 + 12 处只在泛型方法里的同类问题，`TypeLoadException`）**：参数本身按**生成后**的元素类型挑包装（`Il2CppStructArray<T>` 要求 `T : unmanaged`，否则 `Il2CppReferenceArray<T>`；元素是泛型参数时用抽象的 `Il2CppArrayBase<T>`），而 `Pass50GenerateMethods` 的 prologue 按**输入**的元素类型挑，两者在"生成器把结构体变成了类"的地方分叉：含引用的结构体、带泛型参数的结构体在生成结果里都是镜像 `Il2CppSystem.ValueType`（类）的子类，于是 prologue 建出 `Il2CppStructArray<类>`，CLR 拒绝实例化。`UniTask.WhenAll`、`RunTimeScheduler.ScheduleNews`、`HttpRequester.GetAsync` 等 8 个方法因此无法编译；另有 12 处（`ArrayHelpers.Join<T>`、`InlinedArray<T>`、`TimedObjectsCollection<T>` 等）参数是抽象的 `Il2CppArrayBase<T>`，prologue 却写 `Il2CppReferenceArray<T>`，泛型参数本身不满足 `T : Il2CppObjectBase`，同样无法编译——扫描器默认跳过带泛型参数的方法，这 12 处是另写探针（框架仓库的 `.spinney/genericprobe`）把类型和方法逐个闭合后实测出来的（闭合到值类型和类都失败）。新增 `ParamsArrayDefaultPass`：prologue 改写成**参数自己声明的那个包装**的构造函数；参数是抽象 `Il2CppArrayBase<T>` 时**删掉**该 prologue（没有任何包装可以实例化），代价是托管侧显式传 null 不再被换成空数组——这条路径只有托管调用者会走到，换来的是方法本身可以编译。
+
+**4. 泛型约束落在 `Il2CppSystem.ValueType` 镜像上（3 个方法，`TypeLoadException`）**：`where T : unmanaged` 在输入里是 `System.ValueType` 带 `modreq(UnmanagedType)`，`Pass13FillGenericConstraints` 只放过**纯粹**的 `System.ValueType`，带修饰的那个被当普通引用改写，约束落到镜像 `Il2CppSystem.ValueType` 上——镜像自己是类（基类 `Il2CppSystem.Object`），任何真值类型都不满足：`Unity.Collections.UnmanagedArray<MemoryBlock>`、`FixedList4096Bytes<int>`、`AllocatorManager.Array32768<TableEntry>` 全部加载失败（它们的实参本来都是真值类型）。新增 `ValueTypeConstraintPass`：把指向镜像的约束换回真正的 `System.ValueType`（31 处）。
+
+**5. 生成的 COM 类型还带着 `ComImport` 标志（2 个方法，`TypeLoadException`；5 个类型完全加载不了）**：`Pass10CreateTypedefs.AdjustAttributes` 会清掉接口标志（生成结果里没有接口，全部是类），却保留了类型属性里的 `Import`(0x1000)。加载器不接受"imported 的类型继承 `System.Object` 以外的东西"，而生成结果都继承 `Il2CppObjectBase`，于是 `IMoniker`、`IAdviseSink`、`IDataObject`、`IEnumFORMATETC`、`IEnumSTATDATA` 五个类型抛 `Type '...' cannot extend from any other type`。新增 `ComImportTypePass`：清掉该标志（它描述的是输入的原生类型库，对 il2cpp 对象没有意义），`Guid`/`InterfaceType` 等属性保留。`PrepareMethod` 的统计从 200930 涨到 200977，多出的 47 个正是这 5 个类型此前整个加载不了时连带跳过的方法。
+
+**验收与回归**：框架仓库的 `.spinney/interop-fresh` 这一次不借助任何历史修复、直接由生成器一次生成（`Generating interop for 89 assemblies`，同一台机器同一份输入），扫描 196678 个方法同样 0 失败、无加载失败类型；`--repair-layouts`/`--repair-type-names` 两个旧开关合并为 `--repair <dir>`（一次应用全部修复，对已修复的目录重复运行不产生任何字节变化）；框架仓库的 `.spinney/interop-backup` 与修复后的目录逐字段比对 660 个值类型，**偏移零差异**（`FieldLayoutPass` 对单字段结构体每次都会"重排"一次但结果不变，所以它报告的 160 个不是改动）。
+
+**没有改、但要知道的**：含引用或带泛型参数的结构体在生成结果里是**类**（基类 `Il2CppSystem.ValueType` 镜像）。这是 Il2CppInterop 的设计——`Pass12FillTypedefs` 只给 blittable 结构体真正的 `System.ValueType` 基类，`Pass11ComputeTypeSpecifics` 把带泛型参数的结构体一律算作非 blittable，而含引用的结构体也没有内联布局——本轮没有把它改成值类型：那会改变所有用到这些类型的托管语义（字段布局、按值传递、`null` 判断），风险远大于收益；本轮只是让围绕它的两处（数组包装、泛型约束）成立。显式重叠（union）与靠 `Size` 填充的原生结构体的偏移仍然无法从输入恢复，与上一轮结论一致。
+
+**实机复核（第三轮）**：最终构建连续三次启动（Steam 启动 + `--enable-mystia-extension-framework`），进程每次存活 120 s 以上，`host.log` 都是 `seams: 187 patch methods applied, 0 failed` + 模组日志（`Plugin MetaMystia is loaded!`、`CommandRegistry initialized`）+ `Active DLC keys: DLC1, DLC2, DLCMUSIC, DLC3, DLC4, DLC5`，**trampoline 吞掉的异常 0 次、全文没有任何 WARN/ERROR/异常栈**；三张截图都是同一个标题界面帧（与上一轮的截图目视一致），DLC 标签栏由游戏自己列出。
+
