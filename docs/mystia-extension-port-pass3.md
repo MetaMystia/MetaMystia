@@ -253,7 +253,7 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 
 | 项 | 证据 | 文件 |
 | --- | --- | --- |
-| 标题界面 → 读档 → 白天场景的驱动路径 | 三次连续 `PlayToDay.ps1` 全部到达白天场景 | `.spinney/harness/shots/run-final/{01-title,02-continue-clicked,03-day-notebook,04-day}.png` |
+| 标题界面 → 读档 → 白天场景的驱动路径 | 三次连续 `src/MetaMystia.AITest/harness/PlayToDay.ps1` 全部到达白天场景 | `.spinney/harness/shots/run-final/{01-title,02-continue-clicked,03-day-notebook,04-day}.png` |
 | 模组 HUD 绘制 | 画面左下 `MetaMystia v0.29.3 loaded with 0 rex packs` / `Connection closed` | 同上截图 |
 | 控制台热键与命令输出 | `/` 打开控制台（历史与提示行完整）→ 输入 `/help` → 输出命令列表 | `.spinney/harness/shots/console/{30-slash,32-help-enter}.png` |
 | DLC 依赖内容解析 | `host.log`：`[SessionSync] Active DLC keys: DLC1, DLC2, DLCMUSIC, DLC3, DLC4, DLC5` | `.spinney/harness/evidence/s12-run-host.log` |
@@ -339,7 +339,7 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 
 ### 14.3 第四轮：驱动路径与读档崩溃（2026-10-05）
 
-**驱动换成 `computer-use` CLI。** 旧版 `.spinney/harness/GameDriver.ps1` 用 `keybd_event` 向全屏窗口合成按键，并假定窗口一直是前台：按键不落地，而且旧动作表里根本没有点击，所以只能停在标题界面。新版每个动作都走 CLI：调用内重新 `window find` 解析窗口、`screenshot --hwnd` 取窗口截图、按截图里的可见目标点击（`mouse click --hwnd … --coord client`，客户区偏移在同一次调用里由 `GetWindowRect`/`ClientToScreen` 量出）、再截图核对；除开场过场动画用 `key tap --key space`（有界循环，本次启动的 `Player.log` 出现载入场景即停）外，不猜按键。
+**驱动换成 `computer-use` CLI。** 旧版驱动脚本（原 `.spinney/harness/GameDriver.ps1`） 用 `keybd_event` 向全屏窗口合成按键，并假定窗口一直是前台：按键不落地，而且旧动作表里根本没有点击，所以只能停在标题界面。新版每个动作都走 CLI：调用内重新 `window find` 解析窗口、`screenshot --hwnd` 取窗口截图、按截图里的可见目标点击（`mouse click --hwnd … --coord client`，客户区偏移在同一次调用里由 `GetWindowRect`/`ClientToScreen` 量出）、再截图核对；除开场过场动画用 `key tap --key space`（有界循环，本次启动的 `Player.log` 出现载入场景即停）外，不猜按键。
 
 动作保持七个：`start`（启动器装代理 → Steam 客户端拉起，带 `--enable-mystia-extension-framework`）、`kill`、`where`、`shot`、`click`（`-X/-Y` 截图像素，或 `-Fx/-Fy` 窗口比例）、`key`（`-HoldMs` 表示按住，走路用）、`skipintro`。`PlayToDay.ps1` 把整条路径连起来：kill → start → skipintro → 等标题（`Player.log`：`ScenMana: Game Enter Main Scene`）→ 点「继续」→ 等白天场景（`ScenMana: Game Enter Day Scene`）→ 关掉开局自动打开的剪报（K）→ 打印本次启动的 `host.log` 证据行；每一步都留截图。全程只有「继续」一个写死的坐标，且写成窗口比例（2560×1440 实测中心 186,1352），720p 下同样成立；其余坐标一律来自当次截图。
 

@@ -22,9 +22,9 @@
 
 ## 驱动游戏的主路线：`computer-use` 脚本
 
-2026-10-05 起，驱动游戏的主路线是仓库根目录 `.spinney/harness/` 下的脚本（该目录不入 Git，属工作草稿）。它们不经过任何模组调试接口，只用操作系统级的窗口截图与输入：
+2026-10-05 起，驱动游戏的主路线是 `src/MetaMystia.AITest/harness/` 下的脚本（已入库）：它们不经过任何模组调试接口，只用操作系统级的窗口截图与输入：
 
-- `GameDriver.ps1 start|kill|where|shot|click|key|skipintro`：每个动作都在自己这一次调用里重新解析游戏窗口，点按与按键都发向该窗口，`-Out` 存一张窗口截图；`click` 的坐标是**截图里的像素**（或 `-Fx/-Fy` 窗口比例），客户区偏移在同一次调用里量出，不跨调用复用。
+- `GameDriver.ps1 start|kill|where|shot|click|key|skipintro`（启动器目录默认为同级的 `MystiaExtensionFramework`，可用 `-Launcher` 或 `MEFX_LAUNCHER` 覆盖；`computer-use` 需在 PATH 上）：每个动作都在自己这一次调用里重新解析游戏窗口，点按与按键都发向该窗口，`-Out` 存一张窗口截图；`click` 的坐标是**截图里的像素**（或 `-Fx/-Fy` 窗口比例），客户区偏移在同一次调用里量出，不跨调用复用。
 - `PlayToDay.ps1`：kill → 启动（启动器装代理，Steam 客户端拉起）→ 跳过开场 → 标题界面 → 点「继续」→ 白天场景，每一步都用游戏日志判据（`Player.log` 的 `ScenMana: Game Enter Main Scene` / `Game Enter Day Scene`）而不是固定等待，并各留一张截图；脚本头注释写了每一步的判据。
 
 `src/MetaMystia.AITest` 的 HTTP 调试接口（需要 Token 与提权）退为次路线，只在需要读取模组内部状态或调用游戏方法时使用。
