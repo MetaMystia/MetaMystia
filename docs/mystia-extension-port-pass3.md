@@ -241,9 +241,31 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 
 **唯一仍值得在实机上看一眼的**：三阶段时长是否都是"基准 × 倍率"（含游戏自己在第三阶段把时长 +30 秒那一次——迁移前的 prefix 也是在那个时钟启动时用 `资产基准 × 倍率` 覆盖它，所以现在与迁移前一致）。
 
-## 12. 必须实机验证的清单（全部结论目前都是源码/编译级）
+## 12. 必须实机验证的清单
+
+结论分三级：**运行时实测**、**源码推断**、**待验证**。
+
+### 12.1 原始清单（此前全部为源码/编译级）
 
 幽幽子挑战：阶段推进与时钟、两段刷客闸门、吞厨具重放（主机原版吞食的过滤时序）、评价 seam（改写结果/台词/倍率）、失败与重打、本体生命值镜像、终局离开场景闸门；存档载体：带模组写入 → 完全卸载 → 原版读档推进保存 → 重装校验一致（含中文/嵌套/大字符串）；资产：PNG 解码与精灵集上屏、白天地图构建与切图、Addressables 位置注册、特效/遮罩/音频、浮字与名牌、联网皮肤（含旋转覆盖）；挑战时间线挂点的启动校验；派发契约在真实 Harmony 下的表现；`AssetBundle` 的 stall 语义（`TryOpenBundle`「返回时名单已完整」依赖它）；远端角色的位置/速度/层级与原来的 `rb2d` 读写是否一致、`TryBindCharacter("Self")` 在白天与营业场景都能取到句柄、**不带碰撞体**的远端角色表现；控制台与玩家列表的热键/坐标显示；`Spell_Mai` 的六件套特效与上酒节奏；资源包对话的行内动作（数据面与构建器同名注入的胜出者）。
+
+### 12.2 已运行时实测（第四轮，2026-10-05，过程见 §14.3）
+
+| 项 | 证据 | 文件 |
+| --- | --- | --- |
+| 标题界面 → 读档 → 白天场景的驱动路径 | 三次连续 `PlayToDay.ps1` 全部到达白天场景 | `.spinney/harness/shots/run-final/{01-title,02-continue-clicked,03-day-notebook,04-day}.png` |
+| 模组 HUD 绘制 | 画面左下 `MetaMystia v0.29.3 loaded with 0 rex packs` / `Connection closed` | 同上截图 |
+| 控制台热键与命令输出 | `/` 打开控制台（历史与提示行完整）→ 输入 `/help` → 输出命令列表 | `.spinney/harness/shots/console/{30-slash,32-help-enter}.png` |
+| DLC 依赖内容解析 | `host.log`：`[SessionSync] Active DLC keys: DLC1, DLC2, DLCMUSIC, DLC3, DLC4, DLC5` | `.spinney/harness/evidence/s12-run-host.log` |
+| 白天场景入口的 seam 实际触发 | `host.log`：`[LocalPlayer] LocalPlayer state reset`、`[DaySync] LoadScene called, scene DayScene`、`[SchedulerDataRecovery] No ResourceEx Scheduler data detected to reload.`、`[EventNodeRegistry] Kizuna event nodes activation completed.` | 同上 |
+| 点击驱动的白天互动 | 走出小屋（地图标签变「妖怪兽道」）→ 走到狸猫旁出现互动提示 → 点击该 NPC → `Player.log` 记 `[ADP UI] Open Panel: DialogPannel(Clone)` → 对话框显示米斯蒂娅台词 → J 推进到第二句 | `.spinney/harness/shots/s12/{22-up-at-npc,23-dialog-after-click,24-dialog-next}.png`、`.spinney/harness/evidence/s12-run-Player.log` |
+| 读档不再崩溃 | 修复前每次读档 `0xC0000005`（§14.3），修复后上述三次运行全绿 | `.spinney/harness/evidence/crash-events.txt` |
+
+### 12.3 仍未实测
+
+- **夜间营业场景**：白天 → 快进 → 日终结算 → 选店 → 备菜 → 开店是一整条长点击链，本轮没有走完。
+- **玩家列表热键**：单人环境下按 `Backslash` 无可见变化（连接状态为 `Connection closed`，没有 peer），无法单人验证；控制台热键已单独验证。
+- 12.1 里与**联网**（主客机一致性、断线重连、远端角色位置/速度/层级、`TryBindCharacter("Self")`、无碰撞体远端角色）、**资源包资产**（PNG 解码与精灵集上屏、白天地图构建与切图、Addressables 位置注册、特效/遮罩/音频、浮字与名牌、皮肤含旋转覆盖）、**幽幽子挑战**全项、**存档载体**卸载重装、**`Spell_Mai`** 六件套、**资源包对话行内动作**相关的各项，仍未实测。
 
 ## 13. 文档地图
 
@@ -314,4 +336,20 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 **没有改、但要知道的**：含引用或带泛型参数的结构体在生成结果里是**类**（基类 `Il2CppSystem.ValueType` 镜像）。这是 Il2CppInterop 的设计——`Pass12FillTypedefs` 只给 blittable 结构体真正的 `System.ValueType` 基类，`Pass11ComputeTypeSpecifics` 把带泛型参数的结构体一律算作非 blittable，而含引用的结构体也没有内联布局——本轮没有把它改成值类型：那会改变所有用到这些类型的托管语义（字段布局、按值传递、`null` 判断），风险远大于收益；本轮只是让围绕它的两处（数组包装、泛型约束）成立。显式重叠（union）与靠 `Size` 填充的原生结构体的偏移仍然无法从输入恢复，与上一轮结论一致。
 
 **实机复核（第三轮）**：最终构建连续三次启动（Steam 启动 + `--enable-mystia-extension-framework`），进程每次存活 120 s 以上，`host.log` 都是 `seams: 187 patch methods applied, 0 failed` + 模组日志（`Plugin MetaMystia is loaded!`、`CommandRegistry initialized`）+ `Active DLC keys: DLC1, DLC2, DLCMUSIC, DLC3, DLC4, DLC5`，**trampoline 吞掉的异常 0 次、全文没有任何 WARN/ERROR/异常栈**；三张截图都是同一个标题界面帧（与上一轮的截图目视一致），DLC 标签栏由游戏自己列出。
+
+### 14.3 第四轮：驱动路径与读档崩溃（2026-10-05）
+
+**驱动换成 `computer-use` CLI。** 旧版 `.spinney/harness/GameDriver.ps1` 用 `keybd_event` 向全屏窗口合成按键，并假定窗口一直是前台：按键不落地，而且旧动作表里根本没有点击，所以只能停在标题界面。新版每个动作都走 CLI：调用内重新 `window find` 解析窗口、`screenshot --hwnd` 取窗口截图、按截图里的可见目标点击（`mouse click --hwnd … --coord client`，客户区偏移在同一次调用里由 `GetWindowRect`/`ClientToScreen` 量出）、再截图核对；除开场过场动画用 `key tap --key space`（有界循环，本次启动的 `Player.log` 出现载入场景即停）外，不猜按键。
+
+动作保持七个：`start`（启动器装代理 → Steam 客户端拉起，带 `--enable-mystia-extension-framework`）、`kill`、`where`、`shot`、`click`（`-X/-Y` 截图像素，或 `-Fx/-Fy` 窗口比例）、`key`（`-HoldMs` 表示按住，走路用）、`skipintro`。`PlayToDay.ps1` 把整条路径连起来：kill → start → skipintro → 等标题（`Player.log`：`ScenMana: Game Enter Main Scene`）→ 点「继续」→ 等白天场景（`ScenMana: Game Enter Day Scene`）→ 关掉开局自动打开的剪报（K）→ 打印本次启动的 `host.log` 证据行；每一步都留截图。全程只有「继续」一个写死的坐标，且写成窗口比例（2560×1440 实测中心 186,1352），720p 下同样成立；其余坐标一律来自当次截图。
+
+**读档必崩，原因是一个 seam 打在空实现上。** 从标题界面点「继续」读档时进程必死于 `0xC0000005`（`coreclr.dll`），栈为 `Il2CppObjectPool.Get` → `IL2CPP.il2cpp_object_get_class`，入口是补丁的 native→managed trampoline `(il2cpp -> managed) OnPanelClose`，其上是 `DMD<SaveManagement.LoadPlayerData>` 与 `il2cpp_runtime_invoke`。即：桥把 `UIPanelBaseImpl.OnPanelClose`（`{ }` 空实现）也打成了钩子，而面板管理器会保留已被销毁的 buffered 面板（`AdpUIPanelManager.TryDeleteBufferedPanel` 销毁面板却留着指向它的 `UIPanelImpl`），于是游戏以"已经不是对象"的实例调用这个空方法——空的原生实现不碰实例，互操作 trampoline 却要读它的类来做包装。判据是两次独立崩溃（用户手动退出菜单读档一次、本轮点击「继续」一次）栈完全一致，且**只**去掉这一个 seam 后同一条点击路径就能读档进入白天场景。
+
+**修复**（框架仓库）：删掉 `HarmonySeams.cs` 的 `ConfigClose` seam（它原意是在配置面板关闭时丢弃缓存的视图）。缓存无此需要：`ConfigOpen` 本来就在面板打开时 `DropPrepConfig`，而该面板是 `UniversalGameManager` 的常驻 buffered 面板（`AssetLifetime.Persistent` + `PreBufferPanel`），实例跨关闭复用。桥的补丁方法数 187 → **186**，`host.log` 现为 `seams: 186 patch methods applied, 0 failed`。
+
+**本轮实测通过**（证据见 §12.2）：三次连续 `PlayToDay.ps1` 都从标题界面读档进入白天场景且不再崩溃；模组 HUD 正常绘制；`/` 打开模组控制台、`/help` 输出命令列表；`host.log` 每次都有 `seams: 186 patch methods applied, 0 failed`、`Active DLC keys: DLC1, DLC2, DLCMUSIC, DLC3, DLC4, DLC5` 与白天场景入口 seam；白天场景里走出小屋（地图标签从「夜雀小屋」变「妖怪兽道」）、走到狸猫旁出现互动提示、**点击**该 NPC 触发 `DialogPannel`，对话框出现在屏幕上，J 推进到下一句。
+
+**本轮没做**：夜间营业场景未进入（白天到营业是一条长点击链：快进 → 日终结算 → 选店 → 备菜 → 开店）；玩家列表热键单人无可见效果；12.1 里与联网、资源包资产、幽幽子挑战、存档载体相关的项仍未实测。
+
+**顺带观察（未定性）**：每次读档进白天场景都会重现同两条游戏内通知——「万份特典感谢信 +1」与「「迷途竹林·店铺扩张」任务开始」，并伴随 `host.log` 的 `[SchedulerDataRecovery] No ResourceEx Scheduler data detected to reload.` 与 `[EventNodeRegistry] Kizuna event nodes activation completed.`。本存档三次读档都一样，但是否与未推进存档的待办事项重复展示一致、还是 Mod 重放，本轮没有区分。
 
