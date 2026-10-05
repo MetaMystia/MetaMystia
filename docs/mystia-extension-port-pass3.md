@@ -268,6 +268,17 @@ __instance.thisSingleRoundDuration = originalDuration * 2;         // 写回闭�
 
 ⇒ 绘制路径只是**相关**，不是已确认的原因：把所有内部调用关掉后照样崩，说明先前两次“稳定”很可能只是时序运气。崩溃本身**不稳定**（同一配置既有 5 s 崩、也有 120 s 存活），因此二分结论只能采信“崩”的一侧（活的一侧不可靠）。`__fastfail` 绕过 vectored handler 与 `DOTNET_DbgEnableMiniDump`，进程内拿不到栈。
 
-**下一步建议**：让崩溃留下栈——用管理员给本机开 WER 本地转储（`HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps`，DumpType=2 全转储），再 crash 一次，用 WinDbg/cdb 的 `!analyze -v` 读栈；或直接在 WinDbg 里 attach 后复现。有了栈再决定是 interop 调用、detour 还是 GC 侧的问题。
+**崩溃栈（2026-10-05 08:46，WER 本地转储 + `dotnet-dump`）**：给游戏 exe 配上 `LocalDumps`（DumpType=2，`D:\Repos\MystiaExtensionFramework\.spinney\dumps`）后复现，1.5 GB 全转储里出错线程的栈是：
+
+```
+Mystia.Modding.Bridge.dll!DynamicClass.Invoker_VoidThis(IntPtr, Il2CppMethodInfo*, IntPtr, IntPtr*, IntPtr*) + 84
+Il2CppInterop.Runtime.dll!ILStubClass.IL_STUB_ReversePInvoke(Int64, Il2CppMethodInfo*, Int64, IntPtr*, IntPtr*)
+```
+
+⇒ 游戏从**原生侧调进“被补丁方法的调用器”**时崩在调用器内部（Il2CppInterop 为 Harmony 补丁生成的 invoker），不是崩在游戏自身逻辑里。取栈命令：`dotnet-dump analyze <.dmp> -c "clrstack -f -all"`（`dumpstack` 不被支持；`__fastfail` 仍然拿不到进程内栈）。
+
+据此把 detour 改成**只偷 5 字节**：站点写 `E9 rel32` 跳到紧邻的 thunk，thunk 再 `FF 25` 绝对跳到托管补丁；原函数体放在 thunk 之后，`OriginalTrampoline` 指向它（先前偷 14 字节，在 setter、单行包装这类短函数上会越过函数末尾，把后一个函数的开头一起写掉、并重放不属于它的字节）。框架 **283 个测试全过**，但**崩溃依旧**（同配置约 5 秒崩）；期间两次“存活 60/90 秒”出现在该改动尚带 bug 的构建上，因此不能算修复。
+
+**下一步**：从转储里取出该帧的 `Il2CppMethodInfo*` 参数（寄存器/栈上有），映射回具体被补丁的方法名；或 WinDbg attach 到活进程，在 fail-fast 处断下。
 
 **下一步**（未做）：在 `DrawPassiveMode` 内继续隔离——先只留 `GUI.color` 读写、再单独恢复样式回写；或在 `UnityTextStyle` 回写处改成“只在值真的变化时写”，把写入次数降到最低后再逐项恢复。
