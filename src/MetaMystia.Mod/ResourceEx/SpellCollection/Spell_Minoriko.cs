@@ -92,7 +92,7 @@ public sealed class Spell_Minoriko : SpellBaseEx, ISpellDependencies
     [HideFromIl2Cpp]
     protected override IEnumerator NegativeBuffRoutine(SpellExecutionContext context)
     {
-        var origin = context.GuestPosition.HasValue ? context.GuestPosition.Value : GetPlayerPosition();
+        var origin = GetThrowOrigin(context);
         if (Manager.CheckTimedBuffExists(HarvestBuff))
             Manager.RemoveAllRegisteredTimedBuff(HarvestBuff, false);
         Vfx.PlayOneShot("Minoriko_Autumn", origin);
@@ -116,6 +116,31 @@ public sealed class Spell_Minoriko : SpellBaseEx, ISpellDependencies
             }
         }
         yield return new WaitForSeconds(1.2f);
+    }
+
+    [HideFromIl2Cpp]
+    private Vector3 GetThrowOrigin(SpellExecutionContext context)
+    {
+        // GuestPosition 在不记录符卡次数时返回玩家位置，不能据此判断触发角色是否在场。
+        if (context.GuestCharacterInstances != null)
+            foreach (var character in context.GuestCharacterInstances)
+                if (character != null)
+                    return character.transform.position;
+
+        var guests = new Il2CppSystem.Collections.Generic.List<GuestGroupController>(
+            GuestsManager.Instance.AllPresentedGuestGroupController.Cast<Il2CppSystem.Collections.Generic.IEnumerable<GuestGroupController>>()).ToManagedList();
+        foreach (var guest in guests)
+        {
+            var specialGuest = guest.TryCast<SpecialGuestsController>();
+            if (specialGuest?.SpecialGuest?.StringId != OwnerIdentifier)
+                continue;
+            foreach (var character in specialGuest.guestInstances)
+                if (character != null)
+                    return character.transform.position;
+        }
+
+        // 无实际触发角色且所属角色不在场时，沿用原版代触发的玩家位置。
+        return GetPlayerPosition();
     }
 
     [HideFromIl2Cpp]
