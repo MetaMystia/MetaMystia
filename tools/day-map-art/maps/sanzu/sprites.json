@@ -1,0 +1,24 @@
+{
+ "s1_stone": {"key": "#00ff00", "items": {
+   "0": ["JizoRow", 58], "1": ["Jizo", 50],
+   "5": ["Cairn2", 24], "6": ["Cairn3", 30], "2": ["Cairn4", 36], "3": ["Cairn5", 42], "4": ["Cairn6", 48],
+   "7": ["LanternA", 78], "8": ["LanternB", 74], "9": ["Stele", 100],
+   "10": ["BoulderTall", 72], "11": ["BoulderRound", 58], "12": ["BoulderFlat", 110, "w"]}},
+ "s2_wood": {"key": "#00ff00", "items": {
+   "0": ["Shelter", 200, "w"], "1": ["BellFrame", 84], "2": ["Boat", 240, "w"], "3": ["Wreck", 170, "w"],
+   "4": ["NoticeBoard", 100, "w"], "5": ["ContestBoard", 210, "w"],
+   "6": ["SotobaA", 62], "7": ["SotobaB", 58], "8": ["SotobaC", 54],
+   "9": ["Gate", 280, "w"], "10": ["Crates", 64, "w"], "11": ["Bucket", 30]}},
+ "s3_stalls": {"key": "#00ff00", "items": {
+   "0": ["StallCandy", 180, "w"], "1": ["StallGoldfish", 180, "w"], "2": ["StallSotoba", 180, "w"], "3": ["StallFortune", 180, "w"],
+   "4": ["UrumiStall", 210, "w"], "5": ["FishRackA", 150, "w"], "6": ["FishRackB", 150, "w"], "7": ["ParasolBench", 130],
+   "8": ["NoboriRed", 140], "9": ["NoboriPurple", 140], "10": ["NoboriIndigo", 140], "11": ["NoboriWhite", 140]}},
+ "s4_trees": {"key": "#ff00ff", "keep_hue": ["PurpleTree"], "items": {
+   "0": ["KimonoTree", 330, "w"], "1": ["PurpleTree", 210], "2": ["WillowBig", 150], "3": ["WillowSmall", 120],
+   "4": ["ConiferBig", 230], "5": ["ConiferSmall", 190], "6": ["LanternPole", 150]}},
+ "s5_small": {"key": "#00ff00", "items": {
+   "0": ["PinwheelRed", 40], "1": ["PinwheelRW", 40], "2": ["PinwheelYellow", 40], "3": ["PinwheelBlue", 40],
+   "4": ["HitodamaA", 40], "6": ["HitodamaB", 34], "5": ["HitodamaC", 42],
+   "7": ["FloatLanternA", 40], "8": ["FloatLanternB", 40], "9": ["FloatLanternC", 40],
+   "10": ["LilyA", 38], "11": ["LilyB", 40], "12": ["LilyC", 42]}}
+}

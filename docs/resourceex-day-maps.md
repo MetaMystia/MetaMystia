@@ -2,6 +2,8 @@
 
 资源包在 `ResourceEx.json` 的 `dayMaps` 数组声明地图，图片和音频放在同一 ZIP。Mod 从配置创建独立 `DaySceneMap`，通过内存 Addressables Provider 交给游戏原有切图流程实例化。
 
+地图美术、碰撞与坡度的制作方法见 [`map-creation/`](map-creation/README.md)。
+
 ## 2026-09-14 地图注册修复
 
 修复 `MapNode` 写入 IL2CPP 字典时的值类型字段错位，详见 [Il2CppInterop 缺陷](il2cppinterop-defects.md)。独立地图仍不配置食堂，三级编号数组均为空。
