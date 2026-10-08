@@ -84,6 +84,26 @@
 
 - 本图：红色太鼓桥（设计参考）。
 
+### Z7 彼岸花的鳞茎
+
+日文维基「ヒガンバナ」：
+
+> 地下の鱗茎（球根）に強い毒性を有する有毒植物であるが、かつて救荒作物として鱗茎のデンプンを毒抜きして食べていた。
+
+译：地下的鳞茎（球根）有强烈毒性，但过去曾作为救荒作物，把鳞茎里的淀粉去毒后食用。
+
+- 本图：新增食材“彼岸花鳞茎”与台地彼岸花丛的采集点（设计）。
+
+### Z8 撒盐净身
+
+日文维基「塩」（「清め塩」重定向至此）：
+
+> 日本においては死を穢れの一種とみなす土着信仰がある。そのため葬儀後、塩を使って身を清める風習がある。
+
+译：日本有把死亡视为一种污秽的民间信仰，因此有葬礼后用盐净身的习俗。
+
+- 本图：冠木门旁的盛盐采集点（设计）。
+
 ### 不采用
 
 中国传说中的忘川、奈河、奈何桥、孟婆、孟婆汤（日文维基「三途川」比较神话学一节），与东方的日式彼岸设定不符。
@@ -342,7 +362,15 @@ THBWiki 没有“人魂”条目。一设相关的只有中有之道的“人魂
 
 - 夜雀食堂里没有成美与赛之河原的关联。本图“成美守积石”的设想依据是黑市（Y9）。
 
-### N5 其他提到三途川或死神、本图未用的文本
+### N5 原版的采集点与钓鱼
+
+资料站 `places/collectionYieldFacts.ts` 列出原版 153 个采集点的产物；`ingredients/records.ts` 的 `collect` 字段带出现时段，`fishing`、`fishingAdvanced` 字段按地图列出钓鱼产物。逆向代码 `GameData/Core/Collections/DaySceneUtility/Collections/Collectable.cs` 定义采集点：`key`、`offByDefault`、`showTime`、`primaryProduct`、`secondaryProduct`（带概率）、`regenerateHours`；产物类型 `Product.ProductType` 包括食材、料理、酒水、金钱、物品、任务等。
+
+- 水边采集点的例子：兽道溪流的海苔（10–14 时）、鳟鱼与八目鳗（14–18 时）；人间之里溪流的金枪鱼；妖怪之山的三文鱼、螃蟹；神灵庙水边的金枪鱼、虾、三文鱼、八目鳗。
+- 数量：多数点一次 1–5 个；农田类一次 10–20 个。
+- 本图的采集点设计参照这些数值与时段，见 [README.md](README.md)。
+
+### N6 其他提到三途川或死神、本图未用的文本
 
 - 普客“仙人”的台词：“终于把那个缠人的死神甩掉了……”
 - 稀客八云蓝的标签说明：“算得出三途川”（呼应原作中蓝算出三途河宽度，THBWiki「三途河」引《东方文花帖》书籍）。
@@ -365,6 +393,7 @@ THBWiki 没有“人魂”条目。一设相关的只有中有之道的“人魂
 | 渡口的雾与挂灯 | 推断 | 一设 Y1；夜雀食堂 N1 |
 | 彼岸花丛、人魂 | 设计 | 二设 E4、E5（未找到出处） |
 | 南侧摊位街四摊 | 采用 | 一设 Y3（两种见于正文，两种见于插图） |
+| 采集点与新增食材 | 设计 | 见 [README.md](README.md)；依据 Y1、Y5、Y6、Y7、Y11、Z2、Z7、Z8、N4、N5 |
 
 ## 资料
 
@@ -373,5 +402,5 @@ THBWiki 没有“人魂”条目。一设相关的只有中有之道的“人魂
   - 其他一设：[附带文档:东方鬼形兽/Omake](https://thwiki.cc/附带文档:东方鬼形兽/Omake)、[东方鬼形兽/Music](https://thwiki.cc/东方鬼形兽/Music)、[弹幕狂们的黑市/场景说明](https://thwiki.cc/弹幕狂们的黑市/场景说明)、[东方外来韦编/2019 Autumn!/鬼形兽访谈](https://thwiki.cc/东方外来韦编/2019_Autumn!/鬼形兽访谈)、[游戏对话:东方花映塚/因幡帝/中日对照](https://thwiki.cc/游戏对话:东方花映塚/因幡帝/中日对照)、[东方文花帖/符卡说明](https://thwiki.cc/东方文花帖/符卡说明)、[八重雾中渡](https://thwiki.cc/八重雾中渡)
   - 地点与资料站整理：[三途河](https://thwiki.cc/三途河)、[中有之道](https://thwiki.cc/中有之道)、[赛之河原](https://thwiki.cc/赛之河原)、[彼岸](https://thwiki.cc/彼岸)、[村纱水蜜](https://thwiki.cc/村纱水蜜)
   - 二设：[小野塚小町/二次设定](https://thwiki.cc/小野塚小町/二次设定)、[四季映姬·夜摩仙那度/二次设定](https://thwiki.cc/四季映姬·夜摩仙那度/二次设定)
-- 日文维基：[三途川](https://ja.wikipedia.org/wiki/三途川)、[奪衣婆](https://ja.wikipedia.org/wiki/奪衣婆)、[懸衣翁](https://ja.wikipedia.org/wiki/懸衣翁)、[六文銭](https://ja.wikipedia.org/wiki/六文銭)、[灯籠流し](https://ja.wikipedia.org/wiki/灯籠流し)
-- 夜雀食堂：资料站数据 `partners/records.ts`、`guests/special/records.ts`、`guests/normal/records.ts`、`badges/records.ts`、`decorations/records.ts`、`fishingCollectibles/records.ts`；逆向代码 `DayScene/UI/RogueLike/RogueLikeCardBase.cs`
+- 日文维基：[三途川](https://ja.wikipedia.org/wiki/三途川)、[奪衣婆](https://ja.wikipedia.org/wiki/奪衣婆)、[懸衣翁](https://ja.wikipedia.org/wiki/懸衣翁)、[六文銭](https://ja.wikipedia.org/wiki/六文銭)、[灯籠流し](https://ja.wikipedia.org/wiki/灯籠流し)、[ヒガンバナ](https://ja.wikipedia.org/wiki/ヒガンバナ)、[塩](https://ja.wikipedia.org/wiki/塩)
+- 夜雀食堂：资料站数据 `partners/records.ts`、`guests/special/records.ts`、`guests/normal/records.ts`、`badges/records.ts`、`decorations/records.ts`、`fishingCollectibles/records.ts`、`ingredients/records.ts`、`places/collectionYieldFacts.ts`；逆向代码 `DayScene/UI/RogueLike/RogueLikeCardBase.cs`、`GameData/Core/Collections/DaySceneUtility/Collections/Collectable.cs`、`Product.cs`

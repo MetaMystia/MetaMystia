@@ -1,0 +1,30 @@
+{
+ "_note": "三途川新增食材草案，字段对应 ResourceEx 资源包的 ingredients（见示例资源包）。ID 待分配，须符合资源包 ID 范围与签名规则；图标 spritePath 待绘制。tags 编号见资料站 tags/tagFacts.ts：1 水产、2 素、5 传说、7 清淡、9 饱腹、11 海味、16 鲜、20 适合拍照、21 凉爽、24 猎奇、25 文化底蕴、27 不可思议、28 小巧、29 梦幻、30 特产。",
+ "ingredients": [
+  {"key": "Kelp", "name": "海带", "description": "三途川浅水里长的海带，河里海水居多，长得格外厚实。",
+   "level": 1, "prefix": -1, "isFish": false, "isMeat": false, "isVeg": true, "baseValue": 5, "tags": [2, 11, 16],
+   "basis": "设计。ZUN 访谈：三途河海水、淡水、汽水都有，海水居多（lore Y11）。"},
+  {"key": "GhostFish", "name": "冥鱼", "description": "三途河里早已绝种的鱼留下的幽灵，捞起来冰凉透亮，几乎没有分量。",
+   "level": 3, "prefix": -1, "isFish": true, "isMeat": false, "isVeg": false, "baseValue": 28, "tags": [1, 21, 27, 29],
+   "basis": "推断。求闻史纪：河里的绝种之鱼全是幽灵，钓不上来（lore Y1）。作为稀有产物，与“钓不上来”只部分相容。"},
+  {"key": "Coelacanth", "name": "空棘鱼", "description": "外界早已绝迹的古代鱼，在三途河里却不少见。",
+   "level": 4, "prefix": -1, "isFish": true, "isMeat": false, "isVeg": false, "baseValue": 48, "tags": [1, 5, 24, 30],
+   "basis": "一设。花映冢小町：河里从海龙到空棘鱼（ゴンベッサ）都有（lore Y11）。"},
+  {"key": "Ammonite", "name": "菊石", "description": "盘成螺旋的古代软体动物，壳上花纹漂亮，肉质像章鱼。",
+   "level": 3, "prefix": -1, "isFish": true, "isMeat": false, "isVeg": false, "baseValue": 26, "tags": [1, 11, 20, 24],
+   "basis": "设计。原作只说河里是外界已灭绝的水生生物（lore Y11），菊石是自选的例子。"},
+  {"key": "Trilobite", "name": "三叶虫", "description": "在浅滩石缝里爬的古代节肢动物，个头不大，煮熟后有虾蟹的香味。",
+   "level": 2, "prefix": -1, "isFish": true, "isMeat": false, "isVeg": false, "baseValue": 12, "tags": [1, 24, 28],
+   "basis": "设计。同上，三叶虫是自选的例子。"},
+  {"key": "PurpleSakuraPetal", "name": "紫樱花瓣", "description": "紫之樱飘落的花瓣，一年只开一次，带着淡淡的哀愁。",
+   "level": 3, "prefix": -1, "isFish": false, "isMeat": false, "isVeg": true, "baseValue": 32, "tags": [7, 20, 25, 29],
+   "basis": "一设。求闻史纪「無縁塚」紫之樱（lore Y5）。本图把紫花树放在台地上是设计。"},
+  {"key": "HiganBulb", "name": "彼岸花鳞茎", "description": "彼岸花的球根，生吃有毒。用河水漂洗多日去毒后，可以当作淀粉食用。",
+   "level": 2, "prefix": -1, "isFish": false, "isMeat": false, "isVeg": true, "baseValue": 6, "tags": [2, 9, 24],
+   "basis": "零设。日文维基「ヒガンバナ」：鳞茎有强毒，过去作为救荒作物去毒后食用。可考虑加原版的“毒”标签 4001（原版香椿带此标签，效果待核实）。"}
+ ],
+ "items": [
+  {"key": "RiverStone", "name": "河原的石头", "description": "赛之河原上的圆石，大小正合适垒石。",
+   "basis": "一设。戎璎花的积石大赛（lore Y6）。用于积石委托，需自定义物品。"}
+ ]
+}

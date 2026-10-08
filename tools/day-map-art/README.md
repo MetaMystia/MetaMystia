@@ -6,7 +6,7 @@
 
 - Python 3.10+，需要 `numpy`、`Pillow`、`scipy`。
 - 像素字体（可选，用于招牌文字）：Fusion Pixel Font 12px 日文版（OFL-1.1），从其 GitHub Releases 下载 `fusion-pixel-font-12px-monospaced-ttf` 压缩包，取 `fusion-pixel-12px-monospaced-ja.ttf`。字体只用于生成图片，不放进仓库或资源包。
-- 整图绘制是 CPU 与内存密集任务，在开发机上运行。
+- 整图绘制、分块细化拼接是 CPU 与内存密集任务，在开发机上运行；`annotate.py` 只依赖 Pillow，开销小，可在本机运行。
 
 ## 用法
 
@@ -30,6 +30,7 @@ python -m dayart.validate <资源包.zip>
 
 # 1:1 标注图：网格、碰撞、坡度、出生点、相机、物件与分区标注、图例（数据读自资源包）
 python tools/day-map-art/annotate.py <资源包.zip> <1:1 渲染.png> <输出.png> --font <字体.ttf> [--labels maps/sanzu/labels.json]
+    [--collect maps/sanzu/collectables.json] [--layers grid,zones,objects,spawns]     # 采集点规划图
 
 # 参考渲染：formatVersion 1/2 地图包 → PNG
 python tools/day-map-art/render_ref.py <解压目录> <输出目录> <像素/格> [地图名…] [--crop=x0,y0,x1,y1] [--debug] [--fx]
@@ -60,8 +61,8 @@ python tools/day-map-art/render_ref.py <解压目录> <输出目录> <像素/格
 | `dayart/paintover.py` | 生图结果后处理：配准、低频校色、最小差异接缝拼接、纯色底抠图与去溢色 |
 | `dayart/sheet.py` | 道具样张 |
 | `render_ref.py` | 参考渲染器 |
-| `annotate.py` | 1:1 标注图；各地图的分区文字与物件名写在 `maps/<name>/labels.json` |
-| `maps/sanzu/` | 三途川。程序化版：`layout.py`、`props.py`、`paint.py`、`build.py`、`crops.py`、试验脚本。生图版：`prompts/`、`refine.py`、`sprites.py`、`sprites.json`、`place.py`、`assemble.py` |
+| `annotate.py` | 1:1 标注图与采集点规划图；各地图的分区文字与物件名写在 `maps/<name>/labels.json`，采集点设想写在 `collectables.json` |
+| `maps/sanzu/` | 三途川。程序化版：`layout.py`、`props.py`、`paint.py`、`build.py`、`crops.py`、试验脚本。生图版：`prompts/`、`refine.py`、`sprites.py`、`sprites.json`、`place.py`、`assemble.py`。设想数据：`labels.json`、`collectables.json`（采集点）、`ingredients.json`（新增食材草案） |
 
 ## 新增一张地图
 
