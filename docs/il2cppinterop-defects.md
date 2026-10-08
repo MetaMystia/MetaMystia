@@ -58,6 +58,16 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 规避方法：被注入的抽象类，其抽象成员（方法、属性）全部标注 `[HideFromIl2Cpp]`，使其不参与注入。当前涉及 `ResourceEx/SpellCollection/SpellBaseEx.cs`。抽象成员如需被游戏调用，应改为带默认实现的虚成员。
 
+## `BeverageOut` 原生跳板的短跳转重定位
+
+2026-10-09 在 RELEASE 4.4.0e 的首次机会异常转储中确认：
+
+- 托管栈为 `DMD<RunTimeStorage::BeverageOut>` → `il2cpp_runtime_invoke`，入参酒水 ID 为 0（绿茶）。
+- 原文件 `GameAssembly+0x664250` 的开头为 `85 C9 74 5E`，即检查 ID 为 0 后跳到 `+0x6642B2` 的 `ret`。
+- Hook 跳板把两字节条件跳转展开为六字节后，目标变成 `+0x6642B6`，多了四字节，落入 `int 3` 填充区。系统故障记录与转储地址一致。
+
+局部规避：在现有 `RunTimeStoragePatch.BeverageOut_Prefix` 中对绿茶直接返回 `SkipOriginal`，等价于原版不扣库存，并避免进入错误跳板。不增加 Hook，不修改游戏二进制。该证据确认跳板重定位错误，尚未定位具体依赖库中的实现；也不能据此解释所有 `Il2CppExceptionWrapper`。编译和模拟测试不替代游戏复测。
+
 ## 维护规则
 
 - 优先使用正常的强类型 Interop API，不得预先采用指针绕过。
