@@ -5,12 +5,10 @@ using Il2CppSystem.Linq;
 
 using GameData.Core.Collections;
 using GameData.RunTime.NightSceneUtility;
-using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 using NightScene.UI.GuestManagementUtility;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.ResourceEx.SpellCollection;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
@@ -26,15 +24,6 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class WorkSceneServePannelPatch
 {
-    [HarmonyPatch(nameof(WorkSceneServePannel.InvokeOrderUpdate))]
-    [HarmonyPrefix]
-    public static void InvokeOrderUpdate_Prefix(WorkSceneServePannel __instance, out EventManager __state)
-        => __state = Spell_Minoriko.BeginFreeSakeServe(__instance.willServeBeverage);
-
-    [HarmonyPatch(nameof(WorkSceneServePannel.InvokeOrderUpdate))]
-    [HarmonyPostfix]
-    public static void InvokeOrderUpdate_Postfix(EventManager __state) => __state?.registeredExtraBevCostModifier.Remove(-1f);
-
     public static WorkSceneServePannel instanceRef;
     public static readonly PatchSkipPermit SkipOnPanelClosePatch = new();
     public static int PanelDeskCode => instanceRef?.currentGuestController?.DeskCode

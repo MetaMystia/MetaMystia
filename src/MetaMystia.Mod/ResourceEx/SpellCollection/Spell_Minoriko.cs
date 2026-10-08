@@ -22,11 +22,9 @@ namespace MetaMystia.ResourceEx.SpellCollection;
 /// <summary>秋穰子的丰穣结界与饱腹惩罚。显示数据和特效由资源包提供。</summary>
 public sealed class Spell_Minoriko : SpellBaseEx, ISpellDependencies
 {
-    private const EventManager.BuffType HarvestBuff = (EventManager.BuffType)10001;
+    internal const EventManager.BuffType HarvestBuff = (EventManager.BuffType)10001;
     private const int FillingTag = 9;
-    private const int SakeTag = 0;
-    private const int Duration = 30;
-    private static EventManager _harvestManager;
+    private const int Duration = 20;
 
     [HideFromIl2Cpp]
     public static string CheckDependencies(VfxBundle vfx)
@@ -55,7 +53,6 @@ public sealed class Spell_Minoriko : SpellBaseEx, ISpellDependencies
     private void RegisterHarvest(int duration, Vector3 origin)
     {
         var manager = Manager;
-        _harvestManager = manager;
         var harvest = Vfx.Play("Minoriko_Harvest", origin);
         // 与梅蒂欣相同：玩家和伙伴的 MatchedCookCombo.GetResult 将 tag 写入新料理。
         manager.SetExtraCookTag(FillingTag);
@@ -64,6 +61,7 @@ public sealed class Spell_Minoriko : SpellBaseEx, ISpellDependencies
             DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
             {
                 manager.RemoveExtraCookTag(FillingTag);
+                MinorikoSake.SetActive(false);
                 Vfx.Stop(harvest);
             }),
             DelegateSupport.ConvertDelegate<Il2CppSystem.Func<int, string, string>>(
@@ -72,21 +70,7 @@ public sealed class Spell_Minoriko : SpellBaseEx, ISpellDependencies
             // 不读取已附加结界 tag 的 Tags，防止全部料理都被判定为原本饱腹。
             DelegateSupport.ConvertDelegate<Il2CppSystem.Func<Sellable, float, bool>>(
                 (Sellable food, float _) => food.tags.Contains(FillingTag)));
-    }
-
-    /// <summary>仅在原版上酒的同步调用内启用免费清酒，沿用其返还库存与免额外消耗分支。</summary>
-    [HideFromIl2Cpp]
-    internal static EventManager BeginFreeSakeServe(Sellable beverage)
-    {
-        var manager = _harvestManager;
-        if (manager == null || !manager.CheckTimedBuffExists(HarvestBuff) || manager.IsFreeBevServe
-            || beverage == null || beverage.Type != Sellable.SellableType.Beverage
-            || !beverage.Tags.Contains(SakeTag))
-            return null;
-
-        // IsFreeBevServe 检查修正列表中是否存在负数。调用结束后移除，不跨帧影响其他酒水。
-        manager.registeredExtraBevCostModifier.Add(-1f);
-        return manager;
+        MinorikoSake.SetActive(true);
     }
 
     [HideFromIl2Cpp]
