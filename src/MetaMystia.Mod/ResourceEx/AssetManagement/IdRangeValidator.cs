@@ -229,6 +229,18 @@ public static partial class IdRangeValidator
                 ids.Add(("Character", c.id));
         }
 
+        if (config.foodTags != null)
+        {
+            foreach (var t in config.foodTags)
+                if (t != null) ids.Add(("FoodTag", t.id));
+        }
+
+        if (config.beverageTags != null)
+        {
+            foreach (var t in config.beverageTags)
+                if (t != null) ids.Add(("BeverageTag", t.id));
+        }
+
         if (config.ingredients != null)
         {
             foreach (var i in config.ingredients)

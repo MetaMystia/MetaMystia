@@ -95,6 +95,7 @@ public static partial class ResourceExManager
 
         AssetBundleRegistry.LoadAll(); // 先于依赖特效的符卡
         SpellRegistry.InitializeAll();
+        TagRegistry.RegisterAllFoodTagRules();
         SpecialGuestRegistry.RegisterAllSpawnConfigs();
         IngredientRegistry.RegisterAllIngredients();
         BeverageRegistry.RegisterAllBeverages();
@@ -115,6 +116,7 @@ public static partial class ResourceExManager
     }
     public static void OnDataBaseLanguageInitialized()
     {
+        TagRegistry.RegisterAllTagLanguages();
         SpecialGuestRegistry.RegisterAllFoodRequests();
         SpecialGuestRegistry.RegisterAllBevRequests();
         SpecialGuestRegistry.RegisterSpecialPortraits();
@@ -213,6 +215,7 @@ public static partial class ResourceExManager
         {
             MergeResourcePackage(package);
         }
+        TagRegistry.ValidateReferences(accepted); // 依赖全部包的 Tag 声明
 
         _rejectedPackages.AddRange(rejected);
 
@@ -283,6 +286,7 @@ public static partial class ResourceExManager
         SpecialGuestRegistry.Merge(config, packageName);
         DialogRegistry.Merge(config, packageName);
         GiftRegistry.Merge(package);
+        TagRegistry.Merge(config, packageName);
         IngredientRegistry.Merge(config, packageName);
         FoodRegistry.Merge(config, packageName);
         BeverageRegistry.Merge(config, packageName);

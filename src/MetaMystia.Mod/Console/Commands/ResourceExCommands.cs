@@ -3,6 +3,11 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Linq;
 
+using GameData.Core.Collections;
+using GameData.CoreLanguage.Collections;
+
+using MetaMystia.ResourceEx.Models;
+using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 
 namespace MetaMystia.ConsoleSystem.Commands;
@@ -30,13 +35,18 @@ public static class ResourceExCommands
         });
         resCmd.AddCommand(infoCmd);
 
+        // /resourceex tags
+        var tagsCmd = new Command("tags", "List food tag rules and resource pack tags");
+        tagsCmd.SetHandler(TagsHandler);
+        resCmd.AddCommand(tagsCmd);
+
         // Default: show help
         resCmd.SetHandler(ResourceExHelpHandler);
 
         root.AddCommand(resCmd);
 
         // Register tab completions
-        CommandRegistry.RegisterCompletions("resourceex", 0, "list", "info", "map");
+        CommandRegistry.RegisterCompletions("resourceex", 0, "list", "info", "tags", "map");
 
         // Register dynamic completions for info subcommand — package names
         var packageNames = ResourceExManager.LoadedPackages
@@ -51,6 +61,7 @@ public static class ResourceExCommands
         ctx.Log(ConsoleFormat.Header(TextId.ResourceExHelpHeader.Get()));
         ctx.Log(ConsoleFormat.SubCmd("list", "", TextId.ResourceExDescList.Get()));
         ctx.Log(ConsoleFormat.SubCmd("info", "<name>", TextId.ResourceExDescInfo.Get()));
+        ctx.Log(ConsoleFormat.SubCmd("tags", "", TextId.ResourceExDescTags.Get()));
         ctx.Log(TextId.DayMapHelp.Get());
         ctx.Log(ConsoleFormat.Line);
     }
@@ -147,10 +158,32 @@ public static class ResourceExCommands
         if (config?.merchants?.Count > 0) parts.Add($"Merchants: {config.merchants.Count}");
         if (config?.items?.Count > 0) parts.Add($"Items: {config.items.Count}");
         if (config?.clothes?.Count > 0) parts.Add($"Clothes: {config.clothes.Count}");
+        if (config?.foodTags?.Count > 0) parts.Add($"FoodTags: {config.foodTags.Count}");
+        if (config?.beverageTags?.Count > 0) parts.Add($"BeverageTags: {config.beverageTags.Count}");
+        if (config?.foodTagRules?.Count > 0) parts.Add($"FoodTagRules: {config.foodTagRules.Count}");
 
         if (parts.Count > 0)
             ctx.Log($"  {TextId.ResourceExInfoContents.Get(ConsoleFormat.Dim(string.Join(", ", parts)))}");
 
         ctx.Log(ConsoleFormat.Line);
+    }
+
+    private static void TagsHandler(InvocationContext ctx)
+    {
+        var rules = DataBaseCore.TagRules;
+        ctx.Log(ConsoleFormat.Header(TextId.ResourceExTagRulesHeader.Get(rules.Count)));
+        foreach (var rule in rules)
+            ctx.Log($"  {ConsoleFormat.Dim($"#{rule.Key}")} {string.Join(" > ", rule.Value.Select(id => $"{DataBaseLanguage.GetFoodTag(id)}({id})"))}");
+
+        LogTags(ctx, TextId.ResourceExFoodTagsHeader, TagRegistry.FoodTags);
+        LogTags(ctx, TextId.ResourceExBeverageTagsHeader, TagRegistry.BeverageTags);
+        ctx.Log(ConsoleFormat.Line);
+    }
+
+    private static void LogTags(InvocationContext ctx, TextId header, IReadOnlyCollection<TagConfig> tags)
+    {
+        ctx.Log(ConsoleFormat.Header(header.Get(tags.Count)));
+        foreach (var tag in tags)
+            ctx.Log($"  {ConsoleFormat.Arg(tag.id.ToString())} {tag.name}");
     }
 }

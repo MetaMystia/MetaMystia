@@ -168,6 +168,36 @@ rex://example-pack/assets/image.png
 - 配置在数据库与对话注册完成后校验。无效礼物保留并禁用，记录包名、数组下标和原因，不影响其他礼物；缺失标题显示“无效礼物”。
 - 领取结束后回到场景，沿用正常存档流程，不主动保存，也不新增联机同步。通过剧情回放播放同一对话不会发奖。
 
+## 自定义 Tag
+
+顶层可选数组 `foodTags`、`beverageTags` 声明新 Tag，`foodTagRules` 声明料理 Tag 冲突规则：
+
+```json
+"foodTags": [{ "id": 12000, "name": "星屑" }],
+"beverageTags": [{ "id": 12000, "name": "微醺" }],
+"foodTagRules": [{ "tags": [12000, 17] }]
+```
+
+| 字段 | 说明 |
+|---|---|
+| `foodTags[]` | 料理 Tag；食材的 `tags` 也使用这一编号 |
+| `beverageTags[]` | 酒水 Tag；编号独立于料理 Tag，可以同号 |
+| `id` | 参与 ID 范围校验 |
+| `name` | 必填非空；缺失时跳过该声明 |
+| `foodTagRules[].tags` | 料理同时带有组内多个 Tag 时只保留最靠前的一个 |
+
+- 同一 Tag ID 被多次声明时后加载者覆盖，并记录警告。
+- 语言初始化时写入游戏 Tag 名称表；料理 Tag 的 DLC 映射为 `ResourceEx`。
+- 引用沿用各字段的整数 ID：料理 Tag 用于 `foods[].tags`、`foods[].banTags`、`ingredients[].tags`、`guest.hateFoodTag`、`guest.likeFoodTag`、`guest.foodRequests`；酒水 Tag 用于 `beverages[].tags`、`guest.likeBevTag`、`guest.bevRequests`；任务条件 `SubmitByTag`、`SubmitByTags`、`SubmitByAnyOneTag` 按 `sellableType` 区分。
+- 全部包合并后校验引用。大于 `8999` 且没有任何已加载包声明的 Tag 会从上述列表中移除并记录警告；任务条件只记录警告。引用其他包的 Tag 时，应在 `packInfo.dependencies` 中声明该包。
+- 小于或等于 `8999` 的引用视为原版 Tag，在语言初始化后核对；不存在时只记录警告。
+- 冲突规则只作用于料理的最终 Tag，不作用于酒水和食材本身。`banTags` 按额外食材的原始 Tag 判断，不经过冲突规则。
+- 原版 `DataBaseCore.SolveTagPriority` 让每个 Tag 只归入首条包含它的规则，自定义规则追加在原版规则之后。因此每条规则必须包含至少两个不同的 Tag，自定义 Tag 必须已声明，且任一 Tag 都不能已属于原版或先加载的规则；不满足时整条跳过并记录警告。
+- 只能为 ResourceEx 新增角色配置 Tag 喜恶，不支持给原版稀客追加喜恶。
+- 部分原版随机玩法直接读取全部料理 Tag，可能选中自定义 Tag，如 DLC2 恋恋挑战和 DLC5 流行 Tag 生成。DLC1 幽香挑战按 DLC 映射过滤，不会选中。
+- 联机不单独比较 Tag 表。引用 Tag 的料理、食材、酒水、食谱和稀客按 ID 判断各端是否可用，稀客点单 Tag 与评价由房主生成后下发。双方包 `label` 相同但版本不同，或跨包引用 Tag 却未声明依赖时，各端 Tag 表可能不一致。
+- `/resourceex tags` 列出当前全部料理 Tag 冲突规则与资源包 Tag。
+
 ## 修改检查表
 
 - JSON 模型、Mapper 和实际游戏注册逻辑是否同步。

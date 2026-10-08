@@ -27,6 +27,9 @@ public class ResourceConfig
     public List<CharacterConfig> characters { get; set; }
     public List<DialogPackageConfig> dialogPackages { get; set; }
     public List<GiftConfig> gifts { get; set; }
+    public List<TagConfig> foodTags { get; set; }
+    public List<TagConfig> beverageTags { get; set; }
+    public List<TagRuleConfig> foodTagRules { get; set; }
     public List<IngredientConfig> ingredients { get; set; }
     public List<RecipeConfig> recipes { get; set; }
     public List<FoodConfig> foods { get; set; }

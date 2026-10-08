@@ -323,6 +323,7 @@ public enum TextId
     ResourceExHelpHeader,
     ResourceExDescList,
     ResourceExDescInfo,
+    ResourceExDescTags,
     ResourceExListHeader,
     ResourceExListItem,
     ResourceExListEmpty,
@@ -338,6 +339,9 @@ public enum TextId
     ResourceExInfoNotFound,
     ResourceExRejectedHeader,
     ResourceExRejectedItem,
+    ResourceExTagRulesHeader,
+    ResourceExFoodTagsHeader,
+    ResourceExBeverageTagsHeader,
 
     // Version Mismatch
     GameVersionMismatchNotify,
