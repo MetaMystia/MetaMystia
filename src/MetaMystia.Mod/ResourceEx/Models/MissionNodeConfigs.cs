@@ -38,6 +38,7 @@ public class MissionRewardConfig
     public string rewardId { get; set; }
     public Reward.ObjectType? objectType { get; set; }
     public List<int> rewardIntArray { get; set; }
+    public bool? should { get; set; }
 }
 
 public class MissionFinishConditionConfig
