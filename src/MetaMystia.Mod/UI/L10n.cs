@@ -18,6 +18,16 @@ public enum Language
 
 public enum TextId
 {
+    PlayerListOnline,
+    PlayerListLastPosition,
+    PlayerListMainMenu,
+    PlayerListDay,
+    PlayerListPreparation,
+    PlayerListWork,
+    PlayerListResult,
+    PlayerListLoading,
+    PlayerListStaff,
+    PlayerListUnknown,
     BusinessStartWaiting,
     NetworkVersionDetails,
     NetworkProtocolMismatch,

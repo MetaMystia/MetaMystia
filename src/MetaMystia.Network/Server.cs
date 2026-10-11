@@ -170,7 +170,7 @@ public sealed partial class Server : IAsyncDisposable
                 if (!CanStore(p, player)) { Reject(p, NetworkErrorCode.WorldDataBudgetExceeded); return; }
                 var newUid = AllocateUid();
                 if (newUid == 0) { Reject(p, NetworkErrorCode.UidExhausted); return; }
-                p.Player = player with { Uid = newUid, Membership = 0, HasMotion = false, Motion = new() };
+                p.Player = player with { Uid = newUid, Membership = 0, Map = MapLabel.Unknown, HasMotion = false, Motion = new() };
                 if (options.LanKey != null)
                 {
                     if (lanHost == 0)
@@ -199,7 +199,11 @@ public sealed partial class Server : IAsyncDisposable
                     var motion = Protocol.Read<Motion>(f.Body); Protocol.Validate(motion);
                     if (f.Kind == Kind.Motion && p.Player.Scene != Scene.DayScene) break;
                     if (f.Kind == Kind.RoomMotion && (p.Player.Scene != Scene.WorkScene || p.Room == 0 || f.Room != p.Room || f.Membership != p.Player.Membership)) break;
-                    p.Player = p.Player with { Motion = motion, HasMotion = true };
+                    bool mapChanged = p.Player.Scene == Scene.DayScene && p.Player.Map != motion.Map;
+                    p.Player = p.Player with { Motion = motion, HasMotion = true,
+                        Map = p.Player.Scene == Scene.DayScene ? motion.Map : MapLabel.Unknown };
+                    if (mapChanged)
+                        Broadcast(new(Kind.Profile, Protocol.Pack(p.Player with { Resources = null, Motion = new(), HasMotion = false }), p.Player.Uid), p);
                     foreach (var target in peers.Where(x => x != p && x.Player != null && CanSeeMotion(p, x)))
                         target.Wire.Send(new(f.Kind, f.Body, p.Player.Uid, Room: p.Room, Membership: p.Player.Membership, RecipientMembership: target.Player!.Membership));
                     break;
@@ -208,7 +212,7 @@ public sealed partial class Server : IAsyncDisposable
                     if (peers.Any(x => x != p && x.Player != null && string.Equals(x.Player.Name, profile.Name, StringComparison.OrdinalIgnoreCase))) throw new NetworkException(NetworkErrorCode.DuplicateName);
                     bool changedScene = p.Player.Scene != profile.Scene;
                     var updated = p.Player with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene, Stage = profile.Stage };
-                    if (changedScene) updated = updated with { Motion = new(), HasMotion = false };
+                    if (changedScene) updated = updated with { Map = MapLabel.Unknown, Motion = new(), HasMotion = false };
                     if (!CanStore(p, updated)) throw new NetworkException(NetworkErrorCode.WorldDataBudgetExceeded);
                     if (p.Player.Name != updated.Name)
                         Log(ServerLogLevel.Info, $"玩家改名 uid={p.Player.Uid}，{ServerLogEntry.Quote(p.Player.Name)} → {ServerLogEntry.Quote(updated.Name)}");
