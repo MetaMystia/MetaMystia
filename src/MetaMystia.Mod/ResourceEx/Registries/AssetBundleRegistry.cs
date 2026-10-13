@@ -7,8 +7,8 @@ using MetaMystia.ResourceEx.Vfx;
 namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
-/// AssetBundle 注册器：在启动时同步预加载资源包声明的全部 AssetBundle，
-/// 避免首次使用时卡顿；运行时按 rex:// URI 取用。
+/// AssetBundle 注册器：在数据初始化时同步预加载资源包声明的全部 AssetBundle，
+/// 避免首次使用时卡顿；加载后常驻内存，运行时按 rex:// URI 取用。
 /// </summary>
 [AutoLog]
 public static partial class AssetBundleRegistry
@@ -36,6 +36,10 @@ public static partial class AssetBundleRegistry
     {
         foreach (var uri in BundleUris)
         {
+            // 数据重载（如切换语言）会再次触发初始化；bundle 常驻不卸载，重复 LoadFromMemory 会被 Unity 拒绝并报错
+            if (Bundles.ContainsKey(uri))
+                continue;
+
             if (!RexAssetRegistry.Assets.ContainsKey(uri))
             {
                 Log.LogError($"资源包中找不到 AssetBundle: {uri}");
