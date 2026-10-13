@@ -10,7 +10,10 @@ namespace MetaMystia.UI;
 public enum Language
 {
     ChineseSimplified,
+    ChineseTraditional,
     English,
+    Japanese,
+    Korean,
 }
 
 public enum TextId
@@ -404,8 +407,11 @@ public static class L10n
     public static void Initialize()
     {
         var asm = Assembly.GetExecutingAssembly();
-        LoadLanguageFromResource(asm, Language.English, "MetaMystia.UI.Locales.en.json");
         LoadLanguageFromResource(asm, Language.ChineseSimplified, "MetaMystia.UI.Locales.zh-CN.json");
+        LoadLanguageFromResource(asm, Language.ChineseTraditional, "MetaMystia.UI.Locales.zh-TW.json");
+        LoadLanguageFromResource(asm, Language.English, "MetaMystia.UI.Locales.en.json");
+        LoadLanguageFromResource(asm, Language.Japanese, "MetaMystia.UI.Locales.ja.json");
+        LoadLanguageFromResource(asm, Language.Korean, "MetaMystia.UI.Locales.ko.json");
     }
 
     private static void LoadLanguageFromResource(Assembly asm, Language lang, string resourceName)
@@ -464,8 +470,11 @@ public static class L10n
 
         if (Directory.Exists(path))
         {
-            LoadLanguageFromFile(Language.English, Path.Combine(path, "en.json"));
             LoadLanguageFromFile(Language.ChineseSimplified, Path.Combine(path, "zh-CN.json"));
+            LoadLanguageFromFile(Language.ChineseTraditional, Path.Combine(path, "zh-TW.json"));
+            LoadLanguageFromFile(Language.English, Path.Combine(path, "en.json"));
+            LoadLanguageFromFile(Language.Japanese, Path.Combine(path, "ja.json"));
+            LoadLanguageFromFile(Language.Korean, Path.Combine(path, "ko.json"));
             return;
         }
 
@@ -512,8 +521,10 @@ public static class L10n
     public static Language GetLanguage(this GameData.MultiLanguageTextMesh.LoadLanguageType loadLanguageType) => loadLanguageType switch
     {
         GameData.MultiLanguageTextMesh.LoadLanguageType.Chinese => Language.ChineseSimplified,
+        GameData.MultiLanguageTextMesh.LoadLanguageType.CNT => Language.ChineseTraditional,
         GameData.MultiLanguageTextMesh.LoadLanguageType.English => Language.English,
-        GameData.MultiLanguageTextMesh.LoadLanguageType.CNT => Language.ChineseSimplified,
+        GameData.MultiLanguageTextMesh.LoadLanguageType.Japanese => Language.Japanese,
+        GameData.MultiLanguageTextMesh.LoadLanguageType.Korean => Language.Korean,
         _ => Language.English,
     };
 

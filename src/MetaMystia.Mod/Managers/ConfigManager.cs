@@ -121,8 +121,8 @@ public static partial class ConfigManager
 
         LocaleOverride = Config.Bind("General", "LocaleOverride", "",
             "Locale override: a single .json file (merged into current game language, missing keys fall back to built-in),\n" +
-            "or a directory with en.json / zh-CN.json. Supports absolute or relative path (relative to BepInEx/plugins/).\n" +
-            "翻译覆盖：单个 .json 文件（按当前游戏语言覆盖，未覆盖项回退内置翻译），或含 en.json/zh-CN.json 的目录。");
+            "or a directory with zh-CN.json / zh-TW.json / en.json / ja.json / ko.json. Supports absolute or relative path (relative to BepInEx/plugins/).\n" +
+            "翻译覆盖：单个 .json 文件（按当前游戏语言覆盖，未覆盖项回退内置翻译），或含 zh-CN.json/zh-TW.json/en.json/ja.json/ko.json 的目录。");
 
         NoteBookSkinPortrait = Config.Bind("Experimental", "NoteBookSkinPortrait", false,
             "(Experimental) Enable portrait replacement for Skin System in NoteBook\n" +

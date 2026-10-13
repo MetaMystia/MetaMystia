@@ -43,6 +43,9 @@
     <EmbeddedResource Include="ResourceEx\AssetManagement\public.pem" />
     <EmbeddedResource Include="UI\Locales\en.json" />
     <EmbeddedResource Include="UI\Locales\zh-CN.json" />
+    <EmbeddedResource Include="UI\Locales\zh-TW.json" />
+    <EmbeddedResource Include="UI\Locales\ja.json" />
+    <EmbeddedResource Include="UI\Locales\ko.json" />
   </ItemGroup>
 
   <ItemGroup>
