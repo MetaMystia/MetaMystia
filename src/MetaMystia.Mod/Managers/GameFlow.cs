@@ -43,7 +43,8 @@ public static partial class GameFlow
 #if DEBUG
     public static int WorkTimeSecondOverride = 30;
 #else
-    public static int WorkTimeSecondOverride = 9 * 60;
+    // 原版 NightScene.SceneManager.NIGHT_WHOLE_TIME（240 秒）的 1.5 倍。
+    public static int WorkTimeSecondOverride = 6 * 60;
 #endif
 
     public static void RefreshInStoryCache()
@@ -58,6 +59,7 @@ public static partial class GameFlow
     {
         CharactersReady = false;
         PlayerManager.OnSceneUnloading();
+        RoomTimeStop.Reset();
         // 在新白天触发剧情入口之前结束上一段玩法；加载就绪另由 Stage 发布。
         if (scene == Scene.DayScene && IsCooperative) ResetGameplay(resetEntry: false);
         if (IsCooperative && LocalScene == Scene.DayScene && scene != Scene.DayScene) DayDestinationManager.Reset();
@@ -95,6 +97,7 @@ public static partial class GameFlow
         PrepSceneManager.ClearPrepTable();
         PrepSceneManager.ResetYuyukoPrep();
         BusinessStart.Reset();
+        RoomTimeStop.Reset();
         PlayerManager.Local.ResetState();
         foreach (var peer in PlayerManager.Peers.Values) peer.ResetState();
     }

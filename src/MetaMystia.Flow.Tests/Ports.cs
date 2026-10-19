@@ -131,9 +131,30 @@ namespace MetaMystia.Multiplayer.Messages
         public static readonly List<bool> Sent = new();
         public static void Send(bool start) => Sent.Add(start);
     }
+    static class TimeStopRequestMessage
+    {
+        public static readonly List<bool> Sent = new();
+        public static void Send(bool freeze) => Sent.Add(freeze);
+    }
+    static class TimeStopStateMessage
+    {
+        public static readonly List<bool> Sent = new();
+        public static void Send(bool freeze) => Sent.Add(freeze);
+    }
 }
 namespace MetaMystia.Patch
 {
+    static class GameTimeManagerPatch
+    {
+        public static bool IsFrozen;
+        /// <summary>每次执行的时停状态及此前已广播的裁定数量。</summary>
+        public static readonly List<(bool Freeze, int Broadcasts)> Applied = new();
+        public static void Apply(bool freeze)
+        {
+            IsFrozen = freeze;
+            Applied.Add((freeze, Multiplayer.Messages.TimeStopStateMessage.Sent.Count));
+        }
+    }
     static class RunTimeSchedulerPatch
     {
         public static int FirstTrialEntries;

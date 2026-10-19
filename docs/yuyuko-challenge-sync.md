@@ -107,6 +107,22 @@ sequenceDiagram
 
 联机补丁使 QTE 期间时间继续推进，已开始的 QTE 可能在厨具被吞后才完成。`StartCookCountDown` 本身没有锁定检查，因此本地入口和网络 QTE 重放入口都需拒绝已吞厨具。该先后关系有源码依据，尚未在双端游戏中复现验证。
 
+## 面板时停（审计，未启用）
+
+普通营业已启用房间时停，见[联机架构](multiplayer-architecture.md)；最终试炼仍由 `GameTimeManagerPatch` 把时停改写为 Resume。以下为源码审计结论，尚未实测：
+
+- `YuyukoBossData` 不调用 `SetGameTimeMode`，挑战中的时停来源与普通营业相同：面板、QTE 和符卡对话。
+- 挑战计时 `Timing|2` 使用 `OneSecondDelay`；各阶段刷客、二阶段负面符卡和三阶段本体刷新使用 `WaitForSeconds`。这些都是缩放时间，房间统一冻结时，各端会同时暂停。
+- `YuyukoTimingPatch`、`YuyukoMainLoopPatch` 只在收到主机阶段消息后放行。主机冻结时自身计时也会停止，冻结期间不会产生阶段结束消息。
+- 吞厨具协程：
+  - 开头的符卡宣言用 `WaitForSecondsRealtime` 等待，冻结期间仍会播完；
+  - 之后 `LerpPosition` 按缩放时间移动，主机在 1→2 广播目标的时机会随冻结顺延，客机重放不需要额外处理。
+- 全员规则下，只有全员都在面板时才会冻结；其余时间 QTE 期间时间照常推进，`StartCookCountDown` 对已吞厨具的拒绝仍要保留。
+- `YuyukoGuestSync` 不使用墙钟；顾客等待超时已随 `GuestFSM` 改为游戏时间。剧情处理与普通营业相同：剧情中的玩家不计为请求时停，剧情结束后按房间状态校正。
+- 平衡：启用普通营业时停后，联机时长补偿统一下调为原版的 1.5 倍：普通营业夜间 360 秒（原版 240 秒），挑战三个阶段时长均为 1.5 倍（此前前两阶段 2.25 倍、第三阶段 4 倍）。三阶段幽幽子耐心仍为 3 倍。
+
+结论：未发现机制上的阻碍。放开时，把 `RoomTimeStop.IsBusiness` 的目的地条件扩展到最终试炼，删除 `GameTimeManagerPatch` 中的改写分支，然后做双端实测。
+
 ## 文件组织与审阅入口
 
 - `Managers/YuyukoGuestSync.cs`：绑定、订单、评价与回调生命周期。

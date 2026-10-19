@@ -149,6 +149,7 @@ public static partial class GameSession
         }
         DayDestinationManager.TryConfirm();
         BusinessStart.TryStart();
+        RoomTimeStop.Tick();
         if (IsRoomHost && GameFlow.IsCooperative)
         {
             PrepSceneManager.TryCompletePrep();

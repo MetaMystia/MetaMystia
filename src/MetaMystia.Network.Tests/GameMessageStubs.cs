@@ -79,4 +79,6 @@ namespace MetaMystia.Multiplayer.Messages
     public class YuyukoGuestBoundMessage : MultiplayerMessage {}
     public class RoomInitialStateMessage : MultiplayerMessage {}
     public class BusinessStartMessage : MultiplayerMessage {}
+    public class TimeStopRequestMessage : MultiplayerMessage {}
+    public class TimeStopStateMessage : MultiplayerMessage {}
 }
