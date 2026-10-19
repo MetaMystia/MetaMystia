@@ -46,6 +46,8 @@ public enum GameMessageType : ushort
     YuyukoGuestBound = 52,
     RoomInitialState = 53,
     BusinessStart = 54,
+    TimeStopRequest = 55,
+    TimeStopState = 56,
 }
 
 public static class GameMessageRules
@@ -96,5 +98,7 @@ public static class GameMessageRules
         new((ushort)GameMessageType.YuyukoGuestBound, [Route.Host]),
         new((ushort)GameMessageType.RoomInitialState, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessageType.BusinessStart, [Route.Host, Route.Room], HostBroadcastOnly: true),
+        new((ushort)GameMessageType.TimeStopRequest, [Route.Host]),
+        new((ushort)GameMessageType.TimeStopState, [Route.Room, Route.Player], HostOnly: true),
     ];
 }

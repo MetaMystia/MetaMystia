@@ -9,6 +9,7 @@
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
     <Compile Include="../MetaMystia.Mod/Managers/DayDestinationManager.cs" Link="DayDestinationManager.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/BusinessStart.cs" Link="BusinessStart.cs" />
+    <Compile Include="../MetaMystia.Mod/Managers/RoomTimeStop.cs" Link="RoomTimeStop.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/GameFlow.Transitions.cs" Link="GameFlow.Transitions.cs" />
     <Compile Include="../MetaMystia.Mod/Patches/Common/IzakayaSelectorPanelPatch.cs" Link="IzakayaSelectorPanelPatch.cs" />
     <Compile Include="../MetaMystia.Mod/Patches/HarmonyPrefixFlow.cs" Link="HarmonyPrefixFlow.cs" />

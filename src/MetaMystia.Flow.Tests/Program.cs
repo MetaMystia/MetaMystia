@@ -4,6 +4,7 @@ using MetaMystia;
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
+using MetaMystia.Patch;
 
 int checks = 0;
 void Check(bool condition, string message)
@@ -32,8 +33,20 @@ void Setup(bool host = true)
     GameFlow.InStory = false;
     DayDestinationManager.ResetSession();
     BusinessStart.Reset();
+    RoomTimeStop.Reset();
     DayDestinationConfirmMessage.Sent.Clear();
     BusinessStartMessage.Sent.Clear();
+    TimeStopRequestMessage.Sent.Clear();
+    TimeStopStateMessage.Sent.Clear();
+    GameTimeManagerPatch.Applied.Clear();
+    GameTimeManagerPatch.IsFrozen = false;
+}
+void WorkSetup(bool host = true)
+{
+    Setup(host);
+    GameFlow.Destination = DayDestination.Business;
+    GameFlow.LocalScene = Scene.WorkScene;
+    GameSession.Room = GameSession.Room with { Members = [new() { Uid = 1, Stage = GameStage.Work }, new() { Uid = 2, Stage = GameStage.Work }] };
 }
 void Intent(DayDestination target, System.Action continuation)
 {
@@ -244,5 +257,68 @@ Check(GameSession.Leaves == 0 && GameSession.Stops == 0, "独立服务器世界�
 GameSession.IsConnecting = true;
 GameFlow.LeaveRoomForTransition();
 Check(GameSession.Stops == 1 && !GameSession.Resumed, "场景中断取消尚未完成的连接");
+
+WorkSetup();
+Check(RoomTimeStop.Intercepts, "普通营业联机时由房主裁定时停");
+RoomTimeStop.SetLocalDemand(true);
+RoomTimeStop.Tick();
+Check(TimeStopStateMessage.Sent.Count == 0 && GameTimeManagerPatch.Applied.Count == 0, "只有房主进入面板时不冻结");
+RoomTimeStop.ReceiveDemand(2, true);
+RoomTimeStop.Tick();
+RoomTimeStop.Tick();
+Check(TimeStopStateMessage.Sent.SequenceEqual([true]) && GameTimeManagerPatch.Applied.Single() == (true, 1),
+    "全员进入面板后先广播再冻结，且只执行一次");
+RoomTimeStop.ReceiveDemand(2, false);
+RoomTimeStop.Tick();
+Check(TimeStopStateMessage.Sent.SequenceEqual([true, false]) && GameTimeManagerPatch.Applied.Last() == (false, 2),
+    "客机退出面板后先广播再恢复");
+RoomTimeStop.ReceiveDemand(2, true);
+RoomTimeStop.Tick();
+RoomTimeStop.SetLocalDemand(false);
+RoomTimeStop.Tick();
+Check(TimeStopStateMessage.Sent.Last() == false && !GameTimeManagerPatch.IsFrozen, "房主退出面板同样解除时停");
+
+WorkSetup();
+PlayerManager.Peers[3] = new() { Uid = 3 };
+GameSession.Room = GameSession.Room with { Members = [.. GameSession.Room.Members, new() { Uid = 3, Stage = GameStage.Work }] };
+RoomTimeStop.SetLocalDemand(true);
+RoomTimeStop.ReceiveDemand(3, true);
+RoomTimeStop.Tick();
+Check(TimeStopStateMessage.Sent.Count == 0, "仍有成员可以操作时不冻结");
+GameSession.Room = GameSession.Room with { Members = GameSession.Room.Members.Where(p => p.Uid != 2).ToArray() };
+RoomTimeStop.Tick();
+Check(TimeStopStateMessage.Sent.SequenceEqual([true]), "未进面板的成员离房后重新裁定");
+GameSession.Room = GameSession.Room with { Members = [new() { Uid = 1, Stage = GameStage.Work }, new() { Uid = 3, Stage = GameStage.Work }, new() { Uid = 4, Stage = GameStage.Result }] };
+RoomTimeStop.Tick();
+Check(TimeStopStateMessage.Sent.Count == 1, "已离开夜间场景的成员不计入");
+RoomTimeStop.Reset();
+Check(!GameTimeManagerPatch.IsFrozen, "重置时恢复本地时间");
+
+WorkSetup(host: false);
+RoomTimeStop.SetLocalDemand(true);
+RoomTimeStop.Tick();
+Check(TimeStopRequestMessage.Sent.SequenceEqual([true]) && GameTimeManagerPatch.Applied.Count == 0, "客机只上报意向，不自行冻结");
+RoomTimeStop.SetLocalDemand(false);
+RoomTimeStop.SetLocalDemand(true);
+RoomTimeStop.Tick();
+Check(TimeStopRequestMessage.Sent.Count == 1, "同帧内恢复再冻结不重复发包");
+RoomTimeStop.Apply(true);
+Check(GameTimeManagerPatch.IsFrozen, "客机执行房主冻结");
+GameFlow.InStory = true;
+RoomTimeStop.Tick();
+Check(!RoomTimeStop.Intercepts && TimeStopRequestMessage.Sent.Last() == false, "剧情中的玩家不计为请求时停");
+RoomTimeStop.Apply(false);
+Check(GameTimeManagerPatch.IsFrozen, "剧情期间不改动本地时间");
+GameFlow.InStory = false;
+RoomTimeStop.Tick();
+Check(!GameTimeManagerPatch.IsFrozen, "剧情结束后按房间状态校正");
+
+WorkSetup(host: false);
+GameFlow.Destination = DayDestination.FinalTrial;
+RoomTimeStop.Apply(true);
+Check(!RoomTimeStop.Intercepts && !GameTimeManagerPatch.IsFrozen, "最终试炼不拦截也不执行房间时停");
+GameFlow.Destination = DayDestination.Business;
+PlayerManager.Peers.Clear();
+Check(!RoomTimeStop.Intercepts, "没有同房玩家时保留单机时停");
 PlayerPresenceChecks.Run(Check);
 Console.WriteLine($"ALL PASS ({checks} assertions; game and transport ports simulated)");
