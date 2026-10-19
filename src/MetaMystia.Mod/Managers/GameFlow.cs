@@ -43,7 +43,8 @@ public static partial class GameFlow
 #if DEBUG
     public static int WorkTimeSecondOverride = 30;
 #else
-    public static int WorkTimeSecondOverride = 9 * 60;
+    // 原版 NightScene.SceneManager.NIGHT_WHOLE_TIME（240 秒）的 1.5 倍。
+    public static int WorkTimeSecondOverride = 6 * 60;
 #endif
 
     public static void RefreshInStoryCache()
