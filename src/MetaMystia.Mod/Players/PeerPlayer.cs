@@ -70,15 +70,26 @@ public partial class PeerPlayer : NetPlayer
         bool created = character == null;
         if (created)
         {
-            owner = SceneDirector.Instance;
-            var go = Object.Instantiate(DataBaseCharacter.CharacterBase, owner.transform);
+            var skin = Skin.ResolveSkin();
+            var director = SceneDirector.Instance;
+            var go = Object.Instantiate(DataBaseCharacter.CharacterBase, director.transform);
             go.name = CharacterId;
-            character = go.GetComponent<CharacterControllerUnit>();
-            // 剧情用的 SpawnCharacter 会删除碰撞体，联机角色需保留碰撞体。
-            character.Initialize(Skin.ResolveSkin(), motion.Speed, true);
-            owner.characterCollection.Add(CharacterId, character);
-            character.AddInputProcessor<HeightBlendedInputProcessorComponent>();
-            Skin.ApplyToUnit(character);
+            try
+            {
+                var unit = go.GetComponent<CharacterControllerUnit>();
+                // 剧情用的 SpawnCharacter 会删除碰撞体，联机角色需保留碰撞体。
+                unit.Initialize(skin, motion.Speed, true);
+                unit.AddInputProcessor<HeightBlendedInputProcessorComponent>();
+                Skin.ApplyToUnit(unit);
+                director.characterCollection.Add(CharacterId, unit);
+                owner = director;
+                character = unit;
+            }
+            finally
+            {
+                // 初始化失败的对象不得留给网络刷新和物理更新。
+                if (character == null) Object.Destroy(go);
+            }
             IgnorePlayerCollisions();
             Log.Info($"Created peer '{CharacterId}' in {Scene}");
         }

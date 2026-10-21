@@ -78,17 +78,18 @@ public partial class PlayerSkin
     private static CharacterSpriteSetCompact ResolveSkin(
         CharacterSkinSets skinSets, CharacterSkinSets.SelectedType type, int index)
     {
-        if (skinSets is null) return null;
+        if (skinSets == null) return DataBaseCharacter.FallbackFullPixel;
 
-        return type switch
+        var skin = type switch
         {
             CharacterSkinSets.SelectedType.Default => skinSets.defaultSkin,
-            CharacterSkinSets.SelectedType.Explicit => (index >= 0 && index < skinSets.explicits.Length)
+            CharacterSkinSets.SelectedType.Explicit => (index >= 0 && index < skinSets.explicits?.Length)
                 ? skinSets.explicits[index] : skinSets.defaultSkin,
-            CharacterSkinSets.SelectedType.DLC => (index >= 0 && index < skinSets.dlcs.Length)
+            CharacterSkinSets.SelectedType.DLC => (index >= 0 && index < skinSets.dlcs?.Length)
                 ? skinSets.dlcs[index] : skinSets.defaultSkin,
             _ => skinSets.defaultSkin
         };
+        return skin != null ? skin : skinSets.GetDefaultPixel(false);
     }
 
     /// <summary>
