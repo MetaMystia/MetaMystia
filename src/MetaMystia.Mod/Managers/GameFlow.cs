@@ -25,6 +25,7 @@ public static partial class GameFlow
         Scene.DayScene when CharactersReady && !InStory && !PlayerManager.LocalIsDayOver
             && RunTimeScheduler.CurrentGamePhase == RunTimeScheduler.GamePhase.Day => GameStage.Day,
         Scene.IzakayaPrepScene => GameStage.Preparation,
+        Scene.WorkScene when PrepSceneManager.IsYuyukoPrepActive => GameStage.Preparation,
         Scene.WorkScene when CharactersReady => GameStage.Work,
         Scene.ResultScene => GameStage.Result,
         Scene.LoadScene => GameStage.Loading,

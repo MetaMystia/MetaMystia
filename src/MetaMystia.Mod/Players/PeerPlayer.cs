@@ -42,6 +42,10 @@ public partial class PeerPlayer : NetPlayer
     {
         bool skinChanged = NetworkState?.Skin != state.Skin;
         bool motionReceived = !ReferenceEquals(NetworkState?.Motion, state.Motion);
+        // 同一营业场景可多次备菜；进入新准备阶段时清除上一轮显示。
+        if (state.Stage == GameStage.Preparation
+            && (NetworkState?.Stage != state.Stage || NetworkState?.Scene != state.Scene))
+            IsPrepOver = false;
         NetworkState = state;
         Id = state.Name;
         if (skinChanged)
