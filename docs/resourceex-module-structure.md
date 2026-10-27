@@ -23,7 +23,7 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 
 `ItemRegistry` 注册 `items` 与 `clothes` 的 Item 和语言；`ClothRegistry` 只注册服装专属的 ClothesProfile、像素精灵与立绘。
 
-`GiftRegistry` 按加载的包保留礼物列表，在 `OnDataBaseDayInitialized()` 注册对话后校验 Item 与对话引用。`GiftMailboxManager` 负责菜单和对话结束后的入库；与 `StoryReplayManager` 共用 `UI/DaySceneSelectionMenu`，不持有领取存档。
+`GiftRegistry` 按加载的包保留礼物列表，在 `OnDataBaseDayInitialized()` 注册对话后校验物品、食谱、料理、酒水、食材与对话引用。`GiftMailboxManager` 负责菜单和对话结束后经 `Product.SendToStorage` 入库；与 `StoryReplayManager` 共用 `UI/DaySceneSelectionMenu`，不持有领取存档。
 
 `DataBaseCore` 初始化后，`AssetBundleRegistry` 先预加载已声明的包，`SpellRegistry` 再检查符卡配置及实现要求的依赖。手工维护的 `Implementations` 列表关联受 ISpellDependencies 约束的泛型工厂；检查通过后才注入类型、创建实例，并将 `vfxBundle` 对应的 `VfxBundle` 赋给实例。未声明符卡时不创建或注入，缺少依赖时只跳过对应符卡。后续语言、角色符卡标记和夜间实例登记只处理通过检查的项。
 

@@ -145,26 +145,38 @@ rex://example-pack/assets/image.png
 ```json
 "gifts": [
   {
-    "itemId": 9000,
+    "productType": "Item",
+    "productId": 9000,
     "allowRepeat": false,
     "title": "小恶魔的工作装",
     "dialogPackageName": "_ResourceExample_Gift_Clothes_9000"
+  },
+  {
+    "productType": "Ingredient",
+    "productId": 9001,
+    "productAmount": 5,
+    "allowRepeat": true,
+    "title": "一筐食材",
+    "dialogPackageName": "_ResourceExample_Gift_Ingredient_9001"
   }
 ]
 ```
 
 | 字段 | 说明 |
 |---|---|
-| `itemId` | 必填整数，引用 `DataBaseCore.Items` 中的 Item 或派生类，每次发放一件；不接受食材、料理、酒水等其他类别 |
-| `allowRepeat` | 默认 `false`；为 `false` 且当前持有该 Item 时跳过发放 |
+| `productType` | 可选，默认 `Item`；支持 `Item`、`Recipe`、`Food`、`Beverage`、`Ingredient`，其他原生 `ProductType` 视为无效 |
+| `productId` | 必填整数，引用 `productType` 对应的 `DataBaseCore` 集合（`Items`、`Recipes`、`Foods`、`Beverages`、`Ingredients`）；`Recipe` 填食谱 ID，不是料理 ID |
+| `productAmount` | 可选，默认 `1`，范围 `1` 到 `RunTimeStorage.MAX_OBJECT_COUNT`（99999）；食谱只会入库一次，数量被忽略；衣服、装饰、唱片应保持 `1` |
+| `itemId` | 旧字段，等价于 `productType: Item` 加 `productId`；两者并存时以 `productId` 为准 |
+| `allowRepeat` | 默认 `false`；为 `false` 且当前已持有该对象（食谱为已学会）时跳过发放 |
 | `title` | 必填非空字符串，礼物菜单标题 |
 | `dialogPackageName` | 必填非空字符串，精确匹配已构建且非空的 ResourceEx `dialogPackages[].name` |
 
-- `itemId` 是引用，不是新增资源声明，不参与 ID 段与签名校验；可引用原版或已加载包的 Item。
+- `productId` 是引用，不是新增资源声明，不参与 ID 段与签名校验；可引用原版或已加载包的对象。
 - 对话名称沿用全局匹配规则，建议添加包名前缀，避免同名覆盖。
 - 包按加载后的顺序显示，礼物按数组顺序显示。已持有的礼物仍可播放对话，发放判断在对话结束时进行。
-- 不保存领取记录；物品移除后可再次领取。从其他来源获得的同号 Item 也会阻止不可重复礼物的发放。
-- 发放走原生 `ItemInRange`，保留入库通知、图鉴、成就和衣服、装饰、唱片的去重；`allowRepeat` 不强制这些物品累加。
+- 不保存领取记录；物品移除或料理、酒水、食材用完后可再次领取。从其他来源获得的同号对象也会阻止不可重复礼物的发放。
+- 发放走原生 `SendToStorage`，由游戏按类型调用 `ItemInRange`、`RecipeInRange`、`FoodInRange`、`BeverageInRange`、`IngredientInRange`，保留入库通知、图鉴、成就和衣服、装饰、唱片的去重；`allowRepeat` 不强制这些物品累加。
 - 配置在数据库与对话注册完成后校验。无效礼物保留并禁用，记录包名、数组下标和原因，不影响其他礼物；缺失标题显示“无效礼物”。
 - 领取结束后回到场景，沿用正常存档流程，不主动保存，也不新增联机同步。通过剧情回放播放同一对话不会发奖。
 
