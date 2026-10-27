@@ -2,7 +2,7 @@
 
 2026-09-13 新地图结构实践见 [ResourceEx 白天新地图调研](../../docs/resourceex-day-map-research.md)：从零建图、原生加载、碰撞、遮挡与相机检查。`map-audit-*` 为该实验专用载荷，使用范围和清理步骤见报告。
 
-2026-09-13 资源包地图实现见 [白天地图首版](../../docs/resourceex-day-maps.md)。`create-day-map-package.py` 生成独立 ZIP，`day-map-test-init.csx` 提供真实控制台命令与快照；`day-map-test-walk.csx` 依赖它和 `day-nav-init.csx`，仅适用测试包坐标。先核验每次切图完成再移动，结束用 `DayMapTest.Command("back")` 返回。
+资源包地图见 [ResourceEx 白天地图](../../docs/resourceex-day-maps.md)。`create-day-map-package.py` 生成独立 ZIP，`day-map-test-init.csx` 提供真实控制台命令与快照；`day-map-test-walk.csx` 依赖它和 `day-nav-init.csx`，仅适用测试包坐标。先核验每次切图完成再移动，结束用 `DayMapTest.Command("back")` 返回。
 
 坡面测试使用 0.2.0 测试包及 `day-map-height-test.csx`：先通过指令到 `SlopeUp` / `SlopeDown`，确认切图结束，再调用 `DayMapHeightTest.Move(3)` 或 `Move(-3)`，等待 `Busy=false` 并读取 `Result`、`Sample()`。该载荷只发送水平输入，用实际纵向位移检验原生坡度；返回并再次进入以检查高度绑定。
 

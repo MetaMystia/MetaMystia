@@ -1,8 +1,9 @@
-"""导出：整图切片、去重、打图集，生成 ResourceEx dayMaps（formatVersion 1）配置与 ZIP。"""
+"""导出：图层大图切块、物件模板去重，生成 ResourceEx dayMaps（formatVersion 3）配置与 ZIP。"""
 import hashlib
 import io
 import json
 import math
+import re
 import wave
 import zipfile
 
@@ -11,88 +12,89 @@ from PIL import Image
 
 from .core import PPU
 
-ATLAS = 2048
+CHUNK = 1024
+FORMAT_VERSION = 3
 
 
-class Atlas:
-    """货架式打包到 2048 宽的图集页。切片 rect 在 finalize 时按页的实际高度换算成左下原点。"""
-
-    def __init__(self, prefix, size=ATLAS):
-        self.prefix, self.size = prefix, size
-        self.pages = []      # PIL images
-        self.used = []       # 每页已用高度
-        self.cursor = None   # (page, x, y, shelf_h)
-
-    def add(self, im):
-        w, h = im.size
-        if w > self.size or h > self.size:
-            raise ValueError(f'sprite too large for atlas: {w}x{h}')
-        if self.cursor is None:
-            self._new_page()
-        page, x, y, sh = self.cursor
-        if x + w > self.size:
-            x, y, sh = 0, y + sh, 0
-        if y + h > self.size:
-            self._new_page()
-            page, x, y, sh = self.cursor
-        self.pages[page].paste(im, (x, y))
-        self.used[page] = max(self.used[page], y + h)
-        self.cursor = (page, x + w, y, max(sh, h))
-        return (page, x, y, w, h)
-
-    def _new_page(self):
-        self.pages.append(Image.new('RGBA', (self.size, self.size), (0, 0, 0, 0)))
-        self.used.append(0)
-        self.cursor = (len(self.pages) - 1, 0, 0, 0)
-
-    def finalize(self, tiles, folder):
-        """裁掉每页底部空白，把 tiles 中的 handle 换成 image 路径与左下原点 rect。返回 {路径: 图片}。"""
-        heights = [max(4, (u + 3) // 4 * 4) for u in self.used]
-        for t in tiles:
-            if 'handle' in t:
-                page, x, y, w, h = t.pop('handle')
-                t['image'] = f'{folder}/{self.prefix}_{page}.png'
-                t['rect'] = [x, heights[page] - y - h, w, h]
-        return {f'{folder}/{self.prefix}_{i}.png': im.crop((0, 0, self.size, heights[i]))
-                for i, im in enumerate(self.pages)}
+def chunk_image(img, folder):
+    """RGBA 图片 → 切块图片配置与块文件 {路径: 图片}；全透明的块不输出。"""
+    w, h = img.size
+    files, chunks = {}, []
+    for r in range(math.ceil(h / CHUNK)):
+        for c in range(math.ceil(w / CHUNK)):
+            tile = img.crop((c * CHUNK, r * CHUNK, min(w, (c + 1) * CHUNK), min(h, (r + 1) * CHUNK)))
+            if tile.getchannel('A').getbbox() is not None:
+                files[f'{folder}/{c}_{r}.png'] = tile
+                chunks.append([c, r])
+    return dict(width=w, height=h, dir=folder, chunks=chunks), files
 
 
-def slice_layer(img, frame, chunk, atlas, key_prefix, skip_empty=True):
-    """把整张图层图片按 chunk 格切片（chunk*48 像素），相同内容只存一份。返回 (tiles, cells)。"""
-    arr = np.asarray(img)
-    size = chunk * frame.ppu
-    tiles, cells, seen = [], [], {}
-    rows, cols = arr.shape[0] // size, arr.shape[1] // size
-    for j in range(rows):
-        for i in range(cols):
-            block = arr[j * size:(j + 1) * size, i * size:(i + 1) * size]
-            if skip_empty and block[..., 3].max() == 0:
-                continue
-            h = hashlib.blake2b(block.tobytes(), digest_size=16).hexdigest()
-            if h not in seen:
-                handle = atlas.add(Image.fromarray(block, 'RGBA'))
-                key = f'{key_prefix}{len(seen)}'
-                seen[h] = key
-                tiles.append(dict(key=key, handle=handle, pivot=[0, 0], pixelsPerUnit=frame.ppu))
-            x = int(round(frame.x0)) + i * chunk
-            y = int(round(frame.y1)) - (j + 1) * chunk
-            cells.append(dict(x=x, y=y, tile=seen[h]))
-    return tiles, cells
+def canvas_layer(name, img, left, bottom, folder, sorting_layer='Background', sorting_order=0, color=None):
+    """整张图层 → 画布层配置与块文件。
+
+    img 为 RGBA；(left, bottom) 是图片左下角的世界像素坐标（世界坐标 × PPU）。
+    透明边缘先裁掉。返回 (layer, files)，图层全空时 layer 为 None。
+    """
+    bbox = img.getchannel('A').getbbox()
+    if bbox is None:
+        return None, {}
+    x0, y0, x1, y1 = bbox
+    image, files = chunk_image(img.crop(bbox), folder)
+    layer = dict(name=name, sortingLayer=sorting_layer, sortingOrder=sorting_order, x=left + x0, y=bottom + img.height - y1, image=image)
+    if color is not None:
+        layer['color'] = color
+    return layer, files
 
 
-def sprite_tile(spr, atlas, key):
-    """物件精灵 → 切片定义（pivot 换算成左下原点的归一化坐标）。"""
-    im = spr.image()
-    handle = atlas.add(im)
+def safe_key(name):
+    return re.sub(r'[^0-9A-Za-z_-]+', '_', name).strip('_') or 'prefab'
+
+
+class Prefabs:
+    """物件模板：图片、锚点、排序与碰撞都相同的物件共用一份。"""
+
+    def __init__(self, folder):
+        self.folder = folder
+        self.items, self.files, self._by_signature = [], {}, {}
+
+    def add(self, name, img, pivot, sorting_layer='Character', sorting_order=0, sort_by_y=True, colliders=(), ppu=PPU):
+        """img 为 RGBA，pivot 为左下原点的归一化锚点；透明边缘先裁掉。返回模板 key。"""
+        bbox = img.getchannel('A').getbbox() or (0, 0, 1, 1)
+        x0, y0, x1, y1 = bbox
+        px, py = pivot[0] * img.width - x0, pivot[1] * img.height - (img.height - y1)
+        img = img.crop(bbox)
+        pivot = [round(px / img.width, 6), round(py / img.height, 6)]
+        settings = json.dumps([img.size, pivot, sorting_layer, sorting_order, sort_by_y, list(colliders), ppu], sort_keys=True)
+        signature = hashlib.blake2b(img.tobytes() + settings.encode(), digest_size=16).hexdigest()
+        if signature in self._by_signature:
+            return self._by_signature[signature]
+        base = key = safe_key(name)
+        n = 1
+        while any(p['key'] == key for p in self.items):
+            n += 1
+            key = f'{base}_{n}'
+        image, files = chunk_image(img, f'{self.folder}/{key}')
+        self.files.update(files)
+        self.items.append(dict(key=key, image=image, pivot=pivot, pixelsPerUnit=ppu, sortingLayer=sorting_layer,
+                               sortingOrder=sorting_order, sortByY=sort_by_y, colliders=list(colliders)))
+        self._by_signature[signature] = key
+        return key
+
+
+def sprite_pivot(spr):
+    """dayart.sprite.Sprite 的锚点（左上原点像素）→ 左下原点的归一化锚点。"""
     px, py = spr.pivot
-    pivot = [round(min(1, max(0, px / im.width)), 5), round(min(1, max(0, (im.height - py) / im.height)), 5)]
-    return dict(key=key, handle=handle, pivot=pivot, pixelsPerUnit=PPU)
+    return [px / spr.w, (spr.h - py) / spr.h]
+
+
+def rect_polygon(x0, y0, x1, y1):
+    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
 
 
 def camera_bounds(x0, y0, x1, y1, half_w=40 / 3, half_h=7.5, offset_y=0.5, margin=1 / 32):
-    """原生相机中心范围：按 16:9、正交半高 7.5、相机 Y 偏移 +0.5 计算（见 docs/resourceex-day-map-research.md）。"""
-    return [round(x0 + half_w + margin, 5), round(y0 + half_h - offset_y + margin, 5),
-            round(x1 - half_w - margin, 5), round(y1 - half_h - offset_y - margin, 5)]
+    """原生相机中心范围多边形：按 16:9、正交半高 7.5、相机 Y 偏移 +0.5 计算（见 docs/resourceex-day-map-research.md）。"""
+    return rect_polygon(round(x0 + half_w + margin, 5), round(y0 + half_h - offset_y + margin, 5),
+                        round(x1 - half_w - margin, 5), round(y1 - half_h - offset_y - margin, 5))
 
 
 def synth_bgm(seconds=48, rate=22050, seed=7):
