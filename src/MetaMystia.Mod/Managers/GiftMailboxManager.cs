@@ -8,7 +8,6 @@ using GameData.RunTime.Common;
 
 using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
-using SgrYuki.Utils;
 
 using static MetaMystia.UI.DaySceneSelectionMenu;
 
@@ -57,7 +56,7 @@ public static partial class GiftMailboxManager
         if (!GiftRegistry.TryResolveGift(mailbox, index, out var dialog)) return;
 
         var gift = mailbox.Gifts[index];
-        int itemId = gift.itemId.Value;
+        var product = GiftRegistry.GetProduct(gift);
         bool finished = false;
         UniversalGameManager.OpenDialogMenu(
             dialog,
@@ -66,12 +65,10 @@ public static partial class GiftMailboxManager
                 if (finished) return;
                 finished = true;
 
-                if (!gift.allowRepeat && RunTimeStorage.ContainsItem(itemId)) return;
+                if (!gift.allowRepeat && product.GetAmountInStorage() > 0) return;
 
-                var itemIds = new Il2CppSystem.Collections.Generic.List<int>();
-                itemIds.Add(itemId);
-                RunTimeStorage.ItemInRange(itemIds.ToIEnumerable(), suppressCallbacks: false);
-                Log.Info($"[{mailbox.Package.PackageName}] 已处理礼物发放: {gift.title}, Item={itemId}");
+                product.SendToStorage(suppressCallbacks: false);
+                Log.Info($"[{mailbox.Package.PackageName}] 已处理礼物发放: {gift.title}, {product.productType}={product.productId} x{product.productAmount}");
             }),
             overrideReplaceTextCallback: DialogRegistry.GetOverrideReplaceTextCallback(dialog));
     }
