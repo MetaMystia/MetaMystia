@@ -206,7 +206,7 @@ public static partial class ResourceExManager
             accepted.Add(package);
             _loadedPackages.Add(package);
             AddActivePackTag(package.PackageLabel);
-            RexAssetRegistry.RegisterPackage(package);
+            RexAssetRegistry.RegisterPackage(package, DayMapRegistry.CollectArtPaths(package));
         }
 
         foreach (var package in accepted)
