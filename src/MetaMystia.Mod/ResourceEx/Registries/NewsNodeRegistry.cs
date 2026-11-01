@@ -49,17 +49,7 @@ public static partial class NewsNodeRegistry
     }
 
     internal static void RegisterAllNewsNodesMapping() => NewsNodeConfigs.ToList().ForEach(RegisterNewsNodeMapping);
-    private static void RegisterNewsNodeMapping(NewsNodeConfig config)
-    {
-        try
-        {
-            DataBaseScheduler.NewsNodesMapping[config.label] = "ResourceEx";
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Failed to register NewsNode mapping for {config.label}: {ex.Message}");
-        }
-    }
+    private static void RegisterNewsNodeMapping(NewsNodeConfig config) => DataBaseScheduler.NewsNodesMapping[config.label] = "ResourceEx";
 
     public static List<string> GetAllNewsNodeLabels() => NewsNodeConfigs.Select(config => config.label).ToList();
 

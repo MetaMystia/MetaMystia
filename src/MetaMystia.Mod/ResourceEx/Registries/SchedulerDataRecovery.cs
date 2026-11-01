@@ -1,7 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
 
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
+
 using GameData.RunTime.Common;
+
+using SgrYuki.Utils;
 
 namespace MetaMystia.ResourceEx.Registries;
 
@@ -126,7 +130,7 @@ public static partial class SchedulerDataRecovery
                     continue;
                 }
 
-                if (!ContainsNewsReplaceContent(targetList, replaceContent.Key))
+                if (!targetList.ToManagedList().Any(existing => existing.Key == replaceContent.Key))
                 {
                     targetList.Add(replaceContent);
                     Log.Info($"Reloaded scheduledNewsReplaceContents: {replaceContent.Key} under key: {scheduledNewsReplaceContent.Key}");
@@ -155,17 +159,5 @@ public static partial class SchedulerDataRecovery
         }
         notLoadedDLCSchedulerSaveData.Remove("ResourceEx");
         Log.Info("ResourceEx Scheduler data has been successfully reloaded.");
-    }
-
-    private static bool ContainsNewsReplaceContent(Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.KeyValuePair<string, Il2CppReferenceArray<RunTimeScheduler.HistoryNewsData.ReplaceContent>>> list, string newsLabel)
-    {
-        for (var i = 0; i < list.Count; i++)
-        {
-            if (list[i].Key == newsLabel)
-            {
-                return true;
-            }
-        }
-        return false;
     }
 }
