@@ -5,7 +5,7 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 | 目录 | 命名空间 | 职责 |
 |---|---|---|
 | `ResourceEx/Core.cs` | `MetaMystia` | `ResourceExManager`：包加载、DLC 依赖检查、生命周期钩子、包查询 |
-| `ResourceEx/Registries/` | `MetaMystia.ResourceEx.Registries` | 各内容领域注册器：SpecialGuest、Dialog、Gift、Ingredient、Food、Beverage、Recipe、Item、Cloth、MissionNode、EventNode、Merchant、Spell、Buff、AssetBundle；以及 `PixelSpriteFactory`、`SchedulerDataRecovery` |
+| `ResourceEx/Registries/` | `MetaMystia.ResourceEx.Registries` | 各内容领域注册器：SpecialGuest、Dialog、Gift、Ingredient、Food、Beverage、Recipe、Item、Cloth、MissionNode、EventNode、NewsNode、Merchant、Spell、Buff、AssetBundle；以及 `PixelSpriteFactory`、`SchedulerDataRecovery` |
 | `ResourceEx/SpellCollection/` | `MetaMystia.ResourceEx.SpellCollection` | 符卡基类 `SpellBaseEx` 与各符卡的行为实现 |
 | `ResourceEx/Vfx/` | `MetaMystia.ResourceEx.Vfx` | `VfxBundle`：AssetBundle 中特效的播放、全屏遮罩与结束 |
 | `ResourceEx/Mappers/` | `MetaMystia.ResourceEx.Mappers` | config DTO → 游戏对象转换 |

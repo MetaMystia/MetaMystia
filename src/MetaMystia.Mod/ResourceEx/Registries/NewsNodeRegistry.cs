@@ -1,12 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
 using GameData.Core.Collections;
 using GameData.CoreLanguage.Collections;
-using GameData.Profile;
-using GameData.Profile.SchedulerNodeCollection;
-using GameData.RunTime.Common;
 
 using MetaMystia.ResourceEx.Mappers;
 using MetaMystia.ResourceEx.Models;
@@ -14,7 +10,7 @@ using MetaMystia.ResourceEx.Models;
 namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
-/// 新闻节点领域注册器：持有新闻节点配置，负责注册、语言注册与调度辅助。
+/// 新闻节点领域注册器：持有新闻节点配置，负责注册与语言注册。排程与取消由原生 Reward 完成。
 /// </summary>
 [AutoLog]
 public static partial class NewsNodeRegistry
@@ -52,67 +48,4 @@ public static partial class NewsNodeRegistry
     private static void RegisterNewsNodeMapping(NewsNodeConfig config) => DataBaseScheduler.NewsNodesMapping[config.label] = "ResourceEx";
 
     public static List<string> GetAllNewsNodeLabels() => NewsNodeConfigs.Select(config => config.label).ToList();
-
-    public static bool IsResourceNewsLoaded(string newsLabel) => GetAllNewsNodeLabels().Contains(newsLabel);
-
-    public static bool ScheduleResourceNews(string newsLabel, SchedulerNode.Day targetDate, params RunTimeScheduler.HistoryNewsData.ReplaceContent[] replaceContents)
-    {
-        if (!IsResourceNewsLoaded(newsLabel))
-        {
-            Log.Warning($"Will not schedule unloaded ResourceEx news: {newsLabel}");
-            return false;
-        }
-
-        RunTimeScheduler.ScheduleNews(newsLabel, targetDate, replaceContents ?? Array.Empty<RunTimeScheduler.HistoryNewsData.ReplaceContent>());
-        return true;
-    }
-
-    public static bool ScheduleResourceNewsTomorrow(string newsLabel, params RunTimeScheduler.HistoryNewsData.ReplaceContent[] replaceContents)
-    {
-        var targetDate = new SchedulerNode.Day
-        {
-            dayType = SchedulerNode.Day.DayType.Absolute,
-            dayCalcType = SchedulerNode.Day.CalculateType.Constant,
-            day = RunTimePlayerData.GetDay().CorrectedDay + 1
-        };
-        return ScheduleResourceNews(newsLabel, targetDate, replaceContents);
-    }
-
-    public static bool DismissResourceNews(string newsLabel)
-    {
-        if (RunTimeScheduler.scheduledNews == null)
-        {
-            return false;
-        }
-
-        var removed = false;
-        foreach (var newsList in RunTimeScheduler.scheduledNews.Values)
-        {
-            while (newsList.Remove(newsLabel))
-            {
-                removed = true;
-            }
-        }
-
-        if (RunTimeScheduler.scheduledNewsReplaceContents != null)
-        {
-            foreach (var replaceList in RunTimeScheduler.scheduledNewsReplaceContents.Values)
-            {
-                for (var i = replaceList.Count - 1; i >= 0; i--)
-                {
-                    if (replaceList[i].Key == newsLabel)
-                    {
-                        replaceList.RemoveAt(i);
-                        removed = true;
-                    }
-                }
-            }
-        }
-
-        if (removed)
-        {
-            Log.Info($"Dismissed scheduled ResourceEx news: {newsLabel}");
-        }
-        return removed;
-    }
 }

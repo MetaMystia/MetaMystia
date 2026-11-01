@@ -136,7 +136,7 @@ public static partial class ResourceExManager
 
         MissionNodeRegistry.RegisterAllMissionNodes(); // 依赖 Dialog
         EventNodeRegistry.RegisterAllEventNodes(); // 依赖 Dialog
-        NewsNodeRegistry.RegisterAllNewsNodes();
+
         ClothRegistry.RegisterAllClothPixelSprites(); // 依赖 DataBaseCharacter
 
         SpellRegistry.RegisterAllCharacterHasSpell();
@@ -160,6 +160,7 @@ public static partial class ResourceExManager
         // RegisterAllEventNodes(); // 依赖 Dialog
         MissionNodeRegistry.RegisterAllMissionNodesMapping();
         EventNodeRegistry.RegisterAllEventNodesMapping();
+        NewsNodeRegistry.RegisterAllNewsNodes(); // 不依赖 Dialog
         NewsNodeRegistry.RegisterAllNewsNodesMapping();
     }
     public static void OnNightSceneLanguageInitialized()
