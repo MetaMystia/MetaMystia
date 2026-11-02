@@ -38,6 +38,8 @@ public class MissionRewardConfig
     public string rewardId { get; set; }
     public Reward.ObjectType? objectType { get; set; }
     public List<int> rewardIntArray { get; set; }
+    public List<string> rewardIdArray { get; set; }
+    public DayConfig time { get; set; }
 }
 
 public class MissionFinishConditionConfig

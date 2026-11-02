@@ -180,6 +180,39 @@ rex://example-pack/assets/image.png
 - 配置在数据库与对话注册完成后校验。无效礼物保留并禁用，记录包名、数组下标和原因，不影响其他礼物；缺失标题显示“无效礼物”。
 - 领取结束后回到场景，沿用正常存档流程，不主动保存，也不新增联机同步。通过剧情回放播放同一对话不会发奖。
 
+## 新闻
+
+顶层可选数组 `newsNodes` 声明新闻文本与发布奖励：
+
+```json
+"newsNodes": [
+  {
+    "label": "_Example_News_Opening",
+    "debugLabel": "开业新闻",
+    "title": "新店开张",
+    "description": "欢迎光临。",
+    "rewards": [{ "rewardType": "GetFund", "id": 100 }],
+    "postRewards": [{ "rewardType": "GetFund", "id": 50 }]
+  }
+]
+```
+
+- `label` 是全局新闻标识，不使用整数 ID。同名新闻覆盖已有的新闻节点与文本，建议添加包名前缀。
+- `title`、`description` 为新闻标题与正文；`debugLabel` 可省略。
+- `rewards`、`postRewards` 可省略，缺省或 `null` 按空数组处理；格式及支持的奖励类型与任务、事件相同。新闻发布时先执行 `rewards`，再执行 `postRewards`，不等待玩家打开或读完新闻。上例每次发布共发放 150 金钱；重复发布会再次发奖。
+- 配置只注册新闻，不自动发布。任务、事件及新闻的 `rewards`、`postRewards` 使用原生奖励类型排程或取消：
+
+```json
+{ "rewardType": "ScheduleNews", "rewardIdArray": ["_Example_News_Opening"], "time": { "dayType": "Relative", "dayCalcType": "Constant", "day": 1 } }
+{ "rewardType": "DismissNews", "rewardId": "_Example_News_Opening" }
+```
+
+- `ScheduleNews`：`rewardIdArray` 至少一项，原生随机取其一；`time` 为发布日，缺省为当天。`dayType` 取 `Relative` 或 `Absolute`；`dayCalcType` 取 `Constant`（使用 `day`）或 `Random`（使用 `dayRangeMin`、`dayRangeMax`）。
+- 游戏只在进入白天场景时发布当天日期的新闻，过期条目不会补发。奖励排程不提供替换内容，正文不要使用 `$a` 等占位符。
+- 新闻奖励继续排程其他新闻时，应指定未来日期，例如 `Relative` 的 `day: 1`，不要依赖同日新闻串联。
+- `DismissNews`：在各日期的待发布列表中各移除一条该标识的新闻及其替换内容。
+- 待发布新闻随原生 Scheduler 存档，归入 `ResourceEx` 分区。未安装 MetaMystia 时该分区保持原样、不加载；安装后读档只恢复已加载资源包中的新闻标识，其余条目随分区一并丢弃。已发布新闻对应的资源包未加载时，笔记本不显示该条。
+
 ## 修改检查表
 
 - JSON 模型、Mapper 和实际游戏注册逻辑是否同步。
