@@ -264,6 +264,8 @@ public static partial class Mappers
         newsNode.name = config.label;
         newsNode.label = config.label;
         newsNode.debugLabel = config.debugLabel ?? config.label ?? "";
+        newsNode.rewards = config.rewards?.Select(ToReward).ToArray() ?? new Il2CppReferenceArray<Reward>(0);
+        newsNode.postRewards = config.postRewards?.Select(ToReward).ToArray() ?? new Il2CppReferenceArray<Reward>(0);
         return newsNode;
     }
 
