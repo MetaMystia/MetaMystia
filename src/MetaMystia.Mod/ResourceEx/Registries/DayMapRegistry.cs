@@ -194,7 +194,9 @@ public static partial class DayMapRegistry
     private static string ValidateCollider(DayMapColliderConfig c) => c?.shape switch
     {
         "polygon" when c.paths is { Length: > 0 and <= 64 } && c.paths.All(p => Points(p, 3)) => null,
-        "edge" when Points(c.points, 2) => null,
+        "edge" when Points(c.points, 2) => Il2CppType.Of<EdgeCollider2D>(false) == null
+            ? "edge collider requires EdgeCollider2D, which is unavailable in this game build"
+            : null,
         "box" when Coordinate(c.x, c.y) && c.width > 0 && c.height > 0 && float.IsFinite(c.width) && float.IsFinite(c.height) && float.IsFinite(c.rotation) => null,
         "circle" when Coordinate(c.x, c.y) && c.radius > 0 && float.IsFinite(c.radius) => null,
         _ => $"collider invalid: {c?.name ?? c?.shape}"
@@ -324,21 +326,24 @@ public static partial class DayMapRegistry
             switch (c.shape)
             {
                 case "polygon":
-                    var polygon = go.AddComponent<PolygonCollider2D>();
+                    var polygon = go.AddComponent(Il2CppType.Of<PolygonCollider2D>()).Cast<PolygonCollider2D>();
                     polygon.pathCount = c.paths.Length;
                     for (int i = 0; i < c.paths.Length; i++) polygon.SetPath(i, Vectors(c.paths[i]));
                     break;
                 case "edge":
-                    go.AddComponent<EdgeCollider2D>().points = Vectors(c.closed ? c.points.Append(c.points[0]) : c.points);
+                    var edge = go.AddComponent(Il2CppType.Of<EdgeCollider2D>()).Cast<EdgeCollider2D>();
+                    edge.points = Vectors(c.closed ? c.points.Append(c.points[0]) : c.points);
                     break;
                 case "box":
                     go.transform.localPosition = new Vector3(c.x, c.y, 0);
                     go.transform.localRotation = Quaternion.Euler(0, 0, c.rotation);
-                    go.AddComponent<BoxCollider2D>().size = new Vector2(c.width, c.height);
+                    var box = go.AddComponent(Il2CppType.Of<BoxCollider2D>()).Cast<BoxCollider2D>();
+                    box.size = new Vector2(c.width, c.height);
                     break;
                 case "circle":
                     go.transform.localPosition = new Vector3(c.x, c.y, 0);
-                    go.AddComponent<CircleCollider2D>().radius = c.radius;
+                    var circle = go.AddComponent(Il2CppType.Of<CircleCollider2D>()).Cast<CircleCollider2D>();
+                    circle.radius = c.radius;
                     break;
             }
         }
