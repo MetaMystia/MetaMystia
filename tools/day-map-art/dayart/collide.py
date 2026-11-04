@@ -67,7 +67,7 @@ class WalkGrid:
             x1 = self.x0 + c1 / self.res
             ytop = self.y1 - r0 / self.res
             ybot = self.y1 - r1 / self.res
-            out.append(dict(x=round((x0 + x1) / 2, 4), y=round((ytop + ybot) / 2, 4),
+            out.append(dict(shape='box', x=round((x0 + x1) / 2, 4), y=round((ytop + ybot) / 2, 4),
                             width=round(x1 - x0, 4), height=round(ytop - ybot, 4)))
         return out
 

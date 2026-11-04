@@ -34,16 +34,26 @@ class Fonts:
         return self.cache[k]
 
 
+def collider_polys(c):
+    """碰撞 → [(点列, 是否闭合, 是否实心)]。"""
+    if c['shape'] == 'polygon':
+        return [(p, True, True) for p in c['paths']]
+    if c['shape'] == 'edge':
+        return [(c['points'], c.get('closed', False), False)]
+    if c['shape'] == 'box':
+        a = math.radians(c.get('rotation', 0))
+        hw, hh = c['width'] / 2, c['height'] / 2
+        return [([(c['x'] + dx * math.cos(a) - dy * math.sin(a), c['y'] + dx * math.sin(a) + dy * math.cos(a))
+                  for dx, dy in ((-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh))], True, True)]
+    return [([(c['x'] + c['radius'] * math.cos(t / 16 * math.pi), c['y'] + c['radius'] * math.sin(t / 16 * math.pi)) for t in range(32)], True, True)]
+
+
 def map_frame(m):
-    tiles = {t['key']: t for t in m['tiles']}
+    """地面图层的世界范围与像素密度。"""
     ground = next(l for l in m['layers'] if l['name'] == 'Ground')
-    xs, ys, xe, ye = [], [], [], []
-    for c in ground['cells']:
-        t = tiles[c['tile']]
-        w, h = t['rect'][2] / t['pixelsPerUnit'], t['rect'][3] / t['pixelsPerUnit']
-        xs.append(c['x']); ys.append(c['y']); xe.append(c['x'] + w); ye.append(c['y'] + h)
-    ppu = tiles[ground['cells'][0]['tile']]['pixelsPerUnit']
-    return min(xs), min(ys), max(xe), max(ye), ppu
+    ppu = m.get('pixelsPerUnit', 48)
+    x, y, w, h = ground['x'], ground['y'], ground['image']['width'], ground['image']['height']
+    return x / ppu, y / ppu, (x + w) / ppu, (y + h) / ppu, ppu
 
 
 def main():
@@ -106,10 +116,12 @@ def main():
 
     # ---------------------------------------------------- 碰撞
     if 'collisions' in L:
-        for r in m['collisions']:
-            a0 = px(r['x'] - r['width'] / 2, r['y'] + r['height'] / 2)
-            a1 = px(r['x'] + r['width'] / 2, r['y'] - r['height'] / 2)
-            d.rectangle([a0, (a1[0] - 1, a1[1] - 1)], fill=C_COLL + (62,), outline=C_COLL + (150,))
+        for pts, closed, solid in (s_ for c in m['colliders'] for s_ in collider_polys(c)):
+            xy = [px(*q) for q in pts]
+            if solid:
+                d.polygon(xy, fill=C_COLL + (62,), outline=C_COLL + (150,))
+            else:
+                d.line(xy + (xy[:1] if closed else []), fill=C_COLL + (200,), width=3)
 
     # ---------------------------------------------------- 坡度
     if 'slopes' in L:
@@ -124,8 +136,10 @@ def main():
 
     # ---------------------------------------------------- 相机
     if 'camera' in L:
-        cam = m['camera']['bounds']
-        d.rectangle([px(cam[0], cam[3]), px(cam[2], cam[1])], outline=C_CAM + (255,), width=4)
+        poly = m['camera']['bounds']
+        d.line([px(*q) for q in poly + poly[:1]], fill=C_CAM + (255,), width=4)
+        # 多边形的包围盒，只用于近似默认出生点处的画面
+        cam = [min(q[0] for q in poly), min(q[1] for q in poly), max(q[0] for q in poly), max(q[1] for q in poly)]
         text((px(cam[0], cam[3])[0] + 8, px(cam[0], cam[3])[1] + 6), '相机跟随点范围（camera.bounds）', 2, fill=C_CAM)
         spawns = {s['name']: s for s in m['spawnMarkers']}
         sp = spawns[m['defaultSpawnMarker']]
@@ -286,7 +300,7 @@ def main():
 
     line('图例', 3, (255, 235, 120), 14)
     if 'collisions' in L:
-        swatch(C_COLL + (110,), C_COLL, f"碰撞矩形（{len(m['collisions'])} 个）")
+        swatch(C_COLL + (110,), C_COLL, f"地图碰撞（{len(m['colliders'])} 个，线条为折线）")
     if 'slopes' in L:
         swatch(C_UP + (200,), (255, 255, 255), '坡度格，正值（向右走上升）')
         swatch(C_DOWN + (200,), (255, 255, 255), '坡度格，负值（向右走下降）')
@@ -346,12 +360,12 @@ def main():
 
     if 'collect' not in L:
         line('图层', 3, (255, 235, 120), 14)
-        tiles = {t['key']: t for t in m['tiles']}
         for l in m['layers']:
-            line(f"{l['name']}：{l['sortingLayer']} / {l.get('sortingOrder', 0)}，{len(l['cells'])} 块", 2, gap=8)
-        n_sort = sum(1 for o in m['objects'] if o.get('sortByY'))
+            line(f"{l['name']}：{l['sortingLayer']} / {l.get('sortingOrder', 0)}，{len(l['image']['chunks'])} 个图块", 2, gap=8)
+        sorted_keys = {p['key'] for p in m['prefabs'] if p.get('sortByY', True)}
+        n_sort = sum(1 for o in m['objects'] if o['prefab'] in sorted_keys)
         line(f"物件 {len(m['objects'])} 个（按 Y 排序 {n_sort} 个）", 2, gap=8)
-        line(f"切片 {len(tiles)} 个，坡度格 {len(m['height']['cells'])} 个", 2, gap=30)
+        line(f"物件模板 {len(m['prefabs'])} 个，坡度格 {len(m['height']['cells'])} 个", 2, gap=30)
 
         line('说明', 3, (255, 235, 120), 14)
         for s in ['碰撞、坡度、出生点、相机、物件位置',
