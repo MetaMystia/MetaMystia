@@ -323,6 +323,7 @@ public enum TextId
     // Console startup & link
     ConsoleStarPrompt,
     ConsoleHelpHint,
+    ConsoleMapSwapping,
     ConsoleTestServerWelcome,
     CmdDescLink,
     LinkDescMetaMystia,

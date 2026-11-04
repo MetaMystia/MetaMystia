@@ -255,6 +255,7 @@
     "SkinMsgRotClear": "已恢复皮肤默认旋转设置。",
     "ConsoleStarPrompt": "欢迎使用 MetaMystia mod！如果喜欢，请给项目点个 Star：/link MetaMystia",
     "ConsoleHelpHint": "输入 /help 查看命令列表，Tab 自动补全。",
+    "ConsoleMapSwapping": "地图切换中，请稍后再开关控制台。",
     "ConsoleTestServerWelcome": "欢迎加入测试联机服务器！\n在控制台输入 /mp play 或 /mp connect play.metamystia.net 即可连接。",
     "CmdDescLink": "打开项目链接",
     "LinkDescMetaMystia": "MetaMystia GitHub 仓库",

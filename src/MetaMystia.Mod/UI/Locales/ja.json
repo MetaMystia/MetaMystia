@@ -245,6 +245,7 @@
     "SkinMsgRotClear": "回転設定をスキンのデフォルトに戻しました。",
     "ConsoleStarPrompt": "MetaMystiaへようこそ！気に入ったらスターをお願いします：/link MetaMystia",
     "ConsoleHelpHint": "/help でコマンド一覧を表示、Tabで自動補完します。",
+    "ConsoleMapSwapping": "マップ切り替え中です。コンソールの開閉は少しお待ちください。",
     "ConsoleTestServerWelcome": "マルチプレイテストサーバーへようこそ！\nコンソールで /mp play または /mp connect play.metamystia.net を入力すると接続できます。",
     "CmdDescLink": "プロジェクトのリンクを開く",
     "LinkDescMetaMystia": "MetaMystia GitHubリポジトリ",

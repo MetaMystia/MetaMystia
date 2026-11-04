@@ -245,6 +245,7 @@
     "SkinMsgRotClear": "已還原皮膚預設旋轉設定。",
     "ConsoleStarPrompt": "歡迎使用 MetaMystia！如果喜歡，請給專案點個 Star：/link MetaMystia",
     "ConsoleHelpHint": "輸入 /help 查看命令列表，Tab 自動補全。",
+    "ConsoleMapSwapping": "地圖切換中，請稍後再開關主控台。",
     "ConsoleTestServerWelcome": "歡迎加入測試連線伺服器！\n在主控台輸入 /mp play 或 /mp connect play.metamystia.net 即可連線。",
     "CmdDescLink": "開啟專案連結",
     "LinkDescMetaMystia": "MetaMystia GitHub 儲存庫",

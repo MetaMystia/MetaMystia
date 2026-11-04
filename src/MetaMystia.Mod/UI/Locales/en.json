@@ -255,6 +255,7 @@
     "SkinMsgRotClear": "Rotation reset to skin default.",
     "ConsoleStarPrompt": "Welcome to MetaMystia! If you enjoy it, please star us: /link MetaMystia",
     "ConsoleHelpHint": "Type /help for commands. Tab to auto-complete.",
+    "ConsoleMapSwapping": "Changing maps. Please wait before opening or closing the console.",
     "ConsoleTestServerWelcome": "Welcome to the multiplayer test server!\nType /mp play or /mp connect play.metamystia.net in the console to connect.",
     "CmdDescLink": "Open project links",
     "LinkDescMetaMystia": "MetaMystia GitHub",

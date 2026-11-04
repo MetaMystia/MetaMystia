@@ -51,6 +51,13 @@ public static partial class InGameConsole
         {
             if (_isOpen != value)
             {
+                if (GameFlow.LocalScene == Scene.DayScene && DayScene.SceneManager.Instance != null
+                    && DayScene.SceneManager.Instance.IsMapSwapping)
+                {
+                    LogToConsole(TextId.ConsoleMapSwapping.Get());
+                    return;
+                }
+
                 Log.Info($"console {(value ? "opened" : "closed")}");
                 _isOpen = value;
                 if (value)
