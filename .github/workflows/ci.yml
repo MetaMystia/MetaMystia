@@ -32,6 +32,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: 一致性检查
+        run: python tools/check.py
+
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
