@@ -68,7 +68,7 @@ Il2Cpp Dictionary 不得视为普通托管 Dictionary。优先使用已经验证
 
 禁止默认使用反射、Unsafe、手动 `il2cpp_runtime_invoke` 或指针操作。确需绕过 Interop 时，必须限定到具体类型和签名，并记录触发条件、原因和验证方式。
 
-项目已确认的缺陷及局部绕过见 [`il2cppinterop-defects.md`](il2cppinterop-defects.md)。
+项目已确认的缺陷及局部绕过见 [`il2cppinterop-defects.md`](../reference/il2cppinterop-defects.md)。
 
 ## 检查表
 

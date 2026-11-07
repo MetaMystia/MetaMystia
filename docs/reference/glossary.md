@@ -77,7 +77,7 @@ GameData.Core.NonTradableObjectBase
 
 ## 食堂等级
 
-“食堂”也特指三级店铺。名称对应模组的 [等级映射](../src/MetaMystia.Mod/Utils/MapLabel.cs) 与 [中文文本](../src/MetaMystia.Mod/UI/Locales/zh-CN.json)。
+“食堂”也特指三级店铺。名称对应模组的 [等级映射](../../src/MetaMystia.Mod/Utils/MapLabel.cs) 与 [中文文本](../../src/MetaMystia.Mod/UI/Locales/zh-CN.json)。
 
 | 名词 | 对应枚举成员（全名） |
 | --- | --- |
@@ -99,7 +99,7 @@ GameData.Core.NonTradableObjectBase
 
 ## 地图
 
-以下为模组 [地图枚举](../src/MetaMystia.Mod/Utils/MapLabel.cs) 已登记的地图，中文名取自 [中文文本](../src/MetaMystia.Mod/UI/Locales/zh-CN.json)。枚举成员去掉 `MetaMystia.MapLabel.` 前缀即为游戏 `MapKey`，如 `Home`、`DLC1_MagicForest`。
+以下为模组 [地图枚举](../../src/MetaMystia.Mod/Utils/MapLabel.cs) 已登记的地图，中文名取自 [中文文本](../../src/MetaMystia.Mod/UI/Locales/zh-CN.json)。枚举成员去掉 `MetaMystia.MapLabel.` 前缀即为游戏 `MapKey`，如 `Home`、`DLC1_MagicForest`。
 
 | 地图／别名 | 对应模组枚举成员（全名） |
 | --- | --- |

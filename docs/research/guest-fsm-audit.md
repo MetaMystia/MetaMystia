@@ -20,10 +20,10 @@
 
 ## 代码入口
 
-- [GuestFSM](../src/MetaMystia.Mod/Managers/GuestFSM.cs)：状态、等待队列、请求执行。
-- [GuestsManagerPatch](../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)：原版业务拦截。
-- [GuestService](../src/MetaMystia.Mod/Managers/GuestService.cs)：客机重放。
-- [Guest Actions](../src/MetaMystia.Mod/Multiplayer/Messages/WorkScene/Guest)：消息方向及数据。
+- [GuestFSM](../../src/MetaMystia.Mod/Managers/GuestFSM.cs)：状态、等待队列、请求执行。
+- [GuestsManagerPatch](../../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)：原版业务拦截。
+- [GuestService](../../src/MetaMystia.Mod/Managers/GuestService.cs)：客机重放。
+- [Guest Actions](../../src/MetaMystia.Mod/Multiplayer/Messages/WorkScene/Guest)：消息方向及数据。
 
 ## 实施顺序
 

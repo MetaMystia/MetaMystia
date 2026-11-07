@@ -13,7 +13,7 @@ namespace MetaMystia.ResourceEx.SpellCollection;
 ///
 /// 本类会被 ClassInjector 注入 il2cpp。注入抽象类时，Il2CppInterop 为本类声明的每个抽象方法
 /// 追加虚表项，却没有为它们分配空间，越界写入进程堆，引发随机崩溃（PageHeap 已复现，
-/// 见 docs/il2cppinterop-defects.md）。因此本类的抽象成员必须全部标注 [HideFromIl2Cpp]。
+/// 见 docs/reference/il2cppinterop-defects.md）。因此本类的抽象成员必须全部标注 [HideFromIl2Cpp]。
 /// </summary>
 public abstract class SpellBaseEx : SpellBase
 {

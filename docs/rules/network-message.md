@@ -1,6 +1,6 @@
 # 网络消息规范
 
-连接、资料和运动使用 `Client` 专用接口；其他玩法使用 `Multiplayer/Messages/` 下的消息。职责与同步流程见 [联机架构](multiplayer-architecture.md)。
+连接、资料和运动使用 `Client` 专用接口；其他玩法使用 `Multiplayer/Messages/` 下的消息。职责与同步流程见 [联机架构](../reference/multiplayer/architecture.md)。
 
 ## 定义与注册
 

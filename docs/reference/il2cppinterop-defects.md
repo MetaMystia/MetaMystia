@@ -2,7 +2,7 @@
 
 Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布局处理不完整而产生运行时缺陷。相关调用可能正常编译，但在执行时返回错误数据、破坏内存或崩溃。
 
-不得将普通逻辑错误默认归因于 Il2CppInterop。必须先按 [`il2cpp-interop-guide.md`](il2cpp-interop-guide.md) 的排查顺序确认版本、签名、时机、生命周期和类型边界。只有缺陷可复现且原因明确时，才允许增加低层绕过；绕过必须限定到具体类型和签名。
+不得将普通逻辑错误默认归因于 Il2CppInterop。必须先按 [`il2cpp-interop-guide.md`](../rules/il2cpp-interop.md) 的排查顺序确认版本、签名、时机、生命周期和类型边界。只有缺陷可复现且原因明确时，才允许增加低层绕过；绕过必须限定到具体类型和签名。
 
 ## `Utils/MetaMikuUtils.cs`
 

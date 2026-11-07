@@ -54,7 +54,7 @@ PluginManager.RunOnMainThread(() =>
 
 ## 协程
 
-新增延迟、条件等待和周期逻辑优先使用协程。具体规则见 [`coroutine-style.md`](coroutine-style.md)。
+新增延迟、条件等待和周期逻辑优先使用协程。具体规则见 [`coroutine-style.md`](coroutine.md)。
 
 ## 异步与 IO
 

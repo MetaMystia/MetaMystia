@@ -4,7 +4,7 @@
 
 本目录说明如何为 ResourceEx 白天地图（`dayMaps`，画布地图 formatVersion 3）调研设定、规划布局、绘制美术，配好碰撞、坡度、出生点与相机，并导出资源包。方法适用于任意新地图；文中的三途川只作为示例。
 
-加载器字段与限制见 [ResourceEx 白天地图](../resourceex-day-maps.md)，原生地图结构见 [白天新地图调研](../resourceex-day-map-research.md)。
+加载器字段与限制见 [ResourceEx 白天地图](../reference/resourceex/day-maps.md)，原生地图结构见 [白天新地图调研](../research/day-map-native.md)。
 
 | 文档 | 内容 |
 |---|---|
@@ -52,4 +52,4 @@
 - 三途川的碰撞仍由可走网格合并成矩形，斜岸和拱桥边缘是台阶状；Mod 已支持多边形与折线，见 [gameplay.md](gameplay.md)。
 - 画布地图没有特殊材质和动画；雾和光用半透明贴图模拟，不能做加法混合，见 [art-pipeline.md](art-pipeline.md)。
 - 生图的画面不是严格的像素画（像素大小不完全统一），细看与原版仍有差别；地面几乎不重复，资源包约 20 MB。
-- 三途川示例只完成离线检查，尚未在游戏里实测；文中关于运行时的结论均引用 [ResourceEx 白天地图](../resourceex-day-maps.md) 的既有实测。
+- 三途川示例只完成离线检查，尚未在游戏里实测；文中关于运行时的结论均引用 [ResourceEx 白天地图](../reference/resourceex/day-maps.md) 的既有实测。

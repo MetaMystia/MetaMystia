@@ -92,7 +92,7 @@ def rect_polygon(x0, y0, x1, y1):
 
 
 def camera_bounds(x0, y0, x1, y1, half_w=40 / 3, half_h=7.5, offset_y=0.5, margin=1 / 32):
-    """原生相机中心范围多边形：按 16:9、正交半高 7.5、相机 Y 偏移 +0.5 计算（见 docs/resourceex-day-map-research.md）。"""
+    """原生相机中心范围多边形：按 16:9、正交半高 7.5、相机 Y 偏移 +0.5 计算（见 docs/research/day-map-native.md）。"""
     return rect_polygon(round(x0 + half_w + margin, 5), round(y0 + half_h - offset_y + margin, 5),
                         round(x1 - half_w - margin, 5), round(y1 - half_h - offset_y - margin, 5))
 

@@ -38,18 +38,18 @@
 
 ## 开发参考
 
-- 名词速查：[`docs/glossary.md`](docs/glossary.md)（遇到游戏相关名词时必读）
-- Harmony Hook：[`docs/harmony-hook-style.md`](docs/harmony-hook-style.md)
-- 网络 Action：[`docs/network-message-style.md`](docs/network-message-style.md)
-- 线程与调度：[`docs/threading-and-scheduling.md`](docs/threading-and-scheduling.md)
-- 协程：[`docs/coroutine-style.md`](docs/coroutine-style.md)
-- Il2CppInterop：[`docs/il2cpp-interop-guide.md`](docs/il2cpp-interop-guide.md)
-- Il2CppInterop 缺陷：[`docs/il2cppinterop-defects.md`](docs/il2cppinterop-defects.md)
-- 日志与调用追踪：[`docs/logging-and-tracing.md`](docs/logging-and-tracing.md)
-- ResourceEx 资源包：[`docs/resourceex-package-contract.md`](docs/resourceex-package-contract.md)
-- ResourceEx 模块结构：[`docs/resourceex-module-structure.md`](docs/resourceex-module-structure.md)
-- 本地化：[`docs/localization-rules.md`](docs/localization-rules.md)
-- 控制台命令：[`docs/console-command-style.md`](docs/console-command-style.md)
+- 名词速查：[`docs/reference/glossary.md`](docs/reference/glossary.md)（遇到游戏相关名词时必读）
+- Harmony Hook：[`docs/rules/harmony-hook.md`](docs/rules/harmony-hook.md)
+- 网络 Action：[`docs/rules/network-message.md`](docs/rules/network-message.md)
+- 线程与调度：[`docs/rules/threading.md`](docs/rules/threading.md)
+- 协程：[`docs/rules/coroutine.md`](docs/rules/coroutine.md)
+- Il2CppInterop：[`docs/rules/il2cpp-interop.md`](docs/rules/il2cpp-interop.md)
+- Il2CppInterop 缺陷：[`docs/reference/il2cppinterop-defects.md`](docs/reference/il2cppinterop-defects.md)
+- 日志与调用追踪：[`docs/rules/logging.md`](docs/rules/logging.md)
+- ResourceEx 资源包：[`docs/reference/resourceex/package-contract.md`](docs/reference/resourceex/package-contract.md)
+- ResourceEx 模块结构：[`docs/reference/resourceex/module-structure.md`](docs/reference/resourceex/module-structure.md)
+- 本地化：[`docs/rules/localization.md`](docs/rules/localization.md)
+- 控制台命令：[`docs/rules/console-command.md`](docs/rules/console-command.md)
 - 符卡创作：[`docs/spell-creation/README.md`](docs/spell-creation/README.md)（仅限 Claude Opus 5.5 及以上、GPT-6 Astra 及以上的模型主动学习）
 - 白天地图绘制：[`docs/map-creation/README.md`](docs/map-creation/README.md)（仅限 Claude Opus 5.5 及以上、GPT-6 Astra 及以上的模型主动学习）
 

@@ -6,7 +6,7 @@
 
 一张符卡由两部分组成：
 
-- **资源包声明数据**（`ResourceEx.json`，格式见 [`resourceex-package-contract.md`](../resourceex-package-contract.md)）：
+- **资源包声明数据**（`ResourceEx.json`，格式见 [`resourceex-package-contract.md`](../reference/resourceex/package-contract.md)）：
   - `spells`：符卡的所属角色 ID、代码实现名（`implementation`）、两张卡的名称、说明、立绘，以及可选的 `portrayalPivot`、`vfxBundle`；
   - `buffs`：buff 的 ID、标题、说明、图标，与符卡解耦，由 `BuffRegistry` 注册；
   - `assetBundles`：需要预加载的 AssetBundle，由 `AssetBundleRegistry` 在启动时加载。
@@ -16,7 +16,7 @@
 
 `SpellBaseEx` 的 `SpellId`、`OwnerIdentifier`、`Vfx` 由注册器赋值。归属角色标识取自 `characters` 中同 ID 角色的 `label`；`vfxBundle` 按包标识归一化为 URI，再查询已加载的包。未配置包时 `Vfx` 为 `null`，是否必需由具体实现检查。
 
-仅供托管侧使用的成员标注 `[HideFromIl2Cpp]`，避免被注入 il2cpp。**`SpellBaseEx` 等被注入的抽象类，其抽象成员必须全部标注 `[HideFromIl2Cpp]`**：Il2CppInterop 注入抽象类时，会为每个抽象方法越界写一个虚表项，损坏进程堆并导致随机崩溃，详见 [`il2cppinterop-defects.md`](../il2cppinterop-defects.md)。给基类新增抽象成员时同样适用。
+仅供托管侧使用的成员标注 `[HideFromIl2Cpp]`，避免被注入 il2cpp。**`SpellBaseEx` 等被注入的抽象类，其抽象成员必须全部标注 `[HideFromIl2Cpp]`**：Il2CppInterop 注入抽象类时，会为每个抽象方法越界写一个虚表项，损坏进程堆并导致随机崩溃，详见 [`il2cppinterop-defects.md`](../reference/il2cppinterop-defects.md)。给基类新增抽象成员时同样适用。
 
 ## 注册流程
 
@@ -38,7 +38,7 @@
 - Mai 要求特效包包含本类六个预制件常量对应的资源，并要求 buff 11002/11003 的名称、说明和图标齐全。无特效实现不强制依赖 AssetBundle。
 - 注入必须先于 `CreateInstance`，否则会抛出 `TypeInitializationException`。
 - `DataBaseNight.Initialize` 会重建符卡字典，所以第 5 步放在 `DataBaseNightPatch` 的 Postfix 中执行。
-- 立绘字典的值是 `ValueTuple`，写入时必须用 `ForceAddOrUpdateValueTuple`，原因见 [`il2cppinterop-defects.md`](../il2cppinterop-defects.md)。
+- 立绘字典的值是 `ValueTuple`，写入时必须用 `ForceAddOrUpdateValueTuple`，原因见 [`il2cppinterop-defects.md`](../reference/il2cppinterop-defects.md)。
 - 立绘句柄为 `SceneDirector.RuntimeHandle<Sprite>(sprite).Cast<IAssetHandle<Sprite>>()`，符卡句柄同理。
 - 注册阶段全部同步执行。不要在这里引入异步加载，也不要使用会触发泛型方法 unstripping 的接口，见 [assetbundle.md](assetbundle.md)。
 

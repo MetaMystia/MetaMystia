@@ -2,7 +2,7 @@
 
 资源包在 `ResourceEx.json` 的 `dayMaps` 数组声明地图，图片和音频放在同一 ZIP。Mod 从配置创建独立 `DaySceneMap`，通过内存 Addressables Provider 交给游戏原有切图流程实例化。
 
-当前格式为画布地图（`formatVersion: 3`），不兼容旧版本：美术是整张大图，碰撞、坡度、出生点与相机单独描述。地图美术、碰撞与坡度的制作方法见 [`map-creation/`](map-creation/README.md)；在线编辑见 MetaMystia ResourceEx Editor 的“白天地图”页。
+当前格式为画布地图（`formatVersion: 3`），不兼容旧版本：美术是整张大图，碰撞、坡度、出生点与相机单独描述。地图美术、碰撞与坡度的制作方法见 [`map-creation/`](../../map-creation/README.md)；在线编辑见 MetaMystia ResourceEx Editor 的“白天地图”页。
 
 ## 使用
 
@@ -127,7 +127,7 @@ python src/MetaMystia.AITest/create-day-map-package.py .tmp/day-map/IsolatedMapT
 
 ### 2026-09-14 地图注册修复
 
-修复 `MapNode` 写入 IL2CPP 字典时的值类型字段错位，详见 [Il2CppInterop 缺陷](il2cppinterop-defects.md)。独立地图不配置食堂，三级编号数组均为空。部署后两个扩展地图条目的类型和空数组长度正确，55 个原版食堂编号的等级查询全部通过。
+修复 `MapNode` 写入 IL2CPP 字典时的值类型字段错位，详见 [Il2CppInterop 缺陷](../il2cppinterop-defects.md)。独立地图不配置食堂，三级编号数组均为空。部署后两个扩展地图条目的类型和空数组长度正确，55 个原版食堂编号的等级查询全部通过。
 
 ### 2026-09-13 平地与坡面
 
