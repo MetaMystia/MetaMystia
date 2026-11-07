@@ -1,24 +1,34 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="../../MetaMystia.local.props" />
+  <Import Project="../../Versions.props" />
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>14</LangVersion>
     <AssemblyName>MetaMystia</AssemblyName>
     <Product>MetaMystia</Product>
-    <Version>0.27.0</Version>
+    <DefineConstants>$(DefineConstants);TMI_$(TargetGameVersion.Replace(' ', '_').Replace('.', '_').ToUpperInvariant())</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;
       https://nuget.bepinex.dev/v3/index.json
     </RestoreAdditionalProjectSources>
     <RootNamespace>MetaMystia</RootNamespace>
-    <OutputPath>$(BepInExPath)\plugins</OutputPath>
+    <OutputPath Condition="'$(DeployToGame)' != 'false'">$(BepInExPath)\plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
+
+  <Target Name="GenerateTargetGameVersion" BeforeTargets="BeforeCompile">
+    <WriteLinesToFile File="$(IntermediateOutputPath)TargetGameVersion.g.cs"
+      Lines="namespace MetaMystia { internal static class TmiBuildInfo { internal const string TargetGameVersion = &quot;$(TargetGameVersion)&quot;%3B } }"
+      Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)TargetGameVersion.g.cs" />
+    </ItemGroup>
+  </Target>
 
   <Target Name="RenameBuildOutput" AfterTargets="Build">
     <PropertyGroup>
@@ -29,24 +39,17 @@
     <Message Text="Renamed $(TargetPath) to $(RenamedAssemblyPath)$(TargetExt)" Importance="High" />
   </Target>
 
-  <Target Name="PatchIl2CppInteropHarmonySupport" AfterTargets="Build">
-    <Copy SourceFiles="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll"
-      DestinationFolder="$(BepInExPath)\core"
-      SkipUnchangedFiles="true" />
-    <Message Text="Patched Il2CppInterop.HarmonySupport.dll → $(BepInExPath)\core"
-      Importance="High" />
-  </Target>
-
   <ItemGroup>
-    <EmbeddedResource Include="Patches\Native\Runtime\Il2CppInterop.HarmonySupport.dll" />
-    <EmbeddedResource Include="Debugger\login.html" />
-    <EmbeddedResource Include="Debugger\index.html" />
     <EmbeddedResource Include="ResourceEx\AssetManagement\public.pem" />
     <EmbeddedResource Include="UI\Locales\en.json" />
     <EmbeddedResource Include="UI\Locales\zh-CN.json" />
+    <EmbeddedResource Include="UI\Locales\zh-TW.json" />
+    <EmbeddedResource Include="UI\Locales\ja.json" />
+    <EmbeddedResource Include="UI\Locales\ko.json" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
     <ProjectReference Include="../MetaMystia.Generators\MetaMystia.Generators.csproj"
       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
@@ -64,22 +67,9 @@
     <PackageReference Include="MemoryPack" Version="1.21.4">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="NLua" Version="1.7.8">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="KeraLua" Version="1.4.9" GeneratePathProperty="true">
-      <PrivateAssets>all</PrivateAssets>
-      <ExcludeAssets>native</ExcludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="$(PkgKeraLua)\runtimes\win-x64\native\lua54.dll">
-      <Link>costura-win-x64\lua54.dll</Link>
-    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -173,6 +163,14 @@
     </Reference>
     <Reference Include="UnityEngine.AudioModule">
       <HintPath>$(BepInExPath)\interop\UnityEngine.AudioModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(BepInExPath)\interop\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(BepInExPath)\interop\UnityEngine.AssetBundleModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.DirectorModule">

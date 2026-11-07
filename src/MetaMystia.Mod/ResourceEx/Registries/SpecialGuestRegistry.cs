@@ -361,10 +361,22 @@ public static partial class SpecialGuestRegistry
 
     private static void RefreshDayNpc(CharacterConfig config)
     {
-        // TODO: 实现更合适的白天生成配置
         if (config.spawnMarker == null) return;
-        GameData.RunTime.DaySceneUtility.RunTimeDayScene.MoveCharacter(config.label, config.spawnMarker.mapLabel, new Vector2(config.spawnMarker.x, config.spawnMarker.y), (int)config.spawnMarker.rotation, out var oldNPCData);
-        GameData.RunTime.DaySceneUtility.RunTimeDayScene.ReturnCharacter(config.label);
+        var mapLabel = config.spawnMarker.mapLabel;
+        if (string.IsNullOrEmpty(mapLabel) || !DataBaseDay.mapReference.ContainsKey(mapLabel))
+        {
+            Log.Warning($"Cannot place ResourceEx NPC {config.label}: map '{mapLabel}' is not registered.");
+            return;
+        }
+
+        var npc = RunTimeDayScene.GetTrackedNPC(config.label);
+        if (npc == null) return;
+
+        // 电话按 trackedNPCs 分组；保留原目的地和对话池，点位由 SpawnMarker 定位。
+        RunTimeDayScene.RemoveNPC(config.label);
+        npc.overridePosition = null;
+        RunTimeDayScene.GetMapNPCs(mapLabel).Add(config.label, npc);
+        RunTimeDayScene.OnRequireCurrentMapRefreshCallback?.Invoke();
         Log.Info($"Initialized Day Scene Spawn Config for Special Guest: {config.name} ({config.id})");
     }
 

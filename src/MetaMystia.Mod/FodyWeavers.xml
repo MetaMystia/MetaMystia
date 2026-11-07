@@ -3,14 +3,10 @@
   xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
   <Costura>
     <IncludeAssemblies>
+      MetaMystia.Network
       MemoryPack.Core
-      NLua
-      KeraLua
       System.CommandLine
     </IncludeAssemblies>
-    <Unmanaged64Assemblies>
-      lua54
-    </Unmanaged64Assemblies>
     <CreateTemporaryAssemblies>false</CreateTemporaryAssemblies>
     <DisableCompression>false</DisableCompression>
     <IncludeDebugSymbols>true</IncludeDebugSymbols>

@@ -1,9 +1,11 @@
-using HarmonyLib;
 using System.Collections.Generic;
+
+using HarmonyLib;
 
 using Common.UI;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -17,12 +19,14 @@ public partial class IzakayaSelectorPanelPatch
 {
     public static IzakayaSelectorPanel_New instanceRef = null;
     public static Dictionary<MapLabel, Common.UI.GlobalMap.IGuideMapSpot> cachedSpots = new();
+    private static bool confirmed;
 
     [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapInitialize))]
     [HarmonyPrefix]
     public static void OnGuideMapInitialize_Prefix(IzakayaSelectorPanel_New __instance)
     {
         instanceRef = __instance;
+        confirmed = false;
         Log.LogInfo($"OnGuideMapInitialize called");
     }
 
@@ -39,7 +43,7 @@ public partial class IzakayaSelectorPanelPatch
 
         Log.Info($"_OnGuideMapInitialize_b__21_0 called");
 
-        if (!MpManager.IsConnected)
+        if (!GameSession.HasRoomPeers)
         {
             Log.Info($"Not in multiplayer session, skipping patch");
             return RunOriginal;
@@ -52,13 +56,14 @@ public partial class IzakayaSelectorPanelPatch
         // 记录自己的选择
         PlayerManager.Local.IzakayaMapLabel = izakayaMapLabel;
         PlayerManager.Local.IzakayaLevel = izakayaLevel;
+        cachedSpots[izakayaMapLabel] = __instance.m_CurrentSelectedSpot;
 
         // 广播自己的选择
-        SelectIzakayaAction.Send(izakayaMapLabel, izakayaLevel);
+        SelectIzakayaMessage.Send(izakayaMapLabel, izakayaLevel);
 
         var mySelect = izakayaMapLabel.FormatIzakayaSelection(izakayaLevel);
 
-        if (MpManager.IsClient)
+        if (GameSession.IsRoomClient)
         {
             // 客机：发送 SELECT 后等待主机 CONFIRM，同时展示当前状态
             InGameConsole.ShowPassive(TextId.WaitingForHostConfirm.Get(mySelect));
@@ -76,29 +81,27 @@ public partial class IzakayaSelectorPanelPatch
     /// </summary>
     public static void TryConfirmSelection()
     {
+        if (confirmed || !GameSession.IsRoomHost || GameFlow.Destination != DayDestination.Business) return;
         var mapLabel = PlayerManager.Local.IzakayaMapLabel;
         var level = PlayerManager.Local.IzakayaLevel;
 
         // 主机自己还没选择
         if (!mapLabel.IsSelected() || level == 0)
         {
-            Log.Info("Host has not selected izakaya yet, waiting...");
             return;
         }
 
         var mySelect = mapLabel.FormatIzakayaSelection(level);
 
-        if (!PlayerManager.AllPeersSelectedSameIzakaya(mapLabel, level))
+        if (PlayerManager.Peers.Count > 0 && !PlayerManager.AllPeersSelectedSameIzakaya(mapLabel, level))
         {
-            var mismatch = PlayerManager.GetFirstMismatchSelection(mapLabel, level);
-            Log.LogWarning($"Selection mismatch: my={mySelect}, peer={mismatch}");
-            InGameConsole.ShowPassive(TextId.SelectedIzakayaMismatch.Get(mySelect, mismatch ?? "???"));
             return;
         }
 
         // 全员一致 → 广播 CONFIRM_SELECT → 本地执行切换
         Log.LogMessage($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
-        ConfirmIzakayaAction.Send(mapLabel, level);
+        confirmed = true;
+        ConfirmIzakayaMessage.Send(mapLabel, level);
         InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(mySelect));
 
         TryProceedWithConfirmedSelection(mapLabel, (IzakayaLevel)level);
@@ -127,22 +130,19 @@ public partial class IzakayaSelectorPanelPatch
     public static void TryProceedWithConfirmedSelection(MapLabel mapLabel, IzakayaLevel mapLevel)
     {
         SgrYuki.Utils.Panel.CloseActivePanelsBeforeSceneTransit();
-
-        if (instanceRef != null)
-        {
-            instanceRef.m_CurrentSelectedIzakayaLevel = mapLevel;
-            if (cachedSpots.TryGetValue(mapLabel, out var mapSpot))
-            {
-                OnGuideMapSpotSelected_ReversePatch(instanceRef, mapSpot);
-            }
-            _OnGuideMapInitialize_b__21_0_ReversePatch(instanceRef);
-        }
-        else
+        if (instanceRef == null)
         {
             Log.Error("instanceRef is null, cannot call original method");
+            return;
         }
-    }
 
+        // 提交时已缓存地图；直接恢复原入口读取的字段，避免选点回调重置等级。
+        instanceRef.m_CurrentSelectedSpot = cachedSpots[mapLabel];
+        instanceRef.m_CurrentSelectedIzakayaLevel = mapLevel;
+        instanceRef.UpdateCurrentIzakaya();
+        instanceRef.UpdateToggleStatus(mapLevel);
+        _OnGuideMapInitialize_b__21_0_ReversePatch(instanceRef);
+    }
 
     [HarmonyPatch(nameof(IzakayaSelectorPanel_New._OnGuideMapInitialize_b__21_0))]
     [HarmonyReversePatch]
@@ -160,9 +160,4 @@ public partial class IzakayaSelectorPanelPatch
 
         Log.Info($"OnGuideMapSpotSelected called, guideMapSpot.PrimaryName: {guideMapSpot?.PrimaryName}");
     }
-
-    [HarmonyPatch(nameof(IzakayaSelectorPanel_New.OnGuideMapSpotSelected))]
-    [HarmonyReversePatch]
-    public static void OnGuideMapSpotSelected_ReversePatch(IzakayaSelectorPanel_New __instance, Common.UI.GlobalMap.IGuideMapSpot guideMapSpot)
-    { }
 }

@@ -4,8 +4,9 @@ using UnityEngine;
 using Common.CharacterUtility;
 using Common.UI;
 
-using MetaMystia.Network;
 
+
+using MetaMystia.Multiplayer;
 
 namespace MetaMystia.Patch;
 
@@ -17,12 +18,12 @@ public partial class CharacterControllerInputGeneratorComponentPatch
     [HarmonyPrefix]
     public static void UpdateInputDirection_Prefix(CharacterControllerInputGeneratorComponent __instance, ref Vector2 inputDirection)
     {
-        if (!MpManager.CanSeeOnlinePlayers)
+        if (!GameSession.IsOnline)
         {
             return;
         }
 
-        if (MpManager.LocalScene != Scene.DayScene && MpManager.LocalScene != Scene.WorkScene)
+        if (GameFlow.LocalScene != Scene.DayScene && GameFlow.LocalScene != Scene.WorkScene)
         {
             return;
         }
@@ -38,7 +39,7 @@ public partial class CharacterControllerInputGeneratorComponentPatch
             if (__instance.name == characterCollection["Self"].name)
             {
                 PlayerManager.LocalInputDirection = inputDirection;
-                MoveSyncAction.Send();
+                PlayerProfile.SendMotion();
             }
         }
         catch (System.Exception e)

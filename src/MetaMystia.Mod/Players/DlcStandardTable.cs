@@ -6,33 +6,6 @@ using GameData.RunTime.Common;
 namespace MetaMystia;
 
 /// <summary>
-/// DLC 标识位，用于增量 ResourceDataBase 传输
-/// </summary>
-[Flags]
-public enum DlcPack : byte
-{
-    None = 0,
-    Core = 1 << 0,
-    Dlc1 = 1 << 1,
-    Dlc2 = 1 << 2,
-    DlcMusic = 1 << 3,
-    Dlc3 = 1 << 4,
-    Dlc4 = 1 << 5,
-    Dlc5 = 1 << 6,
-
-    All = Core | Dlc1 | Dlc2 | DlcMusic | Dlc3 | Dlc4 | Dlc5,
-}
-
-/// <summary>
-/// 资源分类索引，对应 ResourceDataBase 的 9 个 List
-/// </summary>
-public enum ResourceCategory
-{
-    Foods, Recipes, Beverages, Ingredients, Cookers, Items, Izakayas, SpecialGuests, NormalGuests,
-    _Count
-}
-
-/// <summary>
 /// 标准资源表（按 DLC 分表）。
 /// 压缩时逐 DLC 检查子集关系：只有当某 DLC 所有分类的标准数据都完整包含在玩家数据中时才设 flag。
 /// </summary>

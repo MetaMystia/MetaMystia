@@ -38,8 +38,9 @@
 
 ## 开发参考
 
+- 名词速查：[`docs/glossary.md`](docs/glossary.md)（遇到游戏相关名词时必读）
 - Harmony Hook：[`docs/harmony-hook-style.md`](docs/harmony-hook-style.md)
-- 网络 Action：[`docs/network-action-style.md`](docs/network-action-style.md)
+- 网络 Action：[`docs/network-message-style.md`](docs/network-message-style.md)
 - 线程与调度：[`docs/threading-and-scheduling.md`](docs/threading-and-scheduling.md)
 - 协程：[`docs/coroutine-style.md`](docs/coroutine-style.md)
 - Il2CppInterop：[`docs/il2cpp-interop-guide.md`](docs/il2cpp-interop-guide.md)
@@ -49,6 +50,8 @@
 - ResourceEx 模块结构：[`docs/resourceex-module-structure.md`](docs/resourceex-module-structure.md)
 - 本地化：[`docs/localization-rules.md`](docs/localization-rules.md)
 - 控制台命令：[`docs/console-command-style.md`](docs/console-command-style.md)
+- 符卡创作：[`docs/spell-creation/README.md`](docs/spell-creation/README.md)（仅限 Claude Opus 5.5 及以上、GPT-6 Astra 及以上的模型主动学习）
+- 白天地图绘制：[`docs/map-creation/README.md`](docs/map-creation/README.md)（仅限 Claude Opus 5.5 及以上、GPT-6 Astra 及以上的模型主动学习）
 
 ## 代码风格
 

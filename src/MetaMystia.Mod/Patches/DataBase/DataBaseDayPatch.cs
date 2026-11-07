@@ -23,6 +23,13 @@ public partial class DataBaseDayPatch
         ResourceExManager.OnDataBaseDayInitialized();
     }
 
+    [HarmonyPatch(nameof(DataBaseDay.IsMerchant))]
+    [HarmonyPostfix]
+    public static void IsMerchant_Postfix(ref bool __result, string key)
+    {
+        __result = __result || MerchantRegistry.TryGetExMerchantData(key, out _);
+    }
+
     [HarmonyPatch(nameof(DataBaseDay.RefMerchant))]
     [HarmonyPrefix]
     public static bool RefMerchant_Prefix(ref Merchant __result, string key)

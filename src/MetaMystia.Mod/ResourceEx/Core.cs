@@ -93,16 +93,19 @@ public static partial class ResourceExManager
         // 兜底：若 GetActiveKeys Hook 未触发（如非 Steam 平台），此时 DLC 状态已确定，补做加载
         OnDlcFlagsDetermined();
 
+        AssetBundleRegistry.LoadAll(); // 先于依赖特效的符卡
+        SpellRegistry.InitializeAll();
         SpecialGuestRegistry.RegisterAllSpawnConfigs();
         IngredientRegistry.RegisterAllIngredients();
         BeverageRegistry.RegisterAllBeverages();
         RecipeRegistry.RegisterAllRecipes();
         FoodRegistry.RegisterAllFoods();
-        ClothRegistry.RegisterAllClothItems();
+        ItemRegistry.RegisterAllItems();
         ClothRegistry.RegisterAllClothProfiles();
     }
     public static void OnDataBaseDayInitialized()
     {
+        DayMapRegistry.RegisterAll();
         DialogRegistry.RegisterAllDialogPackages();
         GiftRegistry.ValidateAllGifts();
 
@@ -119,7 +122,10 @@ public static partial class ResourceExManager
         BeverageRegistry.RegisterAllBeverageLanguages();
         FoodRegistry.RegisterAllFoodLanguages();
         MissionNodeRegistry.RegisterAllMissionNodeLanguages();
-        ClothRegistry.RegisterAllClothLanguages();
+        NewsNodeRegistry.RegisterAllNewsNodeLanguages();
+        ItemRegistry.RegisterAllItemLanguages();
+        SpellRegistry.RegisterAllLanguages();
+        BuffRegistry.RegisterAllBuffLanguages();
     }
 
     public static void OnDataBaseCharacterInitialized()
@@ -132,6 +138,16 @@ public static partial class ResourceExManager
         EventNodeRegistry.RegisterAllEventNodes(); // 依赖 Dialog
 
         ClothRegistry.RegisterAllClothPixelSprites(); // 依赖 DataBaseCharacter
+
+        SpellRegistry.RegisterAllCharacterHasSpell();
+    }
+
+    /// <summary>
+    /// 符卡实例与立绘：必须晚于 DataBaseNight.Initialize，见 DataBaseNightPatch。
+    /// </summary>
+    public static void OnDataBaseNightInitialized()
+    {
+        SpellRegistry.RegisterAllInstances();
     }
 
     public static void OnDataBaseAchievementInitialized()
@@ -144,6 +160,8 @@ public static partial class ResourceExManager
         // RegisterAllEventNodes(); // 依赖 Dialog
         MissionNodeRegistry.RegisterAllMissionNodesMapping();
         EventNodeRegistry.RegisterAllEventNodesMapping();
+        NewsNodeRegistry.RegisterAllNewsNodes(); // 不依赖 Dialog
+        NewsNodeRegistry.RegisterAllNewsNodesMapping();
     }
     public static void OnNightSceneLanguageInitialized()
     {
@@ -153,7 +171,7 @@ public static partial class ResourceExManager
 
     public static void OnDaySceneLanguageInitialized()
     {
-        // Currently no actions needed here
+        DayMapRegistry.RegisterLanguages();
     }
 
     public static void OnDaySceneAwake()
@@ -191,7 +209,7 @@ public static partial class ResourceExManager
             accepted.Add(package);
             _loadedPackages.Add(package);
             AddActivePackTag(package.PackageLabel);
-            RexAssetRegistry.RegisterPackage(package);
+            RexAssetRegistry.RegisterPackage(package, DayMapRegistry.CollectArtPaths(package));
         }
 
         foreach (var package in accepted)
@@ -263,6 +281,7 @@ public static partial class ResourceExManager
         string packageLabel = package.PackageLabel;
 
         NormalizePackageResourceUris(config, packageLabel);
+        DayMapRegistry.Merge(package);
 
         SpecialGuestRegistry.Merge(config, packageName);
         DialogRegistry.Merge(config, packageName);
@@ -273,14 +292,33 @@ public static partial class ResourceExManager
         RecipeRegistry.Merge(config, packageName);
         MissionNodeRegistry.Merge(config, packageName);
         EventNodeRegistry.Merge(config, packageName);
+        NewsNodeRegistry.Merge(config, packageName);
         MerchantRegistry.Merge(config, packageName);
+        ItemRegistry.Merge(config, packageName);
         ClothRegistry.Merge(config, packageName);
+        SpellRegistry.Merge(config, packageName);
+        BuffRegistry.Merge(config, packageName);
+        AssetBundleRegistry.Merge(config, packageName);
     }
 
     private static void NormalizePackageResourceUris(ResourceConfig config, string packageLabel)
     {
         if (config == null)
             return;
+
+        foreach (var spell in config.spells ?? [])
+        {
+            spell.vfxBundle = ResolveAssetUriOrSelf(spell.vfxBundle, packageLabel);
+            foreach (var card in new[] { spell.positive, spell.negative })
+                if (card != null)
+                    card.portrait = ResolveAssetUriOrSelf(card.portrait, packageLabel);
+        }
+
+        foreach (var buff in config.buffs ?? [])
+            buff.icon = ResolveAssetUriOrSelf(buff.icon, packageLabel);
+
+        foreach (var bundle in config.assetBundles ?? [])
+            bundle.path = ResolveAssetUriOrSelf(bundle.path, packageLabel);
 
         if (config.characters != null)
         {
@@ -340,6 +378,9 @@ public static partial class ResourceExManager
             foreach (var beverageConfig in config.beverages)
                 beverageConfig.spritePath = ResolveAssetUriOrSelf(beverageConfig.spritePath, packageLabel);
         }
+
+        foreach (var itemConfig in config.items ?? [])
+            itemConfig.spritePath = ResolveAssetUriOrSelf(itemConfig.spritePath, packageLabel);
 
         if (config.clothes != null)
         {

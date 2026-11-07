@@ -1,8 +1,8 @@
 using HarmonyLib;
 
 using GameData.RunTime.Common;
-using MetaMystia.Network;
 
+using MetaMystia.ResourceEx.Registries;
 
 namespace MetaMystia.Patch;
 
@@ -14,7 +14,7 @@ public partial class RunTimeAlbumPatch
     [HarmonyPrefix]
     public static bool RefSpecialNPCId_Prefix(string characterLabel, ref int __result)
     {
-        var config = ResourceExManager.GetCharacterConfig(characterLabel);
+        var config = SpecialGuestRegistry.GetCharacterConfig(characterLabel);
         if (config == null) return true;
 
         __result = config.id;
@@ -27,7 +27,7 @@ public partial class RunTimeAlbumPatch
         string npcLabel,
         ref RunTimeAlbum.SpecialGuestRunTimeData __result)
     {
-        var config = ResourceExManager.GetCharacterConfig(npcLabel);
+        var config = SpecialGuestRegistry.GetCharacterConfig(npcLabel);
         if (config == null) return true;
 
         __result = RunTimeAlbum.RefOrGenerateSpecialRunTimeData(config.id);
@@ -41,7 +41,7 @@ public partial class RunTimeAlbumPatch
         int izakayaId,
         ref bool __result)
     {
-        var config = ResourceExManager.GetCharacterConfig(specialGuestLabel);
+        var config = SpecialGuestRegistry.GetCharacterConfig(specialGuestLabel);
         if (config == null) return true;
 
         __result = RunTimeAlbum.IfGuestHaveSpawnHere(config.id, izakayaId);
@@ -52,7 +52,7 @@ public partial class RunTimeAlbumPatch
     [HarmonyPrefix]
     public static bool SetGuestSpawnIzakayaId_Prefix(string specialGuestLabel, int izakayaId)
     {
-        var config = ResourceExManager.GetCharacterConfig(specialGuestLabel);
+        var config = SpecialGuestRegistry.GetCharacterConfig(specialGuestLabel);
         if (config == null) return true;
 
         RunTimeAlbum.SetGuestSpawnIzakayaId(config.id, izakayaId);
@@ -66,6 +66,6 @@ public partial class RunTimeAlbumPatch
         Log.Info($"Player skin changed to {skinSelectionInfo}");
         PlayerManager.Local.IsCustomSkinOverride = false;
         PlayerManager.InitLocalSkin();
-        PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+        PlayerProfile.SendProfile();
     }
 }

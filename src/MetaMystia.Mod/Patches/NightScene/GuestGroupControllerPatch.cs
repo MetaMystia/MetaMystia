@@ -2,6 +2,10 @@ using HarmonyLib;
 
 using NightScene.GuestManagementUtility;
 
+using static MetaMystia.Patch.HarmonyPrefixFlow;
+
+using MetaMystia.Multiplayer;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.GuestGroupController))]
@@ -25,6 +29,11 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class GuestGroupControllerPatch
 {
+    [HarmonyPatch(nameof(GuestGroupController.Evaluate))]
+    [HarmonyPrefix]
+    public static bool Evaluate_Prefix(GuestGroupController __instance, ref int __result) =>
+        YuyukoGuestSync.OverrideEvaluation(__instance, ref __result) ? SkipOriginal : RunOriginal;
+
     /// <summary>
     /// RefreshCurrentFundAndOrder 在 _TrySendToSeat_b__0 (OnArrive 回调) 中被调用，
     /// 此时角色刚到达桌位，随后进入 10s/speed 的首单延时。
@@ -34,8 +43,9 @@ public partial class GuestGroupControllerPatch
     [HarmonyPrefix]
     public static void RefreshCurrentFundAndOrder_Prefix(GuestGroupController __instance)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsRoomHost)
+        if (YuyukoGuestSync.IsBody(__instance)) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnRefreshCurrentFundAndOrder(__instance);
         }
@@ -51,9 +61,10 @@ public partial class GuestGroupControllerPatch
     [HarmonyPrefix]
     public static void MoveToDesk_Prefix(GuestGroupController __instance, int deskCode, ref Il2CppSystem.Action onMovementFinishCallback)
     {
+        if (YuyukoGuestSync.IsBody(__instance)) return;
         if (GuestsManagerPatch.IsReimuProtectionGuest(__instance)) return;
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnMoveToDesk(__instance, deskCode);
         }
@@ -69,8 +80,8 @@ public partial class GuestGroupControllerPatch
     {
         // 注：有且只有在 Spell_Orin 的负面符卡中会有 tryToJumpQueue = true
         // TODO(Spell)
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
-        if (MpManager.IsRoomHost)
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameSession.IsRoomHost)
         {
             GuestFSM.OnMoveToQueue(__instance);
         }
@@ -86,16 +97,16 @@ public partial class GuestGroupControllerPatch
     [HarmonyPostfix]
     public static void TryOverrideEvaluateByBuff_Postfix(GuestGroupController __instance, ref int __result)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
 
         var fsm = GuestsMap.GetGuestFsm(__instance);
-        if (MpManager.IsRoomHost)
+        if (GameSession.IsRoomHost)
         {
             var evalResult = GuestsManager.Instance.EvaluationTrans(__result);
             GuestFSM.OnEvaluateOrder(__instance, evalResult);
             return;
         }
-        if (MpManager.IsRoomClient)
+        if (GameSession.IsRoomClient)
         {
             if (fsm.OverrideEvalResult == GuestGroupController.EvaluationResult.Null)
                 return;

@@ -1,8 +1,8 @@
 using HarmonyLib;
-using UnityEngine;
 
 using DayScene;
-using DayScene.Interactables.Collections.ConditionComponents;
+using DayScene.Interactables;
+using GameData.Core.Collections.DaySceneUtility.Collections;
 using GameData.RunTime.DaySceneUtility.Collection;
 
 using MetaMystia.ResourceEx.Registries;
@@ -23,18 +23,37 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class DaySceneMapPatch
 {
+    [HarmonyPatch(nameof(DaySceneMap.GenerateSpawnMarkerData))]
+    [HarmonyPostfix]
+    public static void GenerateSpawnMarkerData_Postfix(DaySceneMap __instance, Il2CppSystem.Collections.Generic.Dictionary<string, SpawnMarker> __result)
+    {
+        SpawnMarkerRegistry.Register(__instance, __result);
+    }
+
     [HarmonyPatch(nameof(DaySceneMap.SolveAndUpdateCharacterPositionInternal))]
     [HarmonyPrefix]
-    public static bool SolveAndUpdateCharacterPositionInternal_Prefix(DaySceneMap __instance, Il2CppSystem.Collections.Generic.Dictionary<string, TrackedNPC> npcs, TrackedNPC npc, CharacterConditionComponent character, ref bool isNPCOnMap, bool changeRotation)
+    public static bool SolveAndUpdateCharacterPositionInternal_Prefix(DaySceneMap __instance,
+        ref Il2CppSystem.Collections.Generic.Dictionary<string, TrackedNPC> npcs, ref TrackedNPC npc, ref bool isNPCOnMap)
     {
 
         if (npc.key.IsResourceExSpecialGuest())
         {
-            var spawnMarkerConfig = npc.key.GetSpawnMarkerConfig();
-            character.Character.rb2d.transform.position = new Vector3(spawnMarkerConfig.x, spawnMarkerConfig.y, 0);
-            character.Character.SetRotation((int)spawnMarkerConfig.rotation);
-            isNPCOnMap = MapLabelExtensions.FromMapKey(__instance.mapLabel) == MapLabelExtensions.FromMapKey(spawnMarkerConfig.mapLabel);
-            return SkipOriginal;
+            var markerName = npc.key;
+            if (!__instance.AllSpawnMarkers.ContainsKey(markerName))
+            {
+                isNPCOnMap = false;
+                return SkipOriginal;
+            }
+
+            // 地图归属和点位仅用于本次定位，持久化 NPC 保留原记录。
+            npc = npc.Clone();
+            npc.currentDestination = new NPC.Destination { spawnMarker = markerName };
+            npc.overridePosition = null;
+            if (!npcs.ContainsKey(markerName))
+            {
+                npcs = new Il2CppSystem.Collections.Generic.Dictionary<string, TrackedNPC>();
+                npcs.Add(markerName, npc);
+            }
         }
         return RunOriginal;
 

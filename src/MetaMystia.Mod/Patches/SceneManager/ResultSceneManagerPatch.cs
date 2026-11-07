@@ -13,7 +13,7 @@ public partial class ResultSceneManagerPatch
     [HarmonyPostfix]
     public static void SceneManager_Start_Postfix()
     {
-        MpManager.OnSceneTransit(Scene.ResultScene);
+        GameFlow.OnSceneTransit(Scene.ResultScene);
         var callback = NightScene.GuestManagementUtility.GuestsManager.Instance?.getPostprocessCharacterCallback;
         NightScene.GuestManagementUtility.GuestsManager.Instance?.Initialize(callback);
     }

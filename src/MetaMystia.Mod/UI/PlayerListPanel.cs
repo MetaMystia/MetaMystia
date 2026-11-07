@@ -1,5 +1,12 @@
+using System.Collections.Generic;
+using System.Linq;
+
 using UnityEngine;
+
 using Common.UI;
+
+using MetaMystia.Multiplayer;
+using MetaMystia.Network;
 
 namespace MetaMystia.UI;
 
@@ -54,8 +61,14 @@ public static partial class PlayerListPanel
     // ====================================================================
     public static void OnGUI()
     {
-        if (!MpManager.IsRunning || (!_visible && !InGameConsole.IsOpen))
+        if (!GameSession.IsConnectingOrOnline || (!_visible && !InGameConsole.IsOpen))
             return;
+
+        if (ConfigManager.PlayerListX.Value > Screen.width * 0.95f || ConfigManager.PlayerListY.Value > Screen.height * 0.95f)
+        {
+            ConfigManager.PlayerListX.Value = (float)ConfigManager.PlayerListX.DefaultValue;
+            ConfigManager.PlayerListY.Value = (float)ConfigManager.PlayerListY.DefaultValue;
+        }
 
         InitStyles();
 
@@ -69,7 +82,7 @@ public static partial class PlayerListPanel
 
         // 计算面板宽度：取最宽行
         float maxW = 0f;
-        foreach (var (text, _) in lines)
+        foreach (var text in lines)
         {
             var content = new GUIContent(StripRichText(text));
             float w = _lineStyle.CalcSize(content).x + Padding * 2;
@@ -77,7 +90,7 @@ public static partial class PlayerListPanel
         }
 
         float panelW = Mathf.Max(maxW + Padding * 2, 200f);
-        float panelH = lines.Count * lineH + DragHandleHeight + Padding * 2;
+        float panelH = lines.Sum(text => text.Length == 0 ? lineH / 2 : lineH) + DragHandleHeight + Padding * 2;
         float panelX = ConfigManager.PlayerListX.Value;
         float panelY = ConfigManager.PlayerListY.Value;
 
@@ -122,8 +135,13 @@ public static partial class PlayerListPanel
 
         // ── 绘制行 ──
         float cy = panelY + DragHandleHeight + Padding;
-        foreach (var (text, _) in lines)
+        foreach (var text in lines)
         {
+            if (text.Length == 0)
+            {
+                cy += lineH / 2;
+                continue;
+            }
             GUI.Label(new Rect(panelX + Padding, cy, panelW - Padding * 2, lineH), text, _lineStyle);
             cy += lineH;
         }
@@ -132,108 +150,124 @@ public static partial class PlayerListPanel
     // ====================================================================
     // 构建行内容
     // ====================================================================
-    private static System.Collections.Generic.List<(string text, int uid)> BuildLines()
+    private static List<string> BuildLines()
     {
-        var lines = new System.Collections.Generic.List<(string, int)>();
-        var scene = MpManager.LocalScene;
+        var lines = new List<string>();
+        var scene = GameFlow.LocalScene;
 
         // 仅在游戏场景中读取坐标/地图标签，避免在 MainScene 等场景中触发 GetCharacterUnit 警告
-        bool needsGameplayData = scene is Scene.DayScene or Scene.WorkScene or Scene.IzakayaPrepScene;
+        bool needsGameplayData = GameFlow.CharactersReady && scene is Scene.DayScene or Scene.WorkScene;
 
-        // 本地玩家 (UID=0 if host, else assigned)
+        // 本地玩家与房间身份均来自服务器。
         var local = PlayerManager.Local;
         string localLine = FormatPlayer(
-            local.Uid, local.Id, scene,
-            needsGameplayData ? PlayerManager.LocalMapLabel : MapLabel.Unknown,
+            local.Uid, local.Id, scene, GameFlow.Stage,
+            needsGameplayData && scene == Scene.DayScene ? PlayerManager.LocalMapLabel : MapLabel.Unknown,
             needsGameplayData ? local.Position : Vector2.zero,
             local.IsDayOver, local.IsPrepOver,
             local.IzakayaMapLabel, local.IzakayaLevel,
-            isSelf: true, isHost: MpManager.IsServer);
-        lines.Add((localLine, local.Uid));
+            isSelf: true, isHost: GameSession.IsRoomHost, hasMotion: needsGameplayData);
+        lines.Add(localLine);
 
-        // Peers sorted by UID
-        var sorted = new System.Collections.Generic.SortedDictionary<int, PeerPlayer>(PlayerManager.Peers);
-        foreach (var kvp in sorted)
+        // 同房间优先，各组按 UID 排序。
+        bool publicGroupStarted = false;
+        foreach (var peer in PlayerManager.Peers.Values.OrderBy(p => p.Uid)
+            .Concat(PlayerManager.PublicPeers.Values.OrderBy(p => p.Uid)))
         {
-            var peer = kvp.Value;
+            bool inRoom = PlayerManager.Peers.ContainsKey(peer.Uid);
+            if (!inRoom && !publicGroupStarted)
+            {
+                lines.Add("");
+                publicGroupStarted = true;
+            }
+            var motion = peer.NetworkState?.Motion;
+            // 与服务器的位置转发范围一致；跨场景缓存不作为实时坐标显示。
+            bool hasMotion = peer.HasMotion && needsGameplayData && peer.Scene == scene
+                && (scene == Scene.DayScene || inRoom);
+            var position = peer.HasMotion ? new Vector2(motion.X, motion.Y) : Vector2.zero;
+            // 同地图使用本地角色的连续位置；切图或角色尚未创建时保留网络坐标。
+            bool sameMap = hasMotion && (scene == Scene.WorkScene || (scene == Scene.DayScene
+                && !DayScene.SceneManager.Instance.IsMapSwapping && peer.IsSameMapAsLocal
+                && peer.NetworkState.Map == peer.MapLabel));
+            if (hasMotion && sameMap && peer.CanRender && peer.unit != null && peer.rb2d != null)
+                position = peer.Position;
             string line = FormatPlayer(
-                peer.Uid, peer.Id, scene,
-                needsGameplayData ? peer.MapLabel : MapLabel.Unknown,
-                needsGameplayData ? peer.Position : Vector2.zero,
+                peer.Uid, peer.Id, peer.Scene, peer.NetworkState?.Stage ?? GameStage.Unavailable,
+                peer.NetworkState?.Map ?? MapLabel.Unknown,
+                position,
                 peer.IsDayOver, peer.IsPrepOver,
                 peer.IzakayaMapLabel, peer.IzakayaLevel,
-                isSelf: false, isHost: kvp.Key == MpManager.HOST_UID);
-            lines.Add((line, kvp.Key));
-        }
-
-        var publicSorted = new System.Collections.Generic.SortedDictionary<int, PeerPlayer>(PlayerManager.PublicPeers);
-        foreach (var kvp in publicSorted)
-        {
-            if (PlayerManager.Peers.ContainsKey(kvp.Key)) continue;
-            var peer = kvp.Value;
-            string line = FormatPlayer(
-                peer.Uid, peer.Id, scene,
-                needsGameplayData ? peer.MapLabel : MapLabel.Unknown,
-                needsGameplayData ? peer.Position : Vector2.zero,
-                peer.IsDayOver, peer.IsPrepOver,
-                peer.IzakayaMapLabel, peer.IzakayaLevel,
-                isSelf: false, isHost: false,
-                scopeTag: "Online");
-            lines.Add((line, kvp.Key));
+                isSelf: false, isHost: peer.Uid == GameSession.Room?.Host,
+                hasMotion: hasMotion, inRoom: inRoom);
+            lines.Add(line);
         }
 
         return lines;
     }
 
     private static string FormatPlayer(
-        int uid, string id, Scene scene,
+        int uid, string id, Scene scene, GameStage stage,
         MapLabel mapLabel, Vector2 pos,
         bool isDayOver, bool isPrepOver,
         MapLabel izakayaMapLabel, int izakayaLevel,
-        bool isSelf, bool isHost,
-        string scopeTag = null)
+        bool isSelf, bool isHost, bool hasMotion, bool inRoom = true)
     {
         // 名字颜色
         string nameColor;
-        if (isSelf && isHost) nameColor = ColorToHex(HostColor); // 自己且是主机
-        else if (isSelf) nameColor = ColorToHex(SelfColor);
+        if (isSelf) nameColor = ColorToHex(SelfColor);
         else if (isHost) nameColor = ColorToHex(HostColor);
         else nameColor = ColorToHex(PeerColor);
 
-        string selfTag = isSelf ? " <color=#66FF88>★</color>" : "";
-        string suffix = string.IsNullOrEmpty(scopeTag) ? "" : $" <color={ColorToHex(DimColor)}>{scopeTag}</color>";
         string displayId = LiveModeManager.GetDisplayName(uid);
         string name = LiveModeManager.IsActive
-            ? $"<color={nameColor}>{displayId}</color>{selfTag}{suffix}"
-            : $"<color={nameColor}>[{uid}] {id}</color>{selfTag}{suffix}";
+            ? $"<color={nameColor}>{displayId}</color>"
+            : $"<color={nameColor}>[{uid}] {id}</color>";
         string dim = ColorToHex(DimColor);
+        // 只展示本人已提交的选店结果，不用全房间进度推断个人面板。
+        if (scene == Scene.DayScene && inRoom && izakayaMapLabel.IsSelected() && izakayaLevel > 0)
+            return $"{name}  <color={dim}>{izakayaMapLabel.GetDisplayName()} Lv.{izakayaLevel}</color>";
+        string sceneText = scene == Scene.WorkScene && stage == GameStage.Preparation
+            ? TextId.PlayerListPreparation.Get() : SceneText(scene);
+        name += $"  <color={dim}>{sceneText}</color>";
+        string location = scene == Scene.DayScene && mapLabel != MapLabel.Unknown ? mapLabel.GetDisplayName() : "";
+        if (hasMotion && !(scene == Scene.DayScene && isDayOver))
+        {
+            string position = $"({pos.x:F2}, {pos.y:F2})";
+            location = string.IsNullOrEmpty(location) ? position : $"{location}  {position}";
+        }
+        if (!string.IsNullOrEmpty(location)) name += $"  <color={dim}>{location}</color>";
 
         return scene switch
         {
-            Scene.DayScene => FormatDayLine(name, dim, mapLabel, pos, isDayOver, izakayaMapLabel, izakayaLevel),
-            Scene.IzakayaPrepScene => $"{name}  <color={dim}>{ReadyTag(isPrepOver)}</color>",
-            Scene.WorkScene => $"{name}  <color={dim}>({pos.x:F2}, {pos.y:F2})</color>",
+            Scene.DayScene when inRoom => FormatDayLine(name, isDayOver, uid),
+            Scene.IzakayaPrepScene when inRoom => $"{name}  {ReadyTag(isPrepOver)}",
+            Scene.WorkScene when inRoom && stage == GameStage.Preparation =>
+                $"{name}  {ReadyTag(isPrepOver)}",
             _ => name
         };
     }
 
-    /// <summary>
-    /// DayScene: 全员 DayOver 后显示选店信息，否则显示地图+坐标+状态
-    /// </summary>
-    private static string FormatDayLine(string name, string dim,
-        MapLabel mapLabel, Vector2 pos, bool isDayOver,
-        MapLabel izakayaMapLabel, int izakayaLevel)
+    private static string SceneText(Scene scene) => (scene switch
     {
-        if (!PlayerManager.AllDayOver)
-        {
-            // 仍在白天探索
-            return $"{name}  <color={dim}>{mapLabel.GetDisplayName()}  ({pos.x:F2}, {pos.y:F2})  {ReadyTag(isDayOver)}</color>";
-        }
-        // 全员进入选店
-        string map = izakayaMapLabel.IsSelected()
-            ? izakayaMapLabel.GetDisplayName() : "…";
-        string level = izakayaLevel > 0 ? $" Lv.{izakayaLevel}" : "";
-        return $"{name}  <color={dim}>{map}{level}</color>";
+        Scene.MainScene => TextId.PlayerListMainMenu,
+        Scene.DayScene => TextId.PlayerListDay,
+        Scene.IzakayaPrepScene => TextId.PlayerListPreparation,
+        Scene.WorkScene => TextId.PlayerListWork,
+        Scene.ResultScene => TextId.PlayerListResult,
+        Scene.LoadScene => TextId.PlayerListLoading,
+        Scene.StaffScene => TextId.PlayerListStaff,
+        _ => TextId.PlayerListUnknown,
+    }).Get();
+
+    /// <summary>
+    /// 白天只为已提交入口或已结束探索的玩家显示准备标记。
+    /// </summary>
+    private static string FormatDayLine(string name, bool isDayOver, int uid)
+    {
+        var destination = GameSession.HasRoomPeers ? DayDestinationManager.GetIntent(uid) : DayDestination.None;
+        if (destination != DayDestination.None)
+            return $"{name}  {ReadyTag(true)}";
+        return isDayOver ? $"{name}  {ReadyTag(true)}" : name;
     }
 
     private static string ReadyTag(bool ready)

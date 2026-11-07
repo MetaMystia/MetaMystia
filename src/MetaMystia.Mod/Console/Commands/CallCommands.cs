@@ -121,7 +121,7 @@ public static class CallCommands
         {
             try
             {
-                if (!Network.IzakayaCloseAction.TryForceLocalClose())
+                if (!Multiplayer.Messages.IzakayaCloseMessage.TryForceLocalClose())
                 {
                     ctx.Log(TextId.NotInWorkScene.Get());
                     return;

@@ -1,37 +1,10 @@
 using System;
 using System.Collections.Generic;
+
+using MetaMystia.ResourceEx.Registries;
 using MetaMystia.UI;
 
 namespace MetaMystia;
-
-/// <summary>游戏内白天/选店地图标识；MapKey 与 <c>SceneDirector</c> / <c>PrimaryName</c> 一致。</summary>
-public enum MapLabel : ushort
-{
-    Unknown = 0,
-
-    Home = 1,
-    Basement = 2,
-    BeastForest = 3,
-    HumanVillage = 4,
-    HakureiShrine = 5,
-    ScarletMansion = 6,
-    BambooForest = 7,
-    PartyStage = 8,
-    Hakugyokurou = 9,
-
-    DLC1_MagicForest = 10,
-    DLC1_YoukaiMountain = 11,
-    DLC2_FormerHell = 12,
-    DLC2_EarthSpiritsPalace = 13,
-    DLC3_MyourenTemple = 14,
-    DLC3_DivineSpiritMausoleum = 15,
-    DLC3_HakureiFestival = 16,
-    DLC4_GardenOfTheSun = 17,
-    DLC4_ShiningNeedleCastle = 18,
-    DLC4_ScarletMansionBasement = 19,
-    DLC5_Makai = 20,
-    DLC5_LunarCapital = 21,
-}
 
 public static class MapLabelExtensions
 {
@@ -74,6 +47,12 @@ public static class MapLabelExtensions
         if (MapKeyToLabel.TryGetValue(mapKey, out label))
             return true;
 
+        if (DayMapRegistry.TryGetId(mapKey, out var id))
+        {
+            label = (MapLabel)id;
+            return true;
+        }
+
         label = MapLabel.Unknown;
         return false;
     }
@@ -85,7 +64,8 @@ public static class MapLabelExtensions
     }
 
     public static string ToMapKey(this MapLabel label) =>
-        label == MapLabel.Unknown ? "" : label.ToString();
+        label == MapLabel.Unknown ? "" : Enum.IsDefined(label) ? label.ToString()
+        : DayMapRegistry.IsRegistered((int)label) ? DayMapRegistry.GetLabel((int)label) : "";
 
     public static string GetDisplayName(this MapLabel label) => label switch
     {
@@ -110,7 +90,7 @@ public static class MapLabelExtensions
         MapLabel.DLC4_ScarletMansionBasement => TextId.MapLabel_DLC4_ScarletMansionBasement.Get(),
         MapLabel.DLC5_Makai => TextId.MapLabel_DLC5_Makai.Get(),
         MapLabel.DLC5_LunarCapital => TextId.MapLabel_DLC5_LunarCapital.Get(),
-        _ => TextId.MapLabel_Unknown.Get(),
+        _ => DayMapRegistry.GetDisplayName((int)label) ?? TextId.MapLabel_Unknown.Get(),
     };
 
     public static string FormatIzakayaSelection(this MapLabel mapLabel, int level) =>

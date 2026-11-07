@@ -3,8 +3,8 @@ using HarmonyLib;
 using Common.UI;
 using NightScene;
 
-using MetaMystia.Network;
-using SgrYuki;
+using MetaMystia.Multiplayer;
+using MetaMystia.Patch;
 
 namespace MetaMystia;
 
@@ -13,44 +13,22 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class NightSceneManagerPatch
 {
+    [HarmonyPatch(nameof(SceneManager.Dispose))]
+    [HarmonyPrefix]
+    public static void Dispose_Prefix() => YuyukoBossDataPatch.ResetChallenge();
 
     [HarmonyPatch(nameof(SceneManager.Start))]
     [HarmonyPostfix]
     public static void NightScene_Start_Postfix()
     {
-        // REFACTORING
-        // GuestsManagerPatch.ReimuSpellCard = false;
-
-        MpManager.OnSceneTransit(Scene.WorkScene);
+        GameFlow.OnSceneTransit(Scene.WorkScene);
         CheatManager.TryApplyFever();
         PlayerManager.Local.ResetState();
-        PlayerManager.InitLocalSkin();
-
-        if (!MpManager.CanSeeOnlinePlayers)
+        if (GameSession.HasRoomPeers)
         {
-            return;
+            if (!PrepSceneManager.IsYuyukoPrepActive) PrepSceneManager.ClearPrepTable();
+            PlayerManager.ResetState();
         }
-        PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
-
-        if (!MpManager.IsConnected)
-        {
-            PlayerManager.SpawnPeers();
-            return;
-        }
-
-        PrepSceneManager.ClearPrepTable();
-
-        PlayerManager.ResetState();
-        PlayerManager.SpawnPeers();
-
-        CommandScheduler.EnqueueKey(
-            key: MpManager.PeerGetCharacterUnitNotNullCommand,
-            executeWhen: () => PlayerManager.Peer?.GetCharacterUnit() != null,
-            execute: () =>
-            {
-                PlayerManager.EnablePeerCollision(true);
-            },
-            timeoutSeconds: 120
-        );
+        GameFlow.OnCharactersReady(Scene.WorkScene);
     }
 }

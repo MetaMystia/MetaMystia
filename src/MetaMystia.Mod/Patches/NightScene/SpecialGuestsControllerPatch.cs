@@ -1,8 +1,10 @@
-using HarmonyLib;
 using System;
+
+using HarmonyLib;
 
 using NightScene.GuestManagementUtility;
 
+using MetaMystia.Multiplayer;
 
 namespace MetaMystia.Patch;
 
@@ -10,6 +12,12 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class SpecialGuestsControllerPatch
 {
+    [HarmonyPatch(nameof(SpecialGuestsController.PostEvaluation))]
+    [HarmonyPrefix]
+    public static void PostEvaluation_Prefix(SpecialGuestsController __instance,
+        GuestGroupController.EvaluationResult evaluationType) =>
+        YuyukoGuestSync.BeforePostEvaluation(__instance, evaluationType);
+
     /// <summary>
     /// 主机或客机用于推进 EatingDelay -> ContinueDecision
     /// </summary>
@@ -17,9 +25,10 @@ public partial class SpecialGuestsControllerPatch
     /// <exception cref="InvalidOperationException"></exception>
     [HarmonyPatch(nameof(SpecialGuestsController.PostEvaluation))]
     [HarmonyPostfix]
-    public static void SpecialGuest_PostEvaluation_Postfix(SpecialGuestsController __instance)
+    public static void PostEvaluation_Postfix(SpecialGuestsController __instance)
     {
-        if (MpManager.ShouldSkipAction || !MpManager.IsConnected) return;
+        if (YuyukoGuestSync.IsBody(__instance)) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
         GuestFSM.OnPostEvaluation(__instance);
     }
 }

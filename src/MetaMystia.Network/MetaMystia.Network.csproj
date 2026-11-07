@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="Network.props" />
+  <PropertyGroup><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>
+  <ItemGroup><PackageReference Include="MemoryPack" Version="1.21.4" /></ItemGroup>
+  <Target Name="GenerateVersions" BeforeTargets="BeforeCompile">
+    <WriteLinesToFile File="$(IntermediateOutputPath)Versions.g.cs"
+      Lines="namespace MetaMystia.Network { public sealed partial record Versions { public static Versions Current { get%3B } = new($(NetworkProtocolVersion), &quot;$(TargetGameVersion)&quot;, &quot;$(Version)&quot;)%3B } }"
+      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup><Compile Include="$(IntermediateOutputPath)Versions.g.cs" /></ItemGroup>
+  </Target>
+</Project>

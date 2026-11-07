@@ -18,16 +18,13 @@ public class Plugin : BasePlugin
 {
     public static Plugin Instance;
     public static string GameVersion => Common.LoadingSceneManager.VersionData;
-    public static string TargetGameVersion => "RELEASE 4.4.0e";
+    public static string TargetGameVersion => TmiBuildInfo.TargetGameVersion;
     public readonly static string ModVersion = MyPluginInfo.PLUGIN_VERSION;
     public static string ProtocolVersion => ModVersion;
 
     public static TraceLog tl = new TraceLog(); // for debug
 
     public static bool AllPatched => PatchRegistry.AllPatched;
-
-    /// <summary>当前激活的 DLC（Core 恒激活），由 SteamPlatformProfile.GetActiveKeys 记录。</summary>
-    public static DlcPack DlcFlags { get; internal set; } = DlcPack.Core;
 
     public Plugin()
     {
@@ -38,7 +35,6 @@ public class Plugin : BasePlugin
     {
         ConfigManager.InitConfigs();
         L10n.Initialize();
-        Il2CppInteropPatcher.TryPatch();
 
         if (ConfigManager.Debug.Value)
         {
@@ -68,7 +64,7 @@ public class Plugin : BasePlugin
             Log.LogError($"FAILED to Register Il2Cpp Type! {ex.Message}");
         }
 
-        Log.LogInfo(MpManager.DebugText);
+        Log.LogInfo(MetaMystia.UI.MultiplayerStatus.DebugText);
 
         var harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         var originalHandle = AccessTools.Method(typeof(CanvasScaler), "Handle");
@@ -77,7 +73,7 @@ public class Plugin : BasePlugin
 
         PatchRegistry.ApplyAll(harmony);
 
-        Network.Action.RegisterAllFormatter();
+        Multiplayer.Messages.MultiplayerMessage.RegisterAllFormatter();
 
         try
         {
@@ -97,19 +93,6 @@ public class Plugin : BasePlugin
             Log.LogFatal($"FAILED to Initialize ResourceEx! {ex.Message}");
             PatchRegistry.PatchedException = ex;
         }
-    }
-
-    public static void OnFirstEnterMainScene()
-    {
-        Instance?.Log.LogInfo($"Game Version: {GameVersion}");
-        if (GameVersion != TargetGameVersion)
-        {
-            Instance?.Log.LogWarning($"Game version does not match target version! Expected: {TargetGameVersion}");
-            InGameConsole.LogToConsole($"<color=#FF6666>{UI.TextId.GameVersionMismatchNotify.Get(TargetGameVersion, GameVersion)}</color>");
-        }
-        Il2CppInteropPatcher.NotifyIfPatched();
-        MetricsReporter.OnEnterMainScene();
-        Instance?.Log.LogInfo(MpManager.DebugText);
     }
 
     class BootstrapPatch

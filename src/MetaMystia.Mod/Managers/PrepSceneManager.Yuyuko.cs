@@ -1,0 +1,83 @@
+using System.Collections.Generic;
+using System.Linq;
+
+using NightScene;
+
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
+using MetaMystia.Patch;
+
+namespace MetaMystia;
+
+public static partial class PrepSceneManager
+{
+    public static bool IsYuyukoChallenge => NightSceneDirector.ChallengeMode is
+        NightSceneDirector.ChallengeType.Story_Yuyuko or NightSceneDirector.ChallengeType.Challenge_Yuyuko;
+
+    public static int YuyukoPrepRound { get; private set; }
+    public static bool IsYuyukoPrepActive { get; private set; }
+    private static bool yuyukoPrepConfirmed;
+    private static readonly Dictionary<int, int> yuyukoReadyRounds = new();
+
+    public static void ResetYuyukoPrep()
+    {
+        YuyukoPrepRound = 0;
+        IsYuyukoPrepActive = false;
+        yuyukoPrepConfirmed = false;
+        yuyukoReadyRounds.Clear();
+    }
+
+    public static void TryBeginYuyukoPrep()
+    {
+        if (!GameSession.HasRoomPeers || !IsYuyukoChallenge) return;
+
+        YuyukoPrepRound++;
+        IsYuyukoPrepActive = true;
+        yuyukoPrepConfirmed = false;
+        PlayerManager.LocalIsPrepOver = false;
+
+        PlayerProfile.SendProfile();
+        BeginPrep();
+        Log.Info($"Yuyuko prep round {YuyukoPrepRound} opened");
+    }
+
+    public static void ReceiveYuyukoPrepReady(int senderUid, int round)
+    {
+        if (!GameFlow.IsFinalTrial || !PlayerManager.Peers.ContainsKey(senderUid)) return;
+        if (round < YuyukoPrepRound || round > YuyukoPrepRound + 1) return;
+        // 对端可能先播完剧情；打开本地面板时不能清掉已收到的本轮就绪。
+        if (!yuyukoReadyRounds.TryGetValue(senderUid, out var previous) || round > previous)
+            yuyukoReadyRounds[senderUid] = round;
+        PlayerManager.Peers[senderUid].IsPrepOver = true;
+        TryConfirmYuyukoPrep();
+    }
+
+    public static void TryConfirmYuyukoPrep()
+    {
+        if (!GameSession.IsRoomHost || !IsYuyukoChallenge || !IsYuyukoPrepActive
+            || yuyukoPrepConfirmed || !PlayerManager.LocalIsPrepOver) return;
+        if (!PlayerManager.Peers.Keys.All(uid =>
+                yuyukoReadyRounds.TryGetValue(uid, out var round) && round == YuyukoPrepRound)) return;
+
+        yuyukoPrepConfirmed = true;
+        PrepAllReadyMessage.Send();
+        IzakayaConfigPannelPatch.PrepOver();
+    }
+
+    public static bool CanFinishYuyukoPrep(int round) =>
+        IsYuyukoChallenge && IsYuyukoPrepActive && round == YuyukoPrepRound
+        && PlayerManager.LocalIsPrepOver;
+
+    public static bool IsYuyukoPrepReady(int uid) =>
+        IsYuyukoPrepActive && (uid == PlayerManager.Local.Uid
+            ? PlayerManager.LocalIsPrepOver
+            : yuyukoReadyRounds.TryGetValue(uid, out var round) && round == YuyukoPrepRound);
+
+    public static void EndYuyukoPrep()
+    {
+        IsYuyukoPrepActive = false;
+        PlayerManager.LocalIsPrepOver = false;
+        PlayerProfile.SendProfile();
+        Log.Info($"Yuyuko prep round {YuyukoPrepRound} confirmed");
+    }
+}

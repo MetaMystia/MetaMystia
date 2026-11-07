@@ -10,8 +10,9 @@ using UnityEngine.EventSystems;
 
 using Common.UI;
 
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.ConsoleSystem;
-using MetaMystia.Network;
 
 namespace MetaMystia.UI;
 
@@ -50,6 +51,13 @@ public static partial class InGameConsole
         {
             if (_isOpen != value)
             {
+                if (GameFlow.LocalScene == Scene.DayScene && DayScene.SceneManager.Instance != null
+                    && DayScene.SceneManager.Instance.IsMapSwapping)
+                {
+                    LogToConsole(TextId.ConsoleMapSwapping.Get());
+                    return;
+                }
+
                 Log.Info($"console {(value ? "opened" : "closed")}");
                 _isOpen = value;
                 if (value)
@@ -379,6 +387,12 @@ public static partial class InGameConsole
     // ====================================================================
     public static void OnGUI()
     {
+        if (ConfigManager.ConsoleX.Value > Screen.width * 0.95f || ConfigManager.ConsoleY.Value > Screen.height * 0.95f)
+        {
+            ConfigManager.ConsoleX.Value = (float)ConfigManager.ConsoleX.DefaultValue;
+            ConfigManager.ConsoleY.Value = (float)ConfigManager.ConsoleY.DefaultValue;
+        }
+
         InitStyles();
 
         // Drain pending logs only during Layout pass so that control count is stable
@@ -866,12 +880,10 @@ public static partial class InGameConsole
         bool isMessage = cmd[0] != '/';
         if (isMessage)
         {
-            string localName = LiveModeManager.GetLocalDisplayName();
-            string displayMsg = LiveModeManager.MaskMessage(cmd);
-            LogToConsole($"{localName}: {displayMsg}");
-
-            if (MpManager.IsConnected)
-                MessageAction.Send(cmd);
+            if (GameSession.IsOnline)
+                ChatMessage.Send(cmd);
+            else
+                LogToConsole($"{LiveModeManager.GetLocalDisplayName()}: {LiveModeManager.MaskMessage(cmd)}");
 
             closeConsole = true;
         }

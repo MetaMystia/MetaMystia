@@ -1,0 +1,531 @@
+{
+ "_note": "三途川采集点设想。Mod 尚不支持自定义地图采集点，本文件不进资源包，只作设计与标注数据。字段对应游戏 Collectable：key、offByDefault、showTime（出现与消失的整点，白天 10–18）、primary、secondary（probability 为百分比）；regenerateHours 原版数值未知，暂不填。type 对应 Product.ProductType；id 为游戏数据 ID，custom 表示需要自定义的食材或物品。 新增食材与物品的草案见 ingredients.json。",
+ "points": [
+  {
+   "id": "C01",
+   "key": "Sanzu_Water_Nori",
+   "name": "午睡石·海苔",
+   "x": 11.0,
+   "y": 6.35,
+   "radius": 1.4,
+   "kind": "water",
+   "offByDefault": false,
+   "showTime": [
+    10,
+    14
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": null,
+     "custom": "海带",
+     "amount": 4
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 10,
+     "name": "海苔",
+     "amount": 2,
+     "probability": 30
+    }
+   ],
+   "note": "主产物用新增食材海带；副产物海苔。时段同兽道溪流的海苔点（10–14）。"
+  },
+  {
+   "id": "C02",
+   "key": "Sanzu_Water_FishPen",
+   "name": "鱼栏·普通鱼",
+   "x": 26.75,
+   "y": 9.7,
+   "radius": 1.5,
+   "kind": "water",
+   "offByDefault": true,
+   "showTime": null,
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 11,
+     "name": "鳟鱼",
+     "amount": 10
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 12,
+     "name": "八目鳗",
+     "amount": 4,
+     "probability": 50
+    },
+    {
+     "type": "Ingredient",
+     "id": 23,
+     "name": "虾",
+     "amount": 3,
+     "probability": 30
+    }
+   ],
+   "note": "站在小码头尽头采集。鱼栏是润美的，默认关闭，完成润美的委托或羁绊后开放。数量参照人间之里农田（一次 20 个）减半。"
+  },
+  {
+   "id": "C03",
+   "key": "Sanzu_Water_PierEast",
+   "name": "栈桥东·特色鱼",
+   "x": -0.05,
+   "y": 6.4,
+   "radius": 1.2,
+   "kind": "water",
+   "offByDefault": false,
+   "showTime": [
+    14,
+    18
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 14,
+     "name": "金枪鱼",
+     "amount": 2
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 19,
+     "name": "极上金枪鱼",
+     "amount": 1,
+     "probability": 15
+    },
+    {
+     "type": "Ingredient",
+     "id": 20,
+     "name": "河豚",
+     "amount": 1,
+     "probability": 10
+    }
+   ],
+   "note": "站在栈桥上采集。ZUN 说三途河海水居多，所以放海鱼。"
+  },
+  {
+   "id": "C04",
+   "key": "Sanzu_Water_KawaraNorth",
+   "name": "河原北岸·特色鱼",
+   "x": -14.9,
+   "y": 6.65,
+   "radius": 1.4,
+   "kind": "water",
+   "offByDefault": false,
+   "showTime": [
+    10,
+    15
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 13,
+     "name": "三文鱼",
+     "amount": 3
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 1001,
+     "name": "章鱼",
+     "amount": 1,
+     "probability": 30
+    },
+    {
+     "type": "Ingredient",
+     "id": 1002,
+     "name": "海胆",
+     "amount": 1,
+     "probability": 15
+    },
+    {
+     "type": "Ingredient",
+     "id": null,
+     "custom": "菊石",
+     "amount": 1,
+     "probability": 10
+    }
+   ],
+   "note": "章鱼、海胆是 DLC1 食材。"
+  },
+  {
+   "id": "C05",
+   "key": "Sanzu_Water_PierHead",
+   "name": "栈桥端·深水",
+   "x": -1.35,
+   "y": 11.7,
+   "radius": 1.2,
+   "kind": "water",
+   "offByDefault": false,
+   "showTime": [
+    16,
+    18
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 19,
+     "name": "极上金枪鱼",
+     "amount": 1
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 20,
+     "name": "河豚",
+     "amount": 1,
+     "probability": 30
+    },
+    {
+     "type": "Ingredient",
+     "id": null,
+     "custom": "冥鱼",
+     "amount": 1,
+     "probability": 10
+    },
+    {
+     "type": "Ingredient",
+     "id": null,
+     "custom": "空棘鱼",
+     "amount": 1,
+     "probability": 5
+    }
+   ],
+   "note": "傍晚才出现的稀有深水点。冥鱼、空棘鱼为新增食材。"
+  },
+  {
+   "id": "C06",
+   "key": "Sanzu_Water_Shallows",
+   "name": "西岸浅滩·蟹",
+   "x": -20.8,
+   "y": 6.85,
+   "radius": 1.3,
+   "kind": "water",
+   "offByDefault": false,
+   "showTime": [
+    10,
+    15
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 1005,
+     "name": "螃蟹",
+     "amount": 2
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 23,
+     "name": "虾",
+     "amount": 2,
+     "probability": 30
+    },
+    {
+     "type": "Ingredient",
+     "id": null,
+     "custom": "三叶虫",
+     "amount": 2,
+     "probability": 15
+    }
+   ],
+   "note": "台地岬角下的浅滩。螃蟹是 DLC1 食材。"
+  },
+  {
+   "id": "C07",
+   "key": "Sanzu_Creek_A",
+   "name": "溪流·鳟鱼",
+   "x": 18.3,
+   "y": -3.5,
+   "radius": 1.2,
+   "kind": "water",
+   "offByDefault": false,
+   "showTime": [
+    14,
+    18
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 11,
+     "name": "鳟鱼",
+     "amount": 2
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 12,
+     "name": "八目鳗",
+     "amount": 2,
+     "probability": 20
+    }
+   ],
+   "note": "溪流是汇入三途川的支流、淡水；产物与时段照兽道溪流的鳟鱼点。"
+  },
+  {
+   "id": "C08",
+   "key": "Sanzu_Creek_B",
+   "name": "溪流下游·虾",
+   "x": 27.5,
+   "y": -4.85,
+   "radius": 1.3,
+   "kind": "water",
+   "offByDefault": false,
+   "showTime": [
+    10,
+    15
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 23,
+     "name": "虾",
+     "amount": 2
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 1005,
+     "name": "螃蟹",
+     "amount": 1,
+     "probability": 30
+    }
+   ],
+   "note": "鱼市南岸。"
+  },
+  {
+   "id": "C09",
+   "key": "Sanzu_Tree_Eryoju",
+   "name": "衣领树·蝉蜕",
+   "x": -30.0,
+   "y": 0.9,
+   "radius": 1.6,
+   "kind": "land",
+   "offByDefault": false,
+   "showTime": null,
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 25,
+     "name": "蝉蜕",
+     "amount": 2
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 27,
+     "name": "露水",
+     "amount": 1,
+     "probability": 30
+    }
+   ],
+   "note": "挂着亡者衣物的树上采“蜕下的壳”，呼应夺衣婆剥衣的传说。原版博丽神社、魔界的树上也产蝉蜕。"
+  },
+  {
+   "id": "C10",
+   "key": "Sanzu_Tree_PurpleSakura",
+   "name": "紫花树·落花",
+   "x": -32.6,
+   "y": -7.0,
+   "radius": 1.4,
+   "kind": "land",
+   "offByDefault": false,
+   "showTime": [
+    16,
+    18
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": null,
+     "custom": "紫樱花瓣",
+     "amount": 2
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 26,
+     "name": "幻昙华",
+     "amount": 1,
+     "probability": 5
+    }
+   ],
+   "note": "傍晚收集紫之樱的落花（求闻史纪：花散る時，死者解开迷惘）。紫樱花瓣为新增食材。"
+  },
+  {
+   "id": "C11",
+   "key": "Sanzu_Plant_Higan",
+   "name": "彼岸花丛·鳞茎",
+   "x": -26.5,
+   "y": -1.5,
+   "radius": 1.4,
+   "kind": "land",
+   "offByDefault": false,
+   "showTime": null,
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": null,
+     "custom": "彼岸花鳞茎",
+     "amount": 2
+    }
+   ],
+   "secondary": [],
+   "note": "彼岸花鳞茎为新增食材。鳞茎有毒，过去作为救荒作物去毒后食用；求闻史纪写再思之道的彼岸花之毒。"
+  },
+  {
+   "id": "C12",
+   "key": "Sanzu_Item_Dew",
+   "name": "渡口·晨露",
+   "x": 5.6,
+   "y": 0.6,
+   "radius": 1.2,
+   "kind": "land",
+   "offByDefault": false,
+   "showTime": [
+    10,
+    11
+   ],
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 27,
+     "name": "露水",
+     "amount": 3
+    }
+   ],
+   "secondary": [],
+   "note": "河雾终日不散，候船小屋檐下清晨可收露水；时段照原版露水点（10–11）。"
+  },
+  {
+   "id": "C13",
+   "key": "Sanzu_Shrine_Jizo",
+   "name": "六地藏·供品",
+   "x": -20.3,
+   "y": -8.3,
+   "radius": 1.6,
+   "kind": "land",
+   "offByDefault": false,
+   "showTime": null,
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 32,
+     "name": "糯米",
+     "amount": 2
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Beverage",
+     "id": 12,
+     "name": "雀酒",
+     "amount": 1,
+     "probability": 50
+    }
+   ],
+   "note": "参拜得供品，参照夜雀食堂成美的“地藏人偶”（每天参拜得到酒水与食材）。"
+  },
+  {
+   "id": "C14",
+   "key": "Sanzu_Item_RiverStone",
+   "name": "河原的石头",
+   "x": -12.0,
+   "y": -1.8,
+   "radius": 1.6,
+   "kind": "land",
+   "offByDefault": true,
+   "showTime": null,
+   "primary": [
+    {
+     "type": "Item",
+     "id": null,
+     "custom": "河原的石头",
+     "amount": 3
+    }
+   ],
+   "secondary": [],
+   "note": "河原的石头为新增物品。接到戎璎花的积石委托后开放，交回委托用。"
+  },
+  {
+   "id": "C15",
+   "key": "Sanzu_Item_Salt",
+   "name": "冠木门·盛盐",
+   "x": 2.2,
+   "y": -8.0,
+   "radius": 1.2,
+   "kind": "land",
+   "offByDefault": false,
+   "showTime": null,
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 1003,
+     "name": "黑盐",
+     "amount": 1
+    }
+   ],
+   "secondary": [],
+   "note": "门边的盛盐。日本有葬礼后撒盐净身的习俗，这里设想离开死者之道时取一撮。黑盐是 DLC1 食材。"
+  },
+  {
+   "id": "C16",
+   "key": "Sanzu_Item_Wreck",
+   "name": "漏船·积水",
+   "x": 12.4,
+   "y": 2.5,
+   "radius": 1.2,
+   "kind": "land",
+   "offByDefault": false,
+   "showTime": null,
+   "primary": [
+    {
+     "type": "Ingredient",
+     "id": 1005,
+     "name": "螃蟹",
+     "amount": 1
+    }
+   ],
+   "secondary": [
+    {
+     "type": "Ingredient",
+     "id": 23,
+     "name": "虾",
+     "amount": 2,
+     "probability": 50
+    }
+   ],
+   "note": "搁浅漏船的船舱积水里困着小蟹小虾。"
+  }
+ ],
+ "fishing": {
+  "_note": "地图级钓鱼池设想（原版按地图配置普通与高级钓鱼产物）。与求闻史纪“钓不上来”冲突，见 lore.md Y1。",
+  "normal": [
+   "鳟鱼",
+   "八目鳗",
+   "三文鱼",
+   "金枪鱼",
+   "章鱼",
+   "菊石（新增）"
+  ],
+  "advanced": [
+   "极上金枪鱼",
+   "河豚",
+   "海胆",
+   "冥鱼（新增）",
+   "空棘鱼（新增）"
+  ]
+ }
+}

@@ -170,13 +170,23 @@ public static partial class Mappers
 
         switch (config.rewardType)
         {
+            case RewardType.GetFund:
+                reward.id = config.id;
+                break;
             case RewardType.UpgradeKizunaLevel:
+            case RewardType.DismissNews:
                 reward.rewardId = config.rewardId;
                 break;
             case RewardType.EnableSGuestSpawnInTargetIzakayaById:
                 reward.rewardId = config.rewardId;
                 reward.rewardIntArray = config.rewardIntArray?.ToArray() ?? new int[0];
                 reward.should = config.should ?? true;
+                break;
+            case RewardType.ScheduleNews:
+                if (config.rewardIdArray is not { Count: > 0 })
+                    Log.Error("ScheduleNews reward requires a non-empty rewardIdArray");
+                reward.rewardIdArray = config.rewardIdArray?.ToArray() ?? new string[0];
+                reward.time = config.time.ToDay();
                 break;
             case RewardType.GiveItem:
                 reward.objectType = config.objectType ?? ObjectType.Food;
@@ -242,6 +252,26 @@ public static partial class Mappers
         }
 
         return condition;
+    }
+
+    #endregion
+
+    #region NewsNode Mappers
+
+    public static LanguageBase ToNewsLanguage(this NewsNodeConfig config)
+    {
+        return new LanguageBase(config.title, config.description);
+    }
+
+    public static NewsNode ToNewsNode(this NewsNodeConfig config)
+    {
+        var newsNode = ScriptableObject.CreateInstance<NewsNode>();
+        newsNode.name = config.label;
+        newsNode.label = config.label;
+        newsNode.debugLabel = config.debugLabel ?? config.label ?? "";
+        newsNode.rewards = config.rewards?.Select(ToReward).ToArray() ?? new Il2CppReferenceArray<Reward>(0);
+        newsNode.postRewards = config.postRewards?.Select(ToReward).ToArray() ?? new Il2CppReferenceArray<Reward>(0);
+        return newsNode;
     }
 
     #endregion

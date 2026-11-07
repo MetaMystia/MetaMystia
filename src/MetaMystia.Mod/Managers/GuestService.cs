@@ -11,7 +11,7 @@ using NightScene.GuestManagementUtility;
 using NightScene.EventUtility;
 using Night.UI.HUD.Ordering;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 using SgrYuki.Utils;
 
@@ -72,17 +72,20 @@ public static partial class GuestService
     /// 实现客机对 SpawnSpecialGuestGroup 前半部分的重放，并注入 Ids GetFund MaxFundCarry 数据，但跳过了 落座/入队/判定离开 的逻辑以等待后续同步事件
     /// </summary>
     /// <param name="fsm"></param>
-    public static void ReplaySpawnSpecialGuestGroup(ref GuestFSM fsm)
+    public static void ReplaySpawnSpecialGuestGroup(ref GuestFSM fsm, GuestSpawnInfo spawnInfo)
     {
         if (!EventManager.Instance.ShouldSpecialGuestInstantiateBySpecialBuff) return;
 
         var specialGuest = DataBaseCharacter.RefSGuest(fsm.Ids[0]);
+        var overrideSpawnPosition = spawnInfo.HasOverrideSpawnPosition
+            ? new Il2CppSystem.Nullable<Vector3>(new Vector3(spawnInfo.OverrideSpawnX, spawnInfo.OverrideSpawnY, spawnInfo.OverrideSpawnZ))
+            : new Il2CppSystem.Nullable<Vector3>();
         var specialGuestsController = new SpecialGuestsController(
             specialGuest,
-            new Il2CppSystem.Nullable<Vector3>(),
-            null,
-            GuestGroupController.LeaveType.Move,
-            SpecialGuestsController.GuestSpawnType.Normal);
+            overrideSpawnPosition,
+            GuestsManager.Instance.getPostprocessCharacterCallback.Invoke(),
+            spawnInfo.HasSpecialSpawnArgs ? spawnInfo.LeaveType : GuestGroupController.LeaveType.Move,
+            spawnInfo.HasSpecialSpawnArgs ? spawnInfo.GuestSpawnType : SpecialGuestsController.GuestSpawnType.Normal);
 
         fsm.Controller = specialGuestsController;
 
@@ -101,7 +104,11 @@ public static partial class GuestService
         // }
 
         // 客机的 PostInitializeGuestGroup 会在执行 TrySendToSeat Prefix 时因返回 true 而被短路
-        GuestsManager.Instance.PostInitializeGuestGroup(specialGuestsController, -1, false, true);
+        GuestsManager.Instance.PostInitializeGuestGroup(
+            specialGuestsController,
+            spawnInfo.HasSpecialSpawnArgs ? spawnInfo.TargetDeskCode : -1,
+            false,
+            !spawnInfo.HasSpecialSpawnArgs || spawnInfo.ShouldFade);
 
         specialGuestsController.GetFund = fsm.Fund;
         specialGuestsController.MaxFundCarry = fsm.MaxFundCarry;
@@ -203,7 +210,7 @@ public static partial class GuestService
     }
 
     /// <summary>
-    /// FSM 已移除时仍清理 HUD 订单（主机 GuestKillAction 携带 DeskCode）。
+    /// FSM 已移除时仍清理 HUD 订单（主机 GuestKillMessage 携带 DeskCode）。
     /// </summary>
     public static void CleanGuestOrderRegistrationForDesk(int deskCode)
     {

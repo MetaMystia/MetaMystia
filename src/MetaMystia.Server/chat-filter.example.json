@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "ignoreCase": true,
+  "words": [
+    "示例敏感词",
+    "示例禁止内容"
+  ]
+}

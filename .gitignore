@@ -2,6 +2,7 @@
 .vs
 .agent
 .claude
+.tmp
 *.user
 *.lscache
 *.local.props
@@ -17,3 +18,7 @@ copilot-instructions.md
 /src/**/obj/
 
 private.pem
+chat-filter.json
+
+server.json
+/src/MetaMystia.Server/logs/

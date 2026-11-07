@@ -33,6 +33,7 @@ public static partial class ConfigManager
     public static ConfigFile Config => Plugin.Instance?.Config;
     public static ConfigEntry<bool> Debug;
     public static ConfigEntry<bool> CheatFever;
+    public static ConfigEntry<float> CheatFlowRate;
     public static ConfigEntry<string> PlayerId;
     public static ConfigEntry<bool> SignatureCheck;
     public static ConfigEntry<bool> IgnoreDlcDependencyCheck;
@@ -77,6 +78,10 @@ public static partial class ConfigManager
             "Automatically enable Infinite Fever each night. May affect multiplayer gameplay.\n" +
             "每次营业自动启用永续热火朝天，可能影响联机。");
 
+        CheatFlowRate = Config.Bind("Cheat", "FlowRate", 1f,
+            "Guest flow rate multiplier (0 = stop natural guests, 1 = vanilla). Takes effect on the next business night. Range: 0 <= value < 16\n" +
+            "客流量倍率（0 = 不刷客，1 = 原版），在下一次夜间营业生效。范围：0 <= 数值 < 16");
+
         PlayerId = Config.Bind("General", "PlayerId", "", "Player ID for multiplayer, empty to device name\n联机用玩家 ID，为空则默认为设备名称");
 
         SignatureCheck = Config.Bind("General", "SignatureCheck", true,
@@ -103,7 +108,7 @@ public static partial class ConfigManager
         MaxPlayers = Config.Bind("Multiplayer", "MaxPlayers", 2,
             new BepInEx.Configuration.ConfigDescription(
                 "Maximum number of players allowed (including host)\n最大玩家数（含主机）",
-                new BepInEx.Configuration.AcceptableValueRange<int>(2, int.MaxValue)));
+                new BepInEx.Configuration.AcceptableValueRange<int>(1, 256)));
 
         DefaultPort = Config.Bind("Multiplayer", "DefaultPort", 40815,
             new BepInEx.Configuration.ConfigDescription(
@@ -116,8 +121,8 @@ public static partial class ConfigManager
 
         LocaleOverride = Config.Bind("General", "LocaleOverride", "",
             "Locale override: a single .json file (merged into current game language, missing keys fall back to built-in),\n" +
-            "or a directory with en.json / zh-CN.json. Supports absolute or relative path (relative to BepInEx/plugins/).\n" +
-            "翻译覆盖：单个 .json 文件（按当前游戏语言覆盖，未覆盖项回退内置翻译），或含 en.json/zh-CN.json 的目录。");
+            "or a directory with zh-CN.json / zh-TW.json / en.json / ja.json / ko.json. Supports absolute or relative path (relative to BepInEx/plugins/).\n" +
+            "翻译覆盖：单个 .json 文件（按当前游戏语言覆盖，未覆盖项回退内置翻译），或含 zh-CN.json/zh-TW.json/en.json/ja.json/ko.json 的目录。");
 
         NoteBookSkinPortrait = Config.Bind("Experimental", "NoteBookSkinPortrait", false,
             "(Experimental) Enable portrait replacement for Skin System in NoteBook\n" +
@@ -177,11 +182,11 @@ public static partial class ConfigManager
     {
         if (string.IsNullOrEmpty(PlayerId.Value))
         {
-            return MpManager.SanitizePlayerId(Environment.MachineName);
+            return PlayerIdentity.Sanitize(Environment.MachineName);
         }
-        if (!MpManager.IsValidPlayerId(PlayerId.Value))
+        if (!PlayerIdentity.IsValid(PlayerId.Value))
         {
-            var sanitized = MpManager.SanitizePlayerId(PlayerId.Value);
+            var sanitized = PlayerIdentity.Sanitize(PlayerId.Value);
             Log.Warning($"PlayerId '{PlayerId.Value}' contains illegal characters, sanitized to '{sanitized}'");
             PlayerId.Value = sanitized;
         }

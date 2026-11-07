@@ -217,6 +217,11 @@ public static partial class IdRangeValidator
     {
         var ids = new List<(string category, int id)>();
         if (config == null) return ids;
+        if (config.dayMaps != null)
+        {
+            foreach (var map in config.dayMaps)
+                if (map != null) ids.Add(("DayMap", map.id));
+        }
 
         if (config.characters != null)
         {
@@ -246,6 +251,30 @@ public static partial class IdRangeValidator
         {
             foreach (var r in config.recipes)
                 ids.Add(("Recipe", r.id));
+        }
+
+        if (config.items != null)
+        {
+            foreach (var i in config.items)
+                ids.Add(("Item", i.id));
+        }
+
+        if (config.clothes != null)
+        {
+            foreach (var c in config.clothes)
+                ids.Add(("Cloth", c.id));
+        }
+
+        if (config.spells != null)
+        {
+            foreach (var s in config.spells)
+                ids.Add(("Spell", s.id));
+        }
+
+        if (config.buffs != null)
+        {
+            foreach (var b in config.buffs)
+                ids.Add(("Buff", b.id));
         }
 
         return ids;

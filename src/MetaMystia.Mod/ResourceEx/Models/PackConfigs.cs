@@ -23,6 +23,7 @@ public class PackInfoConfig
 public class ResourceConfig
 {
     public PackInfoConfig packInfo { get; set; }
+    public List<DayMapConfig> dayMaps { get; set; }
     public List<CharacterConfig> characters { get; set; }
     public List<DialogPackageConfig> dialogPackages { get; set; }
     public List<GiftConfig> gifts { get; set; }
@@ -30,8 +31,13 @@ public class ResourceConfig
     public List<RecipeConfig> recipes { get; set; }
     public List<FoodConfig> foods { get; set; }
     public List<BeverageConfig> beverages { get; set; }
+    public List<ItemConfig> items { get; set; }
     public List<ClothConfig> clothes { get; set; }
     public List<MissionNodeConfig> missionNodes { get; set; }
     public List<EventNodeConfig> eventNodes { get; set; }
+    public List<NewsNodeConfig> newsNodes { get; set; }
     public List<MerchantConfig> merchants { get; set; }
+    public List<SpellConfig> spells { get; set; }
+    public List<BuffConfig> buffs { get; set; }
+    public List<AssetBundleConfig> assetBundles { get; set; }
 }

@@ -1,7 +1,7 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 
-using MetaMystia.Network;
+using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 
 namespace MetaMystia.ConsoleSystem.Commands;
@@ -37,8 +37,8 @@ public static class SkinCommands
             PlayerManager.Local.Skin.SetSkin(characterId, selectedType, skinIndex);
             PlayerManager.Local.IsCustomSkinOverride = true;
             PlayerManager.Local.UpdateCharacterSprite();
-            if (MpManager.CanSeeOnlinePlayers)
-                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+            if (GameSession.IsOnline)
+                PlayerProfile.SendProfile();
             PlayerManager.RefreshPortrait();
             ctx.Log(TextId.SkinMsgSetOk.Get(characterId, selectedType, skinIndex));
         });
@@ -51,8 +51,8 @@ public static class SkinCommands
             PlayerManager.Local.IsCustomSkinOverride = false;
             PlayerManager.InitLocalSkin();
             PlayerManager.Local.UpdateCharacterSprite();
-            if (MpManager.CanSeeOnlinePlayers)
-                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+            if (GameSession.IsOnline)
+                PlayerProfile.SendProfile();
             PlayerManager.RefreshPortrait();
             ctx.Log(TextId.SkinMsgResetOk.Get());
         });
@@ -71,8 +71,8 @@ public static class SkinCommands
                 PlayerManager.Local.IsCustomSkinOverride = false;
                 PlayerManager.InitLocalSkin();
                 PlayerManager.Local.UpdateCharacterSprite();
-                if (MpManager.CanSeeOnlinePlayers)
-                    PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+                if (GameSession.IsOnline)
+                    PlayerProfile.SendProfile();
                 PlayerManager.RefreshPortrait();
                 ctx.Log(TextId.SkinMsgNetClearOk.Get());
                 return;
@@ -108,8 +108,8 @@ public static class SkinCommands
             PlayerManager.Local.IsCustomSkinOverride = true;
             // 先应用 Fallback 占位，下载完成后 NetSkinManager 会自动重新刷新
             PlayerManager.Local.UpdateCharacterSprite();
-            if (MpManager.CanSeeOnlinePlayers)
-                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+            if (GameSession.IsOnline)
+                PlayerProfile.SendProfile();
             PlayerManager.RefreshPortrait();
 
             NetSkinManager.RequestSkin(name, ok =>
@@ -132,8 +132,8 @@ public static class SkinCommands
             bool? value = state switch { "on" => true, "off" => false, _ => null };
             PlayerManager.Local.Skin.SetRotate(value);
             PlayerManager.Local.UpdateCharacterSprite();
-            if (MpManager.CanSeeOnlinePlayers)
-                PlayerChangeSkinAction.Send(PlayerManager.Local.Skin);
+            if (GameSession.IsOnline)
+                PlayerProfile.SendProfile();
             var msg = value switch { true => TextId.SkinMsgRotOn, false => TextId.SkinMsgRotOff, null => TextId.SkinMsgRotClear };
             ctx.Log(msg.Get());
         });
