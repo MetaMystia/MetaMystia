@@ -150,10 +150,6 @@ public static partial class ResourceExManager
         SpellRegistry.RegisterAllInstances();
     }
 
-    public static void OnDataBaseAchievementInitialized()
-    {
-        // Currently no actions needed here
-    }
     public static void OnDataBaseSchedulerInitialized()
     {
         // RegisterAllMissionNodes(); // 依赖 Dialog
