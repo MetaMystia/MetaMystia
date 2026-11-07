@@ -74,6 +74,9 @@ jobs:
       - name: 流程测试
         run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
 
+      - name: 符卡测试
+        run: dotnet run --project src/MetaMystia.Spell.Tests -c Release
+
       - name: 构建服务端
         run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release --self-contained false -p:UseAppHost=false
 
