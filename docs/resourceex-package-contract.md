@@ -138,6 +138,17 @@ rex://example-pack/assets/image.png
 
 `id` 沿用游戏原生字段名，在此表示金额，缺省为 0。模组将其传给原生奖励，由游戏增加资金。`GiveItem` 用于物品，其 `objectType` 不支持 `Money`。
 
+## 稀客出没地点奖励
+
+```json
+{ "rewardType": "EnableSGuestSpawnInTargetIzakayaById", "rewardId": "_Example_Guest", "rewardIntArray": [1, 3], "should": true }
+```
+
+- `rewardId`：稀客标签，可为原版或 ResourceEx 稀客。`rewardIntArray`：开放出没的酒馆 ID，至少一项。
+- 只有该稀客在对应酒馆的 `guest.spawn` 条目中 `onlySpawnAfterUnlocking` 与 `onlySpawnWhenPlaceBeRecorded` 均为 `true` 时，夜间生成才受此奖励控制。
+- `should` 缺省为 `true`（原生缺省为 `false`），表示同时解除稀客的夜间隐藏；稀客未处于夜间隐藏时无影响。
+- 模组注册时校验字段与 ResourceEx 稀客的 `guest.spawn`，原版稀客标签在发放时才解析。
+
 ## 礼物邮箱
 
 顶层可选数组 `gifts` 配置礼物邮箱；缺失、`null` 或空数组时不显示该包的邮箱。
