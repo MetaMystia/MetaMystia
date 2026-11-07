@@ -13,13 +13,13 @@
 ## 构建与部署
 
 ```text
-dotnet build MetaMystia.sln -c Release -p:DeployToGame=false
+dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
 ```
 
 - `DeployToGame=false`：只输出到各项目的 `bin/Release`。
-- 省略该参数：主模组输出到 `$(BepInExPath)/plugins`，Preloader 复制到 `$(BepInExPath)/patchers/MetaMystia`。此时 `BepInExPath` 必须是游戏的 `BepInEx` 目录。
+- 省略该参数：主模组输出到 `$(BepInExPath)/plugins`。此时 `BepInExPath` 必须是游戏的 `BepInEx` 目录。
 - 主模组构建后改名为 `MetaMystia-v<版本>.dll`。游戏运行时 DLL 被锁定，改名失败会留下新旧两份，需关闭游戏后重新构建。
-- 网络程序集由 Costura 嵌入主模组；Preloader 在插件发现前执行主模组的模块初始化，注册内嵌依赖解析。
+- 网络程序集由 Costura 嵌入主模组。
 - 资源包更新后需要重启游戏。
 
 ## 版本
@@ -33,7 +33,7 @@ dotnet build MetaMystia.sln -c Release -p:DeployToGame=false
 ## 独立服务端
 
 ```text
-dotnet run --project src/MetaMystia.Server -c Release --no-build -- 40815 16
+dotnet run --project src/MetaMystia.Server -c Release -- 40815 16
 ```
 
 参数为端口和人数上限。配置与命令见 [服务端控制台](../reference/server/console.md)。

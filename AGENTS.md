@@ -13,6 +13,7 @@
 - 面向用户的文本使用 `TextId`，五种语言同时补齐。
 - 提交到 Git 的内容不得包含本机路径。
 - 游戏实测只在用户要求时进行。
+- 开发或修改完成后，禁止修改根目录 `README.md`。
 
 代码风格细则见 [code-style](docs/rules/code-style.md)，文档编写规则见 [docs/README.md](docs/README.md)。
 
@@ -33,10 +34,10 @@
 ## 验证
 
 ```text
-dotnet build MetaMystia.sln -c Release -p:DeployToGame=false
-dotnet run --project src/MetaMystia.Network.Tests -c Release --no-build
-dotnet run --project src/MetaMystia.Flow.Tests -c Release --no-build
-dotnet run --project src/MetaMystia.Spell.Tests -c Release --no-build
+dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
+dotnet run --project src/MetaMystia.Network.Tests -c Release
+dotnet run --project src/MetaMystia.Flow.Tests -c Release
+dotnet run --project src/MetaMystia.Spell.Tests -c Release
 python tools/check.py
 ```
 
