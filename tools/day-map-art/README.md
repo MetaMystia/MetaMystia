@@ -71,7 +71,7 @@ python -m mirror.build <场景目录> <输出.zip> --id <地图 ID> --label <包
 | `testpack.py` | 加载器测试包，不依赖本目录其他模块 |
 | `mirror/addressables.py` | 解析 `catalog.bundle`，按地址解密（XOR 0x53）依赖的 bundle |
 | `mirror/extract.py` | 导出地图预制体：GameObject 树、世界矩阵、渲染器、Tilemap（含 `BinaryTilemapDecompressor` 数据）、碰撞与 Sprite PNG |
-| `mirror/build.py` | 场景 → 画布地图：每个默认材质 Tilemap 一张图层；最外层 `SortingGroup` 与独立精灵为物件模板；合成碰撞轮廓为闭合折线；坡度、出生点、相机与原版 BGM 引用；特殊材质、角色、出口不转换 |
+| `mirror/build.py` | 场景 → 画布地图：每个默认材质 Tilemap 一张图层；最外层 `SortingGroup` 与独立精灵为物件模板；合成碰撞轮廓为闭合折线（`edge`，当前游戏版本不可用）；坡度、出生点、相机与原版 BGM 引用；特殊材质、角色、出口不转换 |
 | `annotate.py` | 1:1 标注图与采集点规划图；各地图的分区文字与物件名写在 `maps/<name>/labels.json`，采集点设想写在 `collectables.json` |
 | `maps/sanzu/` | 三途川。程序化版：`layout.py`、`props.py`、`paint.py`、`build.py`、`crops.py`、试验脚本。生图版：`prompts/`、`refine.py`、`sprites.py`、`sprites.json`、`place.py`、`assemble.py`。设想数据：`labels.json`、`collectables.json`（采集点）、`ingredients.json`（新增食材草案） |
 

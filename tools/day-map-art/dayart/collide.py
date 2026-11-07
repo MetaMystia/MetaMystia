@@ -1,6 +1,6 @@
 """可走区域 → 轴对齐碰撞矩形，以及出生点、可达性、坡度格检查。
 
-Mod 也支持多边形与折线碰撞（docs/reference/resourceex/day-maps.md），这里仍把不可走区域按网格合并成矩形。
+Mod 也支持多边形碰撞（docs/reference/resourceex/day-maps.md），这里仍把不可走区域按网格合并成矩形。
 网格越细，斜边台阶越小，矩形越多。
 """
 import numpy as np

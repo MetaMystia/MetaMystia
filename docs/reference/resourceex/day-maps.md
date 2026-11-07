@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | Tilemap 层（地面、前景） | `layers`：一张大图，带排序层、排序值与颜色 | 每个图块一个 `SpriteRenderer` |
 | 带 `SpriteRenderer` 或 `SortingGroup` 的预制体 | `prefabs` 模板 + `objects` 实例 | 物件节点带 `SortingGroup`，按 Y 排序时加 `LayerSortingController`（`isStatic`），子节点为图块与碰撞 |
-| `PolygonCollider2D`、`EdgeCollider2D`、`BoxCollider2D`、`CircleCollider2D`；`CompositeCollider2D` 轮廓 | `colliders`：`polygon`、`edge`、`box`、`circle` | 同名组件 |
+| `PolygonCollider2D`、`EdgeCollider2D`、`BoxCollider2D`、`CircleCollider2D`；`CompositeCollider2D` 轮廓 | `colliders`：`polygon`、`box`、`circle`；`edge` 当前不可用，见“碰撞” | 同名组件 |
 | `HEIGHT_MAP` | `height.cells` | 隐藏 Tilemap，见“坡面高度” |
 | `CameraCollider` | `camera.bounds` 多边形 | `PolygonCollider2D`，层 `Ignore Raycast` |
 | `SpawnMarker` | `spawnMarkers` | 同名组件 |
@@ -71,13 +71,13 @@
 | `shape` | 字段 | 说明 |
 | --- | --- | --- |
 | `polygon` | `paths` | 实心；多条路径时内层路径为洞（偶奇规则） |
-| `edge` | `points`、可选 `closed` | 只有线段阻挡；`closed` 时首尾相连，内部仍可走 |
+| `edge` | `points`、可选 `closed` | 只有线段阻挡；`closed` 时首尾相连，内部仍可走。当前游戏版本实测不可用 |
 | `box` | `x/y`（中心）、`width/height`、可选 `rotation`（度） | 实心矩形 |
 | `circle` | `x/y`、`radius` | 实心圆 |
 
-原版地图的移动边界由 `CompositeCollider2D`（Outlines）合成，只有轮廓阻挡；用闭合 `edge` 表达等价。物件模板的碰撞使用模板局部坐标，作为物件的子节点创建，随物件缩放与翻转。
+原版地图的移动边界由 `CompositeCollider2D`（Outlines）合成，只有轮廓阻挡。`edge` 在当前游戏版本实测不可用，边界改用带洞的 `polygon`：外层路径包住整张地图，可走区域为洞，可走区域内的障碍为更内层路径；也可用窄矩形逐段重画。物件模板的碰撞使用模板局部坐标，作为物件的子节点创建，随物件缩放与翻转。
 
-游戏版本若缺少原生 `EdgeCollider2D`，含 `edge` 的地图会在注册前报错并跳过。可用窄矩形逐段重画边界。
+`edge` 的配置与加载代码仍保留：注册时若游戏中找不到原生 `EdgeCollider2D` 类型，含 `edge` 的地图报错并跳过。离线校验 `dayart.validate` 不检查这一点。
 
 `camera.bounds` 是相机中心可移动范围，不是美术外框；`shouldFollow: false` 时使用 `position: [x,y,z]`。矩形范围可按 16:9、正交半高 7.5、相机 Y 偏移 +0.5 推算，其他画幅需要单独检查。
 
@@ -113,9 +113,9 @@
 python tools/day-map-art/testpack.py .tmp/day-map/IsolatedMapTest.zip
 ```
 
-测试地图包含河流、木桥、前景栏杆、按 Y 排序的树（模板带圆形碰撞，实例放大 2 倍）、多边形与矩形河道、闭合折线外圈、两块坡面和四个出生点。地面宽 1728 像素，跨两个图块，用于检查接缝。用 `goto 1073742000 SlopeUp` / `SlopeDown` 进入正、负坡度区域。
+测试地图包含河流、木桥、前景栏杆、按 Y 排序的树（模板带圆形碰撞，实例放大 2 倍）、多边形与矩形河道、闭合折线外圈、两块坡面和四个出生点。外圈使用 `edge`，在当前游戏版本不可用，测试包尚未更新。地面宽 1728 像素，跨两个图块，用于检查接缝。用 `goto 1073742000 SlopeUp` / `SlopeDown` 进入正、负坡度区域。
 
-原版地图可用 `tools/day-map-art/mirror` 从游戏 Addressables 转换为画布地图，见其 README。镜像包只供本地参考。
+原版地图可用 `tools/day-map-art/mirror` 从游戏 Addressables 转换为画布地图，见其 README。镜像包只供本地参考；其移动边界转换为闭合 `edge`，在当前游戏版本不可用。
 
 ## 未覆盖
 
