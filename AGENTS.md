@@ -21,7 +21,7 @@
 
 | 改动 | 先读 | 最低验证 |
 |---|---|---|
-| Harmony Patch | [harmony-hook](docs/rules/harmony-hook.md)、[il2cpp-interop](docs/rules/il2cpp-interop.md) | 审计 + 编译 |
+| Harmony Patch | [harmony-hook](docs/rules/harmony-hook.md)、[il2cpp-interop](docs/rules/il2cpp-interop.md) | 审计 + ICF 核对 + 编译 |
 | 联机消息与流程 | [network-message](docs/rules/network-message.md)、[threading](docs/rules/threading.md)、[multiplayer/](docs/reference/multiplayer/architecture.md) | 编译 + 网络、流程测试 |
 | 用户文本、控制台命令 | [localization](docs/rules/localization.md)、[console-command](docs/rules/console-command.md) | 编译 + `tools/check.py` |
 | ResourceEx 配置 | [package-contract](docs/reference/resourceex/package-contract.md)、[module-structure](docs/reference/resourceex/module-structure.md) | 编译 + 加载示例包 |

@@ -9,7 +9,7 @@
 - 英文 Conventional Commits：`type(scope): summary`。常用 type：`feat`、`fix`、`refactor`、`docs`、`test`、`ci`、`chore`。
 - scope 使用模块名：`multiplayer`、`network`、`server`、`resourceex`、`spell`、`console`、`ui`、`locales`、`tools`。
 - 一次提交只做一件事；格式化、重命名与行为修改分开。
-- 不添加 `Co-authored-by` 行。
+- 不把 Agent 自己加入作者或 `Co-authored-by`；用户的署名可以添加。
 
 ## PR
 
