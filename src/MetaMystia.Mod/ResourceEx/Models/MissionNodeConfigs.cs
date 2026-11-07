@@ -40,6 +40,7 @@ public class MissionRewardConfig
     public List<int> rewardIntArray { get; set; }
     public List<string> rewardIdArray { get; set; }
     public DayConfig time { get; set; }
+    public bool? should { get; set; }
 }
 
 public class MissionFinishConditionConfig
