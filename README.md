@@ -30,7 +30,7 @@
 
 👉 [https://doc.meta-mystia.izakaya.cc/developer_guide/getting_started.html](https://doc.meta-mystia.izakaya.cc/developer_guide/getting_started.html)
 
-[AI 测试实践](src/MetaMystia.AITest/README.md) 基于 [MetaSekaiLab/Il2cppConsoleMod](https://github.com/MetaSekaiLab/Il2cppConsoleMod) 的调试工具，记录了 agent 操控游戏、核验状态并将实测结果反馈给开发调试的方法与小脚本。
+仓库内的开发文档见 [docs/](docs/README.md)。游戏实测使用 [UnityRuntimeDebugger](https://github.com/MetaMikuAI/UnityRuntimeDebugger)，方法见 [游戏实测](docs/dev/runtime-testing.md)。
 
 ## 鸣谢
 

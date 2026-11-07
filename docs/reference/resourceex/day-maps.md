@@ -110,7 +110,7 @@
 在仓库根目录运行：
 
 ```text
-python src/MetaMystia.AITest/create-day-map-package.py .tmp/day-map/IsolatedMapTest.zip
+python tools/day-map-art/testpack.py .tmp/day-map/IsolatedMapTest.zip
 ```
 
 测试地图包含河流、木桥、前景栏杆、按 Y 排序的树（模板带圆形碰撞，实例放大 2 倍）、多边形与矩形河道、闭合折线外圈、两块坡面和四个出生点。地面宽 1728 像素，跨两个图块，用于检查接缝。用 `goto 1073742000 SlopeUp` / `SlopeDown` 进入正、负坡度区域。
@@ -123,13 +123,13 @@ python src/MetaMystia.AITest/create-day-map-package.py .tmp/day-map/IsolatedMapT
 
 ## 实测记录
 
-以下实测基于 formatVersion 1（2026-09），覆盖地图注册、原生切图、出生点、矩形碰撞、按 Y 排序与坡面输入；这些路径在画布地图中保持不变。画布地图的图块显示、接缝、多边形与折线碰撞、按需解码与释放、原版 BGM 尚未在游戏中实测。
+以下实测基于 formatVersion 1，覆盖地图注册、原生切图、出生点、矩形碰撞、按 Y 排序与坡面输入；这些路径在画布地图中保持不变。画布地图的图块显示、接缝、多边形与折线碰撞、按需解码与释放、原版 BGM 尚未在游戏中实测。
 
-### 2026-09-14 地图注册修复
+### 地图注册修复
 
 修复 `MapNode` 写入 IL2CPP 字典时的值类型字段错位，详见 [Il2CppInterop 缺陷](../il2cppinterop-defects.md)。独立地图不配置食堂，三级编号数组均为空。部署后两个扩展地图条目的类型和空数组长度正确，55 个原版食堂编号的等级查询全部通过。
 
-### 2026-09-13 平地与坡面
+### 平地与坡面
 
 环境：游戏 RELEASE 4.4.0e、Unity 2021.3.28f1、MetaMystia 0.27.0，单机，1280×720。
 
@@ -141,4 +141,4 @@ python src/MetaMystia.AITest/create-day-map-package.py .tmp/day-map/IsolatedMapT
 | 返回 | `back` 回到 `Home` 出生点；输入恢复，行动点不变 |
 | 坡面 | `0.5` 配置采样为 `0.5019608`；水平向右 `Δx=3.1080`、`Δy=1.5601`，负坡与反向对称；切图后重新绑定 |
 
-移动测试走 `UpdateInputDirection` 和游戏物理，不是修改坐标。脚本见 `src/MetaMystia.AITest/`。
+移动测试走 `UpdateInputDirection` 和游戏物理，不是修改坐标。

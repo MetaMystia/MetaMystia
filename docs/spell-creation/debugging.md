@@ -12,10 +12,8 @@
 
 ## 运行时探针
 
-使用 Il2cppConsoleMod（位置见 `paths.local.md`，用法见其 README）：
-- token 每次启动都会变化，从游戏的 `BepInEx/LogOutput.log` 读取；token 只作为本次请求参数，不要写入脚本、文档或记录。
-- 所有调试 HTTP 请求都要经执行工具审批。
-- 需要保留的变量、对象或协程用 `/script`。脚本里可以写托管 `IEnumerator`，经 `WrapToIl2Cpp()` 交给 `EventManager.StartCoroutine`。
+使用 UnityRuntimeDebugger，用法与 Token 规则见 [游戏实测](../dev/runtime-testing.md)：
+- 需要跨请求保留的变量、对象或协程放在调试器的持久会话中。托管 `IEnumerator` 经 `WrapToIl2Cpp()` 交给 `EventManager.StartCoroutine`。
 - 访问已销毁的 Il2Cpp 对象的成员会抛异常，先用 `obj != null`（Unity 的空判断）过滤。
 - 判断 `MonoSingleton` 单例（如 `EventManager`）是否存在时用 `hasInstance`，不要读 `Instance`：实例不存在时 `Instance` 会在当前场景中创建一个空对象并执行其 `Awake`。
 

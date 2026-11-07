@@ -79,25 +79,10 @@
 | `/mp kick uid <uid>`、`/mp kick id <name>` | 房主移除成员 |
 | `/mp status`、`/mp id <name>` | 查看状态、修改名字 |
 
-## 构建与验证
+## 协议与错误
 
 游戏、模组和协议版本统一配置在根目录 `Versions.props`。协议调整后，参与者需一起更新。
 
 网络错误使用独立的 `NetworkErrorCode`，不传输字符串错误标识或界面文本编号。错误信息可携带对端版本、当前人数和人数上限，由客户端生成本地化提示。握手拒绝使用独立二进制格式，先读取数字错误码，不依赖玩法消息的序列化布局。
 
-Interop 引用路径配置在 `MetaMystia.local.props`。独立服务器与模组共用网络程序集，服务器不初始化游戏。
-
-```powershell
-dotnet build MetaMystia.sln -c Release -p:DeployToGame=false
-dotnet run --project src/MetaMystia.Network.Tests -c Release --no-build
-dotnet run --project src/MetaMystia.Flow.Tests -c Release --no-build
-dotnet run --project src/MetaMystia.Server -c Release --no-build -- 40815 16
-```
-
-`DeployToGame=false` 仅生成本地构建产物，模组输出到项目的 `bin/Release`。独立服务器输入命令后按回车执行，使用 `stop` 或 Ctrl+C 退出；管理命令与日志见[服务端控制台](../server/console.md)。
-
-普通构建同时部署主模组到 `BepInEx/plugins`、预加载组件到 `BepInEx/patchers/MetaMystia`。网络程序集由 Costura 嵌入主模组；预加载组件在插件发现前执行主模组的模块初始化，注册内嵌依赖解析。
-
-网络测试覆盖 TCP 顺序、阶段、房间管理、权限和消息隔离；流程测试覆盖入口确认、营业等待与场景转换，使用替代的游戏和传输入口。
-
-已完成源码审计、编译和离线检查，预加载启动验证通过。双机验证按具体场景记录，启动与离线检查不代表完整营业／试炼已实测通过。
+独立服务器与模组共用网络程序集，服务器不初始化游戏。构建、测试与服务端启动见 [setup](../../dev/setup.md)，管理命令与日志见[服务端控制台](../server/console.md)。

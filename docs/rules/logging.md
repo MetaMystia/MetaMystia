@@ -32,7 +32,7 @@ Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx
 
 ## 日志内容
 
-日志应包含定位问题所需的关键上下文，例如角色、UID、Action、场景、资源包、目标方法或状态变化。
+日志应包含定位问题所需的关键上下文，例如角色、UID、消息类型、场景、资源包、目标方法或状态变化。
 
 禁止记录：
 
@@ -44,9 +44,9 @@ Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx
 
 高频路径应使用 `Debug`、降低频率或仅在状态变化时记录。
 
-## Action 日志
+## 消息日志
 
-网络 Action 的发送和接收日志由 `Action` 基类统一处理。具体 Action 只在需要时覆盖日志级别、仅记录名称或精简 `ToLogString()`。
+联机消息的收发日志由 `MultiplayerMessage` 基类统一记录。具体消息只在需要时覆盖日志级别、仅记录名称或精简 `ToLogString()`。
 
 不得在每个 `Send()` 和 `OnReceivedDerived()` 中重复记录同一条收发日志。
 

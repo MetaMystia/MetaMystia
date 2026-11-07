@@ -22,7 +22,7 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 `DaySceneMapProfile.MapNode` 是包含引用字段的原生结构体。直接写入 `DataBaseDay.mapData` 的索引器时，同样会把装箱对象头复制进值槽，造成字段偏移。地图无需配置食堂，也会在原游戏遍历地图查询食堂等级时触发异常。
 
-2026-09-14 在 RELEASE 4.4.0e、BepInEx 6 be.785 环境实测：临时字典写入前的三级食堂数组均为 `Int32[]`，写入后变为 `String[] / String[] / Int32[]`；指针对比分别对应原采集点标签、出生点标签、一级食堂数组。
+在 RELEASE 4.4.0e、BepInEx 6 be.785 环境实测：临时字典写入前的三级食堂数组均为 `Int32[]`，写入后变为 `String[] / String[] / Int32[]`；指针对比分别对应原采集点标签、出生点标签、一级食堂数组。
 
 该方法位于 `Utils/MetaMikuUtils.cs`，用于字符串键与装箱值类型，当前调用为 `DayMapRegistry` 的 `Dictionary<string, DaySceneMapProfile.MapNode>`。调用前检查字典声明的 Value 是原生值类型，禁止对普通引用类型拆箱；其他类型需先确认同类缺陷再使用。
 
@@ -52,7 +52,7 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 每个可注入的抽象方法会越界写入一个 `VirtualInvokeData`（16 字节）。该结构由 `Marshal.AllocHGlobal` 分配，与 coreclr 共用进程堆，所以越界写会损坏进程堆，之后在无关位置随机崩溃（`RtlReportCriticalFailure ← RtlFreeHeap`）。
 
-2026-09-26 在 RELEASE 4.4.0e、BepInEx 6 be.785 环境下确认：
+在 RELEASE 4.4.0e、BepInEx 6 be.785 环境下确认：
 - 开启 PageHeap 后首次启动即在 `ClassInjector.RegisterTypeInIl2Cpp` 递归注入 `SpellBaseEx` 时崩溃；
 - 对照本机 `Il2CppInterop.Runtime.dll` 的反编译代码，确认了上述分配与写入的不一致。
 
@@ -60,7 +60,7 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 ## `BeverageOut` 原生跳板的短跳转重定位
 
-2026-10-09 在 RELEASE 4.4.0e 的首次机会异常转储中确认：
+在 RELEASE 4.4.0e 的首次机会异常转储中确认：
 
 - 托管栈为 `DMD<RunTimeStorage::BeverageOut>` → `il2cpp_runtime_invoke`，入参酒水 ID 为 0（绿茶）。
 - 原文件 `GameAssembly+0x664250` 的开头为 `85 C9 74 5E`，即检查 ID 为 0 后跳到 `+0x6642B2` 的 `ret`。

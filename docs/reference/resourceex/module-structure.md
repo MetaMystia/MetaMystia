@@ -31,6 +31,8 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 
 `DayMapRegistry` 在白天数据库初始化时校验配置并从零创建地图模板，登记地图与语言数据。`InMemoryGameObjectProvider` 保留模板，并在 Addressables 加载与释放时回调地图注册表，按需解码与销毁地图图片；原游戏切图负责实例的加载与销毁；`DayMapCommands` 提供单机指令进入和返回。`RexAssetRegistry.RegisterPackage` 对地图引用的本包图片只登记字节。配置见 [ResourceEx 白天地图](day-maps.md)。
 
+资源包角色点位：`SpawnMarkerRegistry` 在地图生成点位后创建真实 SpawnMarker 并登记名称到地图的映射，点位名为角色标签。原版定位先检查地图 NPC 字典，`RefreshDayNpc` 先 `MoveCharacter` 再 `ReturnCharacter` 恢复模板目的地，只替换目的地副本无法通过检查；`DaySceneMapPatch` 因此只替换定位调用的参数：当前地图有资源包点位时使用 NPC 副本，必要时提供只含该 NPC 的临时地图字典。持久化 NPC 字典不增删，存档不写入点位名；移除资源包后读档正常（单机实测）。
+
 - 注册器只持有本领域配置与产物；跨领域查询调用兄弟注册器，资产读取走 `RexAssetRegistry`。
 - 新增内容类型：在 `Registries/` 新增注册器类，并在 `ResourceExManager.MergeResourcePackage` 与对应生命周期钩子中登记。
 - 配置 DTO 与注册逻辑的同步见 [resourceex-package-contract.md](package-contract.md)。

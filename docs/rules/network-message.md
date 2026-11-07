@@ -54,10 +54,10 @@ public partial class ExampleMessage : MultiplayerMessage
 
 ## 时序与日志
 
-`PluginHost.Update()` 调用 `GameSession.Tick()`，由 `Client.DispatchPending()` 顺序安装状态并派发 消息。普通接收函数运行在主线程；网络 IO 不访问游戏对象。
+`PluginHost.Update()` 调用 `GameSession.Tick()`，由 `Client.DispatchPending()` 顺序安装状态并派发消息。普通接收函数运行在主线程；网络 IO 不访问游戏对象。
 
-需要跨帧等待时使用协程或现有顾客 FSM。消息 的延迟回调必须检查 `IsCurrent`；顾客队列使用 `QueueForGuest`，使旧连接或旧入房身份的操作自动结束。其他管理器应捕获客户端及入房代号，或使用会话重置时递增的代号。不要阻塞主线程等待网络确认。
+需要跨帧等待时使用协程或现有顾客 FSM。消息的延迟回调必须检查 `IsCurrent`；顾客队列使用 `QueueForGuest`，使旧连接或旧入房身份的操作自动结束。其他管理器应捕获客户端及入房代号，或使用会话重置时递增的代号。不要阻塞主线程等待网络确认。
 
 基类统一记录收发日志，按需覆盖日志级别或 `ToLogString()`。连接对象不参与日志序列化；不要输出 Token 或大块正文。
 
-新增 消息 时核对：四处注册一致、身份与路由明确、场景及剧情约束完整、本地回声不重复执行、延迟操作能随退房失效。
+新增消息时核对：四处注册一致（`tools/check.py` 会检查）、身份与路由明确、场景及剧情约束完整、本地回声不重复执行、延迟操作能随退房失效。

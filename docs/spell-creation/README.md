@@ -14,7 +14,7 @@
 ## 工具
 
 - [`tools/spell-vfx/`](../../tools/spell-vfx/)：特效 Unity 工程，包括通用编辑器脚本、着色器、构建脚本，以及示例特效集合，用法见其 README。
-- 项目外路径（Unity 安装目录、游戏目录、资源包工程、探针模组）记录在本目录的 `paths.local.md`，该文件不提交。
+- 项目外路径（Unity 安装目录、游戏目录、资源包工程）见 `AGENTS.local.md`。
 
 ## 示例实现
 

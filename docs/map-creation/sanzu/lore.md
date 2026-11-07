@@ -8,7 +8,7 @@
 - **推断**：原文没有直接说，由原文推出来。
 - **设计**：本图自己的安排，只借用意象。
 
-查找方法与证据要求见 [../research.md](../research.md)。原文于 2026-10-07、10-08 通过 THBWiki 与日文维基的 MediaWiki API 抓取。
+查找方法与证据要求见 [../research.md](../research.md)。原文通过 THBWiki 与日文维基的 MediaWiki API 抓取。
 
 ## 零设（民俗与佛教原型）
 

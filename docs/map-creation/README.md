@@ -19,7 +19,7 @@
 ## 工具
 
 - [`tools/day-map-art/`](../../tools/day-map-art/)：程序化像素绘画库、生图结果的拼接与抠图、组装、图层切块与物件模板导出、碰撞生成、原版地图镜像转换、离线校验与参考渲染，用法见其 README。
-- 原版地图镜像包（`tools/day-map-art/mirror` 从游戏 Addressables 转换）、像素字体、生成的图片和抓取的设定原文不提交；本机位置记在本目录的 `paths.local.md`。
+- 原版地图镜像包（`tools/day-map-art/mirror` 从游戏 Addressables 转换）、像素字体、生成的图片和抓取的设定原文不提交；本机位置见 `AGENTS.local.md`。
 - 每张地图的规划与考据放在本目录下以地图命名的子目录里（如 `sanzu/`），通用方法写在本目录的文档里。
 
 ## 示例实现

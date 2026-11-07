@@ -35,6 +35,9 @@ python tools/day-map-art/annotate.py <资源包.zip> <1:1 渲染.png> <输出.pn
 # 参考渲染：画布地图包 → PNG（--debug 叠加碰撞、坡度、出生点与相机）
 python tools/day-map-art/render_ref.py <资源包.zip> <输出目录> [像素/格] [--debug]
 
+# 加载器测试包：河流、木桥、排序、各类碰撞、坡面与四个出生点
+python tools/day-map-art/testpack.py <输出.zip>
+
 # 原版地图镜像（在 tools/day-map-art 目录下运行）：导出预制体，再转换为画布地图
 python -m mirror.extract <游戏 aa 目录> <预制体地址> <场景目录>
 python -m mirror.build <场景目录> <输出.zip> --id <地图 ID> --label <包标签> --name <地图名> [--dependency DLC3]
@@ -65,6 +68,7 @@ python -m mirror.build <场景目录> <输出.zip> --id <地图 ID> --label <包
 | `dayart/paintover.py` | 生图结果后处理：配准、低频校色、最小差异接缝拼接、纯色底抠图与去溢色 |
 | `dayart/sheet.py` | 道具样张 |
 | `render_ref.py` | 参考渲染器 |
+| `testpack.py` | 加载器测试包，不依赖本目录其他模块 |
 | `mirror/addressables.py` | 解析 `catalog.bundle`，按地址解密（XOR 0x53）依赖的 bundle |
 | `mirror/extract.py` | 导出地图预制体：GameObject 树、世界矩阵、渲染器、Tilemap（含 `BinaryTilemapDecompressor` 数据）、碰撞与 Sprite PNG |
 | `mirror/build.py` | 场景 → 画布地图：每个默认材质 Tilemap 一张图层；最外层 `SortingGroup` 与独立精灵为物件模板；合成碰撞轮廓为闭合折线；坡度、出生点、相机与原版 BGM 引用；特殊材质、角色、出口不转换 |

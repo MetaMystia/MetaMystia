@@ -1,6 +1,6 @@
 # 原生按键设置接入说明
 
-适用于游戏 RELEASE 4.4.0e、Input System 1.3.0。接入时复用原版按键设置、输入捕获和绑定保存流程。
+适用于游戏 RELEASE 4.4.0e、Input System 1.3.0。接入时复用原版按键设置、输入捕获和绑定保存流程。尚未实现。
 
 ## 输入映射
 
@@ -46,9 +46,3 @@ Input System 1.3.0 的 `AddActionMap` 只追加映射、标记资源并设置归
 复用 `AdpPlayerInputWrapper.SaveBinding()` 和 `UpdateBindings()`，通过 `UniversalGameManager` 初始化的游戏回调保存、加载绑定 JSON。加载覆盖前应先注册具有固定 ID 的模组动作与绑定。
 
 将模组绑定纳入原版恢复默认值流程，并分别检查改键、取消、冲突、恢复默认值、跨场景和重启后的行为。存在 JSON 保存接口不能代替完整的保存与恢复检查。
-
-## 动态调试
-
-持续使用的类型、委托和 Harmony 补丁应放在 `/script` 会话中，不使用可卸载的 `/exec` 承载长期回调。通过 `DelegateSupport.ConvertDelegate` 转换原生回调，并保留托管委托引用。
-
-每次只执行一个可核验动作，执行后读取映射、绑定及面板状态。调试 Token 仅作为请求参数，不写入脚本、文档或输出记录。

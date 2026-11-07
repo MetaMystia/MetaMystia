@@ -62,6 +62,4 @@ if (GameSession.IsRoomClient)
 
 ## 日志
 
-Patch 类使用 `[AutoLog]`，通过项目提供的 `Log` 记录信息。禁止使用 `UnityEngine.Debug`。
-
 日志应说明 Hook、关键条件和结果，不记录没有诊断价值的固定流程信息。
