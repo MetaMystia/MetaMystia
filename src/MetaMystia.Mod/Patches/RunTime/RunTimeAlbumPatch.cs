@@ -4,59 +4,57 @@ using GameData.RunTime.Common;
 
 using MetaMystia.ResourceEx.Registries;
 
+using static MetaMystia.Patch.HarmonyPrefixFlow;
+
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeAlbum))]
 [AutoLog]
 public partial class RunTimeAlbumPatch
 {
+    // ResourceEx 稀客没有 DataBaseDay NPC，原版按标签查询会失败；改用配置中的 id。
     [HarmonyPatch(nameof(RunTimeAlbum.RefSpecialNPCId), [typeof(string)])]
     [HarmonyPrefix]
     public static bool RefSpecialNPCId_Prefix(string characterLabel, ref int __result)
     {
-        var config = SpecialGuestRegistry.GetCharacterConfig(characterLabel);
-        if (config == null) return true;
+        if (SpecialGuestRegistry.GetCharacterConfig(characterLabel) is not { } config)
+            return RunOriginal;
 
         __result = config.id;
-        return false;
+        return SkipOriginal;
     }
 
     [HarmonyPatch(nameof(RunTimeAlbum.RefOrGenerateSpecialRunTimeData), [typeof(string)])]
     [HarmonyPrefix]
-    public static bool RefOrGenerateSpecialRunTimeData_Prefix(
-        string npcLabel,
-        ref RunTimeAlbum.SpecialGuestRunTimeData __result)
+    public static bool RefOrGenerateSpecialRunTimeData_Prefix(string npcLabel, ref RunTimeAlbum.SpecialGuestRunTimeData __result)
     {
-        var config = SpecialGuestRegistry.GetCharacterConfig(npcLabel);
-        if (config == null) return true;
+        if (SpecialGuestRegistry.GetCharacterConfig(npcLabel) is not { } config)
+            return RunOriginal;
 
         __result = RunTimeAlbum.RefOrGenerateSpecialRunTimeData(config.id);
-        return false;
+        return SkipOriginal;
     }
 
     [HarmonyPatch(nameof(RunTimeAlbum.IfGuestHaveSpawnHere), [typeof(string), typeof(int)])]
     [HarmonyPrefix]
-    public static bool IfGuestHaveSpawnHere_Prefix(
-        string specialGuestLabel,
-        int izakayaId,
-        ref bool __result)
+    public static bool IfGuestHaveSpawnHere_Prefix(string specialGuestLabel, int izakayaId, ref bool __result)
     {
-        var config = SpecialGuestRegistry.GetCharacterConfig(specialGuestLabel);
-        if (config == null) return true;
+        if (SpecialGuestRegistry.GetCharacterConfig(specialGuestLabel) is not { } config)
+            return RunOriginal;
 
         __result = RunTimeAlbum.IfGuestHaveSpawnHere(config.id, izakayaId);
-        return false;
+        return SkipOriginal;
     }
 
     [HarmonyPatch(nameof(RunTimeAlbum.SetGuestSpawnIzakayaId), [typeof(string), typeof(int)])]
     [HarmonyPrefix]
     public static bool SetGuestSpawnIzakayaId_Prefix(string specialGuestLabel, int izakayaId)
     {
-        var config = SpecialGuestRegistry.GetCharacterConfig(specialGuestLabel);
-        if (config == null) return true;
+        if (SpecialGuestRegistry.GetCharacterConfig(specialGuestLabel) is not { } config)
+            return RunOriginal;
 
         RunTimeAlbum.SetGuestSpawnIzakayaId(config.id, izakayaId);
-        return false;
+        return SkipOriginal;
     }
 
     [HarmonyPatch(nameof(RunTimeAlbum.ChangePlayerSkin))]
