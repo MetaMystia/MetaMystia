@@ -42,4 +42,4 @@ dotnet run --project src/MetaMystia.Server -c Release -- 40815 16
 
 - [`tools/day-map-art/`](../../tools/day-map-art/README.md)：白天地图绘制，Python 3.10+，`numpy`、`Pillow`、`scipy`，原版镜像另需 `UnityPy`。
 - [`tools/spell-vfx/`](../../tools/spell-vfx/README.md)：符卡特效，Unity 2021.3.28f1。
-- `tools/check.py`：文档链接、本地化键与占位符、网络消息登记的一致性检查，只需 Python 标准库。
+- `tools/check.py`：文档链接、本地化键与占位符、网络消息登记、Harmony Patch 登记的一致性检查，只需 Python 标准库。

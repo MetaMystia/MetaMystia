@@ -1,4 +1,4 @@
-"""仓库一致性检查：文档链接、本地化键、网络消息登记。用法：python tools/check.py"""
+"""仓库一致性检查：文档链接、本地化键、网络消息登记、Harmony Patch 登记。用法：python tools/check.py"""
 import json
 import re
 import subprocess
@@ -73,8 +73,18 @@ def check_messages():
             errors.append(f"消息 {name}: MemoryPackUnion 为 {union[name]}，TypeOf 为 {type_of[name]}")
 
 
+def check_patches():
+    registered = set(re.findall(r"typeof\((\w+)\)", read(MOD / "Patches/PatchRegistry.cs")))
+    for source in tracked("src/MetaMystia.Mod/*.cs"):
+        text = read(source)
+        for attribute in re.finditer(r"^\[HarmonyPatch\(typeof\(", text, re.M):
+            name = re.compile(r"\bclass (\w+)").search(text, attribute.end())
+            if name and name.group(1) not in registered:
+                errors.append(f"{source.relative_to(ROOT)}: {name.group(1)} 未登记到 PatchRegistry.Patches")
+
+
 sys.stdout.reconfigure(encoding="utf-8")
-for check in (check_links, check_l10n, check_messages):
+for check in (check_links, check_l10n, check_messages, check_patches):
     check()
 for error in errors:
     print(error)
