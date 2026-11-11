@@ -1,4 +1,8 @@
 {
+    "NetworkDirectoryUnavailable": "Could not fetch the server directory. Please try again later.",
+    "NetworkVersionUnavailable": "No server is available for your game and mod versions.",
+    "NetworkServerRetiring": "This server no longer accepts new connections. Update to mod {0} before connecting again.",
+    "NetworkUpdateNotice": "Mod {0} is available. Your current session can continue, but this server no longer accepts new connections. Update before your next session.",
     "PlayerListOnline": "Other players",
     "PlayerListLastPosition": "Last position ({0:F2}, {1:F2})",
     "PlayerListMainMenu": "Main menu",

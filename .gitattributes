@@ -1,0 +1,3 @@
+tools/deploy/*.sh text eol=lf
+tools/deploy/*.py text eol=lf
+tools/deploy/*.service text eol=lf

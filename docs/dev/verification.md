@@ -18,6 +18,7 @@
 dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
 dotnet run --project src/MetaMystia.Network.Tests -c Release
 dotnet run --project src/MetaMystia.Flow.Tests -c Release
+dotnet run --project src/MetaMystia.Hosting.Tests -c Release
 dotnet run --project src/MetaMystia.Spell.Tests -c Release
 python tools/check.py
 dotnet build src/MetaMystia.Server -c Release              # 修改服务端时
@@ -33,6 +34,7 @@ CI 在 PR 和 `main` 推送时运行编译、三组测试、`tools/check.py` 与
 | 项目 | 覆盖 | 方式 |
 |---|---|---|
 | `Network.Tests` | TCP 顺序、阶段、房间管理、权限、消息隔离、聊天过滤 | 引用 `MetaMystia.Network`，本机起服务端与客户端 |
+| `Hosting.Tests` | HTTP 登记、实例退役、目录重启、版本分流 | 本机随机端口启动目录和新旧实例 |
 | `Flow.Tests` | 入口确认、营业等待、场景转换、玩家提示 | 链接模组源文件；`Ports.cs` 替代游戏与传输入口 |
 | `Spell.Tests` | 符卡库存与绕过逻辑 | 链接模组源文件；`Ports.cs` 替代 Interop 类型与 Harmony 特性 |
 

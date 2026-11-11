@@ -71,11 +71,25 @@ jobs:
       - name: 流程测试
         run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
 
+      - name: 部署流程测试
+        run: dotnet run --project src/MetaMystia.Hosting.Tests -c Release
+
       - name: 符卡测试
         run: dotnet run --project src/MetaMystia.Spell.Tests -c Release
 
       - name: 构建服务端
         run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release --self-contained false -p:UseAppHost=false
+
+      - name: 构建目录服务
+        run: dotnet publish src/MetaMystia.Directory -c Release --self-contained false -p:UseAppHost=false
+
+      - name: 保存目录服务产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: MetaMystia.Directory-${{ github.sha }}
+          path: src/MetaMystia.Directory/bin/Release/net6.0/publish/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: 保存模组产物
         uses: actions/upload-artifact@v7

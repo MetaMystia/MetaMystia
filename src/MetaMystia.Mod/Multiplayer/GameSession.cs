@@ -1,10 +1,14 @@
 using System;
 using System.Collections;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+using MetaMystia.Discovery;
 using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Network;
 using MetaMystia.UI;
@@ -60,7 +64,11 @@ public static partial class GameSession
         }
     }
 
-    public static void Connect(string host, int port = -1)
+    public static void ConnectOfficial() => ConnectCore("play.metamystia.net", DefaultPort, ConfigManager.ServerDirectoryUrl?.Value);
+
+    public static void Connect(string host, int port = -1) => ConnectCore(host, port, null);
+
+    private static void ConnectCore(string host, int port, string directoryUrl)
     {
         if (IsConnectingOrOnline || !CanStart()) return;
         Stop();
@@ -71,9 +79,26 @@ public static partial class GameSession
         var token = cancellation.Token;
         int targetPort = CurrentPort;
         bool ipv6 = EnableIPv6;
-        Run(Connect(), () => InGameConsole.ShowPassive(TextId.MultiplayerConnected.Get()), connecting: true);
+        Run(Connect(), () =>
+        {
+            CurrentPort = targetPort;
+            InGameConsole.ShowPassive(TextId.MultiplayerConnected.Get());
+        }, connecting: true);
         async Task Connect()
         {
+            if (!string.IsNullOrWhiteSpace(directoryUrl))
+            {
+                ServerListing listing;
+                try { listing = await ServerDirectory.ResolveAsync(directoryUrl, client.Versions.Game, client.Versions.Mod, token).ConfigureAwait(false); }
+                catch (Exception error) when (error is HttpRequestException or IOException or JsonException or ArgumentException)
+                { throw new NetworkException(NetworkErrorCode.DirectoryUnavailable); }
+                if (listing == null) throw new NetworkException(NetworkErrorCode.VersionUnavailable);
+                if (listing.State is "retiring" or "retired")
+                    throw new NetworkException(new NetworkError { Code = NetworkErrorCode.ServerRetiring, ModVersion = listing.TargetModVersion });
+                if (listing.State != "ready") throw new NetworkException(NetworkErrorCode.VersionUnavailable);
+                host = listing.Host;
+                targetPort = listing.Port!.Value;
+            }
             var addresses = await Dns.GetHostAddressesAsync(host.Trim('[', ']')).WaitAsync(token).ConfigureAwait(false);
             var address = addresses.FirstOrDefault(a => ipv6 || a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                 ?? throw new NetworkException(NetworkErrorCode.AddressUnavailable);
@@ -107,6 +132,11 @@ public static partial class GameSession
         client.StateChanged += () => ApplyState(client);
         client.MessageReceived += GameMessages.Receive;
         client.ChatRejected += error => InGameConsole.LogError(NetworkNotice.Describe(error));
+        client.NoticeReceived += notice =>
+        {
+            if (Client == client && notice.Code == ServerNoticeCode.Retiring)
+                InGameConsole.AddPeerMessage(TextId.ServerChatName.Get(), TextId.NetworkUpdateNotice.Get(notice.TargetModVersion));
+        };
         client.ConnectionEnded += reason =>
         {
             if (Client != client) return;

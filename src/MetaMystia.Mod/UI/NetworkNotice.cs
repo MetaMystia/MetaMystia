@@ -13,6 +13,8 @@ public static class NetworkNotice
 
     public static string Describe(NetworkError error)
     {
+        if (error.Code == NetworkErrorCode.ServerRetiring)
+            return TextId.NetworkServerRetiring.Get(error.ModVersion ?? "?");
         var text = Label(error.Code).Get();
         if (error.Code is NetworkErrorCode.ProtocolMismatch or NetworkErrorCode.GameMismatch or NetworkErrorCode.ModMismatch)
             return text + " " + TextId.NetworkVersionDetails.Get(
@@ -46,6 +48,8 @@ public static class NetworkNotice
         NetworkErrorCode.SendQueueFull or NetworkErrorCode.ReceiveQueueFull or NetworkErrorCode.ServerQueueFull or NetworkErrorCode.TooManyRequests => TextId.NetworkOverload,
         NetworkErrorCode.ConnectionLost or NetworkErrorCode.ConnectFailed or NetworkErrorCode.AddressUnavailable => TextId.NetworkLost,
         NetworkErrorCode.Disconnected or NetworkErrorCode.ServerStopped or NetworkErrorCode.LeftDefaultRoom or NetworkErrorCode.Finished => TextId.MultiplayerDisconnected,
+        NetworkErrorCode.DirectoryUnavailable => TextId.NetworkDirectoryUnavailable,
+        NetworkErrorCode.VersionUnavailable => TextId.NetworkVersionUnavailable,
         _ => TextId.NetworkFailure
     };
 }

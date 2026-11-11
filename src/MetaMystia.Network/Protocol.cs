@@ -5,7 +5,7 @@ using MemoryPack;
 
 namespace MetaMystia.Network;
 
-internal enum Kind : byte { Hello = 1, Rejected = 2, Welcome = 3, Snapshot = 4, Command = 5, Ack = 6, Motion = 7, Profile = 8, Data = 9, Ping = 10, Pong = 11, RoomMotion = 12, ChatRejected = 13 }
+internal enum Kind : byte { Hello = 1, Rejected = 2, Welcome = 3, Snapshot = 4, Command = 5, Ack = 6, Motion = 7, Profile = 8, Data = 9, Ping = 10, Pong = 11, RoomMotion = 12, ChatRejected = 13, ServerNotice = 14 }
 internal enum Command : byte { Create = 1, Join = 2, Cancel = 3, Leave = 4, Joinable = 5, Limit = 6, Kick = 7 }
 
 [MemoryPackable]

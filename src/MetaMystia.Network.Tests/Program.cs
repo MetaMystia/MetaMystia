@@ -79,6 +79,7 @@ static partial class Checks
         await ForwardedMessageChecks();
         await ChatFiltering();
         await Administration();
+        await Retirement();
         await ServerChat();
         await WelcomeAndReload();
         await IncrementalResources();

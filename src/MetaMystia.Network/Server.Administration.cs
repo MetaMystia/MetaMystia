@@ -4,7 +4,10 @@ namespace MetaMystia.Network;
 
 public enum ServerCommand { Kick, Leave, MaxPlayers }
 public sealed record ServerPlayer(int Uid, string Name, ushort Room);
-public sealed record ServerStatus(int MaxPlayers, ServerPlayer[] Players, RoomSummary[] Rooms);
+public sealed record ServerStatus(int MaxPlayers, ServerPlayer[] Players, RoomSummary[] Rooms)
+{
+    public ServerNotice? Retirement { get; init; }
+}
 
 public sealed partial class Server
 {
@@ -14,7 +17,7 @@ public sealed partial class Server
         var result = new TaskCompletionSource<ServerStatus>(TaskCreationOptions.RunContinuationsAsynchronously);
         await events.Writer.WriteAsync(() => result.TrySetResult(new(maxPlayers,
             peers.Where(p => p.Player != null).Select(p => new ServerPlayer(p.Player!.Uid, p.Player.Name, p.Room)).ToArray(),
-            Capture(null).Rooms))).ConfigureAwait(false);
+            Capture(null).Rooms) { Retirement = retirement })).ConfigureAwait(false);
         return await result.Task.ConfigureAwait(false);
     }
 

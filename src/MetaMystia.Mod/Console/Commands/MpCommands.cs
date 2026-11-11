@@ -59,7 +59,7 @@ public static class MpCommands
         mp.AddCommand(connect);
 
         var play = new Command("play", "Connect to the official test server");
-        play.SetHandler(ctx => Connect(ctx, "play.metamystia.net", GameSession.DefaultPort));
+        play.SetHandler(GameSession.ConnectOfficial);
         mp.AddCommand(play);
 
         var rooms = new Command("rooms", "List rooms in the world");

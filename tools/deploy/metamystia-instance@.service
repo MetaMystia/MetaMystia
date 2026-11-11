@@ -1,0 +1,24 @@
+[Unit]
+Description=MetaMystia instance %i
+After=network.target metamystia-directory.service
+
+[Service]
+Type=simple
+User=metamystia
+Group=metamystia
+WorkingDirectory=/opt/metamystia-hosting/instances/%i
+EnvironmentFile=/opt/metamystia-hosting/instances/%i/instance.env
+ExecStart=/opt/metamystia-hosting/instances/%i/MetaMystia.Server ${MM_GAME_PORT} 256
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/metamystia-hosting/instances/%i/logs
+
+[Install]
+WantedBy=multi-user.target

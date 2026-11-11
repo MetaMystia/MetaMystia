@@ -16,6 +16,7 @@ public sealed class Client : IDisposable
         internal readonly TaskCompletionSource<int> Connected = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal readonly Dictionary<long, TaskCompletionSource<Control>> Pending = [];
         internal readonly HashSet<long> Cancelled = [];
+        internal readonly HashSet<string> Notices = [];
         internal NetworkError? End;
         internal bool EndNotified, Joining, Leaving;
         internal long SuppressedMembership;
@@ -40,6 +41,7 @@ public sealed class Client : IDisposable
     public event Action? StateChanged;
     public event Action<ReceivedMessage>? MessageReceived;
     public event Action<NetworkError>? ChatRejected;
+    public event Action<ServerNotice>? NoticeReceived;
     public event Action<NetworkError>? ConnectionEnded;
     public event Action<Exception>? CallbackError;
     public Client(Versions? versions = null) => Versions = versions ?? Versions.Current;
@@ -290,6 +292,14 @@ public sealed class Client : IDisposable
     {
         switch (f.Kind)
         {
+            case Kind.ServerNotice:
+                var notice = Protocol.Read<ServerNotice>(f.Body);
+                if (string.IsNullOrWhiteSpace(notice.NoticeId) || notice.NoticeId.Length > 128 ||
+                    string.IsNullOrWhiteSpace(notice.TargetModVersion) || notice.TargetModVersion.Length > 64)
+                    throw new InvalidDataException("Invalid server notice");
+                if (Enum.IsDefined(typeof(ServerNoticeCode), notice.Code) && current.Notices.Add(notice.NoticeId))
+                    Invoke(() => NoticeReceived?.Invoke(notice));
+                break;
             case Kind.ChatRejected:
                 var chatError = Protocol.ReadError(f.Body);
                 Invoke(() => ChatRejected?.Invoke(chatError)); break;

@@ -51,6 +51,9 @@ public enum NetworkErrorCode : ushort
     InvalidChat = 44,
     KickedByServer = 45,
     NotInRoom = 46,
+    ServerRetiring = 47,
+    DirectoryUnavailable = 48,
+    VersionUnavailable = 49,
 }
 
 /// <summary>协议错误及可选上下文；版本指拒绝连接的一端。</summary>

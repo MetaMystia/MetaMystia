@@ -43,6 +43,7 @@ public static partial class ConfigManager
     public static ConfigEntry<string> ConsoleHistoryFile;
     public static ConfigEntry<int> MaxPlayers;
     public static ConfigEntry<int> DefaultPort;
+    public static ConfigEntry<string> ServerDirectoryUrl;
     public static ConfigEntry<bool> EnableIPv6;
     public static ConfigEntry<string> LocaleOverride;
     public static ConfigEntry<bool> NoteBookSkinPortrait;
@@ -118,6 +119,10 @@ public static partial class ConfigManager
         EnableIPv6 = Config.Bind("Multiplayer", "EnableIPv6", false,
             "Enable IPv6 dual-stack listening (IPv4 always works)\n" +
             "启用 IPv6 双栈监听（IPv4 始终可用）");
+
+        ServerDirectoryUrl = Config.Bind("Multiplayer", "ServerDirectoryUrl", "",
+            "HTTPS server directory URL for /mp play; empty uses the current official endpoint.\n" +
+            "/mp play 使用的 HTTPS 服务器目录地址；留空沿用现有官方地址。");
 
         LocaleOverride = Config.Bind("General", "LocaleOverride", "",
             "Locale override: a single .json file (merged into current game language, missing keys fall back to built-in),\n" +

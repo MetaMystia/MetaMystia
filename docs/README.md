@@ -33,7 +33,7 @@
 - [il2cppinterop-defects](reference/il2cppinterop-defects.md)：已确认的 Interop 缺陷与绕过
 - 联机：[architecture](reference/multiplayer/architecture.md)、[business-sync](reference/multiplayer/business-sync.md)（开发方法）、[scene-flow](reference/multiplayer/scene-flow.md)、[yuyuko-challenge](reference/multiplayer/yuyuko-challenge.md)
 - ResourceEx：[package-contract](reference/resourceex/package-contract.md)、[module-structure](reference/resourceex/module-structure.md)、[day-maps](reference/resourceex/day-maps.md)、[RuntimeAddressables](../src/MetaMystia.Mod/ResourceEx/Addressables/README.md)
-- 服务端：[console](reference/server/console.md)、[chat-filter](reference/server/chat-filter.md)
+- 服务端：[console](reference/server/console.md)、[chat-filter](reference/server/chat-filter.md)、[deployment](reference/server/deployment.md)
 
 ## 调研
 

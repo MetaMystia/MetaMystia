@@ -2,6 +2,19 @@ name: Deploy server
 
 on:
   workflow_dispatch:
+    inputs:
+      game_port:
+        description: '新实例 TCP 端口（41000–41099，选择未占用端口）'
+        required: true
+        default: '41015'
+      admin_port:
+        description: '新实例本机 HTTP 管理端口（42000–42099）'
+        required: true
+        default: '42015'
+      replaces:
+        description: '要退役的已登记实例 ID，逗号分隔；- 表示不退役任何实例'
+        required: true
+        default: '-'
 
 permissions:
   contents: read
@@ -15,6 +28,8 @@ jobs:
     name: 编译与测试服务端
     runs-on: windows-latest
     timeout-minutes: 20
+    outputs:
+      mod_version: ${{ steps.metadata.outputs.mod_version }}
     defaults:
       run:
         shell: pwsh
@@ -43,8 +58,26 @@ jobs:
         run: dotnet run --project src/MetaMystia.Network.Tests -c Release
       - name: 流程测试
         run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
+      - name: 部署流程测试
+        run: dotnet run --project src/MetaMystia.Hosting.Tests -c Release
       - name: 构建 Linux 服务端（包含运行时）
         run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release -r linux-x64 --self-contained true
+      - name: 记录部署版本
+        id: metadata
+        run: |
+          [xml]$versions = Get-Content Versions.props
+          $version = $versions.Project.PropertyGroup.Version
+          @{ gameVersion = $versions.Project.PropertyGroup.TargetGameVersion; modVersion = $version } |
+            ConvertTo-Json | Set-Content src/MetaMystia.Server/bin/Release/net6.0/linux-x64/publish/deployment.json -Encoding utf8NoBOM
+          "mod_version=$version" >> $env:GITHUB_OUTPUT
+      - name: 构建 Linux 目录服务（包含运行时）
+        run: dotnet publish src/MetaMystia.Directory -c Release -r linux-x64 --self-contained true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: directory-linux-x64
+          path: src/MetaMystia.Directory/bin/Release/net6.0/linux-x64/publish/
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v7
         with:
           name: server-linux-x64
@@ -53,7 +86,7 @@ jobs:
           retention-days: 14
 
   deploy:
-    name: 停止并部署服务端
+    name: 部署独立实例并登记
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -69,11 +102,20 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
           SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+          INSTANCE_ID: v${{ needs.build.outputs.mod_version }}-${{ github.run_id }}
+          GAME_PORT: ${{ inputs.game_port }}
+          ADMIN_PORT: ${{ inputs.admin_port }}
+          REPLACES: ${{ inputs.replaces }}
         run: |
           set -euo pipefail
           test -n "$SERVER_HOST"
           test -n "$SERVER_SSH_KEY"
           test -n "$SERVER_KNOWN_HOSTS"
+          [[ "$INSTANCE_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]+$ ]]
+          [[ "$GAME_PORT" =~ ^[0-9]+$ && "$ADMIN_PORT" =~ ^[0-9]+$ ]]
+          [[ "$REPLACES" =~ ^[A-Za-z0-9._,-]+$ ]]
+          (( 10#$GAME_PORT >= 41000 && 10#$GAME_PORT <= 41099 ))
+          (( 10#$ADMIN_PORT >= 42000 && 10#$ADMIN_PORT <= 42099 ))
           umask 077
           mkdir -p ~/.ssh
           trap 'rm -f ~/.ssh/deploy_key' EXIT
@@ -81,4 +123,4 @@ jobs:
           printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod +x server/MetaMystia.Server
           tar -czf server.tar.gz -C server .
-          ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "metamystia-cd@$SERVER_HOST" deploy < server.tar.gz
+          ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "metamystia-cd@$SERVER_HOST" "deploy-instance $INSTANCE_ID $GAME_PORT $ADMIN_PORT $REPLACES" < server.tar.gz

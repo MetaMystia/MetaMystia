@@ -1,4 +1,8 @@
 {
+    "NetworkDirectoryUnavailable": "无法获取服务器目录，请稍后重试。",
+    "NetworkVersionUnavailable": "当前游戏和模组版本暂无可用服务器。",
+    "NetworkServerRetiring": "本服务器已停止接纳新连接，请更新至模组 {0} 后再联机。",
+    "NetworkUpdateNotice": "模组 {0} 已发布。当前联机可以继续，本服务器已停止接纳新连接；下次联机前请更新。",
     "PlayerListOnline": "其他玩家",
     "PlayerListLastPosition": "最近坐标 ({0:F2}, {1:F2})",
     "PlayerListMainMenu": "主菜单",

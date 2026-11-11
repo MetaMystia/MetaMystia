@@ -71,7 +71,7 @@
 |---|---|
 | `/mp start [port]` | 本地开服并建房；保留 `/mp start server` 别名 |
 | `/mp connect <address> [port]` | 服务端决定连接模式：局域网直接进入默认房间，独立服务器停留在世界 |
-| `/mp play` | 连接官方测试服务器 `play.metamystia.net:40815`，端口不受本地配置影响 |
+| `/mp play` | 按 `ServerDirectoryUrl` 查询与本机版本相同的服务器；未配置目录时连接 `play.metamystia.net:40815` |
 | `/mp rooms`、`/mp create [count]`、`/mp join <room>` | 查看、创建、加入房间 |
 | `/mp leave` | 退房；局域网模式结束该次联机 |
 | `/mp disconnect`、`/mp stop` | 结束连接；本地开服时同时关闭服务器 |
@@ -86,3 +86,5 @@
 网络错误使用独立的 `NetworkErrorCode`，不传输字符串错误标识或界面文本编号。错误信息可携带对端版本、当前人数和人数上限，由客户端生成本地化提示。握手拒绝使用独立二进制格式，先读取数字错误码，不依赖玩法消息的序列化布局。
 
 独立服务器与模组共用网络程序集，服务器不初始化游戏。构建、测试与服务端启动见 [setup](../../dev/setup.md)，管理命令与日志见[服务端控制台](../server/console.md)。
+
+版本目录、HTTP 管理、系统通知与无人退役见[实例部署](../server/deployment.md)。系统通知由网络客户端派发，不经过房间玩法消息，客户端按本地语言显示。

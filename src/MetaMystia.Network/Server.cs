@@ -143,6 +143,11 @@ public sealed partial class Server : IAsyncDisposable
             if (p.Player == null)
             {
                 if (f.Kind != Kind.Hello) throw new InvalidDataException();
+                if (retirement != null)
+                {
+                    Reject(p, new() { Code = NetworkErrorCode.ServerRetiring, ModVersion = retirement.TargetModVersion });
+                    return;
+                }
                 // 先读完 Hello 再拒绝，避免带未读数据关闭 TCP 产生 RST 丢失错误包。
                 if (p.AdmissionError != null) { Reject(p, p.AdmissionError); return; }
                 var (player, key) = Protocol.ReadHello(f.Body, options.Versions);
@@ -354,6 +359,7 @@ public sealed partial class Server : IAsyncDisposable
         if (options.LanKey != null) ClearRoom(p);
         else Leave(p);
         peers.Remove(p);
+        CheckDrained();
         if (p.Player != null)
         {
             Log(reason.Code is NetworkErrorCode.ReceiveTimeout or NetworkErrorCode.InvalidMessage ? ServerLogLevel.Warning : ServerLogLevel.Info,
