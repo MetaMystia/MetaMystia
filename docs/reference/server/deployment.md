@@ -4,7 +4,7 @@
 
 ## 客户端
 
-配置 `Multiplayer.ServerDirectoryUrl` 为 `https://game-version.metamystia.net/v1/servers`，`/mp play` 连接前查询一次。测试允许本机 HTTP 地址。留空沿用现有官方地址，便于域名和证书配置完成前过渡；配置了目录后，查询失败不会回退到其他服务器。手动 `/mp connect` 与局域网入口不变。
+`/mp play` 默认查询官方目录 `https://game-version.metamystia.net/v1/servers`，也可通过 `Multiplayer.ServerDirectoryUrl` 指定其他目录。测试允许本机 HTTP 地址。查询失败时提示错误。手动 `/mp connect` 与局域网入口不变。
 
 只有 `ready` 条目提供连接地址。`retiring`、`retired` 提示更新，`unavailable` 提示当前版本不可用。没有匹配版本时不选择最新版代替。
 

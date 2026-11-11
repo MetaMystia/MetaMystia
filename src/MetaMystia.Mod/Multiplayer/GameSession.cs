@@ -64,7 +64,14 @@ public static partial class GameSession
         }
     }
 
-    public static void ConnectOfficial() => ConnectCore("play.metamystia.net", DefaultPort, ConfigManager.ServerDirectoryUrl?.Value);
+    public static void ConnectOfficial()
+    {
+        const string directoryHost = "https://game-version.metamystia.net";
+        var directoryUrl = ConfigManager.ServerDirectoryUrl?.Value?.Trim();
+        if (string.IsNullOrEmpty(directoryUrl) || string.Equals(directoryUrl.TrimEnd('/'), directoryHost, StringComparison.OrdinalIgnoreCase))
+            directoryUrl = directoryHost + "/v1/servers";
+        ConnectCore("play.metamystia.net", DefaultPort, directoryUrl);
+    }
 
     public static void Connect(string host, int port = -1) => ConnectCore(host, port, null);
 
