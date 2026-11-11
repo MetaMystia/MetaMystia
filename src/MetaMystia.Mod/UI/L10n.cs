@@ -372,6 +372,7 @@ public enum TextId
     MpStartedOnPort,
     MpPortRange,
     MpConnectInProgress,
+    MpAlreadyConnected,
 
     // IPv6
     MpIpv6Enabled,

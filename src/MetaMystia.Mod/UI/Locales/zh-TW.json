@@ -296,6 +296,7 @@
     "MpStartedOnPort": "已在連接埠 {0} 啟動主機 ✓",
     "MpPortRange": "連接埠必須在 1 到 65535 之間",
     "MpConnectInProgress": "正在連線中，請稍候...",
+    "MpAlreadyConnected": "已連線，請先使用 /mp disconnect 斷開",
     "MpIpv6Enabled": "IPv6 雙棧監聽已啟用",
     "MpIpv6Disabled": "IPv6 雙棧監聽已關閉",
     "MpIpv6Restarted": "伺服器已重新啟動以套用 IPv6 設定",

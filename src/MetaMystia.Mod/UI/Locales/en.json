@@ -296,6 +296,7 @@
     "MpStartedOnPort": "Multiplayer started as Host on port {0} ✓",
     "MpPortRange": "Port must be between 1 and 65535",
     "MpConnectInProgress": "Connection already in progress, please wait...",
+    "MpAlreadyConnected": "Already connected; use /mp disconnect first",
     "MpIpv6Enabled": "IPv6 dual-stack listening enabled",
     "MpIpv6Disabled": "IPv6 dual-stack listening disabled",
     "MpIpv6Restarted": "Server restarted to apply IPv6 setting",

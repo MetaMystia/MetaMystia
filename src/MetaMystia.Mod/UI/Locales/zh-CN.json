@@ -296,6 +296,7 @@
     "MpStartedOnPort": "已在端口 {0} 启动主机 ✓",
     "MpPortRange": "端口必须在 1 到 65535 之间",
     "MpConnectInProgress": "正在连接中，请稍候...",
+    "MpAlreadyConnected": "已连接，请先使用 /mp disconnect 断开",
     "MpIpv6Enabled": "IPv6 双栈监听已启用",
     "MpIpv6Disabled": "IPv6 双栈监听已关闭",
     "MpIpv6Restarted": "服务器已重启以应用 IPv6 设置",

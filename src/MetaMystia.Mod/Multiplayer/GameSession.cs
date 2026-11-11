@@ -62,7 +62,7 @@ public static partial class GameSession
 
     public static void Connect(string host, int port = -1)
     {
-        if (IsConnecting || HasRoomPeers || !CanStart()) return;
+        if (IsConnectingOrOnline || !CanStart()) return;
         Stop();
         CurrentPort = port < 0 ? ConfigPort : port;
         var client = new Client(new(Versions.Current.Protocol, Plugin.GameVersion, Plugin.ModVersion));

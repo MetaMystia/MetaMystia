@@ -296,6 +296,7 @@
     "MpStartedOnPort": "ポート {0} でホストとして起動しました ✓",
     "MpPortRange": "ポートは1～65535の範囲で指定してください",
     "MpConnectInProgress": "接続処理中です。しばらくお待ちください...",
+    "MpAlreadyConnected": "接続済みです。先に /mp disconnect で切断してください",
     "MpIpv6Enabled": "IPv6デュアルスタック待ち受けを有効にしました",
     "MpIpv6Disabled": "IPv6デュアルスタック待ち受けを無効にしました",
     "MpIpv6Restarted": "IPv6設定を反映するためサーバーを再起動しました",
