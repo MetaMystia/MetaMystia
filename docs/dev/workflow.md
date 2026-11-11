@@ -30,4 +30,4 @@ ResourceEx 配置字段、校验或加载规则变化时，同步更新：
 
 - 版本号在 `Versions.props`，单独提交：`chore: bump mod version to <版本>`。
 - 推送标签 `v<版本>` 后，CI 校验标签与 `Versions.props` 一致，编译测试通过后创建 Release 草稿并上传模组 DLL 与 SHA-256。
-- 独立服务端通过手动触发 `Deploy server` 工作流发布到 `production` 环境。
+- 正式发布 Release 后，`Deploy server` 自动部署到 `production` 环境；草稿和预发布不部署，执行时已不是最新正式 Release 则拒绝部署。保留手动入口，端口和退役实例默认自动选择。

@@ -15,6 +15,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deployment-checks:
+    name: 部署脚本测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s tools/deploy -p 'test_*.py'
+
   build:
     name: 编译与测试
     runs-on: windows-latest
@@ -110,7 +119,7 @@ jobs:
   release:
     name: 创建发布草稿
     if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [build, deployment-checks]
     runs-on: ubuntu-latest
     permissions:
       contents: write

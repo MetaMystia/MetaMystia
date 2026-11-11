@@ -1,20 +1,22 @@
 name: Deploy server
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       game_port:
-        description: '新实例 TCP 端口（41000–41099，选择未占用端口）'
+        description: '新实例 TCP 端口（auto 或 41000–41099）'
         required: true
-        default: '41015'
+        default: 'auto'
       admin_port:
-        description: '新实例本机 HTTP 管理端口（42000–42099）'
+        description: '新实例本机 HTTP 管理端口（auto 或 42000–42099）'
         required: true
-        default: '42015'
+        default: 'auto'
       replaces:
-        description: '要退役的已登记实例 ID，逗号分隔；- 表示不退役任何实例'
+        description: 'auto 退役当前活跃实例；也可填写逗号分隔 ID，或 - 不退役'
         required: true
-        default: '-'
+        default: 'auto'
 
 permissions:
   contents: read
@@ -26,6 +28,7 @@ concurrency:
 jobs:
   build:
     name: 编译与测试服务端
+    if: github.event_name != 'release' || !github.event.release.prerelease
     runs-on: windows-latest
     timeout-minutes: 20
     outputs:
@@ -37,6 +40,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: 校验发布版本
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          [xml]$versions = Get-Content Versions.props
+          if ($env:GITHUB_REF_NAME -cne "v$($versions.Project.PropertyGroup.Version)") {
+            throw '标签必须与 Versions.props 中的版本一致'
+          }
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
@@ -92,6 +102,11 @@ jobs:
     timeout-minutes: 10
     environment: production
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: 部署脚本测试
+        run: python3 -m unittest discover -s tools/deploy -p 'test_*.py'
       - uses: actions/download-artifact@v8
         with:
           name: server-linux-x64
@@ -102,20 +117,30 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
           SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_ID: ${{ github.event.release.id }}
           INSTANCE_ID: v${{ needs.build.outputs.mod_version }}-${{ github.run_id }}
-          GAME_PORT: ${{ inputs.game_port }}
-          ADMIN_PORT: ${{ inputs.admin_port }}
-          REPLACES: ${{ inputs.replaces }}
+          GAME_PORT: ${{ inputs.game_port || 'auto' }}
+          ADMIN_PORT: ${{ inputs.admin_port || 'auto' }}
+          REPLACES: ${{ inputs.replaces || 'auto' }}
         run: |
           set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == release ]]; then
+            test "$(gh api "repos/$GH_REPO/releases/latest" --jq .id)" = "$RELEASE_ID"
+          fi
           test -n "$SERVER_HOST"
           test -n "$SERVER_SSH_KEY"
           test -n "$SERVER_KNOWN_HOSTS"
           [[ "$INSTANCE_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]+$ ]]
-          [[ "$GAME_PORT" =~ ^[0-9]+$ && "$ADMIN_PORT" =~ ^[0-9]+$ ]]
+          [[ "$GAME_PORT" =~ ^(auto|[0-9]+)$ && "$ADMIN_PORT" =~ ^(auto|[0-9]+)$ ]]
           [[ "$REPLACES" =~ ^[A-Za-z0-9._,-]+$ ]]
-          (( 10#$GAME_PORT >= 41000 && 10#$GAME_PORT <= 41099 ))
-          (( 10#$ADMIN_PORT >= 42000 && 10#$ADMIN_PORT <= 42099 ))
+          if [[ "$GAME_PORT" != auto ]]; then
+            (( 10#$GAME_PORT >= 41000 && 10#$GAME_PORT <= 41099 ))
+          fi
+          if [[ "$ADMIN_PORT" != auto ]]; then
+            (( 10#$ADMIN_PORT >= 42000 && 10#$ADMIN_PORT <= 42099 ))
+          fi
           umask 077
           mkdir -p ~/.ssh
           trap 'rm -f ~/.ssh/deploy_key' EXIT
