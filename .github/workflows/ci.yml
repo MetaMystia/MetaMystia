@@ -142,6 +142,6 @@ jobs:
           if gh release view "$TAG" --json isDraft > release.json; then
             test "$(jq -r .isDraft release.json)" = true
           else
-            gh release create "$TAG" --draft --verify-tag --title "$TAG" --generate-notes
+            gh release create "$TAG" --draft --verify-tag --title "MetaMystia $TAG" --generate-notes
           fi
           gh release upload "$TAG" "$file" "$file.sha256" --clobber

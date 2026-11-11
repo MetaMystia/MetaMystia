@@ -2,7 +2,7 @@ name: Deploy server
 
 on:
   release:
-    types: [published]
+    types: [published, edited]
   workflow_dispatch:
     inputs:
       game_port:
@@ -28,7 +28,10 @@ concurrency:
 jobs:
   build:
     name: 编译与测试服务端
-    if: github.event_name != 'release' || !github.event.release.prerelease
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (!github.event.release.draft && !github.event.release.prerelease &&
+      (github.event.action == 'published' || github.event.changes.make_latest.to == true))
     runs-on: windows-latest
     timeout-minutes: 20
     outputs:
