@@ -26,7 +26,7 @@ public sealed partial class Server
                     retirement = new() { Code = ServerNoticeCode.Retiring, NoticeId = noticeId, TargetModVersion = targetModVersion };
                     var frame = new Frame(Kind.ServerNotice, Protocol.Pack(retirement));
                     foreach (var peer in peers.Where(p => p.Player != null && !p.Rejected)) peer.Wire.Send(frame);
-                    Log(ServerLogLevel.Info, $"实例退役，目标版本={ServerLogEntry.Quote(targetModVersion)}");
+                    Log(ServerLogLevel.Info, $"[系统] 服务端已进入退役状态，目标模组版本为 {ServerLogEntry.Quote(targetModVersion)}。");
                 }
                 CheckDrained();
                 result.TrySetResult(NetworkErrorCode.None);

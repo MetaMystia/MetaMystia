@@ -131,7 +131,8 @@ public sealed partial class Server : IAsyncDisposable
     {
         p.Rejected = true;
         p.RejectionReason = error;
-        Log(ServerLogLevel.Info, $"连接被拒绝 uid={p.Player?.Uid ?? 0}，原因={error.Code}");
+        if (error.Code != NetworkErrorCode.KickedByServer)
+            Log(ServerLogLevel.Warning, $"[连接] 服务端拒绝了{(p.Player == null ? "一条身份尚未确认的连接" : ServerLogEntry.Player(p.Player.Uid, p.Player.Name) + "的连接")}，因为{ServerLogEntry.Reason(error.Code)}。");
         p.Wire.Send(new(Kind.Rejected, Protocol.WriteError(error))); p.Wire.Finish();
     }
 
@@ -191,7 +192,7 @@ public sealed partial class Server : IAsyncDisposable
                 foreach (var body in welcomeMessages)
                     p.Wire.Send(new(Kind.Data, body, Type: (ushort)GameMessageType.Chat, Route: Route.World));
                 Publish(p);
-                Log(ServerLogLevel.Info, $"玩家上线 uid={newUid} name={ServerLogEntry.Quote(player.Name)}，在线 {peers.Count(x => x.Player != null)}/{maxPlayers}");
+                Log(ServerLogLevel.Info, $"[玩家] {ServerLogEntry.Player(newUid, player.Name)}已连接服务器，当前在线 {peers.Count(x => x.Player != null)}/{maxPlayers} 人。");
                 return;
             }
             switch (f.Kind)
@@ -220,7 +221,7 @@ public sealed partial class Server : IAsyncDisposable
                     if (changedScene) updated = updated with { Map = MapLabel.Unknown, Motion = new(), HasMotion = false };
                     if (!CanStore(p, updated)) throw new NetworkException(NetworkErrorCode.WorldDataBudgetExceeded);
                     if (p.Player.Name != updated.Name)
-                        Log(ServerLogLevel.Info, $"玩家改名 uid={p.Player.Uid}，{ServerLogEntry.Quote(p.Player.Name)} → {ServerLogEntry.Quote(updated.Name)}");
+                        Log(ServerLogLevel.Info, $"[玩家] {ServerLogEntry.Player(p.Player.Uid, p.Player.Name)}将名字改为{ServerLogEntry.Quote(updated.Name)}。");
                     p.Player = updated;
                     if (changedScene) Publish();
                     else Broadcast(new(Kind.Profile, Protocol.Pack(p.Player with { Resources = null, Motion = new(), HasMotion = false }), p.Player.Uid), p);
@@ -265,8 +266,8 @@ public sealed partial class Server : IAsyncDisposable
                 if (c.Value < 1 || c.Value > maxPlayers) { error = NetworkErrorCode.InvalidLimit; break; }
                 var created = new Room { Id = AllocateRoomId(), Host = p.Player!.Uid, MaxPlayers = options.LanKey == null ? c.Value : maxPlayers };
                 rooms.Add(created.Id, created);
-                Log(ServerLogLevel.Info, $"创建房间 room={RoomCode.Format(created.Id)} host={created.Host}，上限 {created.MaxPlayers}");
-                Join(p, created, c.Request);
+                Log(ServerLogLevel.Info, $"[房间] {ServerLogEntry.Player(p.Player.Uid, p.Player.Name)}创建了房间 {RoomCode.Format(created.Id)}，房间最多容纳 {created.MaxPlayers} 人。");
+                Join(p, created, c.Request, logJoin: false);
                 if (options.LanKey != null) defaultRoom = created.Id;
                 break;
             case Command.Join:
@@ -294,19 +295,38 @@ public sealed partial class Server : IAsyncDisposable
                 {
                     var targetPeer = peers.FirstOrDefault(x => x.Player?.Uid == c.Value && x.Room == p.Room && x != p);
                     if (targetPeer == null) { error = NetworkErrorCode.PlayerMissing; break; }
+                    Log(ServerLogLevel.Info, $"[房间] {ServerLogEntry.Player(p.Player.Uid, p.Player.Name)}将{ServerLogEntry.Player(targetPeer.Player!.Uid, targetPeer.Player.Name)}移出了房间 {RoomCode.Format(room.Id)}。");
                     Leave(targetPeer);
                 }
-                else if (c.Command == Command.Joinable) rooms[room.Id] = room with { Joinable = c.Value != 0 };
+                else if (c.Command == Command.Joinable)
+                {
+                    rooms[room.Id] = room with { Joinable = c.Value != 0 };
+                    Log(ServerLogLevel.Info, $"[房间] {ServerLogEntry.Player(p.Player.Uid, p.Player.Name)}{(c.Value != 0 ? "开放" : "关闭")}了房间 {RoomCode.Format(room.Id)}的加入入口。");
+                }
                 else
                 {
                     if (c.Value < 1 || c.Value > 256 || (options.LanKey == null && c.Value > maxPlayers)) { error = NetworkErrorCode.InvalidLimit; break; }
                     rooms[room.Id] = room with { MaxPlayers = c.Value };
+                    Log(ServerLogLevel.Info, $"[房间] {ServerLogEntry.Player(p.Player.Uid, p.Player.Name)}将房间 {RoomCode.Format(room.Id)}的人数上限从 {room.MaxPlayers} 人调整为 {c.Value} 人。");
                     if (options.LanKey != null) maxPlayers = c.Value;
                 }
                 break;
             default: throw new InvalidDataException();
         }
-        Log(ServerLogLevel.Info, $"房间操作 uid={p.Player!.Uid} command={c.Command} room={RoomCode.Format(c.Room)} value={c.Value}，结果={error.Code}");
+        if (error.Code != NetworkErrorCode.None)
+        {
+            string action = c.Command switch
+            {
+                Command.Create => "创建房间",
+                Command.Join => $"加入房间 {RoomCode.Format(c.Room)}",
+                Command.Joinable => $"{(c.Value != 0 ? "开放" : "关闭")}房间 {RoomCode.Format(c.Room)}的加入入口",
+                Command.Limit => $"将房间 {RoomCode.Format(c.Room)}的人数上限调整为 {c.Value} 人",
+                Command.Kick => $"将 UID={c.Value} 的玩家移出房间 {RoomCode.Format(c.Room)}",
+                _ => $"操作房间 {RoomCode.Format(c.Room)}"
+            };
+            string count = error.Count.HasValue && error.Limit.HasValue ? $"，当前为 {error.Count}/{error.Limit} 人" : "";
+            Log(ServerLogLevel.Warning, $"[房间] {ServerLogEntry.Player(p.Player!.Uid, p.Player.Name)}无法{action}，因为{ServerLogEntry.Reason(error.Code)}{count}。");
+        }
         Publish();
         p.Wire.Send(new(Kind.Ack, Protocol.Pack(c with { Error = error })));
         if (options.LanKey != null && c.Command == Command.Join && error.Code != NetworkErrorCode.None) p.Wire.Finish();
@@ -320,11 +340,11 @@ public sealed partial class Server : IAsyncDisposable
         return id;
     }
 
-    private void Join(Peer p, Room room, long request)
+    private void Join(Peer p, Room room, long request, bool logJoin = true)
     {
         p.SentResources.Clear(); p.Room = room.Id; p.MembershipRequest = request;
         p.Player = p.Player! with { Membership = checked(++nextMembership), Motion = new(), HasMotion = false };
-        Log(ServerLogLevel.Info, $"玩家加入房间 room={RoomCode.Format(room.Id)} uid={p.Player.Uid} name={ServerLogEntry.Quote(p.Player.Name)}，人数 {peers.Count(x => x.Room == room.Id)}/{room.MaxPlayers}");
+        if (logJoin) Log(ServerLogLevel.Info, $"[房间] {ServerLogEntry.Player(p.Player.Uid, p.Player.Name)}加入了房间 {RoomCode.Format(room.Id)}，房间内现有 {peers.Count(x => x.Room == room.Id)}/{room.MaxPlayers} 人。");
     }
 
     private void Leave(Peer p)
@@ -340,7 +360,7 @@ public sealed partial class Server : IAsyncDisposable
         if (room.Host == p.Player!.Uid)
         {
             rooms.Remove(room.Id);
-            Log(ServerLogLevel.Info, $"房间解散 room={RoomCode.Format(room.Id)}，原因=房主离开");
+            Log(ServerLogLevel.Info, $"[房间] 房主{ServerLogEntry.Quote(p.Player.Name)}(UID={p.Player.Uid})离开了房间 {RoomCode.Format(room.Id)}，房间随之解散。");
             foreach (var other in peers.Where(x => x.Room == room.Id).ToArray()) ClearRoom(other);
         }
         else ClearRoom(p);
@@ -349,7 +369,7 @@ public sealed partial class Server : IAsyncDisposable
     private void ClearRoom(Peer p)
     {
         if (p.Room == 0) return;
-        Log(ServerLogLevel.Info, $"玩家离开房间 room={RoomCode.Format(p.Room)} uid={p.Player!.Uid} name={ServerLogEntry.Quote(p.Player.Name)}");
+        Log(ServerLogLevel.Info, $"[房间] {ServerLogEntry.Player(p.Player!.Uid, p.Player.Name)}已离开房间 {RoomCode.Format(p.Room)}。");
         p.SentResources.Clear(); p.Room = 0; p.MembershipRequest = 0; p.Player = p.Player! with { Membership = 0, Motion = new(), HasMotion = false };
     }
 
@@ -363,10 +383,10 @@ public sealed partial class Server : IAsyncDisposable
         if (p.Player != null)
         {
             Log(reason.Code is NetworkErrorCode.ReceiveTimeout or NetworkErrorCode.InvalidMessage ? ServerLogLevel.Warning : ServerLogLevel.Info,
-                $"玩家下线 uid={p.Player.Uid} name={ServerLogEntry.Quote(p.Player.Name)}，原因={reason.Code}，在线 {peers.Count(x => x.Player != null)}/{maxPlayers}");
+                $"[玩家] {ServerLogEntry.Player(p.Player.Uid, p.Player.Name)}已下线，原因为{ServerLogEntry.Reason(reason.Code)}，当前在线 {peers.Count(x => x.Player != null)}/{maxPlayers} 人。");
             Publish();
         }
-        else if (!p.Rejected) Log(ServerLogLevel.Warning, $"未完成握手的连接关闭，原因={reason.Code}");
+        else if (!p.Rejected) Log(ServerLogLevel.Warning, $"[连接] 一条尚未完成握手的连接已关闭，原因为{ServerLogEntry.Reason(reason.Code)}。");
         if (options.LanKey != null && p.Player?.Uid == lanHost) _ = StopAsync();
     }
 
@@ -378,12 +398,12 @@ public sealed partial class Server : IAsyncDisposable
             var error = CheckChat(f.Body, out var message);
             if (error != NetworkErrorCode.None)
             {
-                Log(ServerLogLevel.Info, $"聊天已拒绝 uid={p.Player!.Uid}，原因={error}");
+                Log(ServerLogLevel.Warning, $"[聊天] 服务端拒绝了{ServerLogEntry.Player(p.Player!.Uid, p.Player.Name)}的聊天消息，因为{ServerLogEntry.Reason(error)}。");
                 p.Wire.Send(new(Kind.ChatRejected, Protocol.WriteError(error)));
                 return;
             }
             if (logChat)
-                Log(ServerLogLevel.Chat, $"uid={p.Player!.Uid} name={ServerLogEntry.Quote(p.Player.Name)}: {ServerLogEntry.Quote(message!)}");
+                Log(ServerLogLevel.Chat, $"[聊天] {ServerLogEntry.Player(p.Player!.Uid, p.Player.Name)}说：{ServerLogEntry.Quote(message!)}");
         }
         if (!rules.TryGetValue(f.Type, out var rule) || !rule.Routes.Contains(f.Route) || f.Body.Length > rule.MaxBytes) throw new InvalidDataException("Unregistered route");
         Room? room = rooms.GetValueOrDefault(p.Room);

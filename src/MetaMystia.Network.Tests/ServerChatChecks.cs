@@ -35,7 +35,7 @@ static partial class Checks
             && await server.SayAsync("  ") == NetworkErrorCode.InvalidChat
             && await server.SayAsync(new string('a', 1025)) == NetworkErrorCode.InvalidChat, "服务端发言同样检查敏感词、空白及长度");
         await ServerCommands.Execute("say", server, (_, text) => output.Add(text));
-        Assert(output[^1].StartsWith("用法：say"), "空 say 命令显示用法");
+        Assert(output[^1].Contains("用法：say"), "空 say 命令显示用法");
         Assert(await server.SayAsync(new string('好', 1024)) == NetworkErrorCode.None, "允许最长合法服务端发言");
         await Until(() => messages.Count >= 6);
         Assert(messages.Count == 6 && a.IsConnected && b.IsConnected && c.IsConnected, "拒绝的服务端发言不广播且不影响连接");

@@ -21,14 +21,14 @@ internal sealed class ServerConsole : IDisposable
     {
         lock (gate)
         {
-            string label = level == ServerLogLevel.Warning ? "WARN" : level.ToString().ToUpperInvariant();
+            string label = level == ServerLogLevel.Warning ? "WARN" : level == ServerLogLevel.Chat ? "INFO" : level.ToString().ToUpperInvariant();
             string line = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz} [{label}] {message}";
             Console.WriteLine(line);
             try { file?.WriteLine(line); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 file = null;
-                Console.Error.WriteLine($"日志文件写入失败，后续仅输出到控制台：{e.Message}");
+                Console.Error.WriteLine($"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz} [ERROR] [日志] 服务端无法写入日志文件，后续日志将仅输出到控制台。原因：{ServerLogEntry.Quote(e.Message)}");
             }
         }
     }
