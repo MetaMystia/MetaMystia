@@ -57,6 +57,7 @@ public static partial class PlayerManager
 
     public static void OnSceneUnloading()
     {
+        Local.Skin.ReleaseRuntimeSkin();
         foreach (var peer in Peers.Values) peer.ReleaseCharacter(sceneUnloading: true);
         foreach (var peer in PublicPeers.Values) peer.ReleaseCharacter(sceneUnloading: true);
         FloatingTextHelper.ForgetPlayerLabels();

@@ -58,12 +58,17 @@ public partial class RunTimeAlbumPatch
     }
 
     [HarmonyPatch(nameof(RunTimeAlbum.ChangePlayerSkin))]
+    [HarmonyPrefix]
+    public static void ChangePlayerSkin_Prefix()
+    {
+        PlayerSkin.StopRotation(PlayerManager.Local.unit?.animator);
+    }
+
+    [HarmonyPatch(nameof(RunTimeAlbum.ChangePlayerSkin))]
     [HarmonyPostfix]
     public static void ChangePlayerSkin_Postfix(int skinSelectionInfo)
     {
         Log.Info($"Player skin changed to {skinSelectionInfo}");
-        PlayerManager.Local.IsCustomSkinOverride = false;
-        PlayerManager.InitLocalSkin();
-        PlayerProfile.SendProfile();
+        PlayerManager.Local.RefreshSkin(resetOverride: true);
     }
 }

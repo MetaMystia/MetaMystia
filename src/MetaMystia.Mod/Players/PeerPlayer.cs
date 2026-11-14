@@ -50,6 +50,7 @@ public partial class PeerPlayer : NetPlayer
         Id = state.Name;
         if (skinChanged)
         {
+            Skin.ReleaseRuntimeSkin();
             Skin = PlayerProfile.ReadSkin(state.Skin);
             UpdateCharacterSprite();
         }
@@ -148,6 +149,7 @@ public partial class PeerPlayer : NetPlayer
             }
         }
         character = null;
+        Skin.ReleaseRuntimeSkin();
         owner = null;
         ResetMotion();
     }
