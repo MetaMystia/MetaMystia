@@ -406,6 +406,11 @@ public enum TextId
     LiveModeFull,
     LivePartialReminder,
 
+    // Emote
+    CmdDescEmote,
+    EmoteNoCharacter,
+    EmoteUnavailable,
+
     ConnectionVersionMismatch,
     ConnectionHandshakeTimeout,
     ConnectionHandshakeFailed,

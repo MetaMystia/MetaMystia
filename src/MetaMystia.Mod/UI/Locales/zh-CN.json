@@ -322,5 +322,8 @@
     "LiveModeOff": "直播模式：已关闭",
     "LiveModePartial": "直播模式：半开（ID 已遮罩，聊天栏位置/大小已锁定，不可信区域已标框）",
     "LiveModeFull": "直播模式：全开（ID 与聊天均已遮罩）",
-    "LivePartialReminder": "直播半开：聊天区域未完全脱敏，请在直播软件中为该区域添加马赛克。已禁止调整聊天栏位置与大小；如需调整请先使用 /live off 关闭直播模式"
+    "LivePartialReminder": "直播半开：聊天区域未完全脱敏，请在直播软件中为该区域添加马赛克。已禁止调整聊天栏位置与大小；如需调整请先使用 /live off 关闭直播模式",
+    "CmdDescEmote": "播放表情动作，其他玩家可见 (fire / shake / jump / henshin / sparkle / smoke)",
+    "EmoteNoCharacter": "当前没有可操作的角色",
+    "EmoteUnavailable": "该表情当前不可用，部分表情需要 DLC「神灵庙」"
 }
