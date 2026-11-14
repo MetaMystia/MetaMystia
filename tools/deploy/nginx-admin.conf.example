@@ -1,0 +1,7 @@
+# 放在已有 HTTPS server 块内；应用自身校验 Authorization。
+location /admin/ {
+    proxy_pass http://127.0.0.1:40900;
+    proxy_set_header Authorization $http_authorization;
+    proxy_set_header Host $host;
+    proxy_cache off;
+}

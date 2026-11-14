@@ -52,7 +52,6 @@ public enum TextId
     NetworkOverload,
     NetworkLost,
     NetworkFailure,
-    NetworkDirectoryUnavailable,
     NetworkVersionUnavailable,
     NetworkServerRetiring,
     NetworkUpdateNotice,

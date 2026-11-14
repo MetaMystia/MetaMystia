@@ -69,8 +69,8 @@ def main():
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,100}", instance_id):
         raise ValueError("实例 ID 无效")
     config = json.loads(CONFIG.read_text())
-    directory = config["directoryUrl"].rstrip("/")
-    token = config["directoryToken"]
+    gateway = config["gatewayUrl"].rstrip("/")
+    token = config["gatewayToken"]
     instance_token = config["instanceToken"]
     group = grp.getgrnam("metamystia").gr_gid
     user = pwd.getpwnam("metamystia").pw_uid
@@ -82,8 +82,8 @@ def main():
         destination = instances / instance_id
         unit = "metamystia-instance@" + instance_id + ".service"
         if destination.exists():
-            raise ValueError("实例目录已存在；重试登记请使用 activate_instance.py，不覆盖运行文件")
-        records = request(directory + "/admin/instances", token)
+            raise ValueError("实例目录已存在；请检查已有实例，不覆盖运行文件")
+        records = request(gateway + "/admin/instances", token)
         reserved = set()
         for record in records:
             if record["state"] != "stopped":
@@ -119,7 +119,7 @@ def main():
             "MM_INSTANCE_ID": instance_id, "MM_GAME_PORT": str(game_port),
             "MM_GAME_ADDRESS": "127.0.0.1",
             "MM_ADMIN_URL": "http://127.0.0.1:" + str(admin_port),
-            "MM_INSTANCE_TOKEN": instance_token, "MM_DIRECTORY_URL": directory,
+            "MM_INSTANCE_TOKEN": instance_token,
         }
         env_file = staging / "instance.env"
         env_file.write_text("".join(key + "=" + json.dumps(value) + "\n" for key, value in environment.items()))
@@ -141,9 +141,11 @@ def main():
             raise RuntimeError("新实例未就绪；旧实例保持不变")
         subprocess.run(["runuser", "-u", "metamystia", "--", str(destination / "MetaMystia.Server"),
                         "--probe", "127.0.0.1", str(game_port)], check=True, timeout=15, cwd=destination)
-        request(directory + "/admin/instances/" + instance_id, token, "PUT", registration)
-        request(directory + "/admin/instances/" + instance_id + "/activate", token, "POST", {"replaces": old_ids})
-        print("新版已激活，旧实例退役任务已登记：" + instance_id)
+        request(gateway + "/admin/instances/" + instance_id, token, "PUT", registration)
+        for old_id in old_ids:
+            request(gateway + "/admin/instances/" + old_id + "/drain", token, "POST",
+                    {"noticeId": instance_id, "targetModVersion": metadata["modVersion"]})
+        print("新版已激活，旧实例已收到退役请求：" + instance_id)
 
 
 if __name__ == "__main__":

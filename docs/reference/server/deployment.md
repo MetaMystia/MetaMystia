@@ -1,93 +1,71 @@
-# 固定入口与实例退役
+# Gateway 与实例部署
 
-客户端连接固定 TCP 入口，由独立 Gateway 按游戏、模组版本精确匹配实例，后端握手仍校验全部版本。协议号保持 0，不参与路由选择。目录负责实例登记和退役，重启不影响已建立的转发连接；Gateway 重启会断开经过它的连接。
+只有一个 Gateway 和多个游戏实例。客户端连接 `play.metamystia.net:40815`；入口读取原有 Hello 的游戏、模组版本，原样转发到对应实例。每条连接固定使用同一后端，任一端断开或超时会关闭另一端。协议号仍由实例校验。
 
-## 客户端
-
-`/mp play` 直接连接 `play.metamystia.net:40815`，不查询 HTTP 目录。移除 `Multiplayer.ServerDirectoryUrl`，手动 `/mp connect` 与局域网入口不变。Hello 格式不变，入口只读取版本字段，将完整首帧原样发送给后端，之后双向转发字节。每条连接始终绑定同一实例。
-
-只有 `ready` 条目提供连接地址。`retiring`、`retired` 提示更新，`unavailable` 提示当前版本不可用。没有匹配版本时不选择最新版代替。
-
-入口每秒刷新内部路由，缓存超过 5 秒后拒绝新连接，已有连接继续转发。实例状态沿用目录 15 秒的健康期限，过期地址连接失败时拒绝，不跨版本重试。握手和连接后端共限时 3 秒；双向各用 16 KiB 缓冲，单次读写限时 30 秒；默认最多 256 条连接。心跳仍由客户端和实例处理。
-
-## HTTP 接口
-
-| 服务 | 接口 | 认证与用途 |
+| 进程 | TCP | HTTP 管理 |
 |---|---|---|
-| 目录 | `GET /internal/routes` | 实例令牌，入口读取路由 |
-| 目录 | `GET /admin/instances` | 部署令牌，查询完整登记 |
-| 目录 | `PUT /admin/instances/{id}` | 部署令牌，验证实际身份后登记 |
-| 目录 | `POST /admin/instances/{id}/activate` | 部署令牌，发布并记录退役任务 |
-| 目录 | `GET /internal/instances/{id}` | 实例令牌，启动前核对生命周期 |
-| 目录 | `POST /internal/instances/{id}/stopped` | 实例令牌，确认退役退出 |
-| 实例 | `GET /admin/status` | 实例令牌，查询版本、端口和人数 |
-| 实例 | `POST /admin/drain` | 实例令牌，停止接纳新连接并等待无人 |
+| Gateway | 公网 `40815` | 本机 `40900` |
+| 游戏实例 | 本机 `41000–41099` | 本机 `42000–42099` |
 
-认证使用 `Authorization: Bearer <token>`。部署令牌与实例令牌分别配置，不发给游戏客户端。目录与实例管理接口只绑定本机；远程管理需要 HTTPS。公开订阅接口和对应 Nginx 站点已移除。
+管理 HTTP 强制绑定回环地址。外部通过 Nginx HTTPS 访问 Gateway，再由 Gateway 转发实例管理请求。Nginx 示例见 `tools/deploy/nginx-admin.conf.example`。没有 Directory、公开订阅或定时查询目录。
 
-登记正文为 `gameVersion`、`modVersion`、`host`、`port`、`adminUrl`。实例 ID 和地址不可覆盖。激活正文为 `{"replaces":["旧实例ID"]}`，空数组不退役其他实例。部署脚本自动选出当前 `active` 实例并传入 ID；手动部署也可指定列表，不根据版本字符串排序推测。同一游戏和模组版本只能有一个活跃实例，不支持覆盖正在使用的同版本服务。
+## 管理接口
 
-退役正文为 `{"noticeId":"发布ID","targetModVersion":"目标模组版本"}`。重复请求不重复广播。通知是独立系统事件，由客户端按自己的语言显示；普通玩家不能发送。已连接的大厅玩家也计入在线人数，心跳超时才清理异常断线。没有强制下线时限，持续在线者会延长旧实例运行时间。
+所有请求使用 `Authorization: Bearer <token>`。Gateway 使用管理令牌，实例使用单独的实例令牌；转发时 Gateway 自己携带实例令牌。令牌只保存在服务器配置，不进入 Git 或客户端。没有管理面板。
 
-## 运行配置
+线上管理入口为 `https://game-version.metamystia.net/admin/`，复用已有 Cloudflare HTTPS 域名，旧 `/v1/servers` 已删除。`play.metamystia.net` 仍用于直连游戏 TCP。Cloudflare 可能拦截默认脚本 User-Agent，接入时使用正常客户端 User-Agent，不关闭证书验证。
 
-| 进程 | 环境变量 | 含义 |
+| Gateway 接口 | 行为与成功状态 |
+|---|---|
+| `GET /admin/status` | `200`，`{"connections":0}`，当前转发连接数 |
+| `GET /admin/instances` | `200`，登记数组，包含 `id`、`registration`、`state`、`targetModVersion` |
+| `PUT /admin/instances/{id}` | 验证实际实例身份与版本后登记并启用路由；`204` |
+| `DELETE /admin/instances/{id}` | 删除登记，不关闭已有连接、不停止实例进程；`204` |
+| `GET /admin/instances/{id}/status` | 转发实例状态查询；`200` |
+| `POST /admin/instances/{id}/drain` | 先持久化停止接客，再转发退役请求；`202` |
+
+登记正文示例：
+
+```json
+{"gameVersion":"RELEASE 4.4.0e","modVersion":"0.30.1","host":"127.0.0.1","port":41000,"adminUrl":"http://127.0.0.1:42000"}
+```
+
+同一游戏与模组版本只能有一个接客实例；ID、地址不可覆盖。TCP 和管理地址只允许回环 IP，不接受任意公网转发目标。
+
+退役正文示例：
+
+```json
+{"noticeId":"release-123","targetModVersion":"0.30.2"}
+```
+
+实例仅提供 `GET /admin/status` 和 `POST /admin/drain`。状态返回 `instanceId`、`gameVersion`、`modVersion`、`port`、`state`（`running` 或 `draining`）、`players`、`noticeId`、`targetModVersion`。退役停止新玩家进入，通知已有玩家，无人后正常退出；没有强制下线期限。
+
+错误状态：无效或缺少令牌 `401`，参数无效 `400`，登记不存在 `404`，版本或地址冲突 `409`，实例无法访问 `502`。退役转发失败时路由仍保持 `draining`，调用方可用相同正文重试；不运行后台重试任务。实例停止后可删除登记并清理实例目录。
+
+## 配置
+
+| 进程 | 环境变量 | 默认值或用途 |
 |---|---|---|
-| 目录 | `MM_DIRECTORY_LISTEN` | 默认 `http://127.0.0.1:40900` |
-| 目录 | `MM_DIRECTORY_DATA` | 登记数据文件，默认程序目录 `data/instances.json` |
-| 目录 | `MM_DIRECTORY_TOKEN` | 部署接口令牌，必填 |
-| 目录、实例 | `MM_INSTANCE_TOKEN` | 实例管理及内部登记接口令牌，必填 |
-| 实例 | `MM_ADMIN_URL` | 管理 HTTP 监听地址；不设置则不启用管理接口 |
-| 实例 | `MM_INSTANCE_ID` | 不复用的实例 ID |
-| 实例 | `MM_DIRECTORY_URL` | 目录服务内部根地址 |
-| 实例 | `MM_GAME_ADDRESS` | TCP 绑定地址；托管实例为 `127.0.0.1`，独立运行默认 `0.0.0.0` |
-| 入口 | `MM_GATEWAY_ADDRESS` | 默认 `0.0.0.0`；IPv6 双栈使用 `::` |
-| 入口 | `MM_GATEWAY_PORT` | 默认 `40815` |
-| 入口 | `MM_GATEWAY_MAX_CONNECTIONS` | 默认 `256` |
-| 入口 | `MM_DIRECTORY_URL`、`MM_INSTANCE_TOKEN` | 内部目录地址和实例令牌；目录地址默认 `http://127.0.0.1:40900` |
+| Gateway | `MM_GATEWAY_ADDRESS`、`MM_GATEWAY_PORT` | `0.0.0.0`、`40815` |
+| Gateway | `MM_ADMIN_URL` | `http://127.0.0.1:40900` |
+| Gateway | `MM_GATEWAY_DATA` | 本地路由文件；部署时为 `/opt/metamystia-hosting/data/instances.json` |
+| Gateway | `MM_GATEWAY_TOKEN`、`MM_INSTANCE_TOKEN` | 管理令牌与实例令牌，必填 |
+| Gateway | `MM_GATEWAY_MAX_CONNECTIONS` | `256` |
+| 实例 | `MM_INSTANCE_ID`、`MM_ADMIN_URL`、`MM_INSTANCE_TOKEN` | 实例身份、管理监听地址、令牌 |
+| 实例 | `MM_GAME_ADDRESS` | 独立运行默认 `0.0.0.0`，托管实例设为 `127.0.0.1` |
 
-目录原子保存登记和退役任务，周期查询实例并重试通知。失联实例不会作为可用地址返回，也不会仅凭失联判定已正常退出。退出回报失败时保留退役登记，不重新开放连接。
+路由变更原子写入文件，运行中生效，已有连接不变；重启从文件恢复。无后台健康轮询，后端连接失败直接拒绝，不跨版本重试。首帧及连接后端限时 3 秒，双向读写限时 30 秒，心跳沿用游戏协议。
 
-托管实例启动前查询目录；已退役实例直接正常退出，目录不可达时启动失败并由 systemd 重试。新实例尚未登记时可启动，验证后再登记。配置 `Restart=on-failure`，正常退役不重启。
+## 发布
 
-## 部署
+`tools/deploy/` 提供 Gateway、实例 systemd 单元及部署脚本。`/etc/metamystia-hosting/deploy.json` 仅 root 可读，包含 `gatewayUrl`、`gatewayToken`、`instanceToken`。Gateway 环境配置放在同目录的 `gateway.env`。
 
-`tools/deploy/` 提供独立的目录服务单元、实例服务模板和部署脚本。目录根为 `/opt/metamystia-hosting`，不会修改旧 `metamystia.service` 或 `/opt/metamystia/releases/current`。
+游戏 Release 或手动 `Deploy server` 启动新实例，完成实际握手后向 Gateway 登记，再依次发送旧实例退役请求。部署锁避免并发，失败不覆盖已有实例目录。`replaces=auto` 选择当前接客实例，`-` 表示不退役。普通实例发布不停止或部署 Gateway。
 
-| 用途 | 端口 | 对外开放 |
-|---|---|---|
-| 固定转发入口 | `40815/tcp` | 对外开放 |
-| 新游戏实例 | `41000–41099/tcp` | 只绑定 `127.0.0.1`，不开放 UFW |
-| 实例管理 HTTP | `42000–42099/tcp` | 只绑定 `127.0.0.1`，不开放 UFW |
-| 目录服务内部 HTTP | `40900/tcp` | 只绑定 `127.0.0.1`，不开放 UFW |
+Gateway 只有独立的 `Deploy gateway (manual)` 按钮，仅允许 main 分支并需勾选断线确认。先构建、测试、上传，之后才停止旧入口、替换并启动；保留路由文件。启动检查失败恢复上一版。此操作断开所有转发连接，不承诺无缝更新。systemd 不自动重启 Gateway。
 
-CD 在正式发布 Release 时自动触发，也接受将正式版设为最新版本的编辑事件。草稿和预发布不部署。执行时核对最新正式 Release，避免排队的旧发布替换新版本。手动入口仍可使用；`production` 环境原有审批规则继续生效。
-
-端口默认 `auto`，在部署锁内从上述范围选取空闲端口，同时跳过未退役登记占用的端口。手动指定端口遇到占用则失败，不停止占用端口的服务。每个实例使用独立目录、日志及 systemd 单元；两个实例不能共用一个监听地址和端口。
-
-退役列表默认 `auto`，只选取当前 `active` 实例，不改变已在退役或尚未激活的实例。首次部署可以没有旧实例。手动填写 ID 列表可限定退役对象，`-` 表示不退役。新实例握手、登记和激活成功后才通知旧实例。
-
-新增入口规则为 `sudo ufw allow 40815/tcp comment 'MetaMystia gateway'`，不重置现有规则。云平台安全组也需允许该端口。迁移完成、旧直连玩家离线前，不删除现有实例端口规则。
-
-首次安装由管理员完成，不能直接用旧的停服部署脚本替代：
-
-1. 发布目录服务到独立目录，安装 `metamystia-directory.service` 与 `metamystia-instance@.service`；仅启动目录服务。
-2. 配置 `/etc/metamystia-hosting/directory.env`，指定两个令牌及可写的 `MM_DIRECTORY_DATA`。数据目录归 `metamystia` 用户所有。
-3. 安装部署脚本到 `/opt/metamystia-hosting/tools/`，目录和脚本归 root 管理。部署配置 `/etc/metamystia-hosting/deploy.json` 仅 root 可读，含 `directoryUrl`、`directoryToken`、`instanceToken`。新实例登记回环地址。
-4. 将 `ssh-command.sh` 安装到 `/usr/local/bin/metamystia-hosting-ssh`，作为部署 SSH 公钥的 forced command；只授予执行两个部署 Python 脚本所需的 sudo 权限。旧 `deploy` 命令不会被新流程调用。
-5. 现有配置可放在新根目录的 `server.json`、`chat-filter.json`，实例链接到这两份配置；每个实例独立记录日志。
-6. 发布 Gateway 到 `/opt/metamystia-hosting/gateway`，安装 `metamystia-gateway.service`，配置仅 root 可读的 `/etc/metamystia-hosting/gateway.env`，含内部目录地址和实例令牌。先在回环地址的备用端口验证，确认 40815 无旧服务占用后再启用正式入口。
-
-CD 依次构建、测试、发布独立实例、完成实际 TCP 握手、HTTP 登记和激活。目录接管退役通知，CD 不等待玩家下线。目录和入口产物单独保存，首次安装和升级单独安排；普通实例发布不重启入口。
-
-启用新版客户端或内部实例部署前，必须先安装支持 `/internal/routes` 的目录和 Gateway。旧客户端的订阅入口不再可用，可手动连接 `play.metamystia.net:40815`，或更新到直连构建。现有实例的登记地址不可覆盖，保留至自然退役。
-
-目录尚未安装或新的 SSH 入口尚未配置时，新 CD 会失败，不会回退到重启旧服务。目标实例目录已存在时不覆盖文件，可用 `activate-instance <id> <旧id列表或->` 重试登记和激活。部署失败留下的新实例需单独检查，不停止任何旧实例。
-
-新实例命令格式：`deploy-instance <id> <TCP端口或auto> <管理端口或auto> <逗号分隔旧id、auto或->`，部署包从标准输入读取。服务端的 `--probe <IP> <端口>` 使用本构建版本完成一次真实握手并退出，只用于新实例验证。
-
-旧版没有管理 HTTP 和系统通知能力，首次迁移需保留其原服务，等待玩家自然离线后再另行退役；不得把新通知发给旧客户端。
+部署 SSH forced command 只接受 `deploy-instance` 和 `deploy-gateway`；sudo 只授权对应 Python 脚本。Nginx 继续使用已有 HTTPS 证书，对公网只开放 `40815` 和 HTTPS，实例端口不开放防火墙。
 
 ## 验证
 
-运行 `MetaMystia.Network.Tests`、`MetaMystia.Hosting.Tests`、`MetaMystia.Flow.Tests` 与 `tools/check.py`，并编译模组和服务端。Linux 上运行 `python3 -m unittest discover -s tools/deploy -p 'test_*.py'` 验证部署脚本。Hosting 测试使用本机随机端口启动实际 HTTP、TCP 服务，验证登记、版本匹配、退役期间通信、重复通知、最后一人离线和目录重启。游戏内显示效果另需实测。
+`MetaMystia.Hosting.Tests` 使用实际本机 TCP/HTTP 验证管理鉴权、注册、版本隔离、房间操作、路由持久化、退役及双向断线清理。Linux 上运行 `python3 -m unittest discover -s tools/deploy -p 'test_*.py'` 检查部署脚本。游戏画面另需实测。

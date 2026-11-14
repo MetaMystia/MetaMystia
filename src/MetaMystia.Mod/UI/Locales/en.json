@@ -1,5 +1,4 @@
 {
-    "NetworkDirectoryUnavailable": "The multiplayer service is temporarily unavailable. Please try again later.",
     "NetworkVersionUnavailable": "No server is available for your game and mod versions.",
     "NetworkServerRetiring": "This server no longer accepts new connections. Update to mod {0} before connecting again.",
     "NetworkUpdateNotice": "Mod {0} is available. Your current session can continue, but this server no longer accepts new connections. Update before your next session.",

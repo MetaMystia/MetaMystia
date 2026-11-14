@@ -9,7 +9,7 @@ Group=metamystia
 WorkingDirectory=/opt/metamystia-hosting/gateway
 EnvironmentFile=/etc/metamystia-hosting/gateway.env
 ExecStart=/opt/metamystia-hosting/gateway/MetaMystia.Gateway
-Restart=on-failure
+Restart=no
 RestartSec=5
 TimeoutStopSec=30
 UMask=0027
@@ -17,6 +17,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
+ReadWritePaths=/opt/metamystia-hosting/data
 
 [Install]
 WantedBy=multi-user.target

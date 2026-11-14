@@ -3,7 +3,6 @@
   <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../MetaMystia.Server/MetaMystia.Server.csproj" />
-    <ProjectReference Include="../MetaMystia.Directory/MetaMystia.Directory.csproj" />
     <ProjectReference Include="../MetaMystia.Gateway/MetaMystia.Gateway.csproj" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>

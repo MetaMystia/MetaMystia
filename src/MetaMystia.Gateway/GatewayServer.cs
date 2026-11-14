@@ -7,7 +7,7 @@ using MetaMystia.Network;
 
 namespace MetaMystia.Gateway;
 
-public sealed class GatewayServer(IPEndPoint endpoint, RouteCache routes, int maxConnections = 256) : IAsyncDisposable
+public sealed class GatewayServer(IPEndPoint endpoint, InstanceRegistry routes, int maxConnections = 256) : IAsyncDisposable
 {
     private readonly TcpListener listener = new(endpoint);
     private readonly CancellationTokenSource stopped = new();
@@ -68,13 +68,13 @@ public sealed class GatewayServer(IPEndPoint endpoint, RouteCache routes, int ma
                 if (frame[0] != (byte)Kind.Hello) throw new InvalidDataException("Expected Hello");
                 var versions = Protocol.ReadHelloVersions(frame[1..]);
                 var route = routes.Resolve(versions);
-                await backend.ConnectAsync(route.Host!, route.Port!.Value, deadline.Token);
+                await backend.ConnectAsync(route.Registration.Host, route.Registration.Port, deadline.Token);
                 var destination = backend.GetStream();
                 await destination.WriteAsync(header, deadline.Token);
                 await destination.WriteAsync(frame, deadline.Token);
                 forwarding = true;
                 deadline.CancelAfter(Timeout.InfiniteTimeSpan);
-                Logged?.Invoke($"连接已转发至实例 {route.InstanceId}。");
+                Logged?.Invoke($"连接已转发至实例 {route.Id}。");
                 var upstream = Copy(stream, destination, deadline.Token);
                 var downstream = Copy(destination, stream, deadline.Token);
                 await Task.WhenAny(upstream, downstream);

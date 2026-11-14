@@ -14,11 +14,6 @@ if (args.Length == 3 && args[0] == "--probe")
 var port = args.Length > 0 ? int.Parse(args[0]) : 40815;
 var limit = args.Length > 1 ? int.Parse(args[1]) : 16;
 var adminOptions = ServerAdminOptions.FromEnvironment();
-if (adminOptions != null && !await ServerAdministration.CanStartAsync(adminOptions))
-{
-    await ServerAdministration.ReportStoppedAsync(adminOptions);
-    return;
-}
 var config = ServerConfiguration.Load(AppContext.BaseDirectory);
 using var log = new ServerConsole(Path.Combine(AppContext.BaseDirectory, "logs"));
 await using var server = new Server(new ServerOptions
@@ -58,11 +53,5 @@ while (!ending.IsCompleted)
 log.Write(ServerLogLevel.Info, "[系统] 服务端正在关闭。");
 if (admin != null) await admin.StopAsync();
 await server.StopAsync();
-if (server.Drained.IsCompleted && adminOptions != null)
-{
-    try { await ServerAdministration.ReportStoppedAsync(adminOptions); }
-    catch (Exception error) when (error is HttpRequestException or OperationCanceledException)
-    { log.Write(ServerLogLevel.Warning, $"[系统] 服务端无法完成退出登记，服务目录仍保留退役状态。原因：{error.GetType().Name}。"); }
-}
 Console.CancelKeyPress -= cancel;
 log.Write(ServerLogLevel.Info, "[系统] 服务端已停止。");

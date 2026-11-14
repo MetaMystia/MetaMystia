@@ -52,7 +52,6 @@ public enum NetworkErrorCode : ushort
     KickedByServer = 45,
     NotInRoom = 46,
     ServerRetiring = 47,
-    DirectoryUnavailable = 48,
     VersionUnavailable = 49,
 }
 

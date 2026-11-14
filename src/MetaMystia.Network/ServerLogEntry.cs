@@ -62,7 +62,6 @@ public sealed record ServerLogEntry(ServerLogLevel Level, string Message)
         NetworkErrorCode.KickedByServer => "管理员踢出",
         NetworkErrorCode.NotInRoom => "玩家当前不在房间中",
         NetworkErrorCode.ServerRetiring => "服务端正在退役",
-        NetworkErrorCode.DirectoryUnavailable => "服务目录不可用",
         NetworkErrorCode.VersionUnavailable => "目标版本不可用",
         _ => "未知原因"
     }}（{code}）";

@@ -13,6 +13,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import deploy_instance as deploy
+import deploy_gateway
 
 
 def instance(name, state, version="0.29.4", game="game"):
@@ -91,8 +92,8 @@ class DeploymentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             config = root / "config.json"
-            config.write_text(json.dumps({"directoryUrl": "http://127.0.0.1:40900",
-                "directoryToken": "directory-test", "instanceToken": "instance-test"}))
+            config.write_text(json.dumps({"gatewayUrl": "http://127.0.0.1:40900",
+                "gatewayToken": "directory-test", "instanceToken": "instance-test"}))
             calls = Mock()
             records = [instance("old", "active"), instance("draining", "draining")]
             request = Mock(side_effect=[records, {"instanceId": "new", "modVersion": "0.29.5"}, None, None])
@@ -120,13 +121,57 @@ class DeploymentTests(unittest.TestCase):
             self.assertTrue(41001 <= registration["port"] <= 41099)
             self.assertNotEqual(registration["adminUrl"], "http://127.0.0.1:42000")
             self.assertEqual([call[0] for call in calls.mock_calls], ["request", "run", "request", "run", "request", "request"])
-            self.assertEqual(request.call_args.args[2:], ("POST", {"replaces": ["old"]}))
+            self.assertEqual(request.call_args.args[2:], ("POST", {"noticeId": "new", "targetModVersion": "0.29.5"}))
 
     def test_auto_deployment_probes_before_registering_and_retiring(self):
         self.run_deployment()
 
     def test_failed_probe_does_not_register_or_retire(self):
         self.run_deployment(probe_fails=True)
+
+
+class GatewayDeploymentTests(unittest.TestCase):
+    def update(self, healthy):
+        archive_data = io.BytesIO()
+        with tarfile.open(fileobj=archive_data, mode='w:gz') as archive:
+            for name in ('MetaMystia.Gateway', 'MetaMystia.Gateway.dll'):
+                entry = tarfile.TarInfo(name)
+                entry.size = 3
+                archive.addfile(entry, io.BytesIO(b'new'))
+        archive_data.seek(0)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'gateway').mkdir()
+            (root / 'gateway/old').write_text('old')
+            (root / 'data').mkdir()
+            (root / 'data/instances.json').write_text('routes')
+            config = root / 'config.json'
+            config.write_text(json.dumps({'gatewayUrl': 'http://127.0.0.1:40900', 'gatewayToken': 'test'}))
+            previous_umask = os.umask(0o027)
+            self.addCleanup(os.umask, previous_umask)
+            with patch.object(deploy_gateway, 'ROOT', root), patch.object(deploy_gateway, 'CONFIG', config), \
+                 patch.object(sys, 'stdin', SimpleNamespace(buffer=archive_data)), \
+                 patch.object(deploy_gateway.grp, 'getgrnam', return_value=SimpleNamespace(gr_gid=os.getgid())), \
+                 patch.object(deploy_gateway.os, 'chown'), patch.object(deploy_gateway.time, 'sleep'), \
+                 patch.object(deploy_gateway.subprocess, 'run') as run, \
+                 patch.object(deploy_gateway, 'request', side_effect=None if healthy else OSError('offline')):
+                if healthy:
+                    deploy_gateway.main()
+                    self.assertTrue((root / 'gateway/MetaMystia.Gateway').is_file())
+                    self.assertTrue((root / 'gateway.previous/old').is_file())
+                    self.assertEqual(run.call_count, 2)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        deploy_gateway.main()
+                    self.assertTrue((root / 'gateway/old').is_file())
+                    self.assertEqual(run.call_count, 4)
+            self.assertEqual((root / 'data/instances.json').read_text(), 'routes')
+
+    def test_manual_update_preserves_routes(self):
+        self.update(True)
+
+    def test_unhealthy_update_restores_previous_gateway(self):
+        self.update(False)
 
 
 if __name__ == "__main__":

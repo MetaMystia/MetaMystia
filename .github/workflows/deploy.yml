@@ -83,22 +83,6 @@ jobs:
           @{ gameVersion = $versions.Project.PropertyGroup.TargetGameVersion; modVersion = $version } |
             ConvertTo-Json | Set-Content src/MetaMystia.Server/bin/Release/net6.0/linux-x64/publish/deployment.json -Encoding utf8NoBOM
           "mod_version=$version" >> $env:GITHUB_OUTPUT
-      - name: 构建 Linux 目录服务（包含运行时）
-        run: dotnet publish src/MetaMystia.Directory -c Release -r linux-x64 --self-contained true
-      - name: 构建 Linux 转发入口（包含运行时）
-        run: dotnet publish src/MetaMystia.Gateway -c Release -r linux-x64 --self-contained true
-      - uses: actions/upload-artifact@v7
-        with:
-          name: gateway-linux-x64
-          path: src/MetaMystia.Gateway/bin/Release/net6.0/linux-x64/publish/
-          if-no-files-found: error
-          retention-days: 14
-      - uses: actions/upload-artifact@v7
-        with:
-          name: directory-linux-x64
-          path: src/MetaMystia.Directory/bin/Release/net6.0/linux-x64/publish/
-          if-no-files-found: error
-          retention-days: 14
       - uses: actions/upload-artifact@v7
         with:
           name: server-linux-x64

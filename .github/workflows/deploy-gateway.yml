@@ -1,0 +1,62 @@
+name: Deploy gateway (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_disconnect:
+        description: '更新会断开全部在线连接，确认停止并部署 Gateway'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: inputs.confirm_disconnect && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            6.0.x
+            10.0.303
+      - name: 准备编译依赖
+        run: |
+          mkdir -p .tmp/deps
+          curl -fsSL https://github.com/MetaMystia/TouhouMystiaIzakaya-deps/releases/download/Release4.4.0e/deps-Release4.4.0e.zip -o .tmp/deps.zip
+          echo '427951e119e6f0d5547ab36d566d03fe6969c9677e141e6b82b24c62730193d8  .tmp/deps.zip' | sha256sum -c -
+          unzip -q .tmp/deps.zip -d .tmp/deps
+          printf '%s\n' '<Project><PropertyGroup><BepInExPath>$(MSBuildThisFileDirectory).tmp/deps</BepInExPath></PropertyGroup></Project>' > MetaMystia.local.props
+          printf '%s\n' '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' > global.json
+      - name: 验证并构建 Gateway
+        run: |
+          dotnet run --project src/MetaMystia.Hosting.Tests -c Release
+          dotnet publish src/MetaMystia.Gateway -c Release -r linux-x64 --self-contained true -o .tmp/gateway
+          tar -czf .tmp/gateway.tar.gz -C .tmp/gateway .
+      - name: 停止并部署 Gateway
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$SERVER_HOST"
+          test -n "$SERVER_SSH_KEY"
+          test -n "$SERVER_KNOWN_HOSTS"
+          umask 077
+          mkdir -p ~/.ssh
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "metamystia-cd@$SERVER_HOST" deploy-gateway < .tmp/gateway.tar.gz
