@@ -199,7 +199,11 @@ public static partial class GameSession
         () => InGameConsole.LogSuccess(TextId.NetworkRoomJoined.Get(RoomCode.Format(Room.Id))));
     public static void Kick(int uid) => Run(Client.KickAsync(uid, cancellation.Token));
     public static void SetPlayerLimit(int count) => Run(Client.SetRoomPlayerLimitAsync(count, cancellation.Token),
-        () => ConfigManager.MaxPlayers.Value = count);
+        () =>
+        {
+            ConfigManager.MaxPlayers.Value = count;
+            InGameConsole.LogSuccess(TextId.MpMaxPlayersSet.Get(count));
+        });
 
     public static void LeaveRoom(bool resumeGameplay = true)
     {

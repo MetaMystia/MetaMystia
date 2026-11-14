@@ -129,7 +129,11 @@ public static class MpCommands
                 if (!GameSession.IsRoomHost) { ctx.Log(TextId.MpMaxPlayersHostOnly.Get()); return; }
                 GameSession.SetPlayerLimit(count);
             }
-            else ConfigManager.MaxPlayers.Value = count;
+            else
+            {
+                ConfigManager.MaxPlayers.Value = count;
+                ctx.Log(TextId.MpMaxPlayersSet.Get(count));
+            }
         });
         mp.AddCommand(max);
         var next = new Command("continue", "Continue a waiting preparation phase");
