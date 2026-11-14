@@ -58,6 +58,7 @@ public static class GameMessages
         YuyukoGuestBoundMessage => GameMessageType.YuyukoGuestBound,
         RoomInitialStateMessage => GameMessageType.RoomInitialState,
         BusinessStartMessage => GameMessageType.BusinessStart,
+        EmoteMessage => GameMessageType.Emote,
         _ => throw new ArgumentException("Unregistered message", nameof(message))
     };
 

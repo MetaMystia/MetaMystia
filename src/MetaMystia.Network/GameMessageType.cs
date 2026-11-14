@@ -46,6 +46,7 @@ public enum GameMessageType : ushort
     YuyukoGuestBound = 52,
     RoomInitialState = 53,
     BusinessStart = 54,
+    Emote = 55,
 }
 
 public static class GameMessageRules
@@ -96,5 +97,6 @@ public static class GameMessageRules
         new((ushort)GameMessageType.YuyukoGuestBound, [Route.Host]),
         new((ushort)GameMessageType.RoomInitialState, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessageType.BusinessStart, [Route.Host, Route.Room], HostBroadcastOnly: true),
+        new((ushort)GameMessageType.Emote, [Route.World], RoomScoped: false, MaxBytes: 64),
     ];
 }

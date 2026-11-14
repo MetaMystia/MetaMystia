@@ -55,6 +55,7 @@ namespace MetaMystia.Multiplayer.Messages;
 [MemoryPackUnion((ushort)GameMessageType.YuyukoGuestBound, typeof(YuyukoGuestBoundMessage))]
 [MemoryPackUnion((ushort)GameMessageType.RoomInitialState, typeof(RoomInitialStateMessage))]
 [MemoryPackUnion((ushort)GameMessageType.BusinessStart, typeof(BusinessStartMessage))]
+[MemoryPackUnion((ushort)GameMessageType.Emote, typeof(EmoteMessage))]
 [AutoLog]
 
 public abstract partial class MultiplayerMessage

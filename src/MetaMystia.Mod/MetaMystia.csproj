@@ -189,6 +189,10 @@
       <HintPath>$(BepInExPath)\interop\Unity.Addressables.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.Timeline">
+      <HintPath>$(BepInExPath)\interop\Unity.Timeline.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.TextMeshPro">
       <HintPath>$(BepInExPath)\interop\Unity.TextMeshPro.dll</HintPath>
       <Private>False</Private>
