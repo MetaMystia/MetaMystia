@@ -142,6 +142,7 @@
     "DlcMissingDependencyNotice": "检测到缺少 DLC，请先前往《东方夜雀食堂》的 Steam 商店页面购买对应 DLC；如需强制加载，可在配置文件（游戏目录/BepInEx/config/MetaMystia.cfg）中将 {0} 设置为 {1} 以禁用资源包依赖检查",
     "ResourcePackageLoaded": "已加载资源包 {0} [{1}] v{2}",
     "PeerMessagePrefix": "[{0}] {1}",
+    "ConsoleNewMessages": "↓ {0} 条新消息",
     "CommandPrompt": "> {0}",
     "BepInExConsoleEnabled": "BepinEX 控制台已启用",
     "NotInDayScene": "⚠ 不在白天场景中。此命令仅在白天使用。",

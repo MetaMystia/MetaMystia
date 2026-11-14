@@ -142,6 +142,7 @@
     "IgnoreDlcDependencyCheckWarning": "<color=#FFAA44>DLC 및 의존성 검사를 무시하는 설정이 켜져 있습니다. 불러온 리소스 팩에 필요한 콘텐츠가 없어 알 수 없는 문제가 발생할 수 있습니다.</color>",
     "DlcMissingDependencyNotice": "DLC가 없습니다. 《동방 야작식당》 Steam 상점 페이지에서 해당 DLC를 먼저 구매하세요. 강제로 불러오려면 설정 파일(게임 폴더/BepInEx/config/MetaMystia.cfg)에서 {0}을(를) {1}(으)로 설정해 리소스 팩 의존성 검사를 끌 수 있습니다",
     "PeerMessagePrefix": "[{0}] {1}",
+    "ConsoleNewMessages": "↓ 새 메시지 {0}개",
     "CommandPrompt": "> {0}",
     "BepInExConsoleEnabled": "BepInEx 콘솔을 활성화했습니다",
     "NotInDayScene": "⚠ 낮 장면이 아닙니다. 이 명령은 낮에만 사용할 수 있습니다.",

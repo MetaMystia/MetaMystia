@@ -142,6 +142,7 @@
     "IgnoreDlcDependencyCheckWarning": "<color=#FFAA44>已啟用忽略 DLC 與依賴偵測，載入的資源包可能缺少其依賴內容，可能出現未知問題。</color>",
     "DlcMissingDependencyNotice": "偵測到缺少 DLC，請先前往《東方夜雀食堂》的 Steam 商店頁面購買對應 DLC；如需強制載入，可在設定檔（遊戲目錄/BepInEx/config/MetaMystia.cfg）中將 {0} 設為 {1} 以停用資源包依賴檢查",
     "PeerMessagePrefix": "[{0}] {1}",
+    "ConsoleNewMessages": "↓ {0} 則新訊息",
     "CommandPrompt": "> {0}",
     "BepInExConsoleEnabled": "BepInEx 主控台已啟用",
     "NotInDayScene": "⚠ 不在白天場景中。此命令僅在白天使用。",

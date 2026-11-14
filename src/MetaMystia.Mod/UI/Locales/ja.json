@@ -142,6 +142,7 @@
     "IgnoreDlcDependencyCheckWarning": "<color=#FFAA44>DLCと依存関係のチェックを無視する設定が有効です。読み込まれたリソースパックは依存コンテンツを欠く可能性があり、予期しない問題が発生するおそれがあります。</color>",
     "DlcMissingDependencyNotice": "DLCが不足しています。《東方夜雀食堂》のSteamストアページで該当DLCを購入してください。強制的に読み込む場合は、設定ファイル（ゲームフォルダ/BepInEx/config/MetaMystia.cfg）で {0} を {1} に設定してリソースパックの依存チェックを無効にできます",
     "PeerMessagePrefix": "[{0}] {1}",
+    "ConsoleNewMessages": "↓ 新着メッセージ {0} 件",
     "CommandPrompt": "> {0}",
     "BepInExConsoleEnabled": "BepInExコンソールを有効にしました",
     "NotInDayScene": "⚠ 昼間のシーンではありません。このコマンドは昼間のみ使用できます。",

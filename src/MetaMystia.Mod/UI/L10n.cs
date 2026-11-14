@@ -186,6 +186,7 @@ public enum TextId
 
     // Console UI & Formatting
     PeerMessagePrefix,
+    ConsoleNewMessages,
     CommandPrompt,
     BepInExConsoleEnabled,
 
