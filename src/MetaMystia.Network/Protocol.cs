@@ -111,6 +111,18 @@ internal static class Protocol
         return stream.ToArray();
     }
 
+    internal static Versions ReadHelloVersions(byte[] body)
+    {
+        using var stream = new MemoryStream(body, false);
+        using var reader = new BinaryReader(stream, Encoding.UTF8);
+        if (reader.ReadInt32() != 0x3152494d) throw new InvalidDataException("Invalid Hello magic");
+        var versions = new Versions(reader.ReadInt32(), reader.ReadString(), reader.ReadString());
+        if (string.IsNullOrWhiteSpace(versions.Game) || versions.Game.Length > 64 ||
+            string.IsNullOrWhiteSpace(versions.Mod) || versions.Mod.Length > 64)
+            throw new InvalidDataException("Invalid Hello versions");
+        return versions;
+    }
+
     internal static (Player Player, string Key) ReadHello(byte[] body, Versions expected)
     {
         using var stream = new MemoryStream(body, false);

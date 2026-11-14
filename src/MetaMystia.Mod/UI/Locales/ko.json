@@ -1,5 +1,5 @@
 {
-    "NetworkDirectoryUnavailable": "서버 목록을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "NetworkDirectoryUnavailable": "현재 멀티플레이 서비스를 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
     "NetworkVersionUnavailable": "현재 게임 및 모드 버전에 맞는 서버를 이용할 수 없습니다.",
     "NetworkServerRetiring": "이 서버는 새 연결을 받지 않습니다. 모드를 {0}(으)로 업데이트한 뒤 다시 연결해 주세요.",
     "NetworkUpdateNotice": "모드 {0} 버전이 출시되었습니다. 현재 플레이는 계속할 수 있지만 이 서버는 새 연결을 받지 않습니다. 다음 연결 전에 업데이트해 주세요.",

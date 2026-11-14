@@ -92,6 +92,17 @@ jobs:
       - name: 构建目录服务
         run: dotnet publish src/MetaMystia.Directory -c Release --self-contained false -p:UseAppHost=false
 
+      - name: 构建转发入口
+        run: dotnet publish src/MetaMystia.Gateway -c Release --self-contained false -p:UseAppHost=false
+
+      - name: 保存转发入口产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: MetaMystia.Gateway-${{ github.sha }}
+          path: src/MetaMystia.Gateway/bin/Release/net6.0/publish/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: 保存目录服务产物
         uses: actions/upload-artifact@v7
         with:

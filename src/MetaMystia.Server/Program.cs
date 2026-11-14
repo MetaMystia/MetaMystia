@@ -23,7 +23,8 @@ var config = ServerConfiguration.Load(AppContext.BaseDirectory);
 using var log = new ServerConsole(Path.Combine(AppContext.BaseDirectory, "logs"));
 await using var server = new Server(new ServerOptions
 {
-    Address = IPAddress.Any, Port = port, MaxPlayers = limit, Messages = GameMessageRules.Create(),
+    Address = IPAddress.Parse(Environment.GetEnvironmentVariable("MM_GAME_ADDRESS") ?? "0.0.0.0"),
+    Port = port, MaxPlayers = limit, Messages = GameMessageRules.Create(),
     ChatFilter = config.ChatFilter, LogChat = config.LogChat, WelcomeMessages = config.WelcomeMessages
 });
 server.Logged += log.Write;

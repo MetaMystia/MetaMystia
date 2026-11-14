@@ -13,10 +13,12 @@ using MetaMystia;
 using MetaMystia.Directory;
 using MetaMystia.Discovery;
 using MetaMystia.Hosting;
+using MetaMystia.Gateway;
 using MetaMystia.Network;
 
 Environment.SetEnvironmentVariable("Logging__LogLevel__Default", "Warning");
 await HostingChecks.Run();
+await GatewayChecks.Run();
 
 static class HostingChecks
 {
@@ -35,10 +37,10 @@ static class HostingChecks
         }
     }
 
-    private static async Task<Client> Connect(Server server, Versions version, string name)
+    private static async Task<Client> Connect(IPEndPoint endpoint, Versions version, string name)
     {
         var client = new Client(version); clients.Add(client);
-        var connect = client.ConnectAsync(server.Endpoint, new Player
+        var connect = client.ConnectAsync(endpoint, new Player
         {
             Name = name, Scene = Scene.DayScene, Stage = GameStage.Day,
             Resources = new() { DlcFlags = DlcPack.Core, PackIds = [] }
@@ -65,9 +67,18 @@ static class HostingChecks
         await directory.StartAsync();
         string directoryUrl = directory.Urls.Single();
         var registry = directory.Services.GetRequiredService<InstanceRegistry>();
+        using var routes = new RouteCache(directoryUrl, instanceToken);
+        await using var gateway = new GatewayServer(new(IPAddress.Loopback, 0), routes);
+        gateway.Start();
         using var publicHttp = Http(directoryUrl);
         using var deployHttp = Http(directoryUrl, adminToken);
+        using var routeHttp = Http(directoryUrl, instanceToken);
+        async Task<ServerListing?> Listing(string game, string mod) =>
+            (await routeHttp.GetFromJsonAsync<ServerCatalog>("internal/routes"))!.Servers
+                .SingleOrDefault(s => s.GameVersion == game && s.ModVersion == mod);
+        Assert((await publicHttp.GetAsync("v1/servers")).StatusCode == HttpStatusCode.NotFound, "旧公开订阅接口已移除");
         Assert((await publicHttp.GetAsync("admin/instances")).StatusCode == HttpStatusCode.Unauthorized, "目录管理接口拒绝未认证请求");
+        Assert((await publicHttp.GetAsync("internal/routes")).StatusCode == HttpStatusCode.Unauthorized, "入口路由接口拒绝未认证请求");
 
         var oldVersion = Versions.Current with { Mod = "old-test" };
         var newVersion = Versions.Current with { Mod = "new-test" };
@@ -97,24 +108,49 @@ static class HostingChecks
         var oldRegistration = Registration(old, oldVersion, oldAdmin);
         await Register("old", oldRegistration);
         await Activate("old");
-        var listing = await ServerDirectory.ResolveAsync(directoryUrl + "/v1/servers", oldVersion.Game, oldVersion.Mod);
-        Assert(listing?.State == "ready" && listing.Port == old.Endpoint.Port, "客户端按游戏和模组版本精确解析地址");
-        Assert(await ServerDirectory.ResolveAsync(directoryUrl + "/v1/servers", "wrong-game", oldVersion.Mod) == null, "目录不跨游戏版本选择实例");
+        var listing = await Listing(oldVersion.Game, oldVersion.Mod);
+        Assert(listing?.State == "ready" && listing.Port == old.Endpoint.Port, "内部路由按游戏和模组版本精确提供地址");
+        Assert(await Listing("wrong-game", oldVersion.Mod) == null, "目录不跨游戏版本选择实例");
 
-        var first = await Connect(old, oldVersion, "first");
-        var second = await Connect(old, oldVersion, "second");
+        await routes.RefreshAsync(CancellationToken.None);
+        var first = await Connect(gateway.Endpoint, oldVersion, "first");
+        var second = await Connect(gateway.Endpoint, oldVersion, "second");
+        var create = first.CreateRoomAsync();
+        await Until(() => create.IsCompleted);
+        var room = await create;
+        var open = first.SetJoinableAsync(true);
+        await Until(() => open.IsCompleted); await open;
+        var join = second.JoinRoomAsync(room.Id);
+        await Until(() => join.IsCompleted); await join;
+        Assert(second.State.Room?.Id == room.Id, "固定入口支持真实客户端创建和加入同一房间");
+        await Task.Delay(TimeSpan.FromSeconds(32));
+        var heartbeatCheck = first.SetJoinableAsync(false);
+        await Until(() => heartbeatCheck.IsCompleted); await heartbeatCheck;
+        Assert(first.IsConnected && second.IsConnected, "超过入口 30 秒空闲期限后，原有双向心跳仍维持连接并可操作房间");
         var notices = new List<ServerNotice>(); first.NoticeReceived += notices.Add;
         await Register("new", Registration(newer, newVersion, newAdmin));
-        Assert(await ServerDirectory.ResolveAsync(directoryUrl + "/v1/servers", newVersion.Game, newVersion.Mod) == null, "登记但未激活的实例不对玩家开放");
+        Assert(await Listing(newVersion.Game, newVersion.Mod) == null, "登记但未激活的实例不对玩家开放");
+        await Activate("new");
+        await routes.RefreshAsync(CancellationToken.None);
+        var newClient = await Connect(gateway.Endpoint, newVersion, "newPlayer");
+        Assert(newClient.State.World.All(p => p.Name != "first"), "同一入口按版本隔离两个真实游戏实例");
         using (var bad = await deployHttp.PutAsJsonAsync("admin/instances/wrong", Registration(newer, oldVersion, newAdmin)))
             Assert(!bad.IsSuccessStatusCode, "登记校验实际实例身份及版本");
         using (var bad = await deployHttp.PostAsJsonAsync("admin/instances/missing/activate", new ActivationRequest(["old"])))
             Assert(!bad.IsSuccessStatusCode && registry.Get("old")?.State == "active", "无效部署不改变旧实例状态");
         await Activate("new", "old");
+        await routes.RefreshAsync(CancellationToken.None);
+        var lateGateway = new Client(oldVersion); clients.Add(lateGateway);
+        var lateGatewayTask = lateGateway.ConnectAsync(gateway.Endpoint, new Player
+        { Name = "lateGateway", Resources = new() { DlcFlags = DlcPack.Core, PackIds = [] } });
+        await Until(() => lateGatewayTask.IsCompleted);
+        NetworkErrorCode gatewayError = NetworkErrorCode.None;
+        try { await lateGatewayTask; } catch (NetworkException error) { gatewayError = error.Code; }
+        Assert(gatewayError == NetworkErrorCode.ServerRetiring, "入口通过原有拒绝帧提示旧版本更新");
         await Until(() => notices.Count == 1);
         Assert(first.IsConnected && second.IsConnected && notices[0].TargetModVersion == newVersion.Mod, "HTTP 激活后旧服广播结构化事件，在线玩家不断线");
-        Assert((await ServerDirectory.ResolveAsync(directoryUrl + "/v1/servers", oldVersion.Game, oldVersion.Mod))?.State == "retiring", "目录不再提供退役实例连接地址");
-        Assert((await ServerDirectory.ResolveAsync(directoryUrl + "/v1/servers", newVersion.Game, newVersion.Mod))?.Port == newer.Endpoint.Port, "新版目录指向新版端口");
+        Assert((await Listing(oldVersion.Game, oldVersion.Mod))?.State == "retiring", "目录不再提供退役实例连接地址");
+        Assert((await Listing(newVersion.Game, newVersion.Mod))?.Port == newer.Endpoint.Port, "新版目录指向新版端口");
         Assert(!await ServerAdministration.CanStartAsync(oldOptions), "实例重启前识别持久退役状态，不重新接客");
         await Activate("new", "old");
         await registry.ReconcileAsync(CancellationToken.None);
@@ -137,10 +173,12 @@ static class HostingChecks
         await oldAdmin.StopAsync(); await old.StopAsync();
         await ServerAdministration.ReportStoppedAsync(oldOptions);
         Assert(registry.Get("old")?.State == "stopped", "空服退出后通过 HTTP 完成退役登记");
-        var newClient = await Connect(newer, newVersion, "newPlayer");
         Assert(newClient.IsConnected, "旧服退出不影响新版实际 TCP 连接");
 
         await directory.StopAsync();
+        var offlineRoom = newClient.CreateRoomAsync();
+        await Until(() => offlineRoom.IsCompleted); await offlineRoom;
+        Assert(newClient.State.Room != null, "目录停止后已有转发连接仍能创建房间");
         await using var restarted = DirectoryApi.Create(options);
         await restarted.StartAsync();
         var recovered = restarted.Services.GetRequiredService<InstanceRegistry>();
@@ -164,6 +202,7 @@ static class HostingChecks
         var start = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "MetaMystia.Server.exe" : "MetaMystia.Server"))
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("0");
+        start.Environment["MM_GAME_ADDRESS"] = "127.0.0.1";
         start.Environment["MM_INSTANCE_ID"] = "process-test";
         start.Environment["MM_ADMIN_URL"] = adminUrl;
         start.Environment["MM_INSTANCE_TOKEN"] = instanceToken;

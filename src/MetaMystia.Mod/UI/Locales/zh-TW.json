@@ -1,5 +1,5 @@
 {
-    "NetworkDirectoryUnavailable": "無法取得伺服器目錄，請稍後再試。",
+    "NetworkDirectoryUnavailable": "連線服務暫時無法使用，請稍後再試。",
     "NetworkVersionUnavailable": "目前遊戲與模組版本暫無可用伺服器。",
     "NetworkServerRetiring": "本伺服器已停止接受新連線，請更新至模組 {0} 後再連線。",
     "NetworkUpdateNotice": "模組 {0} 已發布。目前連線可以繼續，本伺服器已停止接受新連線；下次連線前請更新。",

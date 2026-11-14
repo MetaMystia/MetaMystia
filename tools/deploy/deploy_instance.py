@@ -117,6 +117,7 @@ def main():
                 (staging / name).symlink_to(ROOT / name)
         environment = {
             "MM_INSTANCE_ID": instance_id, "MM_GAME_PORT": str(game_port),
+            "MM_GAME_ADDRESS": "127.0.0.1",
             "MM_ADMIN_URL": "http://127.0.0.1:" + str(admin_port),
             "MM_INSTANCE_TOKEN": instance_token, "MM_DIRECTORY_URL": directory,
         }
@@ -125,7 +126,7 @@ def main():
         env_file.chmod(0o600)
         registration = {
             "gameVersion": metadata["gameVersion"], "modVersion": metadata["modVersion"],
-            "host": config["publicHost"], "port": game_port, "adminUrl": environment["MM_ADMIN_URL"]}
+            "host": "127.0.0.1", "port": game_port, "adminUrl": environment["MM_ADMIN_URL"]}
         (staging / "registration.json").write_text(json.dumps(registration))
         staging.rename(destination)
         subprocess.run(["systemctl", "enable", "--now", unit], check=True)

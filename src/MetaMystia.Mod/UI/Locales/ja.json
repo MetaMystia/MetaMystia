@@ -1,5 +1,5 @@
 {
-    "NetworkDirectoryUnavailable": "サーバー一覧を取得できませんでした。しばらくしてから再試行してください。",
+    "NetworkDirectoryUnavailable": "現在マルチプレイサービスを利用できません。しばらくしてから再試行してください。",
     "NetworkVersionUnavailable": "現在のゲームとModのバージョンに対応するサーバーは利用できません。",
     "NetworkServerRetiring": "このサーバーは新規接続の受付を終了しました。Modを {0} に更新してから接続してください。",
     "NetworkUpdateNotice": "Mod {0} が公開されました。現在のプレイは続行できますが、このサーバーは新規接続の受付を終了しました。次回の接続前に更新してください。",

@@ -31,7 +31,7 @@ public static class DirectoryApi
                 await context.Response.WriteAsJsonAsync(new { error = e.Message });
             }
         });
-        app.MapGet("/v1/servers", (InstanceRegistry registry) => registry.Catalog());
+        app.MapGet("/internal/routes", (InstanceRegistry registry) => registry.Catalog());
         app.MapGet("/admin/instances", (InstanceRegistry registry) => registry.List());
         app.MapGet("/internal/instances/{id}", (string id, InstanceRegistry registry) =>
             registry.Get(id) is { } record ? Results.Ok(record) : Results.NotFound());

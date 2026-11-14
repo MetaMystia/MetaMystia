@@ -1,18 +1,20 @@
-# 版本目录与实例退役
+# 固定入口与实例退役
 
-客户端按游戏、模组版本精确匹配实例，TCP 握手仍校验全部版本。协议号保持 0，不参与目录选择。目录服务不转发游戏消息，目录重启不影响已建立的游戏连接。
+客户端连接固定 TCP 入口，由独立 Gateway 按游戏、模组版本精确匹配实例，后端握手仍校验全部版本。协议号保持 0，不参与路由选择。目录负责实例登记和退役，重启不影响已建立的转发连接；Gateway 重启会断开经过它的连接。
 
 ## 客户端
 
-`/mp play` 默认查询官方目录 `https://game-version.metamystia.net/v1/servers`，也可通过 `Multiplayer.ServerDirectoryUrl` 指定其他目录。测试允许本机 HTTP 地址。查询失败时提示错误。手动 `/mp connect` 与局域网入口不变。
+`/mp play` 直接连接 `play.metamystia.net:40815`，不查询 HTTP 目录。移除 `Multiplayer.ServerDirectoryUrl`，手动 `/mp connect` 与局域网入口不变。Hello 格式不变，入口只读取版本字段，将完整首帧原样发送给后端，之后双向转发字节。每条连接始终绑定同一实例。
 
 只有 `ready` 条目提供连接地址。`retiring`、`retired` 提示更新，`unavailable` 提示当前版本不可用。没有匹配版本时不选择最新版代替。
+
+入口每秒刷新内部路由，缓存超过 5 秒后拒绝新连接，已有连接继续转发。实例状态沿用目录 15 秒的健康期限，过期地址连接失败时拒绝，不跨版本重试。握手和连接后端共限时 3 秒；双向各用 16 KiB 缓冲，单次读写限时 30 秒；默认最多 256 条连接。心跳仍由客户端和实例处理。
 
 ## HTTP 接口
 
 | 服务 | 接口 | 认证与用途 |
 |---|---|---|
-| 目录 | `GET /v1/servers` | 公开，只含玩家需要的信息 |
+| 目录 | `GET /internal/routes` | 实例令牌，入口读取路由 |
 | 目录 | `GET /admin/instances` | 部署令牌，查询完整登记 |
 | 目录 | `PUT /admin/instances/{id}` | 部署令牌，验证实际身份后登记 |
 | 目录 | `POST /admin/instances/{id}/activate` | 部署令牌，发布并记录退役任务 |
@@ -21,7 +23,7 @@
 | 实例 | `GET /admin/status` | 实例令牌，查询版本、端口和人数 |
 | 实例 | `POST /admin/drain` | 实例令牌，停止接纳新连接并等待无人 |
 
-认证使用 `Authorization: Bearer <token>`。部署令牌与实例令牌分别配置，不发给游戏客户端。实例管理端口默认只绑定本机。通过反向代理公开目录时，只开放 `/v1/servers`；远程管理需要 HTTPS。
+认证使用 `Authorization: Bearer <token>`。部署令牌与实例令牌分别配置，不发给游戏客户端。目录与实例管理接口只绑定本机；远程管理需要 HTTPS。公开订阅接口和对应 Nginx 站点已移除。
 
 登记正文为 `gameVersion`、`modVersion`、`host`、`port`、`adminUrl`。实例 ID 和地址不可覆盖。激活正文为 `{"replaces":["旧实例ID"]}`，空数组不退役其他实例。部署脚本自动选出当前 `active` 实例并传入 ID；手动部署也可指定列表，不根据版本字符串排序推测。同一游戏和模组版本只能有一个活跃实例，不支持覆盖正在使用的同版本服务。
 
@@ -38,6 +40,11 @@
 | 实例 | `MM_ADMIN_URL` | 管理 HTTP 监听地址；不设置则不启用管理接口 |
 | 实例 | `MM_INSTANCE_ID` | 不复用的实例 ID |
 | 实例 | `MM_DIRECTORY_URL` | 目录服务内部根地址 |
+| 实例 | `MM_GAME_ADDRESS` | TCP 绑定地址；托管实例为 `127.0.0.1`，独立运行默认 `0.0.0.0` |
+| 入口 | `MM_GATEWAY_ADDRESS` | 默认 `0.0.0.0`；IPv6 双栈使用 `::` |
+| 入口 | `MM_GATEWAY_PORT` | 默认 `40815` |
+| 入口 | `MM_GATEWAY_MAX_CONNECTIONS` | 默认 `256` |
+| 入口 | `MM_DIRECTORY_URL`、`MM_INSTANCE_TOKEN` | 内部目录地址和实例令牌；目录地址默认 `http://127.0.0.1:40900` |
 
 目录原子保存登记和退役任务，周期查询实例并重试通知。失联实例不会作为可用地址返回，也不会仅凭失联判定已正常退出。退出回报失败时保留退役登记，不重新开放连接。
 
@@ -49,11 +56,10 @@
 
 | 用途 | 端口 | 对外开放 |
 |---|---|---|
-| 原有游戏服务 | `40815/tcp` | 保留现有规则 |
-| 新游戏实例 | `41000–41099/tcp` | UFW 开放此范围 |
+| 固定转发入口 | `40815/tcp` | 对外开放 |
+| 新游戏实例 | `41000–41099/tcp` | 只绑定 `127.0.0.1`，不开放 UFW |
 | 实例管理 HTTP | `42000–42099/tcp` | 只绑定 `127.0.0.1`，不开放 UFW |
 | 目录服务内部 HTTP | `40900/tcp` | 只绑定 `127.0.0.1`，不开放 UFW |
-| Nginx 公开目录 | `443/tcp` | 使用现有 HTTPS 入口 |
 
 CD 在正式发布 Release 时自动触发，也接受将正式版设为最新版本的编辑事件。草稿和预发布不部署。执行时核对最新正式 Release，避免排队的旧发布替换新版本。手动入口仍可使用；`production` 环境原有审批规则继续生效。
 
@@ -61,17 +67,20 @@ CD 在正式发布 Release 时自动触发，也接受将正式版设为最新�
 
 退役列表默认 `auto`，只选取当前 `active` 实例，不改变已在退役或尚未激活的实例。首次部署可以没有旧实例。手动填写 ID 列表可限定退役对象，`-` 表示不退役。新实例握手、登记和激活成功后才通知旧实例。
 
-UFW 增量规则为 `sudo ufw allow 41000:41099/tcp comment 'MetaMystia instances'`，不重置现有规则。若云平台另有安全组，也需允许同一 TCP 范围。
+新增入口规则为 `sudo ufw allow 40815/tcp comment 'MetaMystia gateway'`，不重置现有规则。云平台安全组也需允许该端口。迁移完成、旧直连玩家离线前，不删除现有实例端口规则。
 
 首次安装由管理员完成，不能直接用旧的停服部署脚本替代：
 
 1. 发布目录服务到独立目录，安装 `metamystia-directory.service` 与 `metamystia-instance@.service`；仅启动目录服务。
 2. 配置 `/etc/metamystia-hosting/directory.env`，指定两个令牌及可写的 `MM_DIRECTORY_DATA`。数据目录归 `metamystia` 用户所有。
-3. 安装部署脚本到 `/opt/metamystia-hosting/tools/`，目录和脚本归 root 管理。部署配置 `/etc/metamystia-hosting/deploy.json` 仅 root 可读，含 `directoryUrl`、`directoryToken`、`instanceToken`、`publicHost`。
+3. 安装部署脚本到 `/opt/metamystia-hosting/tools/`，目录和脚本归 root 管理。部署配置 `/etc/metamystia-hosting/deploy.json` 仅 root 可读，含 `directoryUrl`、`directoryToken`、`instanceToken`。新实例登记回环地址。
 4. 将 `ssh-command.sh` 安装到 `/usr/local/bin/metamystia-hosting-ssh`，作为部署 SSH 公钥的 forced command；只授予执行两个部署 Python 脚本所需的 sudo 权限。旧 `deploy` 命令不会被新流程调用。
 5. 现有配置可放在新根目录的 `server.json`、`chat-filter.json`，实例链接到这两份配置；每个实例独立记录日志。
+6. 发布 Gateway 到 `/opt/metamystia-hosting/gateway`，安装 `metamystia-gateway.service`，配置仅 root 可读的 `/etc/metamystia-hosting/gateway.env`，含内部目录地址和实例令牌。先在回环地址的备用端口验证，确认 40815 无旧服务占用后再启用正式入口。
 
-CD 依次构建、测试、发布独立实例、完成实际 TCP 握手、HTTP 登记和激活。目录接管退役通知，CD 不等待玩家下线。目录服务产物单独保存，首次安装和目录升级单独安排。
+CD 依次构建、测试、发布独立实例、完成实际 TCP 握手、HTTP 登记和激活。目录接管退役通知，CD 不等待玩家下线。目录和入口产物单独保存，首次安装和升级单独安排；普通实例发布不重启入口。
+
+启用新版客户端或内部实例部署前，必须先安装支持 `/internal/routes` 的目录和 Gateway。旧客户端的订阅入口不再可用，可手动连接 `play.metamystia.net:40815`，或更新到直连构建。现有实例的登记地址不可覆盖，保留至自然退役。
 
 目录尚未安装或新的 SSH 入口尚未配置时，新 CD 会失败，不会回退到重启旧服务。目标实例目录已存在时不覆盖文件，可用 `activate-instance <id> <旧id列表或->` 重试登记和激活。部署失败留下的新实例需单独检查，不停止任何旧实例。
 

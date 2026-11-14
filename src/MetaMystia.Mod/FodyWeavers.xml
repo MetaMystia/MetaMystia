@@ -4,7 +4,6 @@
   <Costura>
     <IncludeAssemblies>
       MetaMystia.Network
-      MetaMystia.Discovery
       MemoryPack.Core
       System.CommandLine
     </IncludeAssemblies>

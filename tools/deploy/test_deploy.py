@@ -92,7 +92,7 @@ class DeploymentTests(unittest.TestCase):
             root = Path(temporary)
             config = root / "config.json"
             config.write_text(json.dumps({"directoryUrl": "http://127.0.0.1:40900",
-                "directoryToken": "directory-test", "instanceToken": "instance-test", "publicHost": "example.com"}))
+                "directoryToken": "directory-test", "instanceToken": "instance-test"}))
             calls = Mock()
             records = [instance("old", "active"), instance("draining", "draining")]
             request = Mock(side_effect=[records, {"instanceId": "new", "modVersion": "0.29.5"}, None, None])
@@ -115,6 +115,8 @@ class DeploymentTests(unittest.TestCase):
                     return
                 deploy.main()
             registration = json.loads((root / "instances/new/registration.json").read_text())
+            self.assertEqual(registration["host"], "127.0.0.1")
+            self.assertIn('MM_GAME_ADDRESS="127.0.0.1"', (root / "instances/new/instance.env").read_text())
             self.assertTrue(41001 <= registration["port"] <= 41099)
             self.assertNotEqual(registration["adminUrl"], "http://127.0.0.1:42000")
             self.assertEqual([call[0] for call in calls.mock_calls], ["request", "run", "request", "run", "request", "request"])
