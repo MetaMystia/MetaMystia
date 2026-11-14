@@ -38,6 +38,11 @@ await using var gateway = new GatewayServer(new(IPAddress.Loopback, 0), registry
 gateway.Start();
 using var http = new HttpClient { BaseAddress = new(api.Urls.Single()) };
 Check((await http.GetAsync("admin/instances")).StatusCode == HttpStatusCode.Unauthorized, "网关拒绝无令牌请求");
+var panel = await http.GetAsync("admin/");
+Check(panel.IsSuccessStatusCode && panel.Content.Headers.ContentType?.MediaType == "text/html" &&
+    panel.Headers.TryGetValues("Content-Security-Policy", out _) && (await panel.Content.ReadAsStringAsync()).Contains("panel.js"), "管理面板无需令牌即可加载");
+Check((await http.GetAsync("admin/panel.js")).IsSuccessStatusCode && (await http.GetAsync("admin/panel.css")).IsSuccessStatusCode, "管理面板静态文件可访问");
+Check((await http.PostAsync("admin/", null)).StatusCode == HttpStatusCode.Unauthorized, "面板路径之外仍需令牌");
 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "wrong");
 Check((await http.GetAsync("admin/instances")).StatusCode == HttpStatusCode.Unauthorized, "网关拒绝错误令牌");
 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "admin-test");

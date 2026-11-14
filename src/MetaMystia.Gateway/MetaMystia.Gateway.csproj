@@ -7,6 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Panel/*" LogicalName="panel/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
   </ItemGroup>
 </Project>

@@ -20,6 +20,7 @@ public static class GatewayApi
         var app = builder.Build();
         app.Use(async (context, next) =>
         {
+            if (await GatewayPanel.TryServe(context)) return;
             if (context.Request.Headers.Authorization != "Bearer " + adminToken)
             { context.Response.StatusCode = 401; return; }
             context.Response.Headers.CacheControl = "no-store";

@@ -11,7 +11,9 @@
 
 ## 管理接口
 
-所有请求使用 `Authorization: Bearer <token>`。Gateway 使用管理令牌，实例使用单独的实例令牌；转发时 Gateway 自己携带实例令牌。令牌只保存在服务器配置，不进入 Git 或客户端。没有管理面板。
+所有请求使用 `Authorization: Bearer <token>`。Gateway 使用管理令牌，实例使用单独的实例令牌；转发时 Gateway 自己携带实例令牌。令牌只保存在服务器配置，不进入 Git 或客户端。
+
+`GET /admin/` 为管理面板，页面本身不需令牌，登录时输入管理令牌，保存在浏览器会话中；可查看实例、登记、退役、删除。
 
 线上管理入口为 `https://game-version.metamystia.net/admin/`，复用已有 Cloudflare HTTPS 域名，旧 `/v1/servers` 已删除。`play.metamystia.net` 仍用于直连游戏 TCP。Cloudflare 可能拦截默认脚本 User-Agent，接入时使用正常客户端 User-Agent，不关闭证书验证。
 
