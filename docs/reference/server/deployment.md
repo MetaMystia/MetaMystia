@@ -15,7 +15,7 @@
 
 `GET /admin/` 为管理面板，页面本身不需令牌，登录时输入管理令牌，保存在浏览器会话中；可查看实例、登记、退役、删除。
 
-线上管理入口为 `https://game-version.metamystia.net/admin/`，复用已有 Cloudflare HTTPS 域名，旧 `/v1/servers` 已删除。`play.metamystia.net` 仍用于直连游戏 TCP。Cloudflare 可能拦截默认脚本 User-Agent，接入时使用正常客户端 User-Agent，不关闭证书验证。
+线上管理入口为 Nginx HTTPS 域名下的 `/admin/`，域名不写入仓库；旧 `/v1/servers` 已删除。`play.metamystia.net` 仍用于直连游戏 TCP。Cloudflare 可能拦截默认脚本 User-Agent，接入时使用正常客户端 User-Agent，不关闭证书验证。
 
 | Gateway 接口 | 行为与成功状态 |
 |---|---|
