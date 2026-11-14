@@ -26,7 +26,7 @@ public partial class ChatMessage : MultiplayerMessage
         }
         if (SenderUid == GameSession.Client.Uid)
         {
-            InGameConsole.LogToConsole($"{LiveModeManager.GetLocalDisplayName()}: {LiveModeManager.MaskMessage(Message)}");
+            InGameConsole.AddPeerMessage(LiveModeManager.GetLocalDisplayName(), Message);
             if (!LiveModeManager.SuppressFloatingChatBubbles)
                 FloatingTextHelper.ShowFloatingTextSelfOnMainThread(LiveModeManager.MaskMessage(Message));
             return;

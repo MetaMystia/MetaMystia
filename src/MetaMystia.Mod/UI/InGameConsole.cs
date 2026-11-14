@@ -883,7 +883,7 @@ public static partial class InGameConsole
             if (GameSession.IsOnline)
                 ChatMessage.Send(cmd);
             else
-                LogToConsole($"{LiveModeManager.GetLocalDisplayName()}: {LiveModeManager.MaskMessage(cmd)}");
+                AddPeerMessage(LiveModeManager.GetLocalDisplayName(), cmd);
 
             closeConsole = true;
         }
