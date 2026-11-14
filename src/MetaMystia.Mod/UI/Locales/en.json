@@ -323,7 +323,7 @@
     "LiveModePartial": "Live mode: PARTIAL (IDs masked, chat bar locked, untrusted zone outlined)",
     "LiveModeFull": "Live mode: FULL (IDs and chat masked)",
     "LivePartialReminder": "Live PARTIAL: chat area is not fully trusted — add a mosaic overlay in your streaming software. Chat bar position and size cannot be changed while live mode is on; use /live off to disable live mode if you need to adjust the chat bar.",
-    "CmdDescEmote": "Play an emote visible to other players (fire / shake)",
+    "CmdDescEmote": "Play an emote visible to other players (fire / shake / jump / henshin / sparkle / smoke)",
     "EmoteNoCharacter": "No controllable character right now",
-    "EmoteUnavailable": "This emote requires the DLC \"Divine Spirit Mausoleum\""
+    "EmoteUnavailable": "This emote is unavailable; some emotes require the DLC \"Divine Spirit Mausoleum\""
 }

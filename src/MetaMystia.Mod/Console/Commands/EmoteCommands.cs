@@ -8,10 +8,12 @@ namespace MetaMystia.ConsoleSystem.Commands;
 
 public static class EmoteCommands
 {
+    private static readonly string[] Names = ["fire", "shake", "jump", "henshin", "sparkle", "smoke"];
+
     public static void Register(RootCommand root)
     {
         var emoteCmd = new Command("emote", TextId.CmdDescEmote.Get());
-        var nameArg = new Argument<string>("name").FromAmong("fire", "shake");
+        var nameArg = new Argument<string>("name").FromAmong(Names);
         emoteCmd.AddArgument(nameArg);
         emoteCmd.SetHandler(ctx =>
         {
@@ -31,6 +33,6 @@ public static class EmoteCommands
         });
         root.AddCommand(emoteCmd);
 
-        CommandRegistry.RegisterCompletions("emote", 0, "fire", "shake");
+        CommandRegistry.RegisterCompletions("emote", 0, Names);
     }
 }

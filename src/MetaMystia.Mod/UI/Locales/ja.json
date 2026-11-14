@@ -323,7 +323,7 @@
     "LiveModePartial": "配信モード：半開（IDをマスク、チャット欄の位置とサイズを固定、信頼できない領域を枠で表示）",
     "LiveModeFull": "配信モード：全開（IDとチャットをすべてマスク）",
     "LivePartialReminder": "配信半開：チャット領域は完全にマスクされていません。配信ソフトでこの領域にモザイクを追加してください。配信モード中はチャット欄の位置とサイズを変更できません。調整する場合は先に /live off で配信モードを解除してください",
-    "CmdDescEmote": "エモートを再生し、他のプレイヤーにも表示 (fire / shake)",
+    "CmdDescEmote": "エモートを再生し、他のプレイヤーにも表示 (fire / shake / jump / henshin / sparkle / smoke)",
     "EmoteNoCharacter": "操作できるキャラクターがいません",
-    "EmoteUnavailable": "このエモートには DLC「神霊廟」が必要です"
+    "EmoteUnavailable": "このエモートは現在使用できません。一部のエモートには DLC「神霊廟」が必要です"
 }
