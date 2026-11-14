@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 
 import deploy_instance as deploy
 import deploy_gateway
+import deploy_panel
 
 
 def instance(name, state, version="0.29.4", game="game"):
@@ -172,6 +173,41 @@ class GatewayDeploymentTests(unittest.TestCase):
 
     def test_unhealthy_update_restores_previous_gateway(self):
         self.update(False)
+
+
+def panel_archive(files):
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for name, content in files.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(content)
+            archive.addfile(info, io.BytesIO(content))
+    buffer.seek(0)
+    return buffer
+
+
+class PanelTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.panel = Path(self.temp.name) / "admin"
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_install_replaces_files_and_keeps_previous(self):
+        deploy_panel.install(panel_archive({"index.html": b"v1", "panel.js": b"a"}), self.panel)
+        deploy_panel.install(panel_archive({"index.html": b"v2"}), self.panel)
+        self.assertEqual((self.panel / "index.html").read_bytes(), b"v2")
+        self.assertFalse((self.panel / "panel.js").exists())
+        self.assertEqual((self.panel.parent / "admin.previous" / "index.html").read_bytes(), b"v1")
+
+    def test_invalid_packages_leave_current_panel(self):
+        deploy_panel.install(panel_archive({"index.html": b"v1"}), self.panel)
+        for files in ({"index.html": b"x", "run.sh": b"x"}, {"panel.js": b"x"}, {"../index.html": b"x"}):
+            with self.assertRaises(ValueError):
+                deploy_panel.install(panel_archive(files), self.panel)
+        self.assertEqual((self.panel / "index.html").read_bytes(), b"v1")
+        self.assertEqual([p.name for p in self.panel.parent.iterdir() if "upload" in p.name], [])
 
 
 if __name__ == "__main__":

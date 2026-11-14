@@ -13,9 +13,7 @@
 
 所有请求使用 `Authorization: Bearer <token>`。Gateway 使用管理令牌，实例使用单独的实例令牌；转发时 Gateway 自己携带实例令牌。令牌只保存在服务器配置，不进入 Git 或客户端。
 
-`GET /admin/` 为管理面板，页面本身不需令牌，登录时输入管理令牌，保存在浏览器会话中；可查看实例、登记、退役、删除。
-
-线上管理入口为 Nginx HTTPS 域名下的 `/admin/`，域名不写入仓库；旧 `/v1/servers` 已删除。`play.metamystia.net` 仍用于直连游戏 TCP。Cloudflare 可能拦截默认脚本 User-Agent，接入时使用正常客户端 User-Agent，不关闭证书验证。
+管理面板是 `src/AdminPanel/` 下的静态文件，由 Nginx 托管在管理域名根路径，接口仍走 `/admin/`；域名不写入仓库。页面不含密钥，登录时输入管理令牌，保存在浏览器中。旧 `/v1/servers` 已删除。`play.metamystia.net` 仍用于直连游戏 TCP。Cloudflare 可能拦截默认脚本 User-Agent，接入时使用正常客户端 User-Agent，不关闭证书验证。
 
 | Gateway 接口 | 行为与成功状态 |
 |---|---|
@@ -25,6 +23,13 @@
 | `DELETE /admin/instances/{id}` | 删除登记，不关闭已有连接、不停止实例进程；`204` |
 | `GET /admin/instances/{id}/status` | 转发实例状态查询；`200` |
 | `POST /admin/instances/{id}/drain` | 先持久化停止接客，再转发退役请求；`202` |
+| `GET\|POST\|PUT\|DELETE /admin/instances/{id}/api/{path}` | 校验实例身份后原样转发到实例 `/admin/{path}`；路径仅限小写字母、数字、`-`，不含 `status`、`drain`；实例无此接口时 `501` |
+| `GET /admin/gateway` | 进程信息、当前连接数、累计接入 / 转发 / 无效 / 超限及按原因的拒绝数 |
+| `GET /admin/connections?limit=` | 最近 2000 条有效握手的连接记录：时间、客户端 IP 与端口、版本、实例、结果、流量 |
+| `GET /admin/logs?after=&limit=` | Gateway 日志（含管理操作），按序号增量读取 |
+| `GET /admin/history` | 每分钟采样的连接数、转发数、拒绝数，保留 24 小时 |
+
+连接记录、日志与采样只在内存中保留，重启清空。客户端 IP 不写入 journald。
 
 登记正文示例：
 
@@ -40,7 +45,25 @@
 {"noticeId":"release-123","targetModVersion":"0.30.2"}
 ```
 
-实例仅提供 `GET /admin/status` 和 `POST /admin/drain`。状态返回 `instanceId`、`gameVersion`、`modVersion`、`port`、`state`（`running` 或 `draining`）、`players`、`noticeId`、`targetModVersion`。退役停止新玩家进入，通知已有玩家，无人后正常退出；没有强制下线期限。
+`noticeId` 只用于去重：同一 ID 客户端只提示一次，相同 ID 重发不会重复广播。发布流程使用新实例 ID，面板默认生成 `retire-to-<目标版本>`。
+
+实例接口：
+
+| 实例接口 | 行为 |
+|---|---|
+| `GET /admin/status` | 见下 |
+| `POST /admin/drain` | 退役 |
+| `GET /admin/details` | 进程信息、人数上限、玩家（UID、昵称、房间、阶段、地图、DLC、资源包、连接时间）、房间、退役与文本配置摘要 |
+| `GET /admin/logs?after=&limit=` | 最近 2000 条实例日志，按序号增量读取 |
+| `GET /admin/history` | 每分钟采样的人数、房间数、CPU、内存，保留 24 小时 |
+| `POST /admin/players/{uid}/kick`、`POST /admin/players/{uid}/leave` | 踢出 / 移出房间；`204` |
+| `PUT /admin/max-players` | `{"value":16}`，1–256；`204` |
+| `POST /admin/say` | `{"message":"…"}`，服务器广播；`204` |
+| `POST /admin/reload` | 重新读取 `server.json` 与 `chat-filter.json`；`204`，文件无效 `400` |
+
+操作失败返回 `409` 与 `{"error":"PlayerMissing"}` 这类错误码。实例新增接口只需随实例发布，Gateway 无需更新。
+
+`GET /admin/status` 返回 `instanceId`、`gameVersion`、`modVersion`、`port`、`state`（`running` 或 `draining`）、`players`、`noticeId`、`targetModVersion`。退役停止新玩家进入，通知已有玩家，无人后正常退出；没有强制下线期限。
 
 错误状态：无效或缺少令牌 `401`，参数无效 `400`，登记不存在 `404`，版本或地址冲突 `409`，实例无法访问 `502`。退役转发失败时路由仍保持 `draining`，调用方可用相同正文重试；不运行后台重试任务。实例停止后可删除登记并清理实例目录。
 
@@ -66,8 +89,10 @@
 
 Gateway 只有独立的 `Deploy gateway (manual)` 按钮，仅允许 main 分支并需勾选断线确认。先构建、测试、上传，之后才停止旧入口、替换并启动；保留路由文件。启动检查失败恢复上一版。此操作断开所有转发连接，不承诺无缝更新。systemd 不自动重启 Gateway。
 
-部署 SSH forced command 只接受 `deploy-instance` 和 `deploy-gateway`；sudo 只授权对应 Python 脚本。Nginx 继续使用已有 HTTPS 证书，对公网只开放 `40815` 和 HTTPS，实例端口不开放防火墙。
+管理面板由 `Deploy admin panel` 部署：`src/AdminPanel/` 推到 main 时自动运行，也可手动运行。服务器端 `deploy_panel.py` 只替换 `/var/www/metamystia-admin` 的静态文件，不重启任何服务。
+
+部署 SSH forced command 只接受 `deploy-instance`、`deploy-gateway` 和 `deploy-panel`；sudo 只授权对应 Python 脚本。Nginx 继续使用已有 HTTPS 证书，对公网只开放 `40815` 和 HTTPS，实例端口不开放防火墙。
 
 ## 验证
 
-`MetaMystia.Hosting.Tests` 使用实际本机 TCP/HTTP 验证管理鉴权、注册、版本隔离、房间操作、路由持久化、退役及双向断线清理。Linux 上运行 `python3 -m unittest discover -s tools/deploy -p 'test_*.py'` 检查部署脚本。游戏画面另需实测。
+`MetaMystia.Hosting.Tests` 使用实际本机 TCP/HTTP 验证管理鉴权、注册、版本隔离、房间操作、通用转发、连接记录、路由持久化、退役及双向断线清理。Linux 上运行 `python3 -m unittest discover -s tools/deploy -p 'test_*.py'` 检查部署脚本。游戏画面另需实测。
