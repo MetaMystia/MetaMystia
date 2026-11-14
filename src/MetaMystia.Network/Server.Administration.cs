@@ -1,12 +1,25 @@
 using System.Threading.Channels;
 
+using Common.UI;
+
 namespace MetaMystia.Network;
 
 public enum ServerCommand { Kick, Leave, MaxPlayers }
-public sealed record ServerPlayer(int Uid, string Name, ushort Room);
+public sealed record ServerPlayer(int Uid, string Name, ushort Room)
+{
+    public Scene Scene { get; init; }
+    public GameStage Stage { get; init; }
+    public MapLabel Map { get; init; } = MapLabel.Unknown;
+    public DateTime ConnectedAt { get; init; }
+    public DlcPack DlcFlags { get; init; }
+    public string[] PackIds { get; init; } = [];
+}
 public sealed record ServerStatus(int MaxPlayers, ServerPlayer[] Players, RoomSummary[] Rooms)
 {
     public ServerNotice? Retirement { get; init; }
+    public int ChatFilterWords { get; init; }
+    public bool LogChat { get; init; }
+    public int WelcomeMessages { get; init; }
 }
 
 public sealed partial class Server
@@ -16,8 +29,13 @@ public sealed partial class Server
         if (Volatile.Read(ref stopping) != 0 || Volatile.Read(ref started) == 0) throw new InvalidOperationException("Not running");
         var result = new TaskCompletionSource<ServerStatus>(TaskCreationOptions.RunContinuationsAsynchronously);
         await events.Writer.WriteAsync(() => result.TrySetResult(new(maxPlayers,
-            peers.Where(p => p.Player != null).Select(p => new ServerPlayer(p.Player!.Uid, p.Player.Name, p.Room)).ToArray(),
-            Capture(null).Rooms) { Retirement = retirement })).ConfigureAwait(false);
+            peers.Where(p => p.Player != null).Select(p => new ServerPlayer(p.Player!.Uid, p.Player.Name, p.Room)
+            {
+                Scene = p.Player.Scene, Stage = p.Player.Stage, Map = p.Player.Map, ConnectedAt = p.Accepted,
+                DlcFlags = p.Player.Resources?.DlcFlags ?? DlcPack.None, PackIds = p.Player.Resources?.PackIds.ToArray() ?? []
+            }).ToArray(),
+            Capture(null).Rooms)
+            { Retirement = retirement, ChatFilterWords = chatWords.Length, LogChat = logChat, WelcomeMessages = welcomeMessages.Length })).ConfigureAwait(false);
         return await result.Task.ConfigureAwait(false);
     }
 

@@ -8,6 +8,7 @@ using MetaMystia.Network;
 namespace MetaMystia.Gateway;
 
 public sealed record InstanceRegistration(string GameVersion, string ModVersion, string Host, int Port, string AdminUrl);
+public sealed record ForwardResult(int StatusCode, byte[] Body, string? ContentType);
 public sealed record InstanceRecord(string Id, InstanceRegistration Registration, string State = "active", string? TargetModVersion = null);
 
 public sealed class InstanceRegistry : IDisposable
@@ -77,6 +78,21 @@ public sealed class InstanceRegistry : IDisposable
             status.ModVersion != record.Registration.ModVersion || status.Port != record.Registration.Port)
             throw new InvalidDataException("Instance identity mismatch");
         return status;
+    }
+
+    /// <summary>先确认实例身份，再把白名单路径原样转发；旧版实例没有该接口时返回 501。</summary>
+    public async Task<ForwardResult> ForwardAsync(string id, HttpMethod method, string path, byte[]? body, CancellationToken token)
+    {
+        var record = Get(id);
+        await Status(record, token);
+        using var request = new HttpRequestMessage(method, record.Registration.AdminUrl.TrimEnd('/') + path);
+        if (body != null) request.Content = new ByteArrayContent(body) { Headers = { ContentType = new("application/json") } };
+        using var response = await http.SendAsync(request, token);
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            throw new HttpRequestException("Instance rejected the token");
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)
+            return new(501, [], null);
+        return new((int)response.StatusCode, await response.Content.ReadAsByteArrayAsync(token), response.Content.Headers.ContentType?.ToString());
     }
 
     public async Task DrainAsync(string id, DrainRequest request, CancellationToken token)

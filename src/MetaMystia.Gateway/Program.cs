@@ -11,8 +11,8 @@ await using var gateway = new GatewayServer(new IPEndPoint(
     IPAddress.Parse(Environment.GetEnvironmentVariable("MM_GATEWAY_ADDRESS") ?? "0.0.0.0"),
     int.Parse(Environment.GetEnvironmentVariable("MM_GATEWAY_PORT") ?? "40815")),
     app.Services.GetRequiredService<InstanceRegistry>(),
-    int.Parse(Environment.GetEnvironmentVariable("MM_GATEWAY_MAX_CONNECTIONS") ?? "256"));
+    int.Parse(Environment.GetEnvironmentVariable("MM_GATEWAY_MAX_CONNECTIONS") ?? "256"),
+    app.Services.GetRequiredService<GatewayStats>());
 gateway.Logged += message => app.Logger.LogInformation("{Message}", message);
-app.MapGet("/admin/status", () => new { connections = gateway.ConnectionCount });
 gateway.Start();
 await app.RunAsync();

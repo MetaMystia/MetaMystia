@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -34,15 +35,11 @@ string path = Path.GetFullPath(Path.Combine(".tmp", "hosting-tests", Guid.NewGui
 await using var api = GatewayApi.Create("http://127.0.0.1:0", path, "admin-test", "instance-test");
 await api.StartAsync();
 var registry = api.Services.GetRequiredService<InstanceRegistry>();
-await using var gateway = new GatewayServer(new(IPAddress.Loopback, 0), registry);
+await using var gateway = new GatewayServer(new(IPAddress.Loopback, 0), registry, stats: api.Services.GetRequiredService<GatewayStats>());
 gateway.Start();
 using var http = new HttpClient { BaseAddress = new(api.Urls.Single()) };
 Check((await http.GetAsync("admin/instances")).StatusCode == HttpStatusCode.Unauthorized, "网关拒绝无令牌请求");
-var panel = await http.GetAsync("admin/");
-Check(panel.IsSuccessStatusCode && panel.Content.Headers.ContentType?.MediaType == "text/html" &&
-    panel.Headers.TryGetValues("Content-Security-Policy", out _) && (await panel.Content.ReadAsStringAsync()).Contains("panel.js"), "管理面板无需令牌即可加载");
-Check((await http.GetAsync("admin/panel.js")).IsSuccessStatusCode && (await http.GetAsync("admin/panel.css")).IsSuccessStatusCode, "管理面板静态文件可访问");
-Check((await http.PostAsync("admin/", null)).StatusCode == HttpStatusCode.Unauthorized, "面板路径之外仍需令牌");
+Check((await http.GetAsync("admin/gateway")).StatusCode == HttpStatusCode.Unauthorized, "网关统计同样需要令牌");
 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "wrong");
 Check((await http.GetAsync("admin/instances")).StatusCode == HttpStatusCode.Unauthorized, "网关拒绝错误令牌");
 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "admin-test");
@@ -67,6 +64,30 @@ await Pump(first.CreateRoomAsync()); await Pump(first.SetJoinableAsync(true));
 await Pump(second.JoinRoomAsync(first.State.Room!.Id));
 Check(second.State.Room?.Id == first.State.Room.Id, "真实握手、建房与入房通过同一入口");
 Check((await http.GetFromJsonAsync<InstanceStatus>("admin/instances/old/status"))?.Players == 2, "网关转发状态查询得到真实人数");
+var details = await http.GetFromJsonAsync<JsonElement>("admin/instances/old/api/details");
+Check(details.GetProperty("players").GetArrayLength() == 2 && details.GetProperty("rooms").GetArrayLength() == 1 &&
+    details.GetProperty("players").EnumerateArray().Any(p => p.GetProperty("name").GetString() == "second" && p.GetProperty("room").GetString() != null) &&
+    details.GetProperty("process").GetProperty("workingSetBytes").GetInt64() > 0, "通用转发得到实例玩家、房间与进程信息");
+var connections = await http.GetFromJsonAsync<JsonElement>("admin/connections");
+Check(connections.EnumerateArray().Count(c => c.GetProperty("modVersion").GetString() == v1.Mod && c.GetProperty("state").GetString() == "forwarding"
+    && c.GetProperty("instanceId").GetString() == "old" && c.GetProperty("ip").GetString() == "127.0.0.1") == 2, "连接记录保存 IP、版本与目标实例");
+var gatewayInfo = await http.GetFromJsonAsync<JsonElement>("admin/gateway");
+Check(gatewayInfo.GetProperty("connections").GetInt32() == 2 && gatewayInfo.GetProperty("totals").GetProperty("forwarded").GetInt64() == 2, "网关统计当前连接与转发总数");
+Check((await http.PostAsJsonAsync("admin/instances/old/api/say", new { message = "hello" })).StatusCode == HttpStatusCode.NoContent, "转发服务器广播");
+Check((await http.PutAsJsonAsync("admin/instances/old/api/max-players", new { value = 8 })).StatusCode == HttpStatusCode.NoContent &&
+    (await old.GetStatusAsync()).MaxPlayers == 8, "转发人数上限调整");
+var missing = await http.PostAsync("admin/instances/old/api/players/99999/kick", null);
+Check(missing.StatusCode == HttpStatusCode.Conflict && (await missing.Content.ReadAsStringAsync()).Contains("PlayerMissing"), "实例错误码原样返回");
+Check((await http.PostAsJsonAsync("admin/instances/old/api/drain", new DrainRequest("x", "y"))).StatusCode == HttpStatusCode.BadRequest &&
+    (await http.GetAsync("admin/instances/old/api/status")).StatusCode == HttpStatusCode.BadRequest &&
+    (await http.GetAsync("admin/instances/old/api/Details")).StatusCode == HttpStatusCode.BadRequest, "通用转发拒绝 Gateway 专属接口与非法路径");
+Check((await http.GetAsync("admin/instances/old/api/no-such-thing")).StatusCode == HttpStatusCode.NotImplemented, "实例不支持的接口返回 501");
+var instanceLogs = await http.GetFromJsonAsync<JsonElement>("admin/instances/old/api/logs");
+Check(instanceLogs.GetProperty("entries").EnumerateArray().Any(e => e.GetProperty("message").GetString()!.Contains("广播")) &&
+    (await http.GetFromJsonAsync<JsonElement>("admin/instances/old/api/logs?after=" + instanceLogs.GetProperty("next").GetInt64()))
+        .GetProperty("entries").GetArrayLength() == 0, "实例日志可增量读取");
+Check((await http.GetFromJsonAsync<JsonElement>("admin/instances/old/api/history")).GetProperty("names").GetArrayLength() == 4 &&
+    (await http.GetFromJsonAsync<JsonElement>("admin/history")).GetProperty("names").GetArrayLength() == 3, "实例与网关提供趋势数据");
 (await http.PutAsJsonAsync("admin/instances/new", new InstanceRegistration(v2.Game, v2.Mod, "127.0.0.1", newer.Endpoint.Port, newApi.Urls.Single()))).EnsureSuccessStatusCode();
 var third = await Connect(gateway.Endpoint, v2, "third");
 Check(first.IsConnected && third.State.World.All(p => p.Name != "first"), "新增版本不重启网关，版本之间隔离");
@@ -80,6 +101,10 @@ await Until(() => Task.FromResult(notice));
 Check(second.IsConnected, "退役转发通知，保留已有玩家连接");
 try { await Connect(gateway.Endpoint, v1, "late"); throw new Exception("Expected rejection"); }
 catch (NetworkException error) { Check(error.Code == NetworkErrorCode.ServerRetiring, "退役路由拒绝新玩家"); }
+Check((await http.GetFromJsonAsync<JsonElement>("admin/connections")).EnumerateArray()
+    .Any(c => c.GetProperty("state").GetString() == "rejected" && c.GetProperty("reason").GetString() == "ServerRetiring"), "连接记录保存拒绝原因");
+Check((await http.GetFromJsonAsync<JsonElement>("admin/logs")).GetProperty("entries").EnumerateArray()
+    .Any(e => e.GetProperty("message").GetString()!.Contains("请求退役实例 old")), "网关日志记录管理操作");
 second.Disconnect(); await old.Drained.WaitAsync(TimeSpan.FromSeconds(5));
 Check(true, "最后一人断开后实例完成退役");
 (await http.DeleteAsync("admin/instances/old")).EnsureSuccessStatusCode();
