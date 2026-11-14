@@ -49,7 +49,9 @@ var v2 = Versions.Current with { Mod = "new-test" };
 await using var old = new Server(new() { Versions = v1 });
 await using var newer = new Server(new() { Versions = v2 });
 await old.StartAsync(); await newer.StartAsync();
-await using var oldApi = ServerAdministration.Create(old, new("old", "http://127.0.0.1:0", "instance-test"), v1);
+var configDirectory = Path.GetDirectoryName(path)!;
+Directory.CreateDirectory(configDirectory);
+await using var oldApi = ServerAdministration.Create(old, new("old", "http://127.0.0.1:0", "instance-test"), v1, configDirectory);
 await using var newApi = ServerAdministration.Create(newer, new("new", "http://127.0.0.1:0", "instance-test"), v2);
 await oldApi.StartAsync(); await newApi.StartAsync();
 using var instanceHttp = new HttpClient { BaseAddress = new(oldApi.Urls.Single()) };
@@ -77,6 +79,26 @@ Check((await http.PostAsJsonAsync("admin/instances/old/api/say", new { message =
 Check((await http.PutAsJsonAsync("admin/instances/old/api/max-players", new { value = 8 })).StatusCode == HttpStatusCode.NoContent &&
     (await old.GetStatusAsync()).MaxPlayers == 8, "转发人数上限调整");
 var missing = await http.PostAsync("admin/instances/old/api/players/99999/kick", null);
+var configUrl = "admin/instances/old/api/config/server";
+var config = await http.GetFromJsonAsync<JsonElement>(configUrl);
+var originalConfig = config.GetProperty("content").GetString();
+var editedConfig = "{\"logChat\":true,\"welcomeMessages\":[\"欢迎\"]}";
+Check((await http.PutAsJsonAsync(configUrl, new { content = editedConfig, previousContent = originalConfig })).StatusCode == HttpStatusCode.NoContent &&
+    (await old.GetStatusAsync()).LogChat && (await old.GetStatusAsync()).WelcomeMessages == 1 &&
+    File.ReadAllText(Path.Combine(configDirectory, "server.json")) == editedConfig, "面板配置保存到文件并立即应用");
+Check((await http.PutAsJsonAsync(configUrl, new { content = "{}", previousContent = originalConfig })).StatusCode == HttpStatusCode.Conflict,
+    "过期编辑不能覆盖新配置");
+foreach (var invalid in new[] { "{", "null", "{\"welcomeMessages\":[\"\"]}" })
+    Check((await http.PutAsJsonAsync(configUrl, new { content = invalid, previousContent = editedConfig })).StatusCode == HttpStatusCode.BadRequest &&
+        File.ReadAllText(Path.Combine(configDirectory, "server.json")) == editedConfig && (await old.GetStatusAsync()).LogChat,
+        "无效配置保留文件与运行状态：" + invalid);
+Check((await http.GetAsync("admin/instances/old/api/config/other")).StatusCode == HttpStatusCode.NotImplemented,
+    "配置接口不允许任意文件名");
+var filterUrl = "admin/instances/old/api/config/chat-filter";
+var filterConfig = await http.GetFromJsonAsync<JsonElement>(filterUrl);
+Check((await http.PutAsJsonAsync(filterUrl, new { content = "{\"enabled\":true,\"words\":[\"testword\"]}", previousContent = filterConfig.GetProperty("content").GetString() })).StatusCode == HttpStatusCode.NoContent &&
+    (await old.GetStatusAsync()).ChatFilterWords == 1 && (await old.GetStatusAsync()).LogChat,
+    "单独保存敏感词不覆盖公告与聊天开关");
 Check(missing.StatusCode == HttpStatusCode.Conflict && (await missing.Content.ReadAsStringAsync()).Contains("PlayerMissing"), "实例错误码原样返回");
 Check((await http.PostAsJsonAsync("admin/instances/old/api/drain", new DrainRequest("x", "y"))).StatusCode == HttpStatusCode.BadRequest &&
     (await http.GetAsync("admin/instances/old/api/status")).StatusCode == HttpStatusCode.BadRequest &&

@@ -26,15 +26,16 @@ internal sealed record InstanceDetails(string InstanceId, string GameVersion, st
 internal sealed record ActionError(string Error, string? Message = null);
 internal sealed record LimitRequest(int Value);
 internal sealed record SayRequest(string Message);
+internal sealed record ConfigRequest(string Content, string? PreviousContent = null);
 
 public static class ServerAdministration
 {
     /// <summary>测试与嵌入用：日志只收集服务端事件，配置从程序目录重载。</summary>
-    public static WebApplication Create(Server server, ServerAdminOptions options, Versions? versions = null)
+    public static WebApplication Create(Server server, ServerAdminOptions options, Versions? versions = null, string? configDirectory = null)
     {
         var logs = new LogBuffer();
         server.Logged += entry => logs.Add(Level(entry.Level), entry.Message);
-        return Create(server, options, versions, logs, AppContext.BaseDirectory);
+        return Create(server, options, versions, logs, configDirectory ?? AppContext.BaseDirectory);
     }
 
     internal static string Level(ServerLogLevel level) => level.ToString().ToLowerInvariant();
@@ -83,16 +84,48 @@ public static class ServerAdministration
         app.MapPost("/admin/players/{uid:int}/leave", async (int uid) => Result(await server.ManageAsync(ServerCommand.Leave, uid)));
         app.MapPut("/admin/max-players", async (LimitRequest request) => Result(await server.ManageAsync(ServerCommand.MaxPlayers, request.Value)));
         app.MapPost("/admin/say", async (SayRequest request) => Result(await server.SayAsync(request.Message ?? "")));
+        var configLock = new SemaphoreSlim(1, 1);
+        app.MapGet("/admin/config/{name}", (string name) =>
+        {
+            if (name is not ("server" or "chat-filter")) return Results.NotFound();
+            try { return Results.Ok(new ConfigRequest(ServerConfiguration.Read(configDirectory, name))); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            { return Results.BadRequest(new ActionError("ConfigInvalid", e.Message)); }
+        });
+        app.MapPut("/admin/config/{name}", async (string name, ConfigRequest request) =>
+        {
+            if (name is not ("server" or "chat-filter")) return Results.NotFound();
+            await configLock.WaitAsync();
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Content)) return Results.BadRequest(new ActionError("ConfigInvalid", "配置不能为空。"));
+                if (request.PreviousContent != ServerConfiguration.Read(configDirectory, name))
+                    return Results.Conflict(new ActionError("ConfigInvalid", "配置已被其他操作修改，请重新打开后编辑。"));
+                var settings = ServerConfiguration.Load(configDirectory, name, request.Content);
+                ServerConfiguration.Save(configDirectory, name, request.Content);
+                var code = await server.ReloadTextSettingsAsync(settings);
+                logs.Add("info", $"[管理] 已保存 {name}.json，应用结果：{code}。");
+                return code == NetworkErrorCode.None ? Results.NoContent()
+                    : Results.Conflict(new ActionError("ConfigSaved", "文件已保存，但实例未应用；下次启动时生效。"));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidDataException)
+            { return Results.BadRequest(new ActionError("ConfigInvalid", e.Message)); }
+            finally { configLock.Release(); }
+        });
         app.MapPost("/admin/reload", async () =>
         {
-            ServerTextSettings settings;
-            try { settings = ServerConfiguration.Load(configDirectory); }
+            await configLock.WaitAsync();
+            try
+            {
+                var settings = ServerConfiguration.Load(configDirectory);
+                return Result(await server.ReloadTextSettingsAsync(settings));
+            }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidDataException)
             {
                 logs.Add("warning", $"[管理] 服务端无法重新加载配置，将继续使用原配置。原因：{ServerLogEntry.Quote(e.Message)}");
                 return Results.BadRequest(new ActionError("ConfigInvalid", e.Message));
             }
-            return Result(await server.ReloadTextSettingsAsync(settings));
+            finally { configLock.Release(); }
         });
         return app;
 

@@ -1,6 +1,6 @@
 // Gateway：当前状态、拒绝原因、连接记录（含客户端 IP）与 Gateway 日志。
 import {
-  h, icon, api, fmtBytes, fmtDuration, fmtTime, fmtDateTime, since, named, ERROR_NAMES, LEVEL_NAMES,
+  h, icon, api, fmtBytes, fmtDuration, fmtTime, fmtDateTime, since, named, ERROR_NAMES, LEVEL_NAMES, exportCsv,
 } from './core.js';
 import { lineChart, series } from './chart.js';
 import { cell } from './overview.js';
@@ -17,15 +17,22 @@ export function mountGateway(root, app) {
   const logList = h('div', { class: 'log-list short scroll' });
   const search = h('input', { type: 'search', placeholder: 'IP、模组版本、实例', oninput: event => { state.filter = event.target.value; renderTable(); } });
   const show = h('select', { class: 'select', onchange: event => { state.show = event.target.value; renderTable(); } },
-    h('option', { value: 'all' }, '全部'), h('option', { value: 'forwarding' }, '转发中'), h('option', { value: 'rejected' }, '已拒绝'));
+    h('option', { value: 'all' }, '全部'), h('option', { value: 'forwarding' }, '转发中'), h('option', { value: 'closed' }, '已结束'), h('option', { value: 'rejected' }, '已拒绝'));
   root.replaceChildren(h('div', { class: 'page' },
     stats,
     charts,
     h('section', { class: 'panel' },
       h('div', { class: 'panel-head' },
         h('span', { class: 'panel-title' }, '连接记录', count),
-        h('span', { class: 'spacer' }), show, h('label', { class: 'search' }, icon('search'), search)),
-      h('p', { class: 'panel-note muted' }, '记录发送了有效握手的连接，保留最近 2000 条，只存在 Gateway 内存中，重启后清空。'),
+        h('span', { class: 'spacer' }),
+        h('button', { class: 'btn small', onclick: () => exportCsv('连接记录', [
+          ['开始时间', '结束时间', 'IP', '端口', '模组版本', '游戏版本', '状态', '原因', '实例', '上传字节', '下载字节'],
+          ...filteredConnections().map(c => [c.startedAt, c.endedAt, c.ip, c.port, c.modVersion, c.gameVersion, STATES[c.state]?.[1] ?? c.state, c.reason, c.instanceId, c.bytesIn, c.bytesOut]),
+        ]) }, '导出筛选结果'),
+        h('button', { class: 'btn small', onclick: () => exportCsv('连接趋势', [['时间', ...(state.history?.names ?? [])],
+          ...(state.history?.points ?? []).map(p => [new Date(p[0]).toISOString(), ...p.slice(1)])]) }, '导出趋势'),
+        show, h('label', { class: 'search' }, icon('search'), search)),
+      h('p', { class: 'panel-note muted' }, '记录发送了有效握手的连接，保留最近 2000 条，只存在 Gateway 内存中，重启后清空。导出包含全部筛选结果，不受表格 500 条显示上限影响；趋势为内存中的最近 24 小时采样。'),
       tableHost),
     h('div', { class: 'two-col' },
       h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('span', { class: 'panel-title' }, '拒绝原因'),
@@ -79,11 +86,15 @@ export function mountGateway(root, app) {
     renderLogs();
   }
 
+  function filteredConnections() {
+    const filter = state.filter.trim().toLowerCase();
+    return (state.connections ?? []).filter(c => (state.show === 'all' || c.state === state.show) &&
+      (!filter || [c.ip, c.modVersion, c.gameVersion, c.instanceId ?? ''].some(v => v.toLowerCase().includes(filter))));
+  }
+
   function renderTable() {
     if (!state.connections) return;
-    const filter = state.filter.trim().toLowerCase();
-    const rows = state.connections.filter(c => (state.show === 'all' || c.state === state.show) &&
-      (!filter || [c.ip, c.modVersion, c.gameVersion, c.instanceId ?? ''].some(v => v.toLowerCase().includes(filter))));
+    const rows = filteredConnections();
     count.textContent = rows.length === state.connections.length ? String(rows.length) : rows.length + ' / ' + state.connections.length;
     if (rows.length === 0) {
       tableHost.replaceChildren(h('div', { class: 'empty' }, state.connections.length ? '没有匹配的连接' : '还没有连接记录'));

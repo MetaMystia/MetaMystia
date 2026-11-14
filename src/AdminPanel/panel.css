@@ -171,6 +171,11 @@ code, .mono { font-family: var(--mono); font-size: 12px; }
 .panel-title .count { margin-left: 6px; color: var(--fg-3); font: 11px var(--mono); }
 
 .table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.player-table-host { overflow-x: auto; }
+.player-table { table-layout: fixed; min-width: 1050px; }
+.player-table td { overflow: hidden; text-overflow: ellipsis; }
+.player-table td .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 16px; }
+.player-table td { height: 60px; }
 .table th {
   text-align: left; font-weight: 500; font-size: 11.5px; color: var(--fg-3); padding: 7px 12px; white-space: nowrap;
   border-bottom: 1px solid var(--line); background: var(--bg-2);
@@ -378,6 +383,9 @@ a.id-cell:hover { color: var(--accent); }
 }
 
 @media (max-width: 760px) {
+  .player-table { min-width: 0; }
+  .player-table colgroup { display: none; }
+  .player-table td { height: auto; }
   .topbar { gap: 8px; padding: 0 6px 0 12px; }
   .brand-name, .status { display: none; }
   .top-nav { margin-left: 0; }

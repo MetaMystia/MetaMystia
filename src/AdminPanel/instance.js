@@ -1,7 +1,7 @@
 // 实例详情：概览、玩家、房间、日志、操作。实例接口经 Gateway 的 /api/ 通用转发。
 import {
   h, icon, iconButton, api, enc, openModal, field, textInput, actionForm, toast, failureText,
-  fmtBytes, fmtDuration, since, fmtTime, fmtDateTime, named, dlcText, STAGE_NAMES, MAP_NAMES, LEVEL_NAMES,
+  fmtBytes, fmtDuration, since, fmtTime, fmtDateTime, named, dlcText, STAGE_NAMES, MAP_NAMES, LEVEL_NAMES, exportCsv,
 } from './core.js';
 import { lineChart, series } from './chart.js';
 import { cell, routePill, instancePill, openDrain, openDelete } from './overview.js';
@@ -145,7 +145,13 @@ export function mountInstance(root, app, id, tab) {
   // ---------- 玩家 ----------
 
   function renderPlayers() {
-    const tableHost = h('div');
+    const body = h('tbody');
+    const rows = new Map();
+    const empty = h('div', { class: 'empty' });
+    const table = h('table', { class: 'table player-table' },
+      h('colgroup', null, ['22%', '12%', '9%', '13%', '15%', '10%', '19%'].map(width => h('col', { style: 'width:' + width }))),
+      h('thead', null, h('tr', null, ['玩家', '位置', '阶段', '地图', 'DLC / 资源包', '在线时长', '操作'].map(t => h('th', null, t)))), body);
+    const tableHost = h('div', { class: 'player-table-host' }, table, empty);
     const summary = h('span', { class: 'muted' });
     const search = h('input', { type: 'search', placeholder: '昵称、UID、房间号', value: state.playerFilter,
       oninput: event => { state.playerFilter = event.target.value; update(); } });
@@ -154,11 +160,12 @@ export function mountInstance(root, app, id, tab) {
       const filter = state.playerFilter.trim().toLowerCase();
       const players = d.players.filter(p => !filter || p.name.toLowerCase().includes(filter) || String(p.uid) === filter || (p.room ?? '').toLowerCase() === filter);
       summary.textContent = d.players.length + ' / ' + d.maxPlayers + ' 人';
-      tableHost.replaceChildren(players.length === 0
-        ? h('div', { class: 'empty' }, d.players.length ? '没有匹配的玩家' : '当前没有在线玩家')
-        : h('table', { class: 'table' },
-          h('thead', null, h('tr', null, ['玩家', '位置', '阶段', '地图', 'DLC / 资源包', '在线时长', ''].map(t => h('th', null, t)))),
-          h('tbody', null, players.map(p => h('tr', null,
+      empty.hidden = players.length !== 0;
+      empty.textContent = d.players.length ? '没有匹配的玩家' : '当前没有在线玩家';
+      const visible = new Set(players.map(p => p.uid));
+      for (const [uid, row] of rows) if (!visible.has(uid)) { row.remove(); rows.delete(uid); }
+      players.forEach((p, index) => {
+        const next = h('tr', null,
             cell('玩家', 'wide', h('b', null, p.name), h('span', { class: 'sub' }, 'UID ' + p.uid)),
             cell('位置', null, p.room ? h('a', { class: 'mono', href: '#/instance/' + enc(id) + '/rooms', title: '查看房间' }, '房间 ' + p.room) : h('span', { class: 'muted' }, '大厅')),
             cell('阶段', null, named(STAGE_NAMES, p.stage)),
@@ -166,17 +173,30 @@ export function mountInstance(root, app, id, tab) {
             cell('DLC / 资源包', null, dlcText(p.dlc), p.packIds.length ? h('span', { class: 'sub', title: p.packIds.join('\n') }, p.packIds.length + ' 个资源包') : null),
             cell('在线时长', null, since(p.connectedAt)),
             h('td', { class: 'actions' }, h('span', { class: 'row-actions' },
-              p.room ? h('button', { type: 'button', class: 'btn small ghost', onclick: () => confirmPlayer(p, 'leave') }, icon('door'), '移出房间') : null,
-              h('button', { type: 'button', class: 'btn small ghost danger-text', onclick: () => confirmPlayer(p, 'kick') }, icon('boot'), '踢出'))))))));
+              h('button', { type: 'button', class: 'btn small ghost', disabled: !p.room, onclick: () => confirmPlayer(p, 'leave') }, icon('door'), '移出房间'),
+              h('button', { type: 'button', class: 'btn small ghost danger-text', onclick: () => confirmPlayer(p, 'kick') }, icon('boot'), '踢出'))));
+        let row = rows.get(p.uid);
+        if (!row) { row = next; rows.set(p.uid, row); }
+        else [...next.children].forEach((cell, i) => {
+          if (row.children[i].outerHTML !== cell.outerHTML) row.children[i].replaceWith(cell);
+        });
+        if (body.children[index] !== row) body.insertBefore(row, body.children[index] ?? null);
+      });
     }
     content.replaceChildren(h('div', { class: 'detail-section flush' },
-      h('div', { class: 'toolbar' }, h('label', { class: 'search' }, icon('search'), search), h('span', { class: 'spacer' }), summary),
+      h('div', { class: 'toolbar' }, h('label', { class: 'search' }, icon('search'), search), h('span', { class: 'spacer' }), summary,
+        h('button', { class: 'btn small', onclick: () => exportCsv(id + '-在线玩家', [
+          ['UID', '昵称', '房间', '阶段', '地图', '连接时间', 'DLC', '资源包'],
+          ...state.details.players.map(p => [p.uid, p.name, p.room ?? '大厅', named(STAGE_NAMES, p.stage), named(MAP_NAMES, p.map), p.connectedAt, p.dlc, p.packIds.join(';')]),
+        ]) }, '导出全部玩家')),
       tableHost));
     update();
     return { update };
   }
 
   function confirmPlayer(player, action) {
+    player = state.details?.players.find(p => p.uid === player.uid);
+    if (!player || (action === 'leave' && !player.room)) { toast('该玩家已离开，请刷新后重试。', 'err'); return; }
     const kick = action === 'kick';
     openModal((kick ? '踢出 ' : '移出房间 ') + player.name,
       h('p', null, kick
@@ -273,6 +293,18 @@ export function mountInstance(root, app, id, tab) {
     const sayBtn = h('button', { type: 'submit', class: 'btn primary' }, icon('megaphone'), '发送广播');
     const limitBtn = h('button', { type: 'submit', class: 'btn' }, '保存');
     const reloadBtn = h('button', { type: 'button', class: 'btn' }, icon('reload'), '重新加载');
+    async function editConfig(name) {
+      try {
+        const config = await api('GET', base + '/api/config/' + name);
+        const editor = h('textarea', { class: 'input textarea mono', rows: 16, required: true, spellcheck: false }, config.content);
+        openModal('编辑 ' + name + '.json',
+          h('p', { class: 'muted' }, '保存前会检查格式和内容。保存成功后立即应用，并保留到下次启动。'),
+          actionForm([editor], '保存并应用', 'primary', async () => {
+            await api('PUT', base + '/api/config/' + name, { content: editor.value, previousContent: config.content });
+            return name + '.json 已保存并应用';
+          }, null, refresh));
+      } catch (failure) { if (failure.status !== 401) toast(failureText(failure), 'err'); }
+    }
     reloadBtn.addEventListener('click', run(reloadBtn, () => api('POST', base + '/api/reload'), () => '配置已重新加载'));
     content.replaceChildren(h('div', { class: 'detail-section' },
       unsupported ? h('div', { class: 'notice' }, '该实例版本较旧，不支持以下操作。') : null,
@@ -283,12 +315,14 @@ export function mountInstance(root, app, id, tab) {
           message, h('div', { class: 'form-actions' }, sayBtn)),
         h('form', { class: 'action-card', onsubmit: run(limitBtn, () => api('PUT', base + '/api/max-players', { value: Number(limit.value) }), () => '人数上限已改为 ' + limit.value) },
           h('h3', null, '人数上限'),
-          h('p', { class: 'muted' }, '1–256。已在线的玩家不受影响，只限制新连接。'),
+          h('p', { class: 'muted' }, '1–256。已在线的玩家不受影响，只限制新连接。本项仅本次运行有效，重启后使用启动参数。'),
           field('最多玩家数', limit), h('div', { class: 'form-actions' }, limitBtn)),
         h('div', { class: 'action-card' },
-          h('h3', null, '重新加载配置'),
+          h('h3', null, '配置文件'),
           h('p', { class: 'muted' }, '重新读取 ', h('code', null, 'server.json'), ' 与 ', h('code', null, 'chat-filter.json'), '（欢迎公告、敏感词、聊天记录开关）。文件有误时保持原配置。'),
-          h('div', { class: 'form-actions' }, reloadBtn)))));
+          h('div', { class: 'form-actions' },
+            h('button', { type: 'button', class: 'btn', onclick: () => editConfig('server') }, '编辑公告与聊天记录'),
+            h('button', { type: 'button', class: 'btn', onclick: () => editConfig('chat-filter') }, '编辑敏感词'), reloadBtn)))));
     return {
       update() {
         if (state.details && document.activeElement !== limit && !limit.value) limit.value = state.details.maxPlayers;

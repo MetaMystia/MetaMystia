@@ -1,6 +1,6 @@
 // 总览：统计卡片、Gateway 趋势、实例列表及登记 / 退役 / 删除。
 import {
-  h, icon, iconButton, api, enc, openModal, field, textInput, actionForm, compareVersion,
+  h, icon, iconButton, api, enc, openModal, field, textInput, actionForm, compareVersion, confirmRisk,
 } from './core.js';
 import { lineChart, series } from './chart.js';
 
@@ -222,6 +222,7 @@ export function openDrain(record, state, done) {
     !retry && status?.players ? h('div', { class: 'notice' }, '当前有 ' + status.players + ' 名玩家在线，不会被强制下线。') : null,
     !retry && !successor ? h('div', { class: 'notice bad' }, '没有同游戏版本的更新接客实例，请确认目标版本已上线。') : null,
     actionForm([
+      confirmRisk('我确认对 ' + record.id + ' 执行退役：停止接收新玩家，现有玩家全部离开后实例退出。'),
       field('目标模组版本', targetInput, '提示玩家升级到的版本'),
       h('details', { class: 'advanced', open: Boolean(status?.noticeId && status.noticeId !== noticeIdFor(targetInput.value.trim())) },
         h('summary', null, '高级'),
@@ -243,7 +244,7 @@ export function openDelete(record, state, done) {
     h('p', null, '只删除 Gateway 中的路由记录，不关闭已有连接，也不停止实例进程。'),
     record.state === 'active' ? h('div', { class: 'notice bad' }, '该实例仍在接客，删除后 ' + record.registration.modVersion + ' 的新连接会被拒绝。') : null,
     status && status.players > 0 ? h('div', { class: 'notice' }, '实例仍有 ' + status.players + ' 名玩家在线。') : null,
-    actionForm([], '删除', 'danger', async () => {
+    actionForm([confirmRisk('我确认删除 ' + record.id + ' 的登记；需要重新登记才能恢复该路由。')], '删除', 'danger', async () => {
       await api('DELETE', 'instances/' + enc(record.id));
       return '已删除 ' + record.id;
     }, { 404: '登记不存在' }, done));

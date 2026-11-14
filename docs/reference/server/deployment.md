@@ -60,6 +60,8 @@
 | `PUT /admin/max-players` | `{"value":16}`，1–256；`204` |
 | `POST /admin/say` | `{"message":"…"}`，服务器广播；`204` |
 | `POST /admin/reload` | 重新读取 `server.json` 与 `chat-filter.json`；`204`，文件无效 `400` |
+| `GET /admin/config/{name}` | 读取配置原文 `{"content":"…"}`；name 仅允许 `server`、`chat-filter` |
+| `PUT /admin/config/{name}` | `{"content":"新原文","previousContent":"读取时的原文"}`；校验后保存并应用，成功 `204`，配置无效 `400`，原文件已变化 `409` |
 
 操作失败返回 `409` 与 `{"error":"PlayerMissing"}` 这类错误码。实例新增接口只需随实例发布，Gateway 无需更新。
 
@@ -90,6 +92,8 @@
 Gateway 只有独立的 `Deploy gateway (manual)` 按钮，仅允许 main 分支并需勾选断线确认。先构建、测试、上传，之后才停止旧入口、替换并启动；保留路由文件。启动检查失败恢复上一版。此操作断开所有转发连接，不承诺无缝更新。systemd 不自动重启 Gateway。
 
 管理面板由 `Deploy admin panel` 部署：`src/AdminPanel/` 推到 main 时自动运行，也可手动运行。服务器端 `deploy_panel.py` 只替换 `/var/www/metamystia-admin` 的静态文件，不重启任何服务。
+
+实例操作页可编辑公告、聊天记录开关与敏感词配置，需实例支持配置接口；端口、令牌等启动参数仍通过部署配置修改。退役和删除登记须勾选对应实例的风险确认。Gateway 页可导出筛选后的连接记录和趋势 CSV，实例玩家页可导出当前全部玩家。连接记录只保留内存中最近 2000 条，趋势只保留最近 24 小时，重启清空；导出不等于服务器长期归档。
 
 部署 SSH forced command 只接受 `deploy-instance`、`deploy-gateway` 和 `deploy-panel`；sudo 只授权对应 Python 脚本。Nginx 继续使用已有 HTTPS 证书，对公网只开放 `40815` 和 HTTPS，实例端口不开放防火墙。
 

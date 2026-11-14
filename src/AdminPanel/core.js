@@ -138,6 +138,24 @@ export function textInput(name, value, props) {
   return h('input', { class: 'input mono', name, value: value ?? '', spellcheck: false, autocomplete: 'off', required: true, ...props });
 }
 
+export function confirmRisk(message) {
+  return h('label', { class: 'notice bad' }, h('input', { type: 'checkbox', required: true }), ' ', message);
+}
+
+export function exportCsv(name, rows) {
+  const cell = value => {
+    let text = String(value ?? '');
+    if (/^[\s]*[=+@-]/.test(text)) text = "'" + text;
+    return '"' + text.replaceAll('"', '""') + '"';
+  };
+  const url = URL.createObjectURL(new Blob(['\uFEFF', rows.map(row => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  const link = h('a', { href: url, download: name + '.csv' });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /** 对话框里的表单：成功后关闭并提示，失败把原因显示在表单里。 */
 export function actionForm(children, submitLabel, submitClass, run, messages, done) {
   const error = h('p', { class: 'form-error', hidden: true });
@@ -174,6 +192,7 @@ const COMMON_ERRORS = {
 };
 export function failureText(failure, messages) {
   const code = failure.body?.error;
+  if (code === 'ConfigInvalid' || code === 'ConfigSaved') return failure.body.message;
   if (code && ERROR_NAMES[code]) return ERROR_NAMES[code] + (failure.body.message ? '：' + failure.body.message : '');
   return messages?.[failure.status] ?? COMMON_ERRORS[failure.status] ?? failure.message ?? '操作失败';
 }
