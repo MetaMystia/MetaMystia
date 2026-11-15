@@ -55,6 +55,25 @@ void Intent(DayDestination target, System.Action continuation)
 }
 
 Setup();
+DayDestinationManager.Submit(DayDestination.Business, () => { });
+Check(!DayDestinationManager.IsAdmissionClosed, "房主先结束白天时继续开放加入");
+Setup();
+DayDestinationManager.ReceiveIntent(2, 1, DayDestination.Business);
+Check(!DayDestinationManager.IsAdmissionClosed, "客机先结束白天时继续开放加入");
+Setup();
+var joiningAdmission = new TaskCompletionSource();
+GameSession.Admission = joiningAdmission.Task;
+Intent(DayDestination.Business, () => { });
+Check(DayDestinationManager.IsAdmissionClosed, "全员结束白天后才关闭加入");
+GameSession.Room = GameSession.Room with { Members = [.. GameSession.Room.Members, new() { Uid = 3, Stage = GameStage.Day }] };
+joiningAdmission.SetResult();
+PluginHost.Instance.Tick();
+Check(DayDestinationConfirmMessage.Sent.Count == 0, "关闭前成功加入的新成员也参与选店前的等待");
+PlayerManager.Peers[3] = new() { Uid = 3 };
+DayDestinationManager.ReceiveIntent(3, 1, DayDestination.Business);
+Check(DayDestinationConfirmMessage.Sent.Count == 1, "新成员结束白天后一起进入选店");
+
+Setup();
 int entered = 0;
 var admission = new TaskCompletionSource();
 GameSession.Admission = admission.Task;

@@ -32,7 +32,7 @@ public static partial class GameFlow
         _ => GameStage.Unavailable,
     };
     public static bool CanJoin => Stage is GameStage.MainMenu or GameStage.Day;
-    public static bool CanOpenRoom => CanJoin && !DayDestinationManager.HasLocalIntent
+    public static bool CanOpenRoom => CanJoin && !DayDestinationManager.IsAdmissionClosed
         && GameSession.Room?.Members.All(p => p.Uid == GameSession.Client.Uid
             || p.Stage is GameStage.MainMenu or GameStage.Day) == true;
     public static bool IsGameplaySyncActive => GameSession.HasRoomPeers && !InStory;

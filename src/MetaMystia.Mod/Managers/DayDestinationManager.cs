@@ -40,6 +40,7 @@ public static partial class DayDestinationManager
     public static bool IsStoryLocked => firstTrialPending;
     public static bool IsEntering => committed || businessReleased;
     public static bool HasLocalIntent => localIntent != DayDestination.None || intents.Count != 0 || closing;
+    public static bool IsAdmissionClosed => closing || admissionClosed || committed;
 
     public static DayDestination GetIntent(int uid) => intents.GetValueOrDefault(uid);
     public static Dictionary<int, DayDestination> Snapshot() => new(intents);
@@ -163,13 +164,7 @@ public static partial class DayDestinationManager
         if (GameFlow.Stage != GameStage.Day && !(businessReleased && GameFlow.Stage == GameStage.DayEnd)) return;
         if (GameSession.Room.Members.Any(p => p.Uid != PlayerManager.Local.Uid
             && p.Stage != GameStage.Day && !(businessReleased && p.Stage == GameStage.DayEnd))) return;
-        if (!admissionClosed)
-        {
-            closing = true;
-            CloseAdmission(generation, GameSession.RoomMembershipId);
-            return;
-        }
-        foreach (var uid in PlayerManager.Peers.Keys)
+        foreach (var uid in GameSession.Room.Members.Where(p => p.Uid != PlayerManager.Local.Uid).Select(p => p.Uid))
         {
             var peerTarget = GetIntent(uid);
             if (peerTarget == DayDestination.None) return;
@@ -181,6 +176,12 @@ public static partial class DayDestinationManager
             {
                 target = DayDestination.FinalTrial;
             }
+        }
+        if (!admissionClosed)
+        {
+            closing = true;
+            CloseAdmission(generation, GameSession.RoomMembershipId);
+            return;
         }
         // 在发送确认前锁定，后续改选不能改变本轮结果。
         committed = true;
