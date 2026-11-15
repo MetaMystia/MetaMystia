@@ -11,9 +11,9 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class IzakayaReporter
 {
-    private const int HeartbeatIntervalSeconds = 5 * 60;
+    private const int HeartbeatIntervalSeconds = 2 * 60;
     private const string LogScope = "[Izakaya]";
-    private static readonly bool isHeartbeatEnabled = false;
+    private static readonly bool isHeartbeatEnabled = true;
     private static readonly bool isRunEventEnabled = true;
     private static readonly bool isOtherEventEnabled = false;
     private static readonly IzakayaService izakayaService =
