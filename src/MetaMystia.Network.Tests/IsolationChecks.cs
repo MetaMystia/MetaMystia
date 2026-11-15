@@ -72,9 +72,11 @@ static partial class Checks
         Assert(!host.IsCurrent(context), "重新进入同房间也不能恢复旧回调身份");
 
         guest.SetProfile("room-guest", new(), Scene.WorkScene, GameStage.Work);
+        await Until(() => host.State.World.Single(p => p.Uid == guest.Uid).Scene == Scene.WorkScene);
         host.SetProfile("room-host", new(), Scene.DayScene, GameStage.Day);
         host.SendMotion(new() { X = 61 });
         await Until(() => outside.State.World.Single(p => p.Uid == host.Uid).Motion.X == 61);
+        await Until(() => guest.State.World.Single(p => p.Uid == host.Uid).Scene == Scene.DayScene);
         Assert(!guest.State.World.Single(p => p.Uid == host.Uid).HasMotion, "同房间也按各自昼夜隔离");
         var copy = guest.State;
         copy.Room!.Members[0].Resources!.PackIds[0] = "changed";
