@@ -47,6 +47,8 @@ public enum GameMessageType : ushort
     RoomInitialState = 53,
     BusinessStart = 54,
     Emote = 55,
+    TimeStopRequest = 56,
+    TimeStopState = 57,
 }
 
 public static class GameMessageRules
@@ -98,5 +100,7 @@ public static class GameMessageRules
         new((ushort)GameMessageType.RoomInitialState, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessageType.BusinessStart, [Route.Host, Route.Room], HostBroadcastOnly: true),
         new((ushort)GameMessageType.Emote, [Route.World], RoomScoped: false, MaxBytes: 64),
+        new((ushort)GameMessageType.TimeStopRequest, [Route.Host]),
+        new((ushort)GameMessageType.TimeStopState, [Route.Room, Route.Player], HostOnly: true),
     ];
 }

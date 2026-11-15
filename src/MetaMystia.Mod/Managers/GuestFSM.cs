@@ -66,6 +66,8 @@ public partial class GuestFSM
     public int RuntimeId => GuestsMap.GetRuntimeId(Controller);
 
     private const int PendingTtlMs = 30000;
+    /// <summary>等待期限按游戏时间计算，房间时停期间不流逝。</summary>
+    private static long GameNowMs => (long)(Time.timeAsDouble * 1000);
     private readonly Queue<Pending> _pending = new();
     private bool _draining; // 标记位，避免 Drain 嵌套
 
@@ -96,7 +98,7 @@ public partial class GuestFSM
         {
             Tag = tag,
             Apply = apply,
-            DeadlineMs = MetaMystia.Multiplayer.RoomClock.Now + ttlMs,
+            DeadlineMs = GameNowMs + ttlMs,
         });
         Drain();
     }
@@ -114,13 +116,13 @@ public partial class GuestFSM
             while (_pending.Count > 0)
             {
                 var head = _pending.Peek();
-                if (MetaMystia.Multiplayer.RoomClock.Now > head.DeadlineMs)
+                if (GameNowMs > head.DeadlineMs)
                 {
                     Log.Error($"Guest #{RuntimeId} pending '{head.Tag}' timeout: stalled at {CurrentState}");
                     if (IsManualGuest)
                     {
                         // 剧情可能长于普通顾客的 TTL；本体仍被挑战协程引用，不能销毁。
-                        head.DeadlineMs = MetaMystia.Multiplayer.RoomClock.Now + PendingTtlMs;
+                        head.DeadlineMs = GameNowMs + PendingTtlMs;
                     }
                     else
                     {

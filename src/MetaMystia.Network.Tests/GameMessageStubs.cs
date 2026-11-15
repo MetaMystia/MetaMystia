@@ -80,4 +80,6 @@ namespace MetaMystia.Multiplayer.Messages
     public class RoomInitialStateMessage : MultiplayerMessage {}
     public class BusinessStartMessage : MultiplayerMessage {}
     public class EmoteMessage : MultiplayerMessage {}
+    public class TimeStopRequestMessage : MultiplayerMessage {}
+    public class TimeStopStateMessage : MultiplayerMessage {}
 }

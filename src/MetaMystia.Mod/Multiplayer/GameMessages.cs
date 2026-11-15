@@ -59,6 +59,8 @@ public static class GameMessages
         RoomInitialStateMessage => GameMessageType.RoomInitialState,
         BusinessStartMessage => GameMessageType.BusinessStart,
         EmoteMessage => GameMessageType.Emote,
+        TimeStopRequestMessage => GameMessageType.TimeStopRequest,
+        TimeStopStateMessage => GameMessageType.TimeStopState,
         _ => throw new ArgumentException("Unregistered message", nameof(message))
     };
 
