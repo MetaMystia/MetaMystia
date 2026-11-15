@@ -5,7 +5,6 @@ using MainScene;
 
 using MetaMystia.Patch;
 using MetaMystia.UI;
-using SgrYuki;
 
 namespace MetaMystia;
 
@@ -31,7 +30,7 @@ public partial class MainSceneManagerPatch
                 Log.Warning($"Game version does not match target version! Expected: {Plugin.TargetGameVersion}");
                 InGameConsole.LogToConsole($"<color=#FF6666>{TextId.GameVersionMismatchNotify.Get(Plugin.TargetGameVersion, Plugin.GameVersion)}</color>");
             }
-            MetricsReporter.OnEnterMainScene();
+            IzakayaReporter.OnEnterMainScene();
             Log.Info(MultiplayerStatus.DebugText);
             InGameConsole.ShowPassive(TextId.ConsoleTestServerWelcome.Get());
         }

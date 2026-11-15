@@ -49,6 +49,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../MetaMystia.Common/MetaMystia.Common.csproj" />
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
     <ProjectReference Include="../MetaMystia.Generators\MetaMystia.Generators.csproj"
       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
