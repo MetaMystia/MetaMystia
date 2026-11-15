@@ -16,7 +16,7 @@ from scipy import ndimage as ndi
 
 from dayart.collide import WalkGrid
 from dayart.core import Frame, PPU, paste, poly_mask, rgb, to_image, value_noise
-from dayart.pack import Atlas, camera_bounds, slice_layer, sprite_tile, synth_bgm, write_zip
+from dayart.pack import FORMAT_VERSION, Prefabs, camera_bounds, canvas_layer, sprite_pivot, synth_bgm, write_zip
 from dayart.sprite import Sprite
 from dayart.validate import validate_map
 from maps.sanzu import layout as L
@@ -276,7 +276,6 @@ def main():
     ap.add_argument('work')
     ap.add_argument('out')
     ap.add_argument('--font')
-    ap.add_argument('--chunk', type=int, default=4)
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     plate = np.asarray(Image.open(os.path.join(args.work, 'plate_fine.png')).convert('RGB')).astype(np.float32) / 255
@@ -334,40 +333,32 @@ def main():
     issues = g.check([(n_, x, y) for n_, x, y, _ in SPAWNS], radius=0.3)
     bad_slopes = g.check_slopes(slopes)
 
-    # ---------------------------------------------------- 切片与打包
-    tiles, layers, files = [], [], {}
-    atlas_g = Atlas('ground')
-    gt, gc = slice_layer(to_image(ground_rgba), F, args.chunk, atlas_g, 'g', skip_empty=False)
-    tiles += gt
-    layers.append(dict(name='Ground', sortingLayer='Background', sortingOrder=-2000, cells=gc))
-    files.update(atlas_g.finalize(gt, FOLDER))
-    for name, arr, order, prefix in (('Canopy', canopy, 0, 'c'), ('Mist', mist, 10, 'f'), ('Glow', glow, 20, 'l')):
-        at = Atlas(name.lower())
-        t, c = slice_layer(to_image(arr), F, 4, at, prefix, skip_empty=True)
-        tiles += t
-        layers.append(dict(name=name, sortingLayer='Overlay', sortingOrder=order, cells=c))
-        files.update(at.finalize(t, FOLDER))
-    atlas_o = Atlas('objects')
-    otiles, objects, done = [], [], set()
+    # ---------------------------------------------------- 图层、物件模板与打包
+    left, bottom = round(F.x0 * F.ppu), round(F.y0 * F.ppu)
+    layers, files = [], {}
+    for name, arr, layer, order in (('Ground', ground_rgba, 'Background', -2000), ('Canopy', canopy, 'Overlay', 0),
+                                    ('Mist', mist, 'Overlay', 10), ('Glow', glow, 'Overlay', 20)):
+        cfg, chunks = canvas_layer(name, to_image(arr), left, bottom, f'{FOLDER}/{name.lower()}', layer, order)
+        if cfg:
+            layers.append(cfg)
+            files.update(chunks)
+    prefabs = Prefabs(f'{FOLDER}/prefabs')
+    objects = []
     for o in objs:
         spr = o['spr']
-        if o['tile'] not in done:
-            s2 = Sprite(spr.w, spr.h, spr.pivot)
-            s2.a = spr.a.copy()
-            if o['alpha'] < 1:
-                s2.a[..., 3] *= o['alpha']
-            otiles.append(sprite_tile(s2, atlas_o, o['tile']))
-            done.add(o['tile'])
-        objects.append(dict(name=o['name'], tile=o['tile'], x=round(float(o['x']), 4), y=round(float(o['y']), 4), scale=[1, 1],
-                            sortByY=bool(o['sort']), sortingLayer=o['layer'], sortingOrder=o['order']))
-    files.update(atlas_o.finalize(otiles, FOLDER))
-    tiles += otiles
+        s2 = Sprite(spr.w, spr.h, spr.pivot)
+        s2.a = spr.a.copy()
+        if o['alpha'] < 1:
+            s2.a[..., 3] *= o['alpha']
+        key = prefabs.add(o['tile'], s2.image(), sprite_pivot(s2), o['layer'], 0 if o['sort'] else o['order'], bool(o['sort']))
+        objects.append(dict(name=o['name'], prefab=key, x=round(float(o['x']), 4), y=round(float(o['y']), 4), scale=[1, 1]))
+    files.update(prefabs.files)
     files[f'{FOLDER}/sanzu_bgm.wav'] = synth_bgm()
     cam = camera_bounds(L.X0, L.Y0, L.X1, L.Y1)
     day_map = dict(
-        id=MAP_ID, formatVersion=1, name='三途川',
+        id=MAP_ID, formatVersion=FORMAT_VERSION, name='三途川',
         description='此岸的赛之河原与渡口。河上雾气终日不散，对岸是只能远眺的彼岸花原。',
-        tiles=tiles, layers=layers, height=dict(cells=slopes), objects=objects, collisions=rects,
+        pixelsPerUnit=F.ppu, layers=layers, prefabs=prefabs.items, objects=objects, colliders=rects, height=dict(cells=slopes),
         spawnMarkers=[dict(name=n_, x=x, y=y, rotation=r) for n_, x, y, r in SPAWNS],
         defaultSpawnMarker='FromChuuu',
         camera=dict(shouldFollow=True, bounds=cam, position=[0, 0, -10]),
@@ -424,17 +415,17 @@ def main():
         px_, py_ = P(x, y)
         d.ellipse([px_ - 10, py_ - 10, px_ + 10, py_ + 10], outline=(0, 255, 120, 255), width=4)
         d.text((px_ + 12, py_ - 8), n_, fill=(0, 255, 120, 255))
-    d.rectangle([P(cam[0], cam[3]), P(cam[2], cam[1])], outline=(0, 255, 255, 255), width=4)
+    d.line([P(x, y) for x, y in cam + cam[:1]], fill=(0, 255, 255, 255), width=4)
     dbg.alpha_composite(ov)
     dbg.convert('RGB').save(os.path.join(args.out, 'debug_full.png'))
     dbg.resize((F.W // 2, F.H // 2), Image.LANCZOS).convert('RGB').save(os.path.join(args.out, 'debug.png'))
     for name, arr in (('layer_canopy', canopy), ('layer_mist', mist), ('layer_glow', glow)):
         to_image(arr).resize((F.W // 4, F.H // 4), Image.NEAREST).save(os.path.join(args.out, name + '.png'))
 
-    rep = [f'map id {MAP_ID}  size {F.W}x{F.H}px  ground chunk {args.chunk}',
-           f'tiles {len(tiles)} (ground {len(gt)}, objects {len(otiles)})  cells {sum(len(l_["cells"]) for l_ in layers)}',
-           f'objects {len(objects)}  collisions {len(rects)}  slope cells {len(slopes)}  camera {cam}',
-           f'atlas files {len([k for k in files if k.endswith(".png")])}  zip {os.path.getsize(zpath)} bytes',
+    rep = [f'map id {MAP_ID}  size {F.W}x{F.H}px',
+           f'layers {len(layers)} ({sum(len(l_["image"]["chunks"]) for l_ in layers)} chunks)  prefabs {len(prefabs.items)}',
+           f'objects {len(objects)}  colliders {len(rects)}  slope cells {len(slopes)}  camera {cam}',
+           f'png files {len([k for k in files if k.endswith(".png")])}  zip {os.path.getsize(zpath)} bytes',
            'issues:'] + ['  ' + i for i in issues] + ([f'  坡度格不在可走区域: {bad_slopes}'] if bad_slopes else [])
     open(os.path.join(args.out, 'report.txt'), 'w').write('\n'.join(rep) + '\n')
     print('\n'.join(rep))

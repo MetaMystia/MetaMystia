@@ -1,7 +1,22 @@
 name: Deploy server
 
 on:
+  release:
+    types: [published, edited]
   workflow_dispatch:
+    inputs:
+      game_port:
+        description: '新实例 TCP 端口（auto 或 41000–41099）'
+        required: true
+        default: 'auto'
+      admin_port:
+        description: '新实例本机 HTTP 管理端口（auto 或 42000–42099）'
+        required: true
+        default: 'auto'
+      replaces:
+        description: 'auto 退役当前活跃实例；也可填写逗号分隔 ID，或 - 不退役'
+        required: true
+        default: 'auto'
 
 permissions:
   contents: read
@@ -13,8 +28,14 @@ concurrency:
 jobs:
   build:
     name: 编译与测试服务端
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (!github.event.release.draft && !github.event.release.prerelease &&
+      (github.event.action == 'published' || github.event.changes.make_latest.to == true))
     runs-on: windows-latest
     timeout-minutes: 20
+    outputs:
+      mod_version: ${{ steps.metadata.outputs.mod_version }}
     defaults:
       run:
         shell: pwsh
@@ -22,6 +43,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: 校验发布版本
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          [xml]$versions = Get-Content Versions.props
+          if ($env:GITHUB_REF_NAME -cne "v$($versions.Project.PropertyGroup.Version)") {
+            throw '标签必须与 Versions.props 中的版本一致'
+          }
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
@@ -43,8 +71,18 @@ jobs:
         run: dotnet run --project src/MetaMystia.Network.Tests -c Release
       - name: 流程测试
         run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
+      - name: 部署流程测试
+        run: dotnet run --project src/MetaMystia.Hosting.Tests -c Release
       - name: 构建 Linux 服务端（包含运行时）
         run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release -r linux-x64 --self-contained true
+      - name: 记录部署版本
+        id: metadata
+        run: |
+          [xml]$versions = Get-Content Versions.props
+          $version = $versions.Project.PropertyGroup.Version
+          @{ gameVersion = $versions.Project.PropertyGroup.TargetGameVersion; modVersion = $version } |
+            ConvertTo-Json | Set-Content src/MetaMystia.Server/bin/Release/net6.0/linux-x64/publish/deployment.json -Encoding utf8NoBOM
+          "mod_version=$version" >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@v7
         with:
           name: server-linux-x64
@@ -53,12 +91,17 @@ jobs:
           retention-days: 14
 
   deploy:
-    name: 停止并部署服务端
+    name: 部署独立实例并登记
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: 部署脚本测试
+        run: python3 -m unittest discover -s tools/deploy -p 'test_*.py'
       - uses: actions/download-artifact@v8
         with:
           name: server-linux-x64
@@ -69,11 +112,30 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
           SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_ID: ${{ github.event.release.id }}
+          INSTANCE_ID: v${{ needs.build.outputs.mod_version }}-${{ github.run_id }}
+          GAME_PORT: ${{ inputs.game_port || 'auto' }}
+          ADMIN_PORT: ${{ inputs.admin_port || 'auto' }}
+          REPLACES: ${{ inputs.replaces || 'auto' }}
         run: |
           set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == release ]]; then
+            test "$(gh api "repos/$GH_REPO/releases/latest" --jq .id)" = "$RELEASE_ID"
+          fi
           test -n "$SERVER_HOST"
           test -n "$SERVER_SSH_KEY"
           test -n "$SERVER_KNOWN_HOSTS"
+          [[ "$INSTANCE_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]+$ ]]
+          [[ "$GAME_PORT" =~ ^(auto|[0-9]+)$ && "$ADMIN_PORT" =~ ^(auto|[0-9]+)$ ]]
+          [[ "$REPLACES" =~ ^[A-Za-z0-9._,-]+$ ]]
+          if [[ "$GAME_PORT" != auto ]]; then
+            (( 10#$GAME_PORT >= 41000 && 10#$GAME_PORT <= 41099 ))
+          fi
+          if [[ "$ADMIN_PORT" != auto ]]; then
+            (( 10#$ADMIN_PORT >= 42000 && 10#$ADMIN_PORT <= 42099 ))
+          fi
           umask 077
           mkdir -p ~/.ssh
           trap 'rm -f ~/.ssh/deploy_key' EXIT
@@ -81,4 +143,4 @@ jobs:
           printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod +x server/MetaMystia.Server
           tar -czf server.tar.gz -C server .
-          ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "metamystia-cd@$SERVER_HOST" deploy < server.tar.gz
+          ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "metamystia-cd@$SERVER_HOST" "deploy-instance $INSTANCE_ID $GAME_PORT $ADMIN_PORT $REPLACES" < server.tar.gz

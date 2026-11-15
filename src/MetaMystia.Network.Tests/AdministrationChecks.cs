@@ -51,14 +51,14 @@ static partial class Checks
         await Until(() => end != null && guest.State.Room == null);
         Assert(end == NetworkErrorCode.KickedByServer && guest.IsConnected
             && (await server.GetStatusAsync()).Players.All(p => p.Uid != hostUid), "踢人返回专用原因、释放名额并清理房间");
-        Assert(logs.Count(e => e.Message.Contains($"玩家下线 uid={hostUid} ")) == 1, "踢人及连接回调只记录一次下线");
+        Assert(logs.Count(e => e.Message.Contains($"(UID={hostUid})已下线")) == 1, "踢人及连接回调只记录一次下线");
 
         var output = new List<string>();
         void Write(ServerLogLevel level, string message) => output.Add(message);
         foreach (var line in new[] { "", "  ", "help", "/players", "rooms", "maxplayers", "kick", "kick -1", "leave text", "maxplayers 257", "stop extra", "unknown" })
             Assert(await ServerCommands.Execute(line, server, Write), "命令不意外停止服务端：" + line);
         await ServerCommands.Execute("maxplayers 8", server, Write);
-        Assert((await server.GetStatusAsync()).MaxPlayers == 8 && output.Any(x => x.Contains("uid=")), "实际命令解析可查询玩家并修改上限");
+        Assert((await server.GetStatusAsync()).MaxPlayers == 8 && output.Any(x => x.Contains("UID=")), "实际命令解析可查询玩家并修改上限");
         Assert(!await ServerCommands.Execute("stop", server, Write), "仅完整 stop 命令请求停止");
 
         int accepted = 0, rejected = 0;
@@ -73,9 +73,9 @@ static partial class Checks
         Assert(chatLog.Message.Contains("你好") && !chatLog.Message.Contains('\n') && !chatLog.Message.Contains('\u001b'), "聊天日志保留中文并转义换行及终端控制字符");
         Assert(logs.All(e => !e.Message.Contains("blocked-secret")), "拒绝的敏感聊天原文不写入日志");
         guest.SetProfile("admin-renamed", new(), Common.UI.Scene.DayScene, GameStage.Day);
-        await Until(() => logs.Any(e => e.Message.Contains("玩家改名")));
-        Assert(logs.Any(e => e.Message.Contains("玩家上线")) && logs.Any(e => e.Message.Contains("房间解散"))
-            && logs.Any(e => e.Message.Contains("管理员操作")), "连接、改名、房间及管理操作都有日志");
+        await Until(() => logs.Any(e => e.Message.Contains("将名字改为")));
+        Assert(logs.Any(e => e.Message.Contains("已连接服务器")) && logs.Any(e => e.Message.Contains("房间随之解散"))
+            && logs.Any(e => e.Message.Contains("[管理] 管理员")), "连接、改名、房间及管理操作都有日志");
         guest.Disconnect(); outside.Disconnect();
         await server.StopAsync();
         Assert(await server.ManageAsync(ServerCommand.MaxPlayers, 4) == NetworkErrorCode.ServerStopped, "关闭后管理请求立即结束");

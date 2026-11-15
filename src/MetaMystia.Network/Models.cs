@@ -43,6 +43,8 @@ public partial record Player
     public Motion Motion { get; init; } = new();
     public bool HasMotion { get; init; }
     public Scene Scene { get; init; }
+    // 白天地图由服务器从运动中提取，仅变化时广播资料。
+    public MapLabel Map { get; init; } = MapLabel.Unknown;
     public GameStage Stage { get; init; }
     public long Membership { get; init; }
 }

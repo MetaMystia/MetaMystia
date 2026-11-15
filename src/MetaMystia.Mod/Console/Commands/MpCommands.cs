@@ -59,7 +59,7 @@ public static class MpCommands
         mp.AddCommand(connect);
 
         var play = new Command("play", "Connect to the official test server");
-        play.SetHandler(ctx => Connect(ctx, "play.metamystia.net", GameSession.DefaultPort));
+        play.SetHandler(GameSession.ConnectOfficial);
         mp.AddCommand(play);
 
         var rooms = new Command("rooms", "List rooms in the world");
@@ -129,7 +129,11 @@ public static class MpCommands
                 if (!GameSession.IsRoomHost) { ctx.Log(TextId.MpMaxPlayersHostOnly.Get()); return; }
                 GameSession.SetPlayerLimit(count);
             }
-            else ConfigManager.MaxPlayers.Value = count;
+            else
+            {
+                ConfigManager.MaxPlayers.Value = count;
+                ctx.Log(TextId.MpMaxPlayersSet.Get(count));
+            }
         });
         mp.AddCommand(max);
         var next = new Command("continue", "Continue a waiting preparation phase");
@@ -165,7 +169,8 @@ public static class MpCommands
 
     private static void Connect(InvocationContext ctx, string address, int? port)
     {
-        if (GameSession.IsConnecting || GameSession.HasRoomPeers) { ctx.Log(TextId.MpConnectInProgress.Get()); return; }
+        if (GameSession.IsConnecting) { ctx.Log(TextId.MpConnectInProgress.Get()); return; }
+        if (GameSession.IsOnline) { ctx.Log(TextId.MpAlreadyConnected.Get()); return; }
         if (!Uri.TryCreate("tcp://" + address, UriKind.Absolute, out var endpoint))
         { ctx.Log(TextId.ConnectCommandFail.Get(address)); return; }
         int number = port ?? (endpoint.Port > 0 ? endpoint.Port : GameSession.ConfigPort);

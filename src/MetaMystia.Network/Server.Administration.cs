@@ -1,10 +1,26 @@
 using System.Threading.Channels;
 
+using Common.UI;
+
 namespace MetaMystia.Network;
 
 public enum ServerCommand { Kick, Leave, MaxPlayers }
-public sealed record ServerPlayer(int Uid, string Name, ushort Room);
-public sealed record ServerStatus(int MaxPlayers, ServerPlayer[] Players, RoomSummary[] Rooms);
+public sealed record ServerPlayer(int Uid, string Name, ushort Room)
+{
+    public Scene Scene { get; init; }
+    public GameStage Stage { get; init; }
+    public MapLabel Map { get; init; } = MapLabel.Unknown;
+    public DateTime ConnectedAt { get; init; }
+    public DlcPack DlcFlags { get; init; }
+    public string[] PackIds { get; init; } = [];
+}
+public sealed record ServerStatus(int MaxPlayers, ServerPlayer[] Players, RoomSummary[] Rooms)
+{
+    public ServerNotice? Retirement { get; init; }
+    public int ChatFilterWords { get; init; }
+    public bool LogChat { get; init; }
+    public int WelcomeMessages { get; init; }
+}
 
 public sealed partial class Server
 {
@@ -13,8 +29,13 @@ public sealed partial class Server
         if (Volatile.Read(ref stopping) != 0 || Volatile.Read(ref started) == 0) throw new InvalidOperationException("Not running");
         var result = new TaskCompletionSource<ServerStatus>(TaskCreationOptions.RunContinuationsAsynchronously);
         await events.Writer.WriteAsync(() => result.TrySetResult(new(maxPlayers,
-            peers.Where(p => p.Player != null).Select(p => new ServerPlayer(p.Player!.Uid, p.Player.Name, p.Room)).ToArray(),
-            Capture(null).Rooms))).ConfigureAwait(false);
+            peers.Where(p => p.Player != null).Select(p => new ServerPlayer(p.Player!.Uid, p.Player.Name, p.Room)
+            {
+                Scene = p.Player.Scene, Stage = p.Player.Stage, Map = p.Player.Map, ConnectedAt = p.Accepted,
+                DlcFlags = p.Player.Resources?.DlcFlags ?? DlcPack.None, PackIds = p.Player.Resources?.PackIds.ToArray() ?? []
+            }).ToArray(),
+            Capture(null).Rooms)
+            { Retirement = retirement, ChatFilterWords = chatWords.Length, LogChat = logChat, WelcomeMessages = welcomeMessages.Length })).ConfigureAwait(false);
         return await result.Task.ConfigureAwait(false);
     }
 
@@ -29,7 +50,12 @@ public sealed partial class Server
             await events.Writer.WriteAsync(() =>
             {
                 var error = Volatile.Read(ref stopping) != 0 ? NetworkErrorCode.ServerStopped : Manage(command, value);
-                Log(ServerLogLevel.Info, $"管理员操作 command={command} value={value}，结果={error}");
+                if (error is not (NetworkErrorCode.None or NetworkErrorCode.ServerStopped))
+                {
+                    string action = command == ServerCommand.MaxPlayers ? $"将服务器人数上限调整为 {value} 人"
+                        : command == ServerCommand.Kick ? $"将 UID={value} 的玩家踢出服务器" : $"将 UID={value} 的玩家移出房间";
+                    Log(ServerLogLevel.Warning, $"[管理] 管理员无法{action}，因为{ServerLogEntry.Reason(error)}。");
+                }
                 result.TrySetResult(error);
             }).ConfigureAwait(false);
         }
@@ -53,7 +79,7 @@ public sealed partial class Server
             {
                 if (Volatile.Read(ref stopping) != 0) { result.TrySetResult(NetworkErrorCode.ServerStopped); return; }
                 ApplyTextSettings(copy);
-                Log(ServerLogLevel.Info, $"配置已重载：欢迎公告 {welcomeMessages.Length} 条，有效过滤词条 {chatWords.Length}，聊天正文日志{(logChat ? "开启" : "关闭")}");
+                Log(ServerLogLevel.Info, $"[管理] 管理员重新加载了配置，当前有 {welcomeMessages.Length} 条欢迎公告和 {chatWords.Length} 个有效过滤词条，聊天正文记录已{(logChat ? "开启" : "关闭")}。");
                 result.TrySetResult(NetworkErrorCode.None);
             }).ConfigureAwait(false);
         }
@@ -86,9 +112,11 @@ public sealed partial class Server
                     // UID 0 保留给服务端；客户端发送者身份始终由连接覆盖。
                     var frame = new Frame(Kind.Data, body, Type: (ushort)GameMessageType.Chat, Route: Route.World);
                     foreach (var peer in peers.Where(p => p.Player != null && !p.Rejected)) peer.Wire.Send(frame);
-                    if (logChat) Log(ServerLogLevel.Chat, $"服务器: {ServerLogEntry.Quote(message)}");
+                    if (logChat) Log(ServerLogLevel.Chat, $"[聊天] 服务器说：{ServerLogEntry.Quote(message)}");
                 }
-                Log(ServerLogLevel.Info, $"管理员操作 command=Say，结果={error}");
+                if (error == NetworkErrorCode.None) Log(ServerLogLevel.Info, "[管理] 管理员提交了一条服务器广播。");
+                else if (error != NetworkErrorCode.ServerStopped)
+                    Log(ServerLogLevel.Warning, $"[管理] 服务端未发送广播，因为{ServerLogEntry.Reason(error)}。");
                 result.TrySetResult(error);
             }).ConfigureAwait(false);
         }
@@ -101,7 +129,9 @@ public sealed partial class Server
         if (command == ServerCommand.MaxPlayers)
         {
             if (value < 1 || value > 256) return NetworkErrorCode.InvalidLimit;
+            int previous = maxPlayers;
             maxPlayers = value;
+            Log(ServerLogLevel.Info, $"[管理] 管理员将服务器人数上限从 {previous} 人调整为 {value} 人，现有连接不受影响。");
             Publish();
             return NetworkErrorCode.None;
         }
@@ -111,11 +141,13 @@ public sealed partial class Server
         if (command == ServerCommand.Leave)
         {
             if (peer.Room == 0) return NetworkErrorCode.NotInRoom;
+            Log(ServerLogLevel.Info, $"[管理] 管理员将{ServerLogEntry.Player(peer.Player!.Uid, peer.Player.Name)}移出了房间 {RoomCode.Format(peer.Room)}。");
             Leave(peer);
             Publish();
         }
         else
         {
+            Log(ServerLogLevel.Info, $"[管理] 管理员将{ServerLogEntry.Player(peer.Player!.Uid, peer.Player.Name)}踢出了服务器。");
             Reject(peer, NetworkErrorCode.KickedByServer);
             Remove(peer, NetworkErrorCode.KickedByServer);
         }

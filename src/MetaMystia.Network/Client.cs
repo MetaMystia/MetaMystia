@@ -16,6 +16,7 @@ public sealed class Client : IDisposable
         internal readonly TaskCompletionSource<int> Connected = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal readonly Dictionary<long, TaskCompletionSource<Control>> Pending = [];
         internal readonly HashSet<long> Cancelled = [];
+        internal readonly HashSet<string> Notices = [];
         internal NetworkError? End;
         internal bool EndNotified, Joining, Leaving;
         internal long SuppressedMembership;
@@ -40,6 +41,7 @@ public sealed class Client : IDisposable
     public event Action? StateChanged;
     public event Action<ReceivedMessage>? MessageReceived;
     public event Action<NetworkError>? ChatRejected;
+    public event Action<ServerNotice>? NoticeReceived;
     public event Action<NetworkError>? ConnectionEnded;
     public event Action<Exception>? CallbackError;
     public Client(Versions? versions = null) => Versions = versions ?? Versions.Current;
@@ -206,7 +208,8 @@ public sealed class Client : IDisposable
             var scene = state.World.First(p => p.Uid == uid).Scene;
             if (scene != Scene.DayScene && (scene != Scene.WorkScene || state.Room == null)) return;
             current.Wire!.Send(new(scene == Scene.DayScene ? Kind.Motion : Kind.RoomMotion, Protocol.Pack(motion), Room: state.Room?.Id ?? 0, Membership: MyMembership()));
-            UpdatePlayer(uid, p => p with { Motion = motion, HasMotion = true });
+            UpdatePlayer(uid, p => p with { Motion = motion, HasMotion = true,
+                Map = scene == Scene.DayScene ? motion.Map : MapLabel.Unknown });
         }
     }
     public void SetProfile(string name, Skin skin, Scene scene, GameStage stage)
@@ -217,6 +220,7 @@ public sealed class Client : IDisposable
         {
             Require().Wire!.Send(new(Kind.Profile, Protocol.Pack(profile)));
             UpdatePlayer(uid, p => p with { Name = name, Skin = skin, Scene = scene, Stage = stage,
+                Map = p.Scene == scene ? p.Map : MapLabel.Unknown,
                 Motion = p.Scene == scene ? p.Motion : new(), HasMotion = p.Scene == scene && p.HasMotion });
             FilterMotion();
         }
@@ -288,6 +292,14 @@ public sealed class Client : IDisposable
     {
         switch (f.Kind)
         {
+            case Kind.ServerNotice:
+                var notice = Protocol.Read<ServerNotice>(f.Body);
+                if (string.IsNullOrWhiteSpace(notice.NoticeId) || notice.NoticeId.Length > 128 ||
+                    string.IsNullOrWhiteSpace(notice.TargetModVersion) || notice.TargetModVersion.Length > 64)
+                    throw new InvalidDataException("Invalid server notice");
+                if (Enum.IsDefined(typeof(ServerNoticeCode), notice.Code) && current.Notices.Add(notice.NoticeId))
+                    Invoke(() => NoticeReceived?.Invoke(notice));
+                break;
             case Kind.ChatRejected:
                 var chatError = Protocol.ReadError(f.Body);
                 Invoke(() => ChatRejected?.Invoke(chatError)); break;
@@ -301,6 +313,7 @@ public sealed class Client : IDisposable
                 goto case Kind.Snapshot;
             case Kind.Snapshot:
                 var local = f.Kind == Kind.Welcome ? null : state.World.FirstOrDefault(p => p.Uid == uid);
+                var previousPlayers = state.World.ToDictionary(p => p.Uid);
                 var snapshot = Protocol.Read<Snapshot>(f.Body);
                 var membership = snapshot.Room?.Members.FirstOrDefault(p => p.Uid == uid)?.Membership ?? 0;
                 if (current.Cancelled.Contains(snapshot.MembershipRequest) || (membership != 0 && membership == current.SuppressedMembership))
@@ -316,9 +329,21 @@ public sealed class Client : IDisposable
                                 ? old.Resources : throw new InvalidDataException("Missing initial room resources")
                         }).ToArray() } };
                 }
+                // 快照可省略当前不转发的运动；保留同一场景、同次入房中最近收到的位置。
+                Player RetainMotion(Player player) => !player.HasMotion
+                    && previousPlayers.TryGetValue(player.Uid, out var previousPlayer) && previousPlayer.HasMotion
+                    && previousPlayer.Scene == player.Scene && previousPlayer.Map == player.Map
+                    && previousPlayer.Membership == player.Membership
+                        ? player with { Motion = previousPlayer.Motion, HasMotion = true } : player;
+                snapshot = snapshot with
+                {
+                    World = snapshot.World.Select(RetainMotion).ToArray(),
+                    Room = snapshot.Room is { } currentRoom
+                        ? currentRoom with { Members = currentRoom.Members.Select(RetainMotion).ToArray() } : null
+                };
                 state = snapshot;
                 // 自己的资料与运动不回送；旧快照只更新服务器拥有的成员关系。
-                if (local != null) UpdatePlayer(uid, p => p with { Name = local.Name, Skin = local.Skin, Motion = local.Motion, HasMotion = local.HasMotion, Scene = local.Scene, Stage = local.Stage });
+                if (local != null) UpdatePlayer(uid, p => p with { Name = local.Name, Skin = local.Skin, Motion = local.Motion, HasMotion = local.HasMotion, Scene = local.Scene, Stage = local.Stage, Map = local.Map });
                 FilterMotion();
                 Invoke(() => StateChanged?.Invoke());
                 if (f.Kind == Kind.Welcome) current.Connected.TrySetResult(uid);
@@ -330,15 +355,17 @@ public sealed class Client : IDisposable
                 break;
             case Kind.Motion:
             case Kind.RoomMotion:
-                var self = state.World.FirstOrDefault(p => p.Uid == uid);
-                if (f.Kind == Kind.Motion && self?.Scene != Scene.DayScene) return;
-                if (f.Kind == Kind.RoomMotion && (self?.Scene != Scene.WorkScene || state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership)) return;
+                if (f.Kind == Kind.RoomMotion && (state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership
+                    || state.Room.Members.All(p => p.Uid != f.Sender || p.Membership != f.Membership))) return;
                 var motion = Protocol.Read<Motion>(f.Body);
-                UpdatePlayer(f.Sender, p => p with { Motion = motion, HasMotion = true });
+                UpdatePlayer(f.Sender, p => p with { Motion = motion, HasMotion = true,
+                    Map = p.Scene == Scene.DayScene ? motion.Map : MapLabel.Unknown });
                 Invoke(() => StateChanged?.Invoke()); break;
             case Kind.Profile:
                 var profile = Protocol.Read<Player>(f.Body);
-                UpdatePlayer(f.Sender, p => p with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene, Stage = profile.Stage });
+                UpdatePlayer(f.Sender, p => p with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene, Stage = profile.Stage, Map = profile.Map,
+                    Motion = p.Scene == profile.Scene && p.Map == profile.Map ? p.Motion : new(),
+                    HasMotion = p.Scene == profile.Scene && p.Map == profile.Map && p.HasMotion });
                 Invoke(() => StateChanged?.Invoke()); break;
             case Kind.Data:
                 if (f.Room != 0 && (state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership)) return;
@@ -358,10 +385,9 @@ public sealed class Client : IDisposable
 
     private void FilterMotion()
     {
-        var scene = state.World.FirstOrDefault(p => p.Uid == uid)?.Scene;
         var room = state.Room;
-        Player Filter(Player player) => player.Uid == uid || (player.Scene == scene &&
-            (scene == Scene.DayScene || (scene == Scene.WorkScene && room?.Members.Any(p => p.Uid == player.Uid) == true)))
+        Player Filter(Player player) => player.Uid == uid || player.Scene == Scene.DayScene
+            || (player.Scene == Scene.WorkScene && room?.Members.Any(p => p.Uid == player.Uid && p.Membership == player.Membership) == true)
             ? player : player with { Motion = new(), HasMotion = false };
         state = state with
         {

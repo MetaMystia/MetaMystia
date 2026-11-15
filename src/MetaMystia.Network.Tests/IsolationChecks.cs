@@ -85,11 +85,11 @@ static partial class Checks
         Assert(!otherGuest.State.World.Single(p => p.Uid == otherHost.Uid).HasMotion,
             "本地退房立即清除旧房间运动，无需等待服务器通知");
         outside.SetProfile("world-player", new(), Scene.WorkScene, GameStage.Work);
-        Assert(!outside.State.World.Single(p => p.Uid == host.Uid).HasMotion,
-            "本地切入夜间立即隐藏白天位置");
+        Assert(outside.State.World.Single(p => p.Uid == host.Uid).Motion.X == 61,
+            "本地切入夜间保留最近收到的白天位置");
         await Pump(host.SetJoinableAsync(false));
-        Assert(!outside.State.World.Single(p => p.Uid == host.Uid).HasMotion,
-            "切场景期间的管理快照不能恢复旧世界位置");
+        Assert(outside.State.World.Single(p => p.Uid == host.Uid).Motion.X == 61,
+            "管理快照省略运动时保留最近收到的白天位置");
         var dupe = new Client(); clients.Add(dupe);
         Assert(await Failure(dupe.ConnectAsync(server.Endpoint, Player("room-host"))) == "DuplicateName", "重复名称在服务器登记时拒绝");
         foreach (var client in new[] { host, guest, outside, otherHost, otherGuest, late }) client.Disconnect();

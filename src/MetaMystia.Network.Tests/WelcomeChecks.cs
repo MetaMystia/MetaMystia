@@ -39,7 +39,7 @@ static partial class Checks
             await File.WriteAllTextAsync(serverPath, """{"logChat":true,"welcomeMessages":["新版欢迎"]}""");
             await File.WriteAllTextAsync(filterPath, """{"enabled":true,"words":["blocked"]}""");
             await ServerCommands.Execute("reload", server, (_, text) => output.Add(text), directory);
-            Assert(output[^1].Contains("已生效"), "reload 读取两个 JSON 并应用配置");
+            Assert(logs.Count(e => e.Message.Contains("重新加载了配置")) == 1 && output.Count == 0, "reload 读取两个 JSON 并应用配置，只记录一次成功结果");
             var thirdMessages = new List<ReceivedMessage>();
             var third = await Enter("welcome-third", thirdMessages);
             await Until(() => thirdMessages.Count == 1);
@@ -53,7 +53,7 @@ static partial class Checks
             await File.WriteAllTextAsync(serverPath, """{"logChat":false,"welcomeMessages":["不能部分应用"]}""");
             await File.WriteAllTextAsync(filterPath, "{invalid");
             await ServerCommands.Execute("reload", server, (_, text) => output.Add(text), directory);
-            Assert(output[^1].Contains("保留原配置") && await server.SayAsync("blocked") == NetworkErrorCode.ChatFiltered,
+            Assert(output[^1].Contains("继续使用原配置") && await server.SayAsync("blocked") == NetworkErrorCode.ChatFiltered,
                 "任一文件无效时重载失败且原词表保持生效");
             var fourthMessages = new List<ReceivedMessage>();
             var fourth = await Enter("welcome-fourth", fourthMessages);
@@ -67,7 +67,7 @@ static partial class Checks
             {
                 await File.WriteAllTextAsync(serverPath, JsonSerializer.Serialize(new { welcomeMessages = invalid }));
                 await ServerCommands.Execute("reload", server, (_, text) => output.Add(text), directory);
-                Assert(output[^1].Contains("保留原配置"), "无效公告数组不能替换运行配置");
+                Assert(output[^1].Contains("继续使用原配置"), "无效公告数组不能替换运行配置");
             }
             File.Delete(serverPath); File.Delete(filterPath);
             await ServerCommands.Execute("reload", server, (_, text) => output.Add(text), directory);

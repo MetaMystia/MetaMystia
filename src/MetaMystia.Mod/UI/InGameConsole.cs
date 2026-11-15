@@ -51,9 +51,16 @@ public static partial class InGameConsole
         {
             if (_isOpen != value)
             {
+                if (GameFlow.LocalScene == Scene.DayScene && DayScene.SceneManager.Instance != null
+                    && DayScene.SceneManager.Instance.IsMapSwapping)
+                {
+                    LogToConsole(TextId.ConsoleMapSwapping.Get());
+                    return;
+                }
+
                 Log.Info($"console {(value ? "opened" : "closed")}");
                 _isOpen = value;
-                if (value)
+                if (value && _followLogs)
                     _scrollToBottom = true;
                 UpdateGameInputState();
             }
@@ -77,6 +84,9 @@ public static partial class InGameConsole
     private const string TextFieldControlName = "ConsoleInput";
     private static bool justOpened = false;
     private static bool _scrollToBottom = false;
+    private static bool _followLogs = true;
+    private static int _unreadLogs;
+    private static float _logContentWidth;
 
     // Command system
     private static ConsoleContext _consoleContext = null!;
@@ -203,6 +213,15 @@ public static partial class InGameConsole
     {
         _logs.Clear();
         while (_pendingLogs.TryDequeue(out _)) { }
+        scrollPosition = Vector2.zero;
+        ScrollToLatest();
+    }
+
+    private static void ScrollToLatest()
+    {
+        _followLogs = true;
+        _scrollToBottom = true;
+        _unreadLogs = 0;
     }
 
     private static void UpdateGameInputState()
@@ -408,8 +427,14 @@ public static partial class InGameConsole
         while (_pendingLogs.TryDequeue(out var msg))
         {
             _logs.Add(new LogEntry(msg));
-            if (_logs.Count > MaxLogs) _logs.RemoveAt(0);
-            _scrollToBottom = true;
+            if (_logs.Count > MaxLogs)
+            {
+                if (!_followLogs && _logContentWidth > 0f)
+                    scrollPosition.y = Mathf.Max(0f, scrollPosition.y - GetEntryHeight(_logs[0], _logContentWidth));
+                _logs.RemoveAt(0);
+            }
+            if (_followLogs) _scrollToBottom = true;
+            else _unreadLogs = Math.Min(_unreadLogs + 1, MaxLogs);
         }
     }
 
@@ -674,6 +699,7 @@ public static partial class InGameConsole
         // so control count is constant (1 scroll view + 0 inner GUILayout controls).
         var logViewRect = new Rect(panelX + Padding, logY, panelW - Padding * 2, logAreaH);
         float contentWidth = logViewRect.width - 18f; // reserve scrollbar space
+        _logContentWidth = contentWidth;
 
         int logCount = _logs.Count;
         float contentHeight = 0f;
@@ -687,6 +713,12 @@ public static partial class InGameConsole
         float totalContentH = contentHeight + topPad;
 
         var contentRect = new Rect(0, 0, contentWidth, totalContentH);
+        float bottom = Mathf.Max(0f, totalContentH - logAreaH);
+        if (_scrollToBottom)
+        {
+            scrollPosition.y = bottom;
+            _scrollToBottom = false;
+        }
         scrollPosition = GUI.BeginScrollView(logViewRect, scrollPosition, contentRect);
 
         // Virtualize: only render entries whose rect intersects the visible viewport.
@@ -703,11 +735,14 @@ public static partial class InGameConsole
         }
         GUI.EndScrollView();
 
-        // Auto-scroll to bottom
-        if (_scrollToBottom && e.type == EventType.Repaint)
+        _followLogs = bottom - scrollPosition.y <= _logStyle!.lineHeight;
+        if (_followLogs) _unreadLogs = 0;
+        if (_unreadLogs > 0)
         {
-            scrollPosition.y = Mathf.Max(0f, totalContentH - logAreaH);
-            _scrollToBottom = false;
+            string unreadText = TextId.ConsoleNewMessages.Get(_unreadLogs);
+            float buttonWidth = GUI.skin.button.CalcSize(new GUIContent(unreadText)).x + Padding * 2;
+            if (GUI.Button(new Rect(logViewRect.xMax - buttonWidth - 18f, logViewRect.yMax - 28f, buttonWidth, 26f), unreadText))
+                ScrollToLatest();
         }
 
         // Input bar background
@@ -754,7 +789,7 @@ public static partial class InGameConsole
                 inputsCursor = 0;
                 input = "";
                 _completion.Reset();
-                _scrollToBottom = true;
+                ScrollToLatest();
                 SaveHistory();
                 if (closeConsole)
                 {
@@ -876,7 +911,7 @@ public static partial class InGameConsole
             if (GameSession.IsOnline)
                 ChatMessage.Send(cmd);
             else
-                LogToConsole($"{LiveModeManager.GetLocalDisplayName()}: {LiveModeManager.MaskMessage(cmd)}");
+                AddPeerMessage(LiveModeManager.GetLocalDisplayName(), cmd);
 
             closeConsole = true;
         }

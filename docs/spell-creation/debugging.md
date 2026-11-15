@@ -12,10 +12,8 @@
 
 ## 运行时探针
 
-使用 Il2cppConsoleMod（位置见 `paths.local.md`，用法见其 README）：
-- token 每次启动都会变化，从游戏的 `BepInEx/LogOutput.log` 读取；token 只作为本次请求参数，不要写入脚本、文档或记录。
-- 所有调试 HTTP 请求都要经执行工具审批。
-- 需要保留的变量、对象或协程用 `/script`。脚本里可以写托管 `IEnumerator`，经 `WrapToIl2Cpp()` 交给 `EventManager.StartCoroutine`。
+使用 UnityRuntimeDebugger，用法与 Token 规则见 [游戏实测](../dev/runtime-testing.md)：
+- 需要跨请求保留的变量、对象或协程放在调试器的持久会话中。托管 `IEnumerator` 经 `WrapToIl2Cpp()` 交给 `EventManager.StartCoroutine`。
 - 访问已销毁的 Il2Cpp 对象的成员会抛异常，先用 `obj != null`（Unity 的空判断）过滤。
 - 判断 `MonoSingleton` 单例（如 `EventManager`）是否存在时用 `hasInstance`，不要读 `Instance`：实例不存在时 `Instance` 会在当前场景中创建一个空对象并执行其 `Awake`。
 
@@ -50,7 +48,7 @@
 - 要定位写入点，可以对游戏进程开启 PageHeap（`gflags.exe` 与 cdb 位于同一目录；`gflags /p /enable <exe> /full`，需要管理员权限，调试完用 `/disable` 关闭），越界写发生时会当场崩溃。
 - 崩溃点落在托管代码时，用 SOS 解析：`dotnet tool install -g dotnet-sos`、`dotnet-sos install`，然后在 cdb 中执行 `.load <sos.dll>; !ip2md <地址>; !clrstack -f; !pe`。
 - 定位到第三方库内部时，用 `ilspycmd -t <类型全名> <dll>` 反编译**本机实际加载的**版本来核对，不要凭记忆判断。
-- 案例：符卡开发期间的随机崩溃，按"PageHeap 当场崩溃 → SOS 定位到 `ClassInjector.RegisterTypeInIl2Cpp` → 反编译确认虚表越界写"的顺序定位，详见 [`il2cppinterop-defects.md`](../il2cppinterop-defects.md)。
+- 案例：符卡开发期间的随机崩溃，按"PageHeap 当场崩溃 → SOS 定位到 `ClassInjector.RegisterTypeInIl2Cpp` → 反编译确认虚表越界写"的顺序定位，详见 [`il2cppinterop-defects.md`](../reference/il2cppinterop-defects.md)。
 - 按模块二分：临时加入环境变量开关跳过可疑模块，定位后删除。偶发问题每组要启动多次才能得出结论。
 - 游戏的 `Player.log`（`%USERPROFILE%\AppData\LocalLow\Epicomic\Touhou Mystia Izakaya\`）记录原版流程日志，例如 `Timed Buff [id] registered`、`Spell Queue Execution Finish`，可以用来核对符卡队列是否正常结束。
 

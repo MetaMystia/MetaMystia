@@ -42,10 +42,15 @@ public partial class PeerPlayer : NetPlayer
     {
         bool skinChanged = NetworkState?.Skin != state.Skin;
         bool motionReceived = !ReferenceEquals(NetworkState?.Motion, state.Motion);
+        // 同一营业场景可多次备菜；进入新准备阶段时清除上一轮显示。
+        if (state.Stage == GameStage.Preparation
+            && (NetworkState?.Stage != state.Stage || NetworkState?.Scene != state.Scene))
+            IsPrepOver = false;
         NetworkState = state;
         Id = state.Name;
         if (skinChanged)
         {
+            Skin.ReleaseRuntimeSkin();
             Skin = PlayerProfile.ReadSkin(state.Skin);
             UpdateCharacterSprite();
         }
@@ -66,15 +71,26 @@ public partial class PeerPlayer : NetPlayer
         bool created = character == null;
         if (created)
         {
-            owner = SceneDirector.Instance;
-            var go = Object.Instantiate(DataBaseCharacter.CharacterBase, owner.transform);
+            var skin = Skin.ResolveSkin();
+            var director = SceneDirector.Instance;
+            var go = Object.Instantiate(DataBaseCharacter.CharacterBase, director.transform);
             go.name = CharacterId;
-            character = go.GetComponent<CharacterControllerUnit>();
-            // 剧情用的 SpawnCharacter 会删除碰撞体，联机角色需保留碰撞体。
-            character.Initialize(Skin.ResolveSkin(), motion.Speed, true);
-            owner.characterCollection.Add(CharacterId, character);
-            character.AddInputProcessor<HeightBlendedInputProcessorComponent>();
-            Skin.ApplyToUnit(character);
+            try
+            {
+                var unit = go.GetComponent<CharacterControllerUnit>();
+                // 剧情用的 SpawnCharacter 会删除碰撞体，联机角色需保留碰撞体。
+                unit.Initialize(skin, motion.Speed, true);
+                unit.AddInputProcessor<HeightBlendedInputProcessorComponent>();
+                Skin.ApplyToUnit(unit);
+                director.characterCollection.Add(CharacterId, unit);
+                owner = director;
+                character = unit;
+            }
+            finally
+            {
+                // 初始化失败的对象不得留给网络刷新和物理更新。
+                if (character == null) Object.Destroy(go);
+            }
             IgnorePlayerCollisions();
             Log.Info($"Created peer '{CharacterId}' in {Scene}");
         }
@@ -133,6 +149,7 @@ public partial class PeerPlayer : NetPlayer
             }
         }
         character = null;
+        Skin.ReleaseRuntimeSkin();
         owner = null;
         ResetMotion();
     }

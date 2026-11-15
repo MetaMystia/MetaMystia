@@ -192,7 +192,8 @@ public static partial class RexAssetRegistry
 
     public static IReadOnlyDictionary<string, RexAsset> Assets => _assets;
 
-    public static void RegisterPackage(LoadedResourcePackage package)
+    /// <param name="deferredPaths">按需解码的包内路径（如地图大图），只登记字节，不预先创建纹理。</param>
+    public static void RegisterPackage(LoadedResourcePackage package, IReadOnlySet<string> deferredPaths)
     {
         if (package?.AssetPackage == null || string.IsNullOrWhiteSpace(package.PackageLabel))
             return;
@@ -217,7 +218,9 @@ public static partial class RexAssetRegistry
                 continue;
             }
 
-            var asset = CreateAsset(rexUri, bytes);
+            var asset = deferredPaths.Contains(rexUri.Path)
+                ? new RexBinaryAsset(rexUri.Value, rexUri.PackageName, rexUri.Path, bytes)
+                : CreateAsset(rexUri, bytes);
             RegisterAsset(asset);
 
             switch (asset.Kind)

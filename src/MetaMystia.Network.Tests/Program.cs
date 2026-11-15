@@ -79,12 +79,14 @@ static partial class Checks
         await ForwardedMessageChecks();
         await ChatFiltering();
         await Administration();
+        await Retirement();
         await ServerChat();
         await WelcomeAndReload();
         await IncrementalResources();
         await ErrorDetails();
         await Stages();
         await StationaryHostSnapshot();
+        await PlayerLocations();
         var data = Player("真实枚举");
         Assert(MemoryPackSerializer.Deserialize<Player>(MemoryPackSerializer.Serialize(data))!.Scene == Scene.DayScene, "真实游戏枚举在无头进程读写");
         Console.WriteLine($"SIZE motion body={Protocol.Pack(data.Motion).Length}, frame={Protocol.Encode(new(Kind.Motion, Protocol.Pack(data.Motion))).Length}, resources={Protocol.Pack(data.Resources).Length}");

@@ -18,6 +18,16 @@ public enum Language
 
 public enum TextId
 {
+    PlayerListOnline,
+    PlayerListLastPosition,
+    PlayerListMainMenu,
+    PlayerListDay,
+    PlayerListPreparation,
+    PlayerListWork,
+    PlayerListResult,
+    PlayerListLoading,
+    PlayerListStaff,
+    PlayerListUnknown,
     BusinessStartWaiting,
     NetworkVersionDetails,
     NetworkProtocolMismatch,
@@ -42,6 +52,9 @@ public enum TextId
     NetworkOverload,
     NetworkLost,
     NetworkFailure,
+    NetworkVersionUnavailable,
+    NetworkServerRetiring,
+    NetworkUpdateNotice,
     NetworkLeaveRoomFirst,
     NetworkWorldFirst,
     NetworkRoomLine,
@@ -173,6 +186,7 @@ public enum TextId
 
     // Console UI & Formatting
     PeerMessagePrefix,
+    ConsoleNewMessages,
     CommandPrompt,
     BepInExConsoleEnabled,
 
@@ -313,6 +327,7 @@ public enum TextId
     // Console startup & link
     ConsoleStarPrompt,
     ConsoleHelpHint,
+    ConsoleMapSwapping,
     ConsoleTestServerWelcome,
     CmdDescLink,
     LinkDescMetaMystia,
@@ -361,6 +376,7 @@ public enum TextId
     MpStartedOnPort,
     MpPortRange,
     MpConnectInProgress,
+    MpAlreadyConnected,
 
     // IPv6
     MpIpv6Enabled,
@@ -390,6 +406,11 @@ public enum TextId
     LiveModePartial,
     LiveModeFull,
     LivePartialReminder,
+
+    // Emote
+    CmdDescEmote,
+    EmoteNoCharacter,
+    EmoteUnavailable,
 
     ConnectionVersionMismatch,
     ConnectionHandshakeTimeout,

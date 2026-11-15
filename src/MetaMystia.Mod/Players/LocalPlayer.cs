@@ -1,8 +1,9 @@
 using UnityEngine;
 
+using Common;
 using Common.CharacterUtility;
+using GameData.Core.Collections.CharacterUtility;
 using GameData.RunTime.Common;
-using JetBrains.Annotations;
 
 namespace MetaMystia;
 
@@ -68,7 +69,20 @@ public partial class LocalPlayer : NetPlayer
     public void InitSkin()
     {
         if (IsCustomSkinOverride) return;
-        var clothes = RunTimeAlbum.GetPlayerClothes();
-        Skin.SetSkin(-1, clothes.skinIndex.selectedType, clothes.skinIndex.index);
+        var selection = RunTimeAlbum.PlayerSkinSet();
+        // 原生 Nullable<int> 空返回值无法被 Interop 正确包装，此处沿用原生选择条件。
+        bool special = LoadingSceneManager.loadType == LoadingSceneManager.DataLoadType.Night
+            && !RunTimeAlbum.UseCurrentSkinAtNight;
+        Skin.SetSkin(-1, special ? CharacterSkinSets.SelectedType.Explicit : selection.selectedType,
+            special ? 0 : selection.index);
+    }
+
+    public void RefreshSkin(bool resetOverride = false)
+    {
+        if (resetOverride) IsCustomSkinOverride = false;
+        InitSkin();
+        UpdateCharacterSprite();
+        PlayerProfile.SendProfile();
+        PlayerManager.RefreshPortrait();
     }
 }

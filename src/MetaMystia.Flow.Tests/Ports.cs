@@ -26,6 +26,7 @@ namespace MetaMystia
         public static Scene LocalScene = Scene.DayScene;
         public static bool InStory;
         public static DayDestination Destination;
+        public static bool IsFinalTrial => Destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain;
         public static GameStage Stage => LocalScene == Scene.WorkScene ? GameStage.Work
             : LocalScene != Scene.DayScene ? GameStage.Loading
             : Destination == DayDestination.None ? GameStage.Day : GameStage.DayEnd;
@@ -41,6 +42,7 @@ namespace MetaMystia
     {
         public int Uid;
         public bool IsDayOver;
+        public bool IsPrepOver;
         public MapLabel IzakayaMapLabel;
         public int IzakayaLevel;
     }
@@ -49,6 +51,7 @@ namespace MetaMystia
         public static FlowPlayer Local = new() { Uid = 1 };
         public static Dictionary<int, FlowPlayer> Peers = new();
         public static bool LocalIsDayOver;
+        public static bool LocalIsPrepOver { get => Local.IsPrepOver; set => Local.IsPrepOver = value; }
         public static bool AllPeersSelectedSameIzakaya(MapLabel map, int level) =>
             Peers.Values.All(peer => peer.IzakayaMapLabel == map && peer.IzakayaLevel == level);
         public static string GetFirstMismatchSelection(MapLabel map, int level) => "mismatch";

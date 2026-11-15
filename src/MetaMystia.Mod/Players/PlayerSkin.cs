@@ -34,18 +34,9 @@ public partial class PlayerSkin
     public bool? RotateOverride = null;
 
     [MemoryPackIgnore]
-    private CharacterSpriteSetCompact _rotatedSkinCache;
+    private CharacterSpriteSetCompact rotationSource;
     [MemoryPackIgnore]
-    private CharacterSpriteSetCompact _rotatedSkinSource;
-    [MemoryPackIgnore]
-    private bool? _rotatedSkinRotate;
-
-    private void InvalidateRotatedSkinCache()
-    {
-        _rotatedSkinCache = null;
-        _rotatedSkinSource = null;
-        _rotatedSkinRotate = null;
-    }
+    private CharacterSpriteSetCompact rotationSkin;
 
     /// <summary>
     /// 解析 CharacterSpriteSetCompact
@@ -78,17 +69,18 @@ public partial class PlayerSkin
     private static CharacterSpriteSetCompact ResolveSkin(
         CharacterSkinSets skinSets, CharacterSkinSets.SelectedType type, int index)
     {
-        if (skinSets is null) return null;
+        if (skinSets == null) return DataBaseCharacter.FallbackFullPixel;
 
-        return type switch
+        var skin = type switch
         {
             CharacterSkinSets.SelectedType.Default => skinSets.defaultSkin,
-            CharacterSkinSets.SelectedType.Explicit => (index >= 0 && index < skinSets.explicits.Length)
+            CharacterSkinSets.SelectedType.Explicit => (index >= 0 && index < skinSets.explicits?.Length)
                 ? skinSets.explicits[index] : skinSets.defaultSkin,
-            CharacterSkinSets.SelectedType.DLC => (index >= 0 && index < skinSets.dlcs.Length)
+            CharacterSkinSets.SelectedType.DLC => (index >= 0 && index < skinSets.dlcs?.Length)
                 ? skinSets.dlcs[index] : skinSets.defaultSkin,
             _ => skinSets.defaultSkin
         };
+        return skin != null ? skin : skinSets.GetDefaultPixel(false);
     }
 
     /// <summary>
@@ -194,7 +186,6 @@ public partial class PlayerSkin
         SelectedType = selectedType;
         SkinIndex = skinIndex;
         NetSkinName = null;
-        InvalidateRotatedSkinCache();
     }
 
     /// <summary>
@@ -203,112 +194,56 @@ public partial class PlayerSkin
     public void SetNetSkin(string name)
     {
         NetSkinName = string.IsNullOrEmpty(name) ? null : name;
-        InvalidateRotatedSkinCache();
-    }
-
-    /// <summary>
-    /// 设置旋转覆盖
-    /// </summary>
-    public void SetRotate(bool? value)
-    {
-        RotateOverride = value;
-        InvalidateRotatedSkinCache();
     }
 
     private CharacterSpriteSetCompact ResolveSkinForUnit()
     {
-        var baseSkin = ResolveSkin();
-        if (baseSkin == null || !RotateOverride.HasValue)
-            return baseSkin;
+        var source = ResolveSkin();
+        if (source == null || !RotateOverride.HasValue)
+        {
+            ReleaseRuntimeSkin();
+            return source;
+        }
+        if (rotationSkin != null && rotationSource == source && rotationSkin.IsHina == RotateOverride.Value)
+            return rotationSkin;
 
-        if (_rotatedSkinCache != null
-            && _rotatedSkinSource == baseSkin
-            && _rotatedSkinRotate == RotateOverride)
-            return _rotatedSkinCache;
-
-        _rotatedSkinSource = baseSkin;
-        _rotatedSkinRotate = RotateOverride;
-        _rotatedSkinCache = CloneWithRotationOverride(baseSkin, RotateOverride.Value, 0.15f);
-        return _rotatedSkinCache;
+        ReleaseRuntimeSkin();
+        // Unity 克隆保留原生派生类型及全部图层，不依赖 Interop 包装类型判断。
+        rotationSkin = Object.Instantiate(source);
+        rotationSkin.hideFlags = HideFlags.HideAndDontSave;
+        rotationSkin.isHina = RotateOverride.Value;
+        rotationSkin.rotatePerTime = 0.15f;
+        rotationSource = source;
+        return rotationSkin;
     }
 
-    private static CharacterSpriteSetCompact CloneWithRotationOverride(
-        CharacterSpriteSetCompact source, bool isHina, float rotatePerTime)
+    internal void ReleaseRuntimeSkin()
     {
-        if (source is CharacterSpriteSetFull fullSource)
-            return CloneFullWithRotation(fullSource, isHina, rotatePerTime);
-        return CloneCompactWithRotation(source, isHina, rotatePerTime);
+        if (rotationSkin != null) Object.Destroy(rotationSkin);
+        rotationSkin = null;
+        rotationSource = null;
     }
 
-    private static CharacterSpriteSetCompact CloneCompactWithRotation(
-        CharacterSpriteSetCompact source, bool isHina, float rotatePerTime)
-    {
-        var clone = ScriptableObject.CreateInstance<CharacterSpriteSetCompact>();
-        clone.Initialize(
-            source.MainSprite,
-            source.DoNotUseEyeSprite,
-            source.EyeSprite,
-            source.HasPrebakedShadow,
-            source.AnimationSpeedMultiplier,
-            source.ExtraYOffset,
-            isHina,
-            rotatePerTime,
-            source.DoNotHaveStepVFX,
-            source.MoveSpeedMultiplier,
-            source.RemovableTrims,
-            source.TrimSpritesDisplayFront,
-            source.TrimSpritesDisplayBack,
-            source.TrimFrontSpriteFrameSpeed,
-            source.TrimBackSpriteFrameSpeed);
-        clone.name = source.name + "_playerRot";
-        clone.hideFlags = HideFlags.HideAndDontSave;
-        return clone;
-    }
-
-    private static CharacterSpriteSetFull CloneFullWithRotation(
-        CharacterSpriteSetFull source, bool isHina, float rotatePerTime)
-    {
-        var clone = ScriptableObject.CreateInstance<CharacterSpriteSetFull>();
-        clone.Initialize(
-            source.MainSprite,
-            source.DoNotUseEyeSprite,
-            source.EyeSprite,
-            source.HairSprite,
-            source.BackSprite,
-            source.HasPrebakedShadow,
-            source.AnimationSpeedMultiplier,
-            source.ExtraYOffset,
-            isHina,
-            rotatePerTime,
-            source.DoNotHaveStepVFX,
-            source.MoveSpeedMultiplier,
-            source.RemovableTrims,
-            source.TrimSpritesDisplayFront,
-            source.TrimSpritesDisplayBack,
-            source.TrimFrontSpriteFrameSpeed,
-            source.TrimBackSpriteFrameSpeed);
-        clone.name = source.name + "_playerRot";
-        clone.hideFlags = HideFlags.HideAndDontSave;
-        return clone;
-    }
-
-    /// <summary>
-    /// 将当前皮肤应用到指定 unit 上
-    /// </summary>
-    /// <param name="unit"></param>
     public void ApplyToUnit(CharacterControllerUnit unit)
     {
         if (unit == null) return;
         var skin = ResolveSkinForUnit();
-        if (skin != null && RotateOverride.HasValue)
+        if (skin == null) return;
+        if (unit.m_CurrentVisual == skin)
         {
-            if (!RotateOverride.Value)
-                unit.animator?.StopAllCoroutines();
+            if (!skin.IsHina || unit.animator == null || unit.animator.hinaRotateCoroutine != null) return;
             unit.m_CurrentVisual = null;
         }
+        StopRotation(unit.animator);
         unit.UpdateCharacterSprite(skin);
     }
 
+    internal static void StopRotation(CharacterAnimator animator)
+    {
+        if (animator == null || animator.hinaRotateCoroutine == null) return;
+        animator.StopCoroutine(animator.hinaRotateCoroutine);
+        animator.hinaRotateCoroutine = null;
+    }
 
     /// <summary>
     /// 获取全部可用皮肤的表格字符串，格式为 "name: CharacterId SelectedType SkinIndex"

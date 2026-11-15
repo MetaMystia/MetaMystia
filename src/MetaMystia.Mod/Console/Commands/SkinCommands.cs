@@ -1,7 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 
-using MetaMystia.Multiplayer;
 using MetaMystia.UI;
 
 namespace MetaMystia.ConsoleSystem.Commands;
@@ -36,10 +35,7 @@ public static class SkinCommands
 
             PlayerManager.Local.Skin.SetSkin(characterId, selectedType, skinIndex);
             PlayerManager.Local.IsCustomSkinOverride = true;
-            PlayerManager.Local.UpdateCharacterSprite();
-            if (GameSession.IsOnline)
-                PlayerProfile.SendProfile();
-            PlayerManager.RefreshPortrait();
+            PlayerManager.Local.RefreshSkin();
             ctx.Log(TextId.SkinMsgSetOk.Get(characterId, selectedType, skinIndex));
         });
         skinCmd.AddCommand(setCmd);
@@ -48,12 +44,7 @@ public static class SkinCommands
         var offCmd = new Command("off", "Reset skin to game default");
         offCmd.SetHandler(ctx =>
         {
-            PlayerManager.Local.IsCustomSkinOverride = false;
-            PlayerManager.InitLocalSkin();
-            PlayerManager.Local.UpdateCharacterSprite();
-            if (GameSession.IsOnline)
-                PlayerProfile.SendProfile();
-            PlayerManager.RefreshPortrait();
+            PlayerManager.Local.RefreshSkin(resetOverride: true);
             ctx.Log(TextId.SkinMsgResetOk.Get());
         });
         skinCmd.AddCommand(offCmd);
@@ -67,13 +58,7 @@ public static class SkinCommands
             var name = ctx.ParseResult.GetValueForArgument(netNameArg);
             if (string.Equals(name, "off", System.StringComparison.OrdinalIgnoreCase))
             {
-                PlayerManager.Local.Skin.SetNetSkin(null);
-                PlayerManager.Local.IsCustomSkinOverride = false;
-                PlayerManager.InitLocalSkin();
-                PlayerManager.Local.UpdateCharacterSprite();
-                if (GameSession.IsOnline)
-                    PlayerProfile.SendProfile();
-                PlayerManager.RefreshPortrait();
+                PlayerManager.Local.RefreshSkin(resetOverride: true);
                 ctx.Log(TextId.SkinMsgNetClearOk.Get());
                 return;
             }
@@ -107,10 +92,7 @@ public static class SkinCommands
             PlayerManager.Local.Skin.SetNetSkin(name);
             PlayerManager.Local.IsCustomSkinOverride = true;
             // 先应用 Fallback 占位，下载完成后 NetSkinManager 会自动重新刷新
-            PlayerManager.Local.UpdateCharacterSprite();
-            if (GameSession.IsOnline)
-                PlayerProfile.SendProfile();
-            PlayerManager.RefreshPortrait();
+            PlayerManager.Local.RefreshSkin();
 
             NetSkinManager.RequestSkin(name, ok =>
             {
@@ -130,10 +112,8 @@ public static class SkinCommands
         {
             var state = ctx.ParseResult.GetValueForArgument(rotStateArg);
             bool? value = state switch { "on" => true, "off" => false, _ => null };
-            PlayerManager.Local.Skin.SetRotate(value);
-            PlayerManager.Local.UpdateCharacterSprite();
-            if (GameSession.IsOnline)
-                PlayerProfile.SendProfile();
+            PlayerManager.Local.Skin.RotateOverride = value;
+            PlayerManager.Local.RefreshSkin();
             var msg = value switch { true => TextId.SkinMsgRotOn, false => TextId.SkinMsgRotOff, null => TextId.SkinMsgRotClear };
             ctx.Log(msg.Get());
         });

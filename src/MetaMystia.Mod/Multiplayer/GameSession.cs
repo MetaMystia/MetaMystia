@@ -60,9 +60,11 @@ public static partial class GameSession
         }
     }
 
+    public static void ConnectOfficial() => Connect("play.metamystia.net", DefaultPort);
+
     public static void Connect(string host, int port = -1)
     {
-        if (IsConnecting || HasRoomPeers || !CanStart()) return;
+        if (IsConnectingOrOnline || !CanStart()) return;
         Stop();
         CurrentPort = port < 0 ? ConfigPort : port;
         var client = new Client(new(Versions.Current.Protocol, Plugin.GameVersion, Plugin.ModVersion));
@@ -71,7 +73,11 @@ public static partial class GameSession
         var token = cancellation.Token;
         int targetPort = CurrentPort;
         bool ipv6 = EnableIPv6;
-        Run(Connect(), () => InGameConsole.ShowPassive(TextId.MultiplayerConnected.Get()), connecting: true);
+        Run(Connect(), () =>
+        {
+            CurrentPort = targetPort;
+            InGameConsole.ShowPassive(TextId.MultiplayerConnected.Get());
+        }, connecting: true);
         async Task Connect()
         {
             var addresses = await Dns.GetHostAddressesAsync(host.Trim('[', ']')).WaitAsync(token).ConfigureAwait(false);
@@ -107,6 +113,11 @@ public static partial class GameSession
         client.StateChanged += () => ApplyState(client);
         client.MessageReceived += GameMessages.Receive;
         client.ChatRejected += error => InGameConsole.LogError(NetworkNotice.Describe(error));
+        client.NoticeReceived += notice =>
+        {
+            if (Client == client && notice.Code == ServerNoticeCode.Retiring)
+                InGameConsole.AddPeerMessage(TextId.ServerChatName.Get(), TextId.NetworkUpdateNotice.Get(notice.TargetModVersion));
+        };
         client.ConnectionEnded += reason =>
         {
             if (Client != client) return;
@@ -189,7 +200,11 @@ public static partial class GameSession
         () => InGameConsole.LogSuccess(TextId.NetworkRoomJoined.Get(RoomCode.Format(Room.Id))));
     public static void Kick(int uid) => Run(Client.KickAsync(uid, cancellation.Token));
     public static void SetPlayerLimit(int count) => Run(Client.SetRoomPlayerLimitAsync(count, cancellation.Token),
-        () => ConfigManager.MaxPlayers.Value = count);
+        () =>
+        {
+            ConfigManager.MaxPlayers.Value = count;
+            InGameConsole.LogSuccess(TextId.MpMaxPlayersSet.Get(count));
+        });
 
     public static void LeaveRoom(bool resumeGameplay = true)
     {

@@ -5,7 +5,7 @@ using MemoryPack;
 
 namespace MetaMystia.Network;
 
-internal enum Kind : byte { Hello = 1, Rejected = 2, Welcome = 3, Snapshot = 4, Command = 5, Ack = 6, Motion = 7, Profile = 8, Data = 9, Ping = 10, Pong = 11, RoomMotion = 12, ChatRejected = 13 }
+internal enum Kind : byte { Hello = 1, Rejected = 2, Welcome = 3, Snapshot = 4, Command = 5, Ack = 6, Motion = 7, Profile = 8, Data = 9, Ping = 10, Pong = 11, RoomMotion = 12, ChatRejected = 13, ServerNotice = 14 }
 internal enum Command : byte { Create = 1, Join = 2, Cancel = 3, Leave = 4, Joinable = 5, Limit = 6, Kick = 7 }
 
 [MemoryPackable]
@@ -111,6 +111,18 @@ internal static class Protocol
         return stream.ToArray();
     }
 
+    internal static Versions ReadHelloVersions(byte[] body)
+    {
+        using var stream = new MemoryStream(body, false);
+        using var reader = new BinaryReader(stream, Encoding.UTF8);
+        if (reader.ReadInt32() != 0x3152494d) throw new InvalidDataException("Invalid Hello magic");
+        var versions = new Versions(reader.ReadInt32(), reader.ReadString(), reader.ReadString());
+        if (string.IsNullOrWhiteSpace(versions.Game) || versions.Game.Length > 64 ||
+            string.IsNullOrWhiteSpace(versions.Mod) || versions.Mod.Length > 64)
+            throw new InvalidDataException("Invalid Hello versions");
+        return versions;
+    }
+
     internal static (Player Player, string Key) ReadHello(byte[] body, Versions expected)
     {
         using var stream = new MemoryStream(body, false);
@@ -134,7 +146,8 @@ internal static class Protocol
     {
         if (string.IsNullOrWhiteSpace(p.Name) || p.Name.Length > 64 || p.Name.Any(c => c is '<' or '>' || char.IsWhiteSpace(c) || char.IsControl(c)) || p.Skin == null ||
             p.Skin.NetSkinName == null || p.Skin.NetSkinName.Length > 128 || !Enum.IsDefined(typeof(Common.UI.Scene), p.Scene)
-            || !Enum.IsDefined(typeof(GameStage), p.Stage)) throw new InvalidDataException("Invalid profile");
+            || !Enum.IsDefined(typeof(GameStage), p.Stage)
+            || (!Enum.IsDefined(typeof(MapLabel), p.Map) && (int)p.Map < 9000)) throw new InvalidDataException("Invalid profile");
         Validate(p.Motion);
         if (!resources) return;
         var res = p.Resources;

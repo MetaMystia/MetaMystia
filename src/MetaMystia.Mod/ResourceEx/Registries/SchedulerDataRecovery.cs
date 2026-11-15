@@ -1,6 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
+
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 
 using GameData.RunTime.Common;
+
+using SgrYuki.Utils;
 
 namespace MetaMystia.ResourceEx.Registries;
 
@@ -84,6 +89,51 @@ public static partial class SchedulerDataRecovery
                 {
                     targetList.Add(eventLabel);
                     Log.Info($"Reloaded scheduledEvent: {eventLabel} under key: {scheduledEvent.Key}");
+                }
+            }
+        }
+
+        // reload scheduledNews
+        foreach (var scheduledNews in resourceExData.scheduledNews)
+        {
+            if (!RunTimeScheduler.scheduledNews.ContainsKey(scheduledNews.Key))
+            {
+                RunTimeScheduler.scheduledNews.Add(scheduledNews.Key, new Il2CppSystem.Collections.Generic.List<string>());
+                Log.Info($"Added new scheduledNews key: {scheduledNews.Key}");
+            }
+
+            var targetList = RunTimeScheduler.scheduledNews[scheduledNews.Key];
+            foreach (var newsLabel in scheduledNews.Value)
+            {
+                if (!targetList.Contains(newsLabel) && NewsNodeRegistry.GetAllNewsNodeLabels().Contains(newsLabel))
+                {
+                    targetList.Add(newsLabel);
+                    Log.Info($"Reloaded scheduledNews: {newsLabel} under key: {scheduledNews.Key}");
+                }
+            }
+        }
+
+        // reload scheduledNewsReplaceContents
+        foreach (var scheduledNewsReplaceContent in resourceExData.scheduledNewsReplaceContents)
+        {
+            if (!RunTimeScheduler.scheduledNewsReplaceContents.ContainsKey(scheduledNewsReplaceContent.Key))
+            {
+                RunTimeScheduler.scheduledNewsReplaceContents.Add(scheduledNewsReplaceContent.Key, new Il2CppSystem.Collections.Generic.List<Il2CppSystem.Collections.Generic.KeyValuePair<string, Il2CppReferenceArray<RunTimeScheduler.HistoryNewsData.ReplaceContent>>>());
+                Log.Info($"Added new scheduledNewsReplaceContents key: {scheduledNewsReplaceContent.Key}");
+            }
+
+            var targetList = RunTimeScheduler.scheduledNewsReplaceContents[scheduledNewsReplaceContent.Key];
+            foreach (var replaceContent in scheduledNewsReplaceContent.Value)
+            {
+                if (!NewsNodeRegistry.GetAllNewsNodeLabels().Contains(replaceContent.Key))
+                {
+                    continue;
+                }
+
+                if (!targetList.ToManagedList().Any(existing => existing.Key == replaceContent.Key))
+                {
+                    targetList.Add(replaceContent);
+                    Log.Info($"Reloaded scheduledNewsReplaceContents: {replaceContent.Key} under key: {scheduledNewsReplaceContent.Key}");
                 }
             }
         }

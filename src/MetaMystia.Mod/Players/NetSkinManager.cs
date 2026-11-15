@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -296,7 +297,7 @@ public static partial class NetSkinManager
     {
         if (PlayerManager.Local?.Skin?.NetSkinName == name)
             PlayerManager.Local.UpdateCharacterSprite();
-        foreach (var peer in PlayerManager.Peers.Values)
+        foreach (var peer in PlayerManager.Peers.Values.Concat(PlayerManager.PublicPeers.Values))
         {
             if (peer?.Skin?.NetSkinName == name)
                 peer.UpdateCharacterSprite();

@@ -64,6 +64,7 @@ public static class GeneralCommands
         ["link"] = TextId.CmdDescLink,
         ["resourceex"] = TextId.CmdDescResourceEx,
         ["live"] = TextId.CmdDescLive,
+        ["emote"] = TextId.CmdDescEmote,
         ["cheat"] = TextId.CmdDescCheat,
     };
 

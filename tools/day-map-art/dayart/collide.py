@@ -1,6 +1,6 @@
 """可走区域 → 轴对齐碰撞矩形，以及出生点、可达性、坡度格检查。
 
-当前 Mod 只支持矩形碰撞（docs/resourceex-day-maps.md），这里把不可走区域按网格合并成矩形。
+Mod 也支持多边形碰撞（docs/reference/resourceex/day-maps.md），这里仍把不可走区域按网格合并成矩形。
 网格越细，斜边台阶越小，矩形越多。
 """
 import numpy as np
@@ -67,7 +67,7 @@ class WalkGrid:
             x1 = self.x0 + c1 / self.res
             ytop = self.y1 - r0 / self.res
             ybot = self.y1 - r1 / self.res
-            out.append(dict(x=round((x0 + x1) / 2, 4), y=round((ytop + ybot) / 2, 4),
+            out.append(dict(shape='box', x=round((x0 + x1) / 2, 4), y=round((ytop + ybot) / 2, 4),
                             width=round(x1 - x0, 4), height=round(ytop - ybot, 4)))
         return out
 

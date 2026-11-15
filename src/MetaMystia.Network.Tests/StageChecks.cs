@@ -33,6 +33,17 @@ static partial class Checks
         Assert(guest.State.Room!.Id == room && guest.State.Room.Members.Single(p => p.Uid == guest.Uid).Membership == membership,
             "自由切场景保留连接、房间和入房身份");
 
+        // 最终试炼在 WorkScene 内反复准备，本地仍在主菜单也必须收到各轮阶段。
+        foreach (var stage in new[] { GameStage.Preparation, GameStage.Work, GameStage.Preparation, GameStage.Work })
+        {
+            guest.SetProfile("stage-guest", new(), Scene.WorkScene, stage);
+            await Until(() => host.State.Room!.Members.Single(p => p.Uid == guest.Uid).Stage == stage);
+            var remote = host.State.Room!.Members.Single(p => p.Uid == guest.Uid);
+            Assert(remote.Scene == Scene.WorkScene && remote.Stage == stage
+                && host.State.World.Single(p => p.Uid == host.Uid).Scene == Scene.MainScene,
+                "试炼准备与结束独立于查看者场景：" + stage);
+        }
+
         guest.LeaveRoom();
         await Until(() => host.State.Room!.Members.Length == 1 && !guest.IsLeavingRoom);
         guest.SetProfile("stage-guest", new(), Scene.DayScene, GameStage.DayEnd);

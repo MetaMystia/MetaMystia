@@ -36,6 +36,7 @@ public static partial class PrepSceneManager
         yuyukoPrepConfirmed = false;
         PlayerManager.LocalIsPrepOver = false;
 
+        PlayerProfile.SendProfile();
         BeginPrep();
         Log.Info($"Yuyuko prep round {YuyukoPrepRound} opened");
     }
@@ -47,6 +48,7 @@ public static partial class PrepSceneManager
         // 对端可能先播完剧情；打开本地面板时不能清掉已收到的本轮就绪。
         if (!yuyukoReadyRounds.TryGetValue(senderUid, out var previous) || round > previous)
             yuyukoReadyRounds[senderUid] = round;
+        PlayerManager.Peers[senderUid].IsPrepOver = true;
         TryConfirmYuyukoPrep();
     }
 
@@ -75,6 +77,7 @@ public static partial class PrepSceneManager
     {
         IsYuyukoPrepActive = false;
         PlayerManager.LocalIsPrepOver = false;
+        PlayerProfile.SendProfile();
         Log.Info($"Yuyuko prep round {YuyukoPrepRound} confirmed");
     }
 }
