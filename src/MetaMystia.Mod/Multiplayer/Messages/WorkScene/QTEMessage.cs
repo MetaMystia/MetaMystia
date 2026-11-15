@@ -1,5 +1,7 @@
 using MemoryPack;
 
+using NightScene.CookingUtility;
+
 using MetaMystia.Patch;
 
 namespace MetaMystia.Multiplayer.Messages;
@@ -26,6 +28,7 @@ public partial class QTEMessage : MultiplayerMessage
             Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
+        if (cookerController.Phase != CookController.CookPhase.Loaded || cookerController.Result == null) return;
         CookControllerPatch.StartCookCountDown_ReversePatch(cookerController, QTEScore, false);
     }
 

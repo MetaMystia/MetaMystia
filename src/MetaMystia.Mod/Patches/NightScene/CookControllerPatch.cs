@@ -92,6 +92,7 @@ public partial class CookControllerPatch
     {
         // 联机下 QTE 期间时间继续推进，厨具可能已被吞食，需阻止 QTE 结束后再启动烹饪倒计时。
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
+        if (__instance.Phase != CookController.CookPhase.Loaded || __instance.Result == null) return SkipOriginal;
         var gridIndex = __instance.GridIndex;
         QTEMessage.Send(gridIndex, qteScore);
         return RunOriginal;
