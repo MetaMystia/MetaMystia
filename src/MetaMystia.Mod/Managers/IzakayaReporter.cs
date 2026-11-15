@@ -1,10 +1,12 @@
 using System;
 using System.Collections;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
 using MetaMystia.Services;
 using MetaMystia.UI;
+using SgrYuki;
 
 namespace MetaMystia;
 
@@ -28,7 +30,7 @@ public static partial class IzakayaReporter
             try
             {
                 var currentVer = Plugin.ModVersion;
-                string? latestVer = null;
+                string latestVer = null;
                 try
                 {
                     latestVer = await izakayaService.GetLatestVersionAsync().ConfigureAwait(false);
@@ -84,7 +86,7 @@ public static partial class IzakayaReporter
         }
     }
 
-    public static async Task ReportOtherEventAsync(string category, string action, string? name = null)
+    public static async Task ReportOtherEventAsync(string category, string action, string name = null)
     {
         if (PluginManager.DEBUG || !isOtherEventEnabled) return;
         await ReportEventAsync(category, action, name).ConfigureAwait(false);
@@ -95,7 +97,7 @@ public static partial class IzakayaReporter
             ? Task.CompletedTask
             : ReportEventAsync("Client", "Run", version);
 
-    private static async Task ReportEventAsync(string category, string action, string? name)
+    private static async Task ReportEventAsync(string category, string action, string name)
     {
         var details = string.IsNullOrEmpty(name)
             ? $"category={category} action={action}"
