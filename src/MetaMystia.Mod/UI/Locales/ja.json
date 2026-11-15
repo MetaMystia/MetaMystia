@@ -13,6 +13,7 @@
     "PlayerListStaff": "スタッフロール",
     "PlayerListUnknown": "不明なシーン",
     "BusinessStartWaiting": "他のプレイヤーの準備が完了するまでお待ちください。",
+    "CookerBusy": "この調理器具は使用中です。選択した食材は返却されました。",
     "NetworkVersionDetails": "ローカル：ゲーム {0}、Mod {1}、プロトコル {2}；リモート：ゲーム {3}、Mod {4}、プロトコル {5}。",
     "NetworkProtocolMismatch": "マルチプレイのプロトコルが一致しません。同じバージョンのゲームとModを使用してください。",
     "NetworkServerFull": "サーバーが満員です。",

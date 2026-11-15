@@ -23,13 +23,28 @@ public partial class WorkSceneCookingSelectionPannel__c__DisplayClass79_0Patch
     [HarmonyPrefix]
     public static bool Method_Internal_Void_PDM_0_Prefix(WorkSceneCookingSelectionPannel.__c__DisplayClass79_0 __instance)
     {
+        var panel = __instance.__4__this;
+        if (panel.CookerParent.Phase != NightScene.CookingUtility.CookController.CookPhase.Idle
+            || YuyukoGuestSync.IsSwallowedCooker(panel.CookerParent.GridIndex))
+        {
+            panel.ClosePanel();
+            InGameConsole.ShowPassive(TextId.CookerBusy.Get());
+            return SkipOriginal;
+        }
+
         if (!GameSession.HasRoomPeers)
+        {
+            if (CookerSync.Active) CookerSync.CaptureIngredients(panel);
             return RunOriginal;
+        }
 
         var solved = __instance.solved;
 
         if (solved?.Recipe == null)
+        {
+            CookerSync.CaptureIngredients(panel);
             return RunOriginal;
+        }
 
         if (!PlayerManager.RecipeAvailable(solved.Recipe.Id))
         {
@@ -39,7 +54,10 @@ public partial class WorkSceneCookingSelectionPannel__c__DisplayClass79_0Patch
         }
 
         if (solved?.Modifiers == null)
+        {
+            CookerSync.CaptureIngredients(panel);
             return RunOriginal;
+        }
 
         var unavailable = solved.Modifiers.Where(id => !PlayerManager.IngredientAvailable(id));
 
@@ -52,6 +70,7 @@ public partial class WorkSceneCookingSelectionPannel__c__DisplayClass79_0Patch
             return SkipOriginal;
         }
 
+        CookerSync.CaptureIngredients(panel);
         return RunOriginal;
     }
 }

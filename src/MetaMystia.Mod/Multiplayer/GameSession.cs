@@ -140,6 +140,7 @@ public static partial class GameSession
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (previous != RoomMembershipId)
         {
+            CookerSync.Reset(resume: resumeGameplay && previous != 0 && RoomMembershipId == 0);
             BusinessStart.Reset(resume: resumeGameplay && previous != 0 && RoomMembershipId == 0);
             GameFlow.ResetGameplay();
             DayDestinationManager.ResetSession();
@@ -226,6 +227,7 @@ public static partial class GameSession
         lan = null;
         IsConnecting = false;
         State = new();
+        CookerSync.Reset(resumeGameplay);
         BusinessStart.Reset(resumeGameplay);
         GameFlow.ResetGameplay();
         PlayerManager.ClearPeers();

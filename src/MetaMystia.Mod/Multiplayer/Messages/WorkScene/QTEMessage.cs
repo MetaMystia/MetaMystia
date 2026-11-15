@@ -1,3 +1,5 @@
+using System;
+
 using MemoryPack;
 
 using MetaMystia.Patch;
@@ -14,8 +16,9 @@ public partial class QTEMessage : MultiplayerMessage
 {
     public int GridIndex { get; set; }
     public float QTEScore { get; set; }
+    public Guid OperationId { get; set; }
+    public bool AllowInterrupt { get; set; }
 
-    [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
@@ -26,9 +29,10 @@ public partial class QTEMessage : MultiplayerMessage
             Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
-        CookControllerPatch.StartCookCountDown_ReversePatch(cookerController, QTEScore, false);
+        if (!CookerSync.StartRemote(cookerController, OperationId, SenderUid)) return;
+        CookControllerPatch.StartCookCountDown_ReversePatch(cookerController, QTEScore, AllowInterrupt);
     }
 
-    public static void Send(int gridIndex, float qteScore) =>
-        new QTEMessage { GridIndex = gridIndex, QTEScore = qteScore }.Enqueue();
+    public static void Send(int gridIndex, float qteScore, Guid operationId, bool allowInterrupt) =>
+        new QTEMessage { GridIndex = gridIndex, QTEScore = qteScore, OperationId = operationId, AllowInterrupt = allowInterrupt }.Enqueue();
 }

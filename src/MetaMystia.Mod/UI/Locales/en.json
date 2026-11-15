@@ -13,6 +13,7 @@
     "PlayerListStaff": "Credits",
     "PlayerListUnknown": "Unknown scene",
     "BusinessStartWaiting": "Waiting for the other players to finish preparing.",
+    "CookerBusy": "This cooker is already in use. Your selected ingredients have been returned.",
     "NetworkVersionDetails": "Local: game {0}, mod {1}, protocol {2}; remote: game {3}, mod {4}, protocol {5}.",
     "NetworkProtocolMismatch": "Network protocol mismatch. Use matching game and mod versions.",
     "NetworkServerFull": "The server is full.",

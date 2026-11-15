@@ -58,6 +58,7 @@ public static partial class GameFlow
 
     public static void OnSceneTransit(Scene scene)
     {
+        CookerSync.Reset();
         CharactersReady = false;
         PlayerManager.OnSceneUnloading();
         RoomTimeStop.Reset();

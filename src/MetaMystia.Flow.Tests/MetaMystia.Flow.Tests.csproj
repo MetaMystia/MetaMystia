@@ -6,9 +6,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Update="Assembly-CSharp" Aliases="GameInterop" />
+    <Reference Update="Il2Cppmscorlib" Aliases="GameInterop" />
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
     <Compile Include="../MetaMystia.Mod/Managers/DayDestinationManager.cs" Link="DayDestinationManager.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/BusinessStart.cs" Link="BusinessStart.cs" />
+    <Compile Include="../MetaMystia.Mod/Managers/CookerOperations.cs" Link="CookerOperations.cs" />
+    <Compile Include="../MetaMystia.Mod/Managers/CookerSync.cs" Link="CookerSync.cs" />
+    <Compile Include="../MetaMystia.Mod/Patches/NightScene/WorkSceneCookingSelectionPannelPatch.cs" Link="WorkSceneCookingSelectionPannelPatch.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/PrepSceneManager.Yuyuko.cs" Link="PrepSceneManager.Yuyuko.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/RoomTimeStop.cs" Link="RoomTimeStop.cs" />
     <Compile Include="../MetaMystia.Mod/Managers/GameFlow.Transitions.cs" Link="GameFlow.Transitions.cs" />

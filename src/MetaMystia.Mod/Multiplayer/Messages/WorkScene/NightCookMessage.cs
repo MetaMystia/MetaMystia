@@ -1,3 +1,5 @@
+using System;
+
 using MemoryPack;
 
 using GameData.Core.Collections;
@@ -14,22 +16,23 @@ namespace MetaMystia.Multiplayer.Messages;
 public partial class NightCookMessage : MultiplayerMessage
 {
     public int GridIndex { get; set; }
-    public int RecipeId { get; set; }
+    public int? RecipeId { get; set; }
+    public Guid OperationId { get; set; }
+    public int Revision { get; set; }
     public SellableFood Food { get; set; }
 
-    [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
         if (YuyukoGuestSync.IsSwallowedCooker(GridIndex)) return;
         Log.LogInfo($"Received COOK: CookerIndex={GridIndex}, FoodId={Food.Id}, Modifiers=[{string.Join(",", Food.ModifierIds)}]");
-        if (!PlayerManager.RecipeAvailable(RecipeId))
+        if (RecipeId.HasValue && !PlayerManager.RecipeAvailable(RecipeId.Value))
         {
             Log.Error($"RecipeId {RecipeId} not available!");
             return;
         }
-        var recipe = RecipeId.RefRecipe();
-        if (recipe == null)
+        var recipe = RecipeId?.RefRecipe();
+        if (RecipeId.HasValue && recipe == null)
         {
             Log.LogWarning($"Failed to create recipe");
             return;
@@ -44,9 +47,10 @@ public partial class NightCookMessage : MultiplayerMessage
             return;
         }
 
+        if (food == null || !CookerSync.ReceiveCook(cookerController, OperationId, Revision, SenderUid)) return;
         CookControllerPatch.SetCook_ReversePatch(cookerController, food, recipe, false);
     }
 
-    public static void Send(int gridIndex, SellableFood food, int recipeId) =>
-        new NightCookMessage { GridIndex = gridIndex, RecipeId = recipeId, Food = food }.Enqueue();
+    public static void Send(int gridIndex, SellableFood food, int? recipeId, Guid operationId, int revision) =>
+        new NightCookMessage { GridIndex = gridIndex, RecipeId = recipeId, Food = food, OperationId = operationId, Revision = revision }.Enqueue();
 }

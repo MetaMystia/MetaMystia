@@ -29,6 +29,7 @@ public enum TextId
     PlayerListStaff,
     PlayerListUnknown,
     BusinessStartWaiting,
+    CookerBusy,
     NetworkVersionDetails,
     NetworkProtocolMismatch,
     NetworkServerFull,

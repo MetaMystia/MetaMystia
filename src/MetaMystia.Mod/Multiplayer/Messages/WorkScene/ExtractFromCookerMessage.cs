@@ -1,4 +1,8 @@
+using System;
+
 using MemoryPack;
+
+using GameData.Core.Collections;
 
 using MetaMystia.Patch;
 
@@ -12,8 +16,9 @@ namespace MetaMystia.Multiplayer.Messages;
 public partial class ExtractFromCookerMessage : MultiplayerMessage
 {
     public int GridIndex { get; set; }
+    public Guid OperationId { get; set; }
+    public int Revision { get; set; }
 
-    [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
@@ -23,9 +28,11 @@ public partial class ExtractFromCookerMessage : MultiplayerMessage
             Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
+        if (cookerController.Cooker.Type != Cooker.CookerType.Empty
+            && !CookerSync.Complete(cookerController, OperationId, Revision)) return;
         CookControllerPatch.Extract_ReversePatch(cookerController, null);
     }
 
-    public static void Send(int gridIndex) =>
-        new ExtractFromCookerMessage { GridIndex = gridIndex }.Enqueue();
+    public static void Send(int gridIndex, Guid operationId, int revision) =>
+        new ExtractFromCookerMessage { GridIndex = gridIndex, OperationId = operationId, Revision = revision }.Enqueue();
 }

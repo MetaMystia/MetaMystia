@@ -22,11 +22,13 @@ public partial class CookControllerPatch
     public static bool SetCook_Prefix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
     {
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
+        if (__instance.Phase != CookController.CookPhase.Idle) return SkipOriginal;
+        if (!CookerSync.Active) CookerSync.ForgetLocal(__instance.GridIndex);
         // Log.Debug($"SetCook_Prefix called");
-        if (GameSession.HasRoomPeers && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
+        if (GameSession.HasRoomPeers && ((recipe != null && !PlayerManager.RecipeAvailable(recipe.Id)) || !PlayerManager.FoodAvailable(thisResult.id)))
         {
-            Log.LogWarning($"Peer does not have recipe {recipe.Id}, skipping SetCook.");
-            InGameConsole.ShowPassive(TextId.DLCPeerRecipeNotAvailable.Get(recipe.Id));
+            Log.LogWarning($"Peer does not have recipe {recipe?.Id}, skipping SetCook.");
+            InGameConsole.ShowPassive(TextId.DLCPeerRecipeNotAvailable.Get(recipe?.Id));
             return SkipOriginal;
         }
         return RunOriginal;
@@ -40,14 +42,15 @@ public partial class CookControllerPatch
 
     [HarmonyPatch(nameof(CookController.SetCook))]
     [HarmonyPostfix]
-    public static void SetCook_Postfix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
+    public static void SetCook_Postfix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients, bool __runOriginal)
     {
+        if (!__runOriginal) return;
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return;
-        if (GameFlow.ShouldSkipAction) return;
+        if (!CookerSync.Active) return;
         var gridIndex = __instance.GridIndex;
-        var recipeId = recipe.Id;
+        var operation = CookerSync.Commit(__instance, thisCouldReturnIngredients);
         SellableFood food = SellableFood.FromSellable(thisResult);
-        NightCookMessage.Send(gridIndex, food, recipeId);
+        NightCookMessage.Send(gridIndex, food, recipe?.Id, operation.Id, operation.Revision);
     }
 
     [HarmonyPatch(nameof(CookController.Extract))]
@@ -59,11 +62,14 @@ public partial class CookControllerPatch
     [HarmonyPrefix]
     public static void Extract_Prefix(CookController __instance)
     {
+        var operation = CookerSync.Get(__instance.GridIndex);
+        if (operation != null) CookerSync.Complete(__instance, operation.Id, operation.Revision);
+        else CookerSync.StopTimer(__instance);
         // 吞食消息已让两端各执行一次原版中断，不能再把其内部 Extract 当作玩家取菜广播。
         if (YuyukoGuestSync.IsInterruptingCooker) return;
-        if (GameFlow.ShouldSkipAction) return;
+        if (!CookerSync.Active) return;
         var gridIndex = __instance.GridIndex;
-        ExtractFromCookerMessage.Send(gridIndex);
+        ExtractFromCookerMessage.Send(gridIndex, operation?.Id ?? Guid.Empty, operation?.Revision ?? 0);
     }
 
     [HarmonyPatch(nameof(CookController.Store))]
@@ -88,12 +94,14 @@ public partial class CookControllerPatch
 
     [HarmonyPatch(nameof(CookController.StartCookCountDown))]
     [HarmonyPrefix]
-    public static bool StartCookCountDown_Prefix(CookController __instance, float qteScore)
+    public static bool StartCookCountDown_Prefix(CookController __instance, float qteScore, bool allowInterrupt)
     {
         // 联机下 QTE 期间时间继续推进，厨具可能已被吞食，需阻止 QTE 结束后再启动烹饪倒计时。
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
+        if (__instance.Phase != CookController.CookPhase.Loaded || __instance.Result == null) return SkipOriginal;
+        if (!CookerSync.StartLocal(__instance, out var operationId)) return SkipOriginal;
         var gridIndex = __instance.GridIndex;
-        QTEMessage.Send(gridIndex, qteScore);
+        if (CookerSync.Active) QTEMessage.Send(gridIndex, qteScore, operationId, allowInterrupt);
         return RunOriginal;
     }
 

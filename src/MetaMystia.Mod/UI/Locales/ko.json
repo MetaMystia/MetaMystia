@@ -13,6 +13,7 @@
     "PlayerListStaff": "제작진",
     "PlayerListUnknown": "알 수 없는 장면",
     "BusinessStartWaiting": "다른 플레이어가 준비를 마칠 때까지 기다려 주세요.",
+    "CookerBusy": "이미 사용 중인 조리 도구입니다. 선택한 식재료는 반환되었습니다.",
     "NetworkVersionDetails": "로컬: 게임 {0}, 모드 {1}, 프로토콜 {2}; 상대: 게임 {3}, 모드 {4}, 프로토콜 {5}.",
     "NetworkProtocolMismatch": "멀티플레이 프로토콜이 일치하지 않습니다. 같은 버전의 게임과 모드를 사용하세요.",
     "NetworkServerFull": "서버가 가득 찼습니다.",

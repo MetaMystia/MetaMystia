@@ -322,4 +322,5 @@ PlayerManager.Peers.Clear();
 Check(!RoomTimeStop.Intercepts, "没有同房玩家时保留单机时停");
 PlayerPresenceChecks.Run(Check);
 YuyukoPrepChecks.Run(Check);
+CookerChecks.Run(Check);
 Console.WriteLine($"ALL PASS ({checks} assertions; game and transport ports simulated)");

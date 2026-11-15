@@ -48,6 +48,8 @@ namespace MetaMystia
     }
     static class PlayerManager
     {
+        public static bool RecipeAvailable(int _) => true;
+        public static bool IngredientAvailable(int _) => true;
         public static FlowPlayer Local = new() { Uid = 1 };
         public static Dictionary<int, FlowPlayer> Peers = new();
         public static bool LocalIsDayOver;
@@ -174,6 +176,7 @@ namespace MetaMystia.UI
         DestinationBusinessConfirmed, DestinationFinalTrialConfirmed, DestinationFinalTrialAgainConfirmed,
         WaitingForHostConfirm, SelectedIzakaya, SelectedIzakayaMismatch,
         NetworkFlowInterrupted, MultiplayerDisconnected,
+        CookerBusy, DLCPeerRecipeNotAvailable, DLCPeerIngredientNotAvailable,
         PeerConnected, PeerDisconnected, PeerJoined, PeerLeft, NetworkRoomLeft,
     }
     static class Text
