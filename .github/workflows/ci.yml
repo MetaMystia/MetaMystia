@@ -86,6 +86,9 @@ jobs:
       - name: 符卡测试
         run: dotnet run --project src/MetaMystia.Spell.Tests -c Release
 
+      - name: 控制台测试
+        run: dotnet run --project src/MetaMystia.Console.Tests -c Release
+
       - name: 构建服务端
         run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release --self-contained false -p:UseAppHost=false
 

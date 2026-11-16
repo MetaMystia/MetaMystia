@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../MetaMystia.Mod/Console/LineEditor.cs" Link="LineEditor.cs" />
+    <Compile Include="../MetaMystia.Mod/Console/ConsoleHistory.cs" Link="ConsoleHistory.cs" />
+    <Compile Include="../MetaMystia.Mod/Console/CompletionEngine.cs" Link="CompletionEngine.cs" />
+    <Compile Include="../MetaMystia.Mod/Console/ConsoleText.cs" Link="ConsoleText.cs" />
+  </ItemGroup>
+</Project>

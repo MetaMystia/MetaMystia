@@ -40,6 +40,7 @@ dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=fal
 dotnet run --project src/MetaMystia.Network.Tests -c Release
 dotnet run --project src/MetaMystia.Flow.Tests -c Release
 dotnet run --project src/MetaMystia.Spell.Tests -c Release
+dotnet run --project src/MetaMystia.Console.Tests -c Release
 python tools/check.py
 ```
 
