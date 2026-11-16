@@ -1,147 +1,92 @@
 #nullable enable
 using System;
-using System.IO;
-using Il2CppInterop.Runtime;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
-using Common.UI;
-
+using MetaMystia.ConsoleSystem;
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
-using MetaMystia.ConsoleSystem;
+using MetaMystia.Network;
 
 namespace MetaMystia.UI;
 
+/// <summary>
+/// 游戏内控制台：聊天与命令。uGUI + TMP 绘制（见 InGameConsole.View.cs），
+/// 键盘文本走 legacy Input（inputString / IME），游戏输入由 <see cref="ConsoleInputGate"/> 屏蔽。
+/// </summary>
 [AutoLog]
 public static partial class InGameConsole
 {
-    // ====================================================================
-    // Log entry with timestamp for passive fade
-    // ====================================================================
-    private class LogEntry
+    private sealed class LogEntry
     {
-        public string Text;
-        public float Timestamp; // Time.unscaledTime when added
+        public readonly string Display;
+        public readonly string Plain;
+        public float Created = -1f;
 
-        // Cached layout (invalidated when width/fontSize differ)
-        public float CachedHeight;
-        public float CachedWidth;
-        public int CachedFontSize;
-        public float CachedTextWidth; // for passive bubble bg sizing
+        // 日志区测量缓存
+        public float Height;
+        public float MeasuredWidth;
+        public int MeasuredFont;
+        // 常驻气泡测量缓存
+        public Vector2 PassiveSize;
+        public float PassiveMaxWidth;
+        public int PassiveFont;
 
-        public LogEntry(string text)
+        public LogEntry(DateTime time, string text)
         {
-            Text = text;
-            Timestamp = Time.unscaledTime;
+            string stamp = time.ToString("HH:mm:ss");
+            Display = $"<color=#888899>[{stamp}]</color> {text}";
+            Plain = $"[{stamp}] {ConsoleText.Strip(text)}";
         }
     }
 
-    // ====================================================================
-    // State
-    // ====================================================================
-    private static bool _isOpen = false;
-    public static bool IsOpen
-    {
-        get { return _isOpen; }
-        set
-        {
-            if (_isOpen != value)
-            {
-                if (GameFlow.LocalScene == Scene.DayScene && DayScene.SceneManager.Instance != null
-                    && DayScene.SceneManager.Instance.IsMapSwapping)
-                {
-                    LogToConsole(TextId.ConsoleMapSwapping.Get());
-                    return;
-                }
-
-                Log.Info($"console {(value ? "opened" : "closed")}");
-                _isOpen = value;
-                if (value && _followLogs)
-                    _scrollToBottom = true;
-                UpdateGameInputState();
-            }
-        }
-    }
-
-    private static string input = "";
-    private static Vector2 scrollPosition;
-    private static readonly List<LogEntry> _logs = [];
-    // Pending logs queued from any thread; drained only on EventType.Layout to keep
-    // GUILayout control counts consistent between Layout and Repaint passes.
-    private static readonly ConcurrentQueue<string> _pendingLogs = new();
-    private static List<string> inputs = [];
-    private static int inputsCursor = 0;
     private const int MaxLogs = 1024;
-    private static int MaxHistorySize => ConfigManager.ConsoleHistorySize?.Value ?? 200;
+    private const int PassiveMaxLines = 10;
+    private const int MinFontSize = 12;
+    private const int MaxFontSize = 40;
+    private const int DefaultFontSize = 20;
+
+    public static bool IsOpen { get; private set; }
+
+    /// <summary>控制台正在占用键盘（打开中，或刚关闭、Enter/Esc 还未松开）。其他快捷键应在此时让路。</summary>
+    public static bool OwnsKeyboard => IsOpen || ConsoleInputGate.Busy;
+
+    private static readonly List<LogEntry> _logs = [];
+    private static readonly ConcurrentQueue<LogEntry> _pending = new();
+    private static readonly List<Func<string>> _deferredLogs = [];
+    private static bool _deferredFlushed;
+
+    private static readonly LineEditor _editor = new() { MaxLength = ChatPayload.MaxLength };
+    private static readonly ConsoleHistory _history = new();
+    private static readonly CompletionEngine _completion = new(CommandRegistry.GetCompletions);
+    private static ConsoleContext _consoleContext = null!;
+
+    // 日志滚动：距底部的像素，0 表示跟随最新
+    private static float _scroll;
+    private static int _unread;
+
+    private static int _openedFrame = -1;
+    private static bool _composedLastFrame;
+    private static float _lastEditTime;
+    private static IMECompositionMode _previousIme = IMECompositionMode.Auto;
+    private static readonly Dictionary<KeyCode, float> _repeatAt = new();
+
+    // 鼠标交互
+    private enum DragMode { None, Move, Resize, Select }
+    private static DragMode _drag;
+    private static Vector2 _dragStart;
+    private static Vector4 _dragOrigin;
+    private static float _lastClickTime;
+
+    private static int HistoryCapacity => ConfigManager.ConsoleHistorySize?.Value ?? 200;
     private static string HistoryFilePath => Path.Combine(
         BepInEx.Paths.ConfigPath, ConfigManager.ConsoleHistoryFile?.Value ?? "MetaMystia_console_history.txt");
-    private static bool focusTextField = true;
-    private static bool moveCursor = false;
-    private const string TextFieldControlName = "ConsoleInput";
-    private static bool justOpened = false;
-    private static bool _scrollToBottom = false;
-    private static bool _followLogs = true;
-    private static int _unreadLogs;
-    private static float _logContentWidth;
-
-    // Command system
-    private static ConsoleContext _consoleContext = null!;
-    private static CompletionEngine _completion = new();
-
-    // Deferred log queue
-    private static readonly List<Func<string>> _deferredLogs = [];
-    private static bool _deferredFlushed = false;
 
     // ====================================================================
-    // Passive mode config (Minecraft-style fade)
+    // Lifecycle
     // ====================================================================
-    private const int PassiveMaxLines = 10;
-    private static float PassiveLingerTime => ConfigManager.ConsolePassiveLingerTime.Value;
-    private static float PassiveFadeTime => ConfigManager.ConsolePassiveFadeTime.Value;
-
-    // ====================================================================
-    // Layout constants
-    // ====================================================================
-    private const float InputHeight = 48f;
-    private const float Padding = 8f;
-    private const float BottomMargin = 100f;         // avoid version text at bottom-left
-    private const float DragHandleHeight = 14f;      // thin drag bar at top of console
-
-    // Dragging state
-    private static bool _isDragging = false;
-    private static Vector2 _dragOffset;
-
-    // Resize state
-    private static bool _isResizing = false;
-    private static Vector2 _resizeStart;
-    private static float _resizeStartW, _resizeStartH;
-    private const float ResizeHandleSize = 14f;
-    private const float MinPanelW = 300f;
-    private const float MinPanelH = 120f;
-
-    // ====================================================================
-    // IMGUI style cache
-    // ====================================================================
-    private static GUIStyle? _logStyle;
-    private static GUIStyle? _inputStyle;
-    private static GUIStyle? _completionStyle;
-    private static GUIStyle? _completionSelectedStyle;
-    private static GUIStyle? _fontBtnStyle;
-    private static Texture2D? _bgTexture;
-    private static Texture2D? _inputBgTexture;
-    private static Texture2D? _completionBgTexture;
-    private static Texture2D? _completionSelTexture;
-    private static Texture2D? _shadowTexture;
-    private static Texture2D? _dragHandleTexture;
-    private static Texture2D? _resizeHandleTexture;
-    private static bool _stylesInitialized = false;
-    private static Font? _font;
-
-    public static void ResetStyles() => _stylesInitialized = false;
 
     public static void Initialize()
     {
@@ -154,17 +99,402 @@ public static partial class InGameConsole
         LogDeferred(() => $"<color=#888899>{TextId.ConsoleHelpHint.Get()}</color>");
     }
 
+    public static void Update()
+    {
+        DrainPending();
+        ConsoleInputGate.Tick();
+
+        EnsureView();
+
+        if (IsOpen)
+            HandleOpenInput();
+        else if (!ConsoleInputGate.Busy)
+        {
+            bool command = Input.GetKeyDown(ConfigManager.KeyOpenCommand.Value);
+            if (command || Input.GetKeyDown(ConfigManager.KeyOpenChat.Value))
+                Open(command ? "/" : "");
+        }
+
+        Render();
+    }
+
+    public static void Shutdown()
+    {
+        ConsoleInputGate.ForceRestore();
+        if (IsOpen) Input.imeCompositionMode = _previousIme;
+    }
+
+    private static void Open(string prefix)
+    {
+        if (GameFlow.LocalScene == Common.UI.Scene.DayScene && DayScene.SceneManager.Instance != null
+            && DayScene.SceneManager.Instance.IsMapSwapping)
+        {
+            ShowPassive(TextId.ConsoleMapSwapping.Get());
+            return;
+        }
+
+        Log.Info("console opened");
+        IsOpen = true;
+        _openedFrame = Time.frameCount;
+        _composedLastFrame = false;
+        ConsoleInputGate.Engage();
+        _previousIme = Input.imeCompositionMode;
+        Input.imeCompositionMode = IMECompositionMode.On;
+        _history.Reset();
+        _editor.SetText(prefix);
+        OnTextChanged();
+    }
+
+    private static void Close()
+    {
+        if (!IsOpen) return;
+        Log.Info("console closed");
+        IsOpen = false;
+        _drag = DragMode.None;
+        _completion.Clear();
+        Input.imeCompositionMode = _previousIme;
+        ConsoleInputGate.Release();
+    }
+
+    // ====================================================================
+    // Keyboard
+    // ====================================================================
+
+    private static void HandleOpenInput()
+    {
+        // 输入法组字时 Enter/Esc/方向键属于输入法；提交组字的那一帧也要忽略
+        bool composing = !string.IsNullOrEmpty(Input.compositionString);
+        bool imeBusy = composing || _composedLastFrame;
+        _composedLastFrame = composing;
+
+        bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)
+                    || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
+        bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+        if (imeBusy)
+        {
+            if (Time.frameCount != _openedFrame && ConsumeTypedText(ctrl: false)) OnTextChanged();
+            HandleMouse(false, false);
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (_completion.PopupVisible) _completion.Dismiss();
+            else Close();
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        {
+            if (_completion.SelectionDiffersFromToken) AcceptCompletion();
+            else Submit();
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Tab))
+        {
+            if (_completion.PopupVisible)
+            {
+                if (shift) _completion.Move(-1);
+                else if (_completion.SelectionDiffersFromToken) AcceptCompletion();
+                else _completion.Move(1);
+            }
+            else
+                _completion.Refresh(_editor.Text, _editor.Caret, textChanged: true);
+        }
+
+        if (Repeat(KeyCode.UpArrow)) VerticalKey(-1);
+        if (Repeat(KeyCode.DownArrow)) VerticalKey(1);
+        if (Repeat(KeyCode.PageUp)) ScrollBy(LogViewHeight * 0.8f);
+        if (Repeat(KeyCode.PageDown)) ScrollBy(-LogViewHeight * 0.8f);
+
+        bool caretMoved = false;
+        if (Repeat(KeyCode.LeftArrow)) { _editor.MoveLeft(ctrl, shift); caretMoved = true; }
+        if (Repeat(KeyCode.RightArrow)) { _editor.MoveRight(ctrl, shift); caretMoved = true; }
+        if (Input.GetKeyDown(KeyCode.Home)) { _editor.Home(shift); caretMoved = true; }
+        if (Input.GetKeyDown(KeyCode.End)) { _editor.End(shift); caretMoved = true; }
+
+        bool edited = false;
+        if (Repeat(KeyCode.Delete)) { _editor.Delete(ctrl); edited = true; }
+
+        if (ctrl)
+        {
+            if (Input.GetKeyDown(KeyCode.A)) { _editor.SelectAll(); caretMoved = true; }
+            if (Input.GetKeyDown(KeyCode.C) && _editor.HasSelection) GUIUtility.systemCopyBuffer = _editor.SelectedText;
+            if (Input.GetKeyDown(KeyCode.X) && _editor.HasSelection) { GUIUtility.systemCopyBuffer = _editor.Cut(); edited = true; }
+            if (Input.GetKeyDown(KeyCode.V)) { _editor.Insert(GUIUtility.systemCopyBuffer ?? ""); edited = true; }
+            if (Input.GetKeyDown(KeyCode.Equals) || Input.GetKeyDown(KeyCode.KeypadPlus)) SetFontSize(FontSize + 2);
+            if (Input.GetKeyDown(KeyCode.Minus) || Input.GetKeyDown(KeyCode.KeypadMinus)) SetFontSize(FontSize - 2);
+        }
+
+        // 打开控制台的那一帧，触发键产生的字符不进入输入框
+        if (Time.frameCount != _openedFrame)
+            edited |= ConsumeTypedText(ctrl);
+
+        if (edited) OnTextChanged();
+        else if (caretMoved) OnCaretMoved();
+
+        HandleMouse(ctrl, shift);
+    }
+
+    private static bool ConsumeTypedText(bool ctrl)
+    {
+        string typed = Input.inputString;
+        if (string.IsNullOrEmpty(typed)) return false;
+
+        bool edited = false;
+        var buffer = new System.Text.StringBuilder();
+        void Flush()
+        {
+            if (buffer.Length == 0) return;
+            _editor.Insert(buffer.ToString());
+            buffer.Clear();
+            edited = true;
+        }
+
+        foreach (char c in typed)
+        {
+            switch (c)
+            {
+                case '\b':
+                    Flush();
+                    _editor.Backspace(ctrl);
+                    edited = true;
+                    break;
+                case '\x7f': // Ctrl+Backspace
+                    Flush();
+                    _editor.Backspace(true);
+                    edited = true;
+                    break;
+                default:
+                    if (!char.IsControl(c)) buffer.Append(c);
+                    break;
+            }
+        }
+        Flush();
+        return edited;
+    }
+
+    private static void VerticalKey(int direction)
+    {
+        if (_completion.PopupVisible)
+        {
+            _completion.Move(direction);
+            return;
+        }
+        string? text = direction < 0 ? _history.Older(_editor.Text) : _history.Newer();
+        if (text == null) return;
+        _editor.SetText(text);
+        OnTextChanged(fromHistory: true);
+    }
+
+    private static bool Repeat(KeyCode key)
+    {
+        float now = Time.unscaledTime;
+        if (Input.GetKeyDown(key))
+        {
+            _repeatAt[key] = now + 0.4f;
+            return true;
+        }
+        if (Input.GetKey(key) && _repeatAt.TryGetValue(key, out float at) && now >= at)
+        {
+            _repeatAt[key] = now + 0.035f;
+            return true;
+        }
+        return false;
+    }
+
+    private static void OnTextChanged(bool fromHistory = false)
+    {
+        _lastEditTime = Time.unscaledTime;
+        if (!fromHistory) _history.Reset();
+        _completion.Refresh(_editor.Text, _editor.Caret, textChanged: true);
+    }
+
+    private static void OnCaretMoved()
+    {
+        _lastEditTime = Time.unscaledTime;
+        _completion.Refresh(_editor.Text, _editor.Caret, textChanged: false);
+    }
+
+    private static void AcceptCompletion()
+    {
+        var (text, caret) = _completion.Accept(_editor.Text);
+        _editor.SetText(text, caret);
+        OnTextChanged();
+    }
+
+    private static void Submit()
+    {
+        string text = _editor.Text;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            Close();
+            return;
+        }
+
+        _history.Add(text);
+        SaveHistory();
+        _editor.Clear();
+        _completion.Clear();
+        ScrollToLatest();
+
+        bool close = Execute(text);
+        if (close) Close();
+        else OnTextChanged();
+    }
+
+    private static bool Execute(string text)
+    {
+        Log.LogMessage($"Console Command: {text}");
+        if (text[0] != '/')
+        {
+            if (GameSession.IsOnline)
+                ChatMessage.Send(text);
+            else
+                AddPeerMessage(LiveModeManager.GetLocalDisplayName(), text);
+            return true;
+        }
+        return CommandRegistry.Execute(text[1..], _consoleContext);
+    }
+
+    // ====================================================================
+    // Mouse
+    // ====================================================================
+
+    private static void HandleMouse(bool ctrl, bool shift)
+    {
+        Vector2 mouse = MouseRef();
+        bool locked = LiveModeManager.LockConsoleUi;
+
+        float wheel = Input.mouseScrollDelta.y;
+        if (wheel != 0f && PanelRect.Contains(mouse))
+        {
+            if (ctrl) SetFontSize(FontSize + (wheel > 0 ? 1 : -1));
+            else if (_completion.PopupVisible && PopupRect.Contains(mouse)) _completion.Move(wheel > 0 ? -1 : 1);
+            else ScrollBy(wheel * LineHeight * 3f);
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (TryPopupRowAt(mouse, out int row))
+            {
+                _completion.Select(row);
+                AcceptCompletion();
+            }
+            else if (!locked && GripRect.Contains(mouse))
+                BeginDrag(DragMode.Resize, mouse);
+            else if (!locked && TitleRect.Contains(mouse))
+                BeginDrag(DragMode.Move, mouse);
+            else if (_unread > 0 && NewMessagesRect.Contains(mouse))
+                ScrollToLatest();
+            else if (InputRect.Contains(mouse))
+            {
+                int index = CaretIndexAt(mouse.x);
+                bool doubleClick = Time.unscaledTime - _lastClickTime < 0.3f;
+                _lastClickTime = Time.unscaledTime;
+                if (doubleClick) _editor.SelectWordAt(index);
+                else _editor.MoveTo(index, shift);
+                _drag = doubleClick ? DragMode.None : DragMode.Select;
+                OnCaretMoved();
+            }
+            else if (TryLogAt(mouse, out var entry))
+            {
+                GUIUtility.systemCopyBuffer = entry.Plain;
+                FlashCopied(entry);
+            }
+        }
+
+        if (_drag != DragMode.None && Input.GetMouseButton(0))
+            ContinueDrag(mouse);
+        if (Input.GetMouseButtonUp(0))
+            _drag = DragMode.None;
+    }
+
+    private static void BeginDrag(DragMode mode, Vector2 mouse)
+    {
+        _drag = mode;
+        _dragStart = mouse;
+        _dragOrigin = new Vector4(ConfigManager.ConsoleLeft.Value, ConfigManager.ConsoleBottom.Value,
+            ConfigManager.ConsoleWidth.Value, ConfigManager.ConsoleHeight.Value);
+    }
+
+    private static void ContinueDrag(Vector2 mouse)
+    {
+        Vector2 delta = mouse - _dragStart;
+        switch (_drag)
+        {
+            case DragMode.Move:
+                ConfigManager.ConsoleLeft.Value = _dragOrigin.x + delta.x;
+                ConfigManager.ConsoleBottom.Value = _dragOrigin.y + delta.y;
+                break;
+            case DragMode.Resize:
+                ConfigManager.ConsoleWidth.Value = _dragOrigin.z + delta.x;
+                ConfigManager.ConsoleHeight.Value = _dragOrigin.w + delta.y;
+                break;
+            case DragMode.Select:
+                _editor.MoveTo(CaretIndexAt(mouse.x), select: true);
+                _lastEditTime = Time.unscaledTime;
+                break;
+        }
+    }
+
+    // ====================================================================
+    // Scrolling
+    // ====================================================================
+
+    private static void ScrollBy(float delta)
+    {
+        _scroll = Mathf.Clamp(_scroll + delta, 0f, MaxScroll());
+        if (_scroll <= 0.5f) _unread = 0;
+    }
+
+    private static void ScrollToLatest()
+    {
+        _scroll = 0f;
+        _unread = 0;
+    }
+
+    // ====================================================================
+    // Layout settings
+    // ====================================================================
+
+    private static int FontSize
+    {
+        get
+        {
+            int v = ConfigManager.ConsoleFontSize.Value;
+            return v <= 0 ? DefaultFontSize : Mathf.Clamp(v, MinFontSize, MaxFontSize);
+        }
+    }
+
+    public static void SetFontSize(int size)
+    {
+        ConfigManager.ConsoleFontSize.Value = Mathf.Clamp(size, MinFontSize, MaxFontSize);
+    }
+
+    public static void ResetLayout()
+    {
+        foreach (var entry in new BepInEx.Configuration.ConfigEntryBase[]
+                 {
+                     ConfigManager.ConsoleLeft, ConfigManager.ConsoleBottom, ConfigManager.ConsoleWidth,
+                     ConfigManager.ConsoleHeight, ConfigManager.ConsoleFontSize,
+                 })
+            entry.BoxedValue = entry.DefaultValue;
+    }
+
+    // ====================================================================
+    // History
+    // ====================================================================
+
     private static void LoadHistory()
     {
+        _history.Capacity = HistoryCapacity;
         try
         {
             if (File.Exists(HistoryFilePath))
-            {
-                var lines = File.ReadAllLines(HistoryFilePath);
-                inputs.AddRange(lines);
-                if (inputs.Count > MaxHistorySize)
-                    inputs.RemoveRange(0, inputs.Count - MaxHistorySize);
-            }
+                _history.Load(File.ReadAllLines(HistoryFilePath));
         }
         catch (Exception ex)
         {
@@ -176,10 +506,7 @@ public static partial class InGameConsole
     {
         try
         {
-            var toSave = inputs.Count > MaxHistorySize
-                ? inputs.GetRange(inputs.Count - MaxHistorySize, MaxHistorySize)
-                : inputs;
-            File.WriteAllLines(HistoryFilePath, toSave);
+            File.WriteAllLines(HistoryFilePath, _history.Items);
         }
         catch (Exception ex)
         {
@@ -187,12 +514,17 @@ public static partial class InGameConsole
         }
     }
 
+    // ====================================================================
+    // Logging API
+    // ====================================================================
+
+    /// <summary>追加一行日志（富文本），任意线程可调用。</summary>
+    public static void LogToConsole(string message) => _pending.Enqueue(new LogEntry(DateTime.Now, message));
+
     public static void LogDeferred(Func<string> messageFactory)
     {
-        if (_deferredFlushed)
-            LogToConsole(messageFactory());
-        else
-            _deferredLogs.Add(messageFactory);
+        if (_deferredFlushed) LogToConsole(messageFactory());
+        else _deferredLogs.Add(messageFactory);
     }
 
     public static void FlushDeferred()
@@ -203,756 +535,41 @@ public static partial class InGameConsole
         _deferredFlushed = true;
     }
 
+    /// <summary>聊天消息。发送者与内容按外部文本转义。</summary>
     public static void AddPeerMessage(string senderName, string message)
     {
         message = LiveModeManager.MaskMessage(message);
-        LogToConsole(TextId.PeerMessagePrefix.Get(senderName, message));
+        LogToConsole(TextId.PeerMessagePrefix.Get(ConsoleText.Escape(senderName), ConsoleText.Escape(message)));
     }
 
     public static void ClearLogs()
     {
         _logs.Clear();
-        while (_pendingLogs.TryDequeue(out _)) { }
-        scrollPosition = Vector2.zero;
+        while (_pending.TryDequeue(out _)) { }
         ScrollToLatest();
     }
 
-    private static void ScrollToLatest()
+    /// <summary>金色事件消息，任意线程可调用。</summary>
+    public static void ShowPassive(string text) => LogToConsole($"<color=#FFCC66>{text}</color>");
+
+    public static void LogSuccess(string text) => LogToConsole($"<color=#66FF88>{text}</color>");
+
+    public static void LogError(string text) => LogToConsole($"<color=#FF6666>{text}</color>");
+
+    public static void LogAlert(string text) => LogToConsole($"<size=125%><color=#FF4444><b>{text}</b></color></size>");
+
+    private static void DrainPending()
     {
-        _followLogs = true;
-        _scrollToBottom = true;
-        _unreadLogs = 0;
-    }
-
-    private static void UpdateGameInputState()
-    {
-        try
+        while (_pending.TryDequeue(out var entry))
         {
-            UniversalGameManager.UpdatePlayerInputAvailability(!IsOpen);
-        }
-        catch (Exception e)
-        {
-            Log.LogWarning($"Console: Failed to update UniversalGameManager input: {e.Message}");
-        }
-
-        var eventSystem = EventSystem.current;
-        if (eventSystem != null)
-        {
-            eventSystem.sendNavigationEvents = !IsOpen;
-        }
-    }
-
-    public static void Update()
-    {
-        if (IsOpen)
-        {
-            var es = EventSystem.current;
-            if (es != null && es.sendNavigationEvents)
-                es.sendNavigationEvents = false;
-        }
-
-        if (justOpened) justOpened = false;
-
-        if (Input.GetKeyDown(ConfigManager.KeyOpenCommand.Value) || Input.GetKeyDown(ConfigManager.KeyOpenChat.Value))
-        {
-            if (!IsOpen)
+            entry.Created = Time.unscaledTime;
+            _logs.Add(entry);
+            if (_logs.Count > MaxLogs) _logs.RemoveAt(0);
+            if (_scroll > 0f)
             {
-                IsOpen = true;
-                input = Input.GetKeyDown(ConfigManager.KeyOpenCommand.Value) ? "/" : "";
-                focusTextField = true;
-                moveCursor = true;
-                justOpened = true;
-                _completion.Reset();
+                _scroll += MeasureLog(entry);
+                _unread = Math.Min(_unread + 1, MaxLogs);
             }
         }
-    }
-
-    // ====================================================================
-    // Styles
-    // ====================================================================
-    #region IMGUI Styles
-
-    private static Font GetFont()
-    {
-        if (_font != null) return _font;
-        try
-        {
-            _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei", 1);
-            if (_font != null) return _font;
-        }
-        catch { /* fallback */ }
-        return GUI.skin.font;
-    }
-
-    private static void InitStyles()
-    {
-        if (_stylesInitialized) return;
-        _stylesInitialized = true;
-
-        var font = GetFont();
-
-        _bgTexture = MakeTex(1, 1, new Color(0.05f, 0.05f, 0.08f, 0.55f));
-        _inputBgTexture = MakeTex(1, 1, new Color(0.0f, 0.0f, 0.0f, 0.50f));
-        _completionBgTexture = MakeTex(1, 1, new Color(0.10f, 0.10f, 0.15f, 0.92f));
-        _completionSelTexture = MakeTex(1, 1, new Color(0.25f, 0.40f, 0.65f, 0.90f));
-        _shadowTexture = MakeTex(1, 1, new Color(0f, 0f, 0f, 0.35f));
-        _dragHandleTexture = MakeTex(1, 1, new Color(0.3f, 0.3f, 0.4f, 0.6f));
-        _resizeHandleTexture = MakeTex(1, 1, new Color(0.4f, 0.4f, 0.5f, 0.7f));
-
-        int fontSize = ConfigManager.ConsoleFontSize.Value > 0
-            ? ConfigManager.ConsoleFontSize.Value
-            : Mathf.Clamp(Screen.height / 50, 14, 24);
-
-        _logStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = fontSize,
-            wordWrap = true,
-            richText = true,
-            normal = { textColor = Color.white },
-        };
-        _logStyle.padding.left = 6;
-        _logStyle.padding.right = 6;
-        _logStyle.padding.top = 2;
-        _logStyle.padding.bottom = 2;
-
-        _inputStyle = new GUIStyle(GUI.skin.textField)
-        {
-            font = font,
-            fontSize = fontSize,
-            richText = false,
-            normal = { textColor = new Color(0.95f, 0.95f, 1f), background = _inputBgTexture },
-            focused = { textColor = Color.white, background = _inputBgTexture },
-        };
-        _inputStyle.padding.left = 8;
-        _inputStyle.padding.right = 8;
-        _inputStyle.padding.top = 8;
-        _inputStyle.padding.bottom = 10;
-
-        _completionStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = fontSize - 2,
-            richText = true,
-            normal = { textColor = new Color(0.8f, 0.8f, 0.85f), background = _completionBgTexture },
-        };
-        _completionStyle.padding.left = 10;
-        _completionStyle.padding.right = 10;
-        _completionStyle.padding.top = 4;
-        _completionStyle.padding.bottom = 4;
-        _completionStyle.margin.left = 0;
-        _completionStyle.margin.right = 0;
-        _completionStyle.margin.top = 0;
-        _completionStyle.margin.bottom = 0;
-
-        _completionSelectedStyle = new GUIStyle(_completionStyle)
-        {
-            normal = { textColor = Color.white, background = _completionSelTexture },
-            fontStyle = FontStyle.Bold
-        };
-
-        _fontBtnStyle = new GUIStyle(GUI.skin.button)
-        {
-            font = font,
-            fontSize = 10,
-            alignment = TextAnchor.MiddleCenter,
-        };
-        _fontBtnStyle.padding.left = 0;
-        _fontBtnStyle.padding.right = 0;
-        _fontBtnStyle.padding.top = 0;
-        _fontBtnStyle.padding.bottom = 0;
-        _fontBtnStyle.margin.left = 0;
-        _fontBtnStyle.margin.right = 0;
-        _fontBtnStyle.margin.top = 0;
-        _fontBtnStyle.margin.bottom = 0;
-    }
-
-    private static Texture2D MakeTex(int w, int h, Color col)
-    {
-        var tex = new Texture2D(w, h);
-        for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-                tex.SetPixel(x, y, col);
-        tex.Apply();
-        tex.hideFlags = HideFlags.HideAndDontSave;
-        return tex;
-    }
-
-    #endregion
-
-    // ====================================================================
-    // Font size adjustment
-    // ====================================================================
-    private static void AdjustFontSize(int delta)
-    {
-        int current = ConfigManager.ConsoleFontSize.Value;
-        int effective = current > 0
-            ? current
-            : Mathf.Clamp(Screen.height / 50, 14, 24);
-        int newSize = Mathf.Clamp(effective + delta, 10, 36);
-        ConfigManager.ConsoleFontSize.Value = newSize;
-        ResetStyles();
-    }
-
-    // ====================================================================
-    // OnGUI — Minecraft-style bottom chat
-    // ====================================================================
-    public static void OnGUI()
-    {
-        if (ConfigManager.ConsoleX.Value > Screen.width * 0.95f || ConfigManager.ConsoleY.Value > Screen.height * 0.95f)
-        {
-            ConfigManager.ConsoleX.Value = (float)ConfigManager.ConsoleX.DefaultValue;
-            ConfigManager.ConsoleY.Value = (float)ConfigManager.ConsoleY.DefaultValue;
-        }
-
-        InitStyles();
-
-        // Drain pending logs only during Layout pass so that control count is stable
-        // for the matching Repaint pass. This also serializes cross-thread writes
-        // (TCP receive thread enqueues; main thread dequeues).
-        if (Event.current.type == EventType.Layout)
-            DrainPendingLogs();
-
-        if (IsOpen)
-            DrawOpenMode();
-        else
-            DrawPassiveMode();
-
-        if (LiveModeManager.ShowUntrustedZoneOutline)
-            DrawLiveUntrustedZoneOutline();
-    }
-
-    private static void DrainPendingLogs()
-    {
-        while (_pendingLogs.TryDequeue(out var msg))
-        {
-            _logs.Add(new LogEntry(msg));
-            if (_logs.Count > MaxLogs)
-            {
-                if (!_followLogs && _logContentWidth > 0f)
-                    scrollPosition.y = Mathf.Max(0f, scrollPosition.y - GetEntryHeight(_logs[0], _logContentWidth));
-                _logs.RemoveAt(0);
-            }
-            if (_followLogs) _scrollToBottom = true;
-            else _unreadLogs = Math.Min(_unreadLogs + 1, MaxLogs);
-        }
-    }
-
-    private static float GetEntryHeight(LogEntry entry, float width)
-    {
-        int fs = _logStyle!.fontSize;
-        if (entry.CachedHeight > 0f && entry.CachedWidth == width && entry.CachedFontSize == fs)
-            return entry.CachedHeight;
-        var content = new GUIContent(entry.Text);
-        entry.CachedHeight = _logStyle.CalcHeight(content, width);
-        entry.CachedWidth = width;
-        entry.CachedFontSize = fs;
-        entry.CachedTextWidth = 0f; // invalidate passive bubble width too
-        return entry.CachedHeight;
-    }
-
-    // ====================================================================
-    // Passive mode: show recent messages with fade, no input
-    // ====================================================================
-    private static void DrawPassiveMode()
-    {
-        float now = Time.unscaledTime;
-        float cutoff = PassiveLingerTime + PassiveFadeTime;
-
-        // Backward scan to collect last N still-visible entries; avoids LINQ over full _logs.
-        var visible = new List<LogEntry>(PassiveMaxLines);
-        for (int i = _logs.Count - 1; i >= 0 && visible.Count < PassiveMaxLines; i--)
-        {
-            var e = _logs[i];
-            float age = now - e.Timestamp;
-            if (age >= cutoff) continue;
-            visible.Add(e);
-        }
-        if (visible.Count == 0) return;
-        visible.Reverse();
-
-        // Use same panel position as open mode for alignment
-        float panelW = ConfigManager.ConsoleWidth.Value;
-        float panelX = ConfigManager.ConsoleX.Value;
-        float logAreaH = ConfigManager.ConsoleHeight.Value;
-        float panelBottomY = ConfigManager.ConsoleY.Value < 0
-            ? Screen.height - BottomMargin
-            : ConfigManager.ConsoleY.Value + logAreaH + InputHeight;
-        float inputTopY = panelBottomY - InputHeight;
-        float maxWidth = panelW - Padding * 2;
-
-        float totalHeight = 0;
-        for (int i = 0; i < visible.Count; i++)
-            totalHeight += GetEntryHeight(visible[i], maxWidth);
-
-        float currentY = inputTopY - totalHeight;
-
-        for (int i = 0; i < visible.Count; i++)
-        {
-            var entry = visible[i];
-            float age = now - entry.Timestamp;
-
-            float alpha = age < PassiveLingerTime
-                ? 1f
-                : 1f - Mathf.Clamp01((age - PassiveLingerTime) / PassiveFadeTime);
-
-            float itemH = entry.CachedHeight;
-
-            if (entry.CachedTextWidth <= 0f)
-            {
-                var strippedContent = new GUIContent(StripRichText(entry.Text));
-                float tw = _logStyle!.CalcSize(strippedContent).x + 16f;
-                entry.CachedTextWidth = Mathf.Clamp(tw, 100f, maxWidth);
-            }
-            float textWidth = Mathf.Min(entry.CachedTextWidth, maxWidth);
-
-            var prevColor = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, alpha * 0.85f);
-            GUI.DrawTexture(new Rect(panelX + Padding, currentY, textWidth, itemH), _shadowTexture);
-
-            GUI.color = new Color(1f, 1f, 1f, alpha);
-            GUI.Label(new Rect(panelX + Padding, currentY, maxWidth, itemH), entry.Text, _logStyle);
-
-            GUI.color = prevColor;
-            currentY += itemH;
-        }
-    }
-
-    /// <summary>Strip IMGUI rich text tags for width measurement.</summary>
-    private static string StripRichText(string text)
-    {
-        return System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "");
-    }
-
-    // ====================================================================
-    // Open mode: full chat with scrollable history + input bar
-    // ====================================================================
-    private static void DrawOpenMode()
-    {
-        Event e = Event.current;
-
-        // ── Key handling ──
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape)
-        {
-            if (_completion.IsActive)
-                _completion.Dismiss();
-            else
-                IsOpen = false;
-            e.Use();
-            return;
-        }
-
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Tab)
-        {
-            if (_completion.HasCompletions)
-            {
-                var applied = _completion.TabCycle(reverse: e.shift);
-                if (applied != null)
-                {
-                    input = applied;
-                    moveCursor = true;
-                }
-            }
-            e.Use();
-        }
-
-        bool submit = false;
-        if (e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter))
-        {
-            submit = true;
-            e.Use();
-        }
-
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.UpArrow)
-        {
-            if (_completion.IsTabCycling)
-                _completion.Dismiss();
-            if (inputsCursor < inputs.Count)
-            {
-                inputsCursor++;
-                if (inputs.Count > 0)
-                {
-                    input = inputs[^inputsCursor];
-                    moveCursor = true;
-                }
-            }
-            e.Use();
-        }
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.DownArrow)
-        {
-            if (_completion.IsTabCycling)
-                _completion.Dismiss();
-            if (inputsCursor > 1)
-            {
-                inputsCursor--;
-                input = inputs[^inputsCursor];
-            }
-            else
-                input = "";
-            moveCursor = true;
-            e.Use();
-        }
-
-        if (justOpened && e.type == EventType.KeyDown && e.character == '/')
-            e.Use();
-
-        // ── Layout: config-based position and size ──
-        float panelW = ConfigManager.ConsoleWidth.Value;
-        float logAreaH = ConfigManager.ConsoleHeight.Value;
-        float panelX = ConfigManager.ConsoleX.Value;
-        // Auto-bottom when Y == -1
-        float panelBottomY = ConfigManager.ConsoleY.Value < 0
-            ? Screen.height - BottomMargin
-            : ConfigManager.ConsoleY.Value + logAreaH + InputHeight;
-        float inputY = panelBottomY - InputHeight;
-        float logY = inputY - logAreaH;
-
-        float totalH = logAreaH + InputHeight + DragHandleHeight;
-        float dragY = logY - DragHandleHeight;
-        bool lockConsoleUi = LiveModeManager.LockConsoleUi;
-
-        // ── Drag handle ──
-        var dragRect = new Rect(panelX, dragY, panelW, DragHandleHeight);
-        GUI.DrawTexture(dragRect, _dragHandleTexture, ScaleMode.StretchToFill);
-
-        // ── Font size buttons (right side of drag handle) ──
-        float fontBtnW = DragHandleHeight * 2f;
-        float fontBtnH = DragHandleHeight;
-        if (GUI.Button(new Rect(panelX + panelW - fontBtnW * 2 - 2, dragY, fontBtnW, fontBtnH), "A−", _fontBtnStyle))
-            AdjustFontSize(-2);
-        if (GUI.Button(new Rect(panelX + panelW - fontBtnW, dragY, fontBtnW, fontBtnH), "A+", _fontBtnStyle))
-            AdjustFontSize(2);
-
-        // Drag logic
-        if (!lockConsoleUi)
-        {
-            if (e.type == EventType.MouseDown && dragRect.Contains(e.mousePosition))
-            {
-                _isDragging = true;
-                _dragOffset = e.mousePosition - new Vector2(panelX, dragY);
-                e.Use();
-            }
-            if (_isDragging)
-            {
-                if (e.type == EventType.MouseDrag)
-                {
-                    float newX = e.mousePosition.x - _dragOffset.x;
-                    float newTopY = e.mousePosition.y - _dragOffset.y;
-                    ConfigManager.ConsoleX.Value = Mathf.Clamp(newX, 0, Screen.width - panelW);
-                    ConfigManager.ConsoleY.Value = Mathf.Clamp(newTopY, 0, Screen.height - totalH);
-                    e.Use();
-                }
-                if (e.type == EventType.MouseUp)
-                {
-                    _isDragging = false;
-                    e.Use();
-                }
-            }
-        }
-        else if (_isDragging)
-        {
-            _isDragging = false;
-        }
-
-        // Background behind log area + input
-        GUI.DrawTexture(new Rect(panelX, logY, panelW, logAreaH + InputHeight), _bgTexture, ScaleMode.StretchToFill);
-
-        // ── Resize handle (bottom-right corner) ──
-        var resizeRect = new Rect(panelX + panelW - ResizeHandleSize, inputY + InputHeight - ResizeHandleSize,
-            ResizeHandleSize, ResizeHandleSize);
-        GUI.DrawTexture(resizeRect, _resizeHandleTexture, ScaleMode.StretchToFill);
-
-        if (!lockConsoleUi)
-        {
-            if (e.type == EventType.MouseDown && resizeRect.Contains(e.mousePosition))
-            {
-                _isResizing = true;
-                _resizeStart = e.mousePosition;
-                _resizeStartW = panelW;
-                _resizeStartH = logAreaH;
-                e.Use();
-            }
-            if (_isResizing)
-            {
-                if (e.type == EventType.MouseDrag)
-                {
-                    float dw = e.mousePosition.x - _resizeStart.x;
-                    float dh = e.mousePosition.y - _resizeStart.y; // down = taller (console grows upward)
-                    ConfigManager.ConsoleWidth.Value = Mathf.Max(_resizeStartW + dw, MinPanelW);
-                    ConfigManager.ConsoleHeight.Value = Mathf.Max(_resizeStartH + dh, MinPanelH);
-                    e.Use();
-                }
-                if (e.type == EventType.MouseUp)
-                {
-                    _isResizing = false;
-                    e.Use();
-                }
-            }
-        }
-        else if (_isResizing)
-        {
-            _isResizing = false;
-        }
-
-        // Log area (scrollable, bottom-aligned) — virtualized to avoid laying out
-        // thousands of labels per frame. Uses GUI.BeginScrollView with absolute rects
-        // so control count is constant (1 scroll view + 0 inner GUILayout controls).
-        var logViewRect = new Rect(panelX + Padding, logY, panelW - Padding * 2, logAreaH);
-        float contentWidth = logViewRect.width - 18f; // reserve scrollbar space
-        _logContentWidth = contentWidth;
-
-        int logCount = _logs.Count;
-        float contentHeight = 0f;
-        // Recompute heights (cached per entry/width/fontSize, so this is O(n) only when
-        // width or font changes — and O(1) per entry otherwise).
-        for (int i = 0; i < logCount; i++)
-            contentHeight += GetEntryHeight(_logs[i], contentWidth);
-
-        // Bottom-align: pad the top so content sits at the bottom of view when shorter.
-        float topPad = Mathf.Max(0f, logAreaH - contentHeight);
-        float totalContentH = contentHeight + topPad;
-
-        var contentRect = new Rect(0, 0, contentWidth, totalContentH);
-        float bottom = Mathf.Max(0f, totalContentH - logAreaH);
-        if (_scrollToBottom)
-        {
-            scrollPosition.y = bottom;
-            _scrollToBottom = false;
-        }
-        scrollPosition = GUI.BeginScrollView(logViewRect, scrollPosition, contentRect);
-
-        // Virtualize: only render entries whose rect intersects the visible viewport.
-        float viewportTop = scrollPosition.y;
-        float viewportBottom = viewportTop + logAreaH;
-        float y = topPad;
-        for (int i = 0; i < logCount; i++)
-        {
-            float h = _logs[i].CachedHeight;
-            if (y + h >= viewportTop && y <= viewportBottom)
-                GUI.Label(new Rect(0, y, contentWidth, h), _logs[i].Text, _logStyle);
-            y += h;
-            if (y > viewportBottom) break;
-        }
-        GUI.EndScrollView();
-
-        _followLogs = bottom - scrollPosition.y <= _logStyle!.lineHeight;
-        if (_followLogs) _unreadLogs = 0;
-        if (_unreadLogs > 0)
-        {
-            string unreadText = TextId.ConsoleNewMessages.Get(_unreadLogs);
-            float buttonWidth = GUI.skin.button.CalcSize(new GUIContent(unreadText)).x + Padding * 2;
-            if (GUI.Button(new Rect(logViewRect.xMax - buttonWidth - 18f, logViewRect.yMax - 28f, buttonWidth, 26f), unreadText))
-                ScrollToLatest();
-        }
-
-        // Input bar background
-        GUI.DrawTexture(new Rect(panelX, inputY, panelW, InputHeight), _inputBgTexture, ScaleMode.StretchToFill);
-
-        // Input field
-        GUI.SetNextControlName(TextFieldControlName);
-        string prevInput = input;
-        input = GUI.TextField(new Rect(panelX + Padding, inputY, panelW - Padding * 2, InputHeight), input, _inputStyle);
-
-        if (input != prevInput)
-            _completion.UpdateCompletions(input);
-
-        if (focusTextField)
-        {
-            GUI.FocusControl(TextFieldControlName);
-            focusTextField = false;
-        }
-
-        if (moveCursor && e.type == EventType.Repaint)
-        {
-            int id = GUIUtility.keyboardControl;
-            var obj = GUIUtility.GetStateObject(Il2CppType.Of<TextEditor>(), id);
-            if (obj != null)
-            {
-                var editor = obj.Cast<TextEditor>();
-                editor.cursorIndex = input.Length;
-                editor.selectIndex = input.Length;
-            }
-            moveCursor = false;
-        }
-
-        // Completion dropdown (above input bar within panel bounds)
-        if (_completion.IsActive)
-            DrawCompletionDropdown(panelX + Padding, inputY, panelW - Padding * 2);
-
-        // Submit
-        if (submit)
-        {
-            if (!string.IsNullOrEmpty(input))
-            {
-                ExecuteCommand(input, out bool closeConsole);
-                inputs.Add(input);
-                inputsCursor = 0;
-                input = "";
-                _completion.Reset();
-                ScrollToLatest();
-                SaveHistory();
-                if (closeConsole)
-                {
-                    IsOpen = false;
-                    return;
-                }
-            }
-            else
-            {
-                IsOpen = false;
-                return;
-            }
-        }
-
-        // Consume remaining key events
-        if (e.type == EventType.KeyDown && e.keyCode != KeyCode.None)
-            e.Use();
-    }
-
-    // ====================================================================
-    // Completion dropdown (shared between modes)
-    // ====================================================================
-    private static void DrawCompletionDropdown(float x, float inputY, float width)
-    {
-        float itemHeight = (_completionStyle!.fontSize + 10);
-
-        if (_completion.HasHint)
-        {
-            float hintHeight = itemHeight + 4;
-            float hintY = inputY - hintHeight;
-            GUI.DrawTexture(new Rect(x, hintY, width, hintHeight), _completionBgTexture, ScaleMode.StretchToFill);
-
-            var hintStyle = new GUIStyle(_completionStyle)
-            {
-                fontStyle = FontStyle.Italic,
-                normal = { textColor = new Color(0.55f, 0.55f, 0.65f) }
-            };
-            GUI.Label(new Rect(x, hintY + 2, width, itemHeight),
-                $"  {_completion.Hint}", hintStyle);
-            return;
-        }
-
-        var completions = _completion.Completions;
-        int totalCount = completions.Count;
-        int maxVisible = Math.Min(totalCount, CompletionEngine.MaxVisibleItems);
-        float dropdownHeight = maxVisible * itemHeight + 4;
-
-        float dropY = inputY - dropdownHeight;
-        GUI.DrawTexture(new Rect(x, dropY, width, dropdownHeight), _completionBgTexture, ScaleMode.StretchToFill);
-
-        int offset = _completion.ScrollOffset;
-        for (int i = 0; i < maxVisible; i++)
-        {
-            int itemIndex = offset + i;
-            if (itemIndex >= totalCount) break;
-
-            bool isSelected = itemIndex == _completion.SelectedIndex;
-            var style = isSelected ? _completionSelectedStyle : _completionStyle;
-            float itemY = dropY + 2 + i * itemHeight;
-
-            string displayText = _completion.FormatWithHighlight(completions[itemIndex]);
-            GUI.Label(new Rect(x, itemY, width, itemHeight), displayText, style);
-        }
-
-        if (totalCount > maxVisible)
-        {
-            string indicator = $"[{offset + 1}-{Math.Min(offset + maxVisible, totalCount)}/{totalCount}]";
-            var indicatorStyle = new GUIStyle(_completionStyle)
-            {
-                alignment = TextAnchor.MiddleRight,
-                normal = { textColor = new Color(0.5f, 0.5f, 0.6f) }
-            };
-            GUI.Label(new Rect(x, dropY + dropdownHeight - itemHeight, width - 8, itemHeight), indicator, indicatorStyle);
-        }
-    }
-
-    // ====================================================================
-    // Logging
-    // ====================================================================
-    public static void LogToConsole(string message)
-    {
-        string timestamp = DateTime.Now.ToString("HH:mm:ss");
-        string stamped = $"<color=#888899>[{timestamp}]</color> {message}";
-        // Thread-safe: enqueue and let OnGUI drain on the Layout pass. This prevents
-        // "Collection was modified" exceptions when callers (e.g. TCP receive thread)
-        // log from off the main thread, and keeps GUILayout control counts stable
-        // between Layout and Repaint events.
-        _pendingLogs.Enqueue(stamped);
-    }
-
-    /// <summary>Replaces Notify.Show — log a gold event message (must be called on main thread).</summary>
-    public static void ShowPassive(string text)
-        => LogToConsole($"<color=#FFCC66>{text}</color>");
-
-    /// <summary>Replaces Notify.ShowOnMainThread — dispatches to main thread, then logs gold event.</summary>
-    public static void ShowPassiveFromAnyThread(string text)
-        => PluginManager.RunOnMainThread(() => ShowPassive(text));
-
-    /// <summary>Log a green success message.</summary>
-    public static void LogSuccess(string text)
-        => LogToConsole($"<color=#66FF88>{text}</color>");
-
-    /// <summary>Log a red error message.</summary>
-    public static void LogError(string text)
-        => LogToConsole($"<color=#FF6666>{text}</color>");
-
-    /// <summary>Log a prominent red alert (large bold text).</summary>
-    public static void LogAlert(string text)
-        => LogToConsole($"<size=22><color=#FF4444><b>{text}</b></color></size>");
-
-    private static void ExecuteCommand(string cmd, out bool closeConsole)
-    {
-        closeConsole = false;
-        Log.LogMessage($"Console Command: {cmd}");
-
-        bool isMessage = cmd[0] != '/';
-        if (isMessage)
-        {
-            if (GameSession.IsOnline)
-                ChatMessage.Send(cmd);
-            else
-                AddPeerMessage(LiveModeManager.GetLocalDisplayName(), cmd);
-
-            closeConsole = true;
-        }
-        else
-        {
-            string commandInput = cmd[1..];
-            closeConsole = CommandRegistry.Execute(commandInput, _consoleContext);
-        }
-    }
-
-    private static void GetConsolePanelRect(out Rect panelRect)
-    {
-        float panelW = ConfigManager.ConsoleWidth.Value;
-        float logAreaH = ConfigManager.ConsoleHeight.Value;
-        float panelX = ConfigManager.ConsoleX.Value;
-        float panelBottomY = ConfigManager.ConsoleY.Value < 0
-            ? Screen.height - BottomMargin
-            : ConfigManager.ConsoleY.Value + logAreaH + InputHeight;
-        float inputY = panelBottomY - InputHeight;
-        float logY = inputY - logAreaH;
-        float dragY = logY - DragHandleHeight;
-        float totalH = logAreaH + InputHeight + DragHandleHeight;
-        panelRect = new Rect(panelX, dragY, panelW, totalH);
-    }
-
-    private static void DrawLiveUntrustedZoneOutline()
-    {
-        GetConsolePanelRect(out var rect);
-        const float thickness = 3f;
-        var color = new Color(1f, 0.85f, 0.1f, 0.95f);
-        DrawRectOutline(rect, color, thickness);
-    }
-
-    private static void DrawRectOutline(Rect rect, Color color, float thickness)
-    {
-        var prev = GUI.color;
-        GUI.color = color;
-        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, thickness), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(rect.x, rect.y, thickness, rect.height), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), Texture2D.whiteTexture);
-        GUI.color = prev;
     }
 }

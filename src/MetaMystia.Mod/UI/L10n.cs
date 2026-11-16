@@ -328,6 +328,9 @@ public enum TextId
     ConsoleStarPrompt,
     ConsoleHelpHint,
     ConsoleMapSwapping,
+    ConsolePlaceholder,
+    ConsoleTitleHint,
+    ConsoleCopied,
     ConsoleTestServerWelcome,
     CmdDescLink,
     LinkDescMetaMystia,
@@ -387,6 +390,7 @@ public enum TextId
 
     // Cheat commands
     CmdDescCheat,
+    CmdDescConsole,
     CheatDescFever,
     CheatInvalidMode,
     CheatFeverApplied,

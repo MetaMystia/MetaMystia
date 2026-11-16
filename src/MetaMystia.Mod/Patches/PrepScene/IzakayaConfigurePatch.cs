@@ -41,7 +41,7 @@ public partial class IzakayaConfigurePatch
         configure.SpecialGuestGachaInterval /= rate;
         string rateText = rate.ToString("0.###", CultureInfo.InvariantCulture);
         Log.LogInfo($"Guest flow rate {rate}x applied to izakaya configuration.");
-        InGameConsole.ShowPassiveFromAnyThread(TextId.CheatFlowRateActive.Get(rateText));
+        InGameConsole.ShowPassive(TextId.CheatFlowRateActive.Get(rateText));
     }
 
     // 菜谱、酒水和厨具逐项同步；厨具注销也会经过 RegisterToCookers。
@@ -53,7 +53,7 @@ public partial class IzakayaConfigurePatch
         if (GameSession.HasRoomPeers && !PlayerManager.RecipeAvailable(id))
         {
             Log.LogWarning($"Peer does not have recipe {id}, skipping...");
-            InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerRecipeNotAvailable.Get(id));
+            InGameConsole.ShowPassive(TextId.DLCPeerRecipeNotAvailable.Get(id));
             return SkipOriginal;
         }
 
@@ -68,7 +68,7 @@ public partial class IzakayaConfigurePatch
         if (GameSession.HasRoomPeers && !PlayerManager.BeverageAvailable(id))
         {
             Log.LogWarning($"Peer does not have beverage {id}, skipping...");
-            InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerBeverageNotAvailable.Get(id));
+            InGameConsole.ShowPassive(TextId.DLCPeerBeverageNotAvailable.Get(id));
             return SkipOriginal;
         }
 
@@ -89,7 +89,7 @@ public partial class IzakayaConfigurePatch
         if (id != -1 && GameSession.HasRoomPeers && !PlayerManager.CookerAvailable(id))
         {
             Log.LogWarning($"Peer does not have cooker {id}, skipping...");
-            InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerCookerNotAvailable.Get(id));
+            InGameConsole.ShowPassive(TextId.DLCPeerCookerNotAvailable.Get(id));
             return SkipOriginal;
         }
 

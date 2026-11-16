@@ -81,13 +81,13 @@ public partial class PluginHost : MonoBehaviour
 
     private void OnGUI()
     {
-        InGameConsole.OnGUI();
         PlayerListPanel.OnGUI();
         PluginManager.DrawStatusOverlay();
     }
 
     private void OnDestroy()
     {
+        InGameConsole.Shutdown();
         GameSession.Stop();
         StopAllCoroutines();
     }

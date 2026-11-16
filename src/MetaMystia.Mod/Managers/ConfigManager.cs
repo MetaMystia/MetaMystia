@@ -50,8 +50,8 @@ public static partial class ConfigManager
     public static ConfigEntry<string> SkinServerToken;
 
     // Console layout
-    public static ConfigEntry<float> ConsoleX;
-    public static ConfigEntry<float> ConsoleY;
+    public static ConfigEntry<float> ConsoleLeft;
+    public static ConfigEntry<float> ConsoleBottom;
     public static ConfigEntry<float> ConsoleWidth;
     public static ConfigEntry<float> ConsoleHeight;
     public static ConfigEntry<int> ConsoleFontSize;
@@ -137,17 +137,18 @@ public static partial class ConfigManager
             "发送给皮肤服务器的静态令牌（`Authorization: Bearer <token>`）。留空则不发送");
 
         // Console layout
-        ConsoleX = Config.Bind("Console", "X", 8f,
-            "Console panel X position (pixels from left)\n控制台面板X坐标（左侧像素偏移）");
-        ConsoleY = Config.Bind("Console", "Y", -1f,
-            "Console panel Y position (pixels from top, -1 = auto bottom)\n控制台面板Y坐标（顶部像素偏移，-1=自动底部）");
-        ConsoleWidth = Config.Bind("Console", "Width", 800f,
-            "Console panel width in pixels\n控制台面板宽度（像素）");
-        ConsoleHeight = Config.Bind("Console", "Height", 350f,
-            "Console panel height in pixels (log area)\n控制台面板高度（像素，日志区域）");
+        // 以 1080p 为基准的像素，随屏幕高度缩放
+        ConsoleLeft = Config.Bind("Console", "Left", 16f,
+            "Console left offset, in 1080p reference pixels\n控制台左边距（以 1080p 为基准的像素）");
+        ConsoleBottom = Config.Bind("Console", "Bottom", 96f,
+            "Console bottom offset, in 1080p reference pixels\n控制台下边距（以 1080p 为基准的像素）");
+        ConsoleWidth = Config.Bind("Console", "Width", 760f,
+            "Console width, in 1080p reference pixels\n控制台宽度（以 1080p 为基准的像素）");
+        ConsoleHeight = Config.Bind("Console", "Height", 380f,
+            "Console height including input bar, in 1080p reference pixels\n控制台高度，含输入栏（以 1080p 为基准的像素）");
 
-        ConsoleFontSize = Config.Bind("Console", "FontSize", 0,
-            "Console font size (0 = auto based on screen height)\n控制台字体大小（0=根据屏幕高度自动）");
+        ConsoleFontSize = Config.Bind("Console", "FontSize", 20,
+            "Console font size, in 1080p reference pixels\n控制台字号（以 1080p 为基准的像素）");
 
         ConsolePassiveLingerTime = Config.Bind("Console", "PassiveLingerTime", 4f,
             "Seconds before passive chat messages start fading out\n被动聊天消息开始淡出前的停留时间（秒）");

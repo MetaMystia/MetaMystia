@@ -1,172 +1,116 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace MetaMystia.ConsoleSystem;
 
-/// <summary>
-/// Minecraft-style tab completion engine for the in-game console.
-/// Tab applies the first match inline; subsequent Tabs cycle through alternatives.
-/// Space confirms the current selection and moves on.
-/// </summary>
-public class CompletionEngine
+public sealed record CompletionItem(string Value, string Description);
+
+/// <summary>补全查询结果。Signature 是当前命令的参数签名（富文本），可为空。</summary>
+public sealed record CompletionQuery(IReadOnlyList<CompletionItem> Items, string? Signature)
 {
-    private List<string> _completions = [];
-    private int _completionIndex = -1;
-    private string _originalInput = "";
-    private string _matchPrefix = "";
-    private int _scrollOffset = 0;
-    private bool _dismissed = false;
-    private string? _hint = null;
+    public static readonly CompletionQuery Empty = new(Array.Empty<CompletionItem>(), null);
+}
 
-    // Tab-cycling state (Minecraft-style)
-    private bool _isTabCycling = false;
-    private string _tabCycleBase = "";   // Input BEFORE first Tab press
-    private int _tabCycleIndex = -1;
+/// <summary>
+/// 补全状态：按光标所在的词查询候选，维护选中项。
+/// 弹出列表时上下键选择，Tab/Enter 接受；Esc 收起，直到文本再次变化。
+/// </summary>
+public sealed class CompletionEngine
+{
+    public const int MaxVisible = 8;
 
-    public const int MaxVisibleItems = 8;
+    private readonly Func<string, CompletionQuery> _provider;
+    private IReadOnlyList<CompletionItem> _items = Array.Empty<CompletionItem>();
+    private bool _dismissed;
 
-    public bool IsActive => !_dismissed && (_completions.Count > 0 || _hint != null);
-    public bool HasCompletions => _completions.Count > 0;
-    public bool HasHint => _hint != null && _completions.Count == 0;
-    public string? Hint => _hint;
-    public IReadOnlyList<string> Completions => _completions;
-    public int SelectedIndex => _completionIndex;
-    public int ScrollOffset => _scrollOffset;
-    public string MatchPrefix => _matchPrefix;
-    public bool IsTabCycling => _isTabCycling;
+    public CompletionEngine(Func<string, CompletionQuery> provider) => _provider = provider;
 
-    /// <summary>
-    /// Called on every input change (from typing, NOT from Tab).
-    /// Exits tab-cycling if active, then refreshes completions.
-    /// </summary>
-    public void UpdateCompletions(string input)
+    public IReadOnlyList<CompletionItem> Items => _items;
+    public int Selected { get; private set; }
+    public int ScrollOffset { get; private set; }
+    public string? Signature { get; private set; }
+    public string Token { get; private set; } = "";
+    public int TokenStart { get; private set; }
+    public int TokenEnd { get; private set; }
+
+    public bool PopupVisible => !_dismissed && _items.Count > 0;
+    public bool SignatureVisible => !_dismissed && !string.IsNullOrEmpty(Signature);
+
+    /// <summary>选中项与已输入的词不同，Enter 应先接受补全而不是提交。</summary>
+    public bool SelectionDiffersFromToken =>
+        PopupVisible && !string.Equals(_items[Selected].Value, Token, StringComparison.OrdinalIgnoreCase);
+
+    public void Refresh(string text, int caret, bool textChanged)
     {
-        if (_isTabCycling)
-            ExitTabCycle();
-
-        _dismissed = false;
-
-        if (string.IsNullOrEmpty(input) || !input.StartsWith("/"))
+        if (textChanged) _dismissed = false;
+        if (string.IsNullOrEmpty(text) || text[0] != '/' || caret < 1)
         {
-            ClearCompletions();
+            Clear();
             return;
         }
 
-        string commandPart = input[1..];
-        var result = CommandRegistry.GetCompletions(commandPart);
+        caret = Math.Min(caret, text.Length);
+        int start = text.LastIndexOf(' ', caret - 1) + 1;
+        if (start == 0) start = 1;
+        int end = text.IndexOf(' ', caret);
+        if (end < 0) end = text.Length;
 
-        if (result.Items.Count == 0 && result.Hint == null)
-        {
-            ClearCompletions();
-            return;
-        }
+        string previous = Selected < _items.Count ? _items[Selected].Value : "";
+        var query = _provider(text[1..caret]);
+        _items = query.Items;
+        Signature = query.Signature;
+        TokenStart = start;
+        TokenEnd = end;
+        Token = text[start..end];
 
-        int lastSpace = input.LastIndexOf(' ');
-        _matchPrefix = lastSpace >= 0 ? input[(lastSpace + 1)..] : input[1..];
-
-        _originalInput = input;
-        _hint = result.Hint;
-
-        if (result.Items.Count > 0)
-        {
-            _completions = result.Items;
-            _completionIndex = 0;
-            _scrollOffset = 0;
-        }
-        else
-        {
-            _completions = [];
-            _completionIndex = -1;
-            _scrollOffset = 0;
-        }
+        int keep = -1;
+        for (int i = 0; i < _items.Count; i++)
+            if (_items[i].Value == previous) { keep = i; break; }
+        Selected = keep >= 0 ? keep : 0;
+        ScrollOffset = 0;
+        EnsureVisible();
     }
 
-    /// <summary>
-    /// Minecraft-style Tab press: enter or advance tab-cycling.
-    /// Returns the new input with the completion applied inline (no trailing space).
-    /// </summary>
-    public string? TabCycle(bool reverse = false)
+    public void Move(int delta)
     {
-        if (!HasCompletions) return null;
-
-        if (!_isTabCycling)
-        {
-            _isTabCycling = true;
-            _tabCycleBase = _originalInput;
-            _tabCycleIndex = 0;
-        }
-        else
-        {
-            if (reverse)
-                _tabCycleIndex = (_tabCycleIndex - 1 + _completions.Count) % _completions.Count;
-            else
-                _tabCycleIndex = (_tabCycleIndex + 1) % _completions.Count;
-        }
-
-        _completionIndex = _tabCycleIndex;
-        EnsureSelectedVisible();
-
-        return ApplyCompletion(_tabCycleBase, _completions[_tabCycleIndex]);
+        if (_items.Count == 0) return;
+        Selected = ((Selected + delta) % _items.Count + _items.Count) % _items.Count;
+        EnsureVisible();
     }
 
-    public void ExitTabCycle()
+    public void Select(int index)
     {
-        _isTabCycling = false;
-        _tabCycleBase = "";
-        _tabCycleIndex = -1;
+        if (index < 0 || index >= _items.Count) return;
+        Selected = index;
+        EnsureVisible();
     }
 
-    public void Dismiss()
+    /// <summary>用选中项替换当前词，并在其后补一个空格。返回新文本与光标。</summary>
+    public (string text, int caret) Accept(string text)
     {
-        _dismissed = true;
-        if (_isTabCycling) ExitTabCycle();
+        var value = _items[Selected].Value;
+        string rest = TokenEnd <= text.Length ? text[TokenEnd..] : "";
+        if (!rest.StartsWith(' ')) rest = " " + rest;
+        string result = text[..TokenStart] + value + rest;
+        return (result, TokenStart + value.Length + 1);
     }
 
-    public void Reset()
+    public void Dismiss() => _dismissed = true;
+
+    public void Clear()
     {
-        ClearCompletions();
-        _dismissed = false;
-        if (_isTabCycling) ExitTabCycle();
+        _items = Array.Empty<CompletionItem>();
+        Signature = null;
+        Selected = 0;
+        ScrollOffset = 0;
+        Token = "";
+        TokenStart = TokenEnd = 0;
     }
 
-    public string FormatWithHighlight(string item)
+    private void EnsureVisible()
     {
-        if (string.IsNullOrEmpty(_matchPrefix) || !item.StartsWith(_matchPrefix, System.StringComparison.OrdinalIgnoreCase))
-            return item;
-
-        string matched = item[.._matchPrefix.Length];
-        string rest = item[_matchPrefix.Length..];
-        return $"<color=#66AAFF>{matched}</color>{rest}";
-    }
-
-    private void ClearCompletions()
-    {
-        _completions = [];
-        _completionIndex = -1;
-        _scrollOffset = 0;
-        _originalInput = "";
-        _matchPrefix = "";
-        _hint = null;
-    }
-
-    private void EnsureSelectedVisible()
-    {
-        if (_completionIndex < _scrollOffset)
-            _scrollOffset = _completionIndex;
-        else if (_completionIndex >= _scrollOffset + MaxVisibleItems)
-            _scrollOffset = _completionIndex - MaxVisibleItems + 1;
-    }
-
-    /// <summary>
-    /// Replace the last partial token in input with the completion.
-    /// Does NOT add trailing space — the user confirms with space.
-    /// </summary>
-    private static string ApplyCompletion(string input, string completion)
-    {
-        int lastSpace = input.LastIndexOf(' ');
-        if (lastSpace < 0)
-            return "/" + completion;
-        return input[..(lastSpace + 1)] + completion;
+        if (Selected < ScrollOffset) ScrollOffset = Selected;
+        else if (Selected >= ScrollOffset + MaxVisible) ScrollOffset = Selected - MaxVisible + 1;
     }
 }

@@ -56,6 +56,7 @@ public static partial class PluginManager
     /// </summary>
     public static void HandleShortcuts()
     {
+        if (InGameConsole.OwnsKeyboard) return;
         if (Input.GetKeyDown(ConfigManager.KeyToggleLog.Value)) // KeyCode.RightShift
         {
             Log.LogInfo($"\n");

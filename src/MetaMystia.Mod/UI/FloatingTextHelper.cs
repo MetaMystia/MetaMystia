@@ -21,7 +21,7 @@ public static partial class FloatingTextHelper
     private static bool _fontSearched;
     private const float OutlineWidthValue = 0.05f;
 
-    private static TMP_FontAsset GetFont()
+    internal static TMP_FontAsset GetFont()
     {
         if (_cachedFont != null) return _cachedFont;
         if (_fontSearched) return _cachedFont;

@@ -44,15 +44,15 @@ public static partial class IzakayaReporter
 
                 if (string.IsNullOrEmpty(latestVer))
                 {
-                    InGameConsole.ShowPassiveFromAnyThread(TextId.ModVersionUnavailable.Get(currentVer));
+                    InGameConsole.ShowPassive(TextId.ModVersionUnavailable.Get(currentVer));
                 }
                 else if (currentVer.Equals(latestVer, StringComparison.Ordinal))
                 {
-                    InGameConsole.ShowPassiveFromAnyThread(TextId.ModVersionLatest.Get(currentVer));
+                    InGameConsole.ShowPassive(TextId.ModVersionLatest.Get(currentVer));
                 }
                 else
                 {
-                    InGameConsole.ShowPassiveFromAnyThread(TextId.ModVersionOutdated.Get(currentVer, latestVer));
+                    InGameConsole.ShowPassive(TextId.ModVersionOutdated.Get(currentVer, latestVer));
                 }
 
                 await ReportRunEventAsync(currentVer).ConfigureAwait(false);

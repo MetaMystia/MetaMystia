@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Linq;
@@ -12,8 +11,23 @@ public static class GeneralCommands
     public static void Register(RootCommand root)
     {
         var helpCmd = new Command("help", "Show available commands");
-        helpCmd.SetHandler(HelpHandler);
+        var helpPath = new Argument<string[]>("command", () => []) { Arity = ArgumentArity.ZeroOrMore };
+        helpCmd.AddArgument(helpPath);
+        helpCmd.SetHandler(ctx => HelpHandler(ctx, ctx.ParseResult.GetValueForArgument(helpPath)));
         root.AddCommand(helpCmd);
+        CommandRegistry.RegisterDynamicCompletions("help", 0,
+            () => CommandRegistry.TopLevelCommands.Select(c => c.Name).ToArray());
+
+        var consoleCmd = new Command("console", "Console layout");
+        var fontCmd = new Command("font", "Set console font size");
+        var fontSize = new Argument<int>("size");
+        fontCmd.AddArgument(fontSize);
+        fontCmd.SetHandler(ctx => InGameConsole.SetFontSize(ctx.ParseResult.GetValueForArgument(fontSize)));
+        consoleCmd.AddCommand(fontCmd);
+        var resetCmd = new Command("reset", "Reset console position, size and font");
+        resetCmd.SetHandler(InGameConsole.ResetLayout);
+        consoleCmd.AddCommand(resetCmd);
+        root.AddCommand(consoleCmd);
 
         var clearCmd = new Command("clear", "Clear console logs and input history");
         clearCmd.SetHandler(ClearHandler);
@@ -50,37 +64,30 @@ public static class GeneralCommands
         System.Console.OutputEncoding = System.Text.Encoding.UTF8;
     }
 
-    private static readonly Dictionary<string, TextId> _cmdDescriptions = new()
+    private static void HelpHandler(InvocationContext ctx, string[] path)
     {
-        ["help"] = TextId.CmdDescHelp,
-        ["clear"] = TextId.CmdDescClear,
-        ["get"] = TextId.CmdDescGet,
-        ["mp"] = TextId.CmdDescMp,
-        ["call"] = TextId.CmdDescCall,
-        ["skin"] = TextId.CmdDescSkin,
-        ["debug"] = TextId.CmdDescDebug,
-        ["whereami"] = TextId.CmdDescWhereami,
-        ["enable_bepin_console"] = TextId.CmdDescEnableBepinConsole,
-        ["link"] = TextId.CmdDescLink,
-        ["resourceex"] = TextId.CmdDescResourceEx,
-        ["live"] = TextId.CmdDescLive,
-        ["emote"] = TextId.CmdDescEmote,
-        ["cheat"] = TextId.CmdDescCheat,
-    };
-
-    private static void HelpHandler(InvocationContext ctx)
-    {
-        ctx.Log(ConsoleFormat.Header(TextId.HelpHeader.Get()));
-        foreach (var (name, _, subs) in CommandRegistry.GetCommandInfo())
+        if (path.Length == 0)
         {
-            string desc = _cmdDescriptions.TryGetValue(name, out var textId) ? textId.Get() : "";
-            string line = $"  {ConsoleFormat.Cmd("/" + name)}";
-            if (subs.Count > 0)
-                line += $" {ConsoleFormat.Arg("<sub>")}  {ConsoleFormat.Dim(desc + " ─ " + string.Join("|", subs))}";
-            else
-                line += $"  {ConsoleFormat.Dim(desc)}";
-            ctx.Log(line);
+            ctx.Log(ConsoleFormat.Header(TextId.HelpHeader.Get()));
+            foreach (var cmd in CommandRegistry.TopLevelCommands)
+                ctx.Log(ConsoleFormat.SubCmd("/" + cmd.Name, "", CommandRegistry.Describe(cmd)));
+            ctx.Log(ConsoleFormat.Dim("  /help ‹command›"));
+            return;
         }
-        ctx.Log(ConsoleFormat.Line);
+
+        string joined = string.Join(" ", path).TrimStart('/');
+        var command = CommandRegistry.FindCommand(joined);
+        if (command == null)
+        {
+            ctx.Log(ConsoleFormat.Err("/" + joined + " ?"));
+            return;
+        }
+
+        ctx.Log(ConsoleFormat.Header("/" + joined));
+        string desc = CommandRegistry.Describe(command);
+        if (desc.Length > 0) ctx.Log("  " + desc);
+        ctx.Log("  " + CommandRegistry.FormatUsage(joined, command));
+        foreach (var sub in command.Children.OfType<Command>())
+            ctx.Log(ConsoleFormat.SubCmd(sub.Name, "", CommandRegistry.Describe(sub)));
     }
 }
