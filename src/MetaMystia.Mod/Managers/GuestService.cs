@@ -29,7 +29,8 @@ public static partial class GuestService
         var ids = fsm.Ids;
 
         if (GuestsManager.Instance == null) return;
-        if (!EventManager.Instance.ShouldNormalGuestInstantiateBySpecialBuff) return;
+        // 原函数在此检查本地门牌禁客 Buff。生成以主机为准，客机自己的门牌不应生效。
+        // if (!EventManager.Instance.ShouldNormalGuestInstantiateBySpecialBuff) return;
 
         if (ids.Length <= 0 || ids.Length > 2) return;
 
@@ -74,7 +75,8 @@ public static partial class GuestService
     /// <param name="fsm"></param>
     public static void ReplaySpawnSpecialGuestGroup(ref GuestFSM fsm, GuestSpawnInfo spawnInfo)
     {
-        if (!EventManager.Instance.ShouldSpecialGuestInstantiateBySpecialBuff) return;
+        // 原函数在此检查本地门牌禁客 Buff。生成以主机为准，客机自己的门牌不应生效。
+        // if (!EventManager.Instance.ShouldSpecialGuestInstantiateBySpecialBuff) return;
 
         var specialGuest = DataBaseCharacter.RefSGuest(fsm.Ids[0]);
         var overrideSpawnPosition = spawnInfo.HasOverrideSpawnPosition
