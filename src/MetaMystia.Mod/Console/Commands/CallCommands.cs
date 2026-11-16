@@ -10,11 +10,11 @@ public static class CallCommands
 {
     public static void Register(RootCommand root)
     {
-        var callCmd = new Command("call", "Call game methods");
+        var callCmd = new Command("call", TextId.CmdDescCall.Get());
 
         // /call getmapsnpcs [mapLabel]
-        var getNpcsCmd = new Command("getmapsnpcs", "List NPCs on a map");
-        var mapKeyArg = new Argument<string>("mapKey") { Arity = System.CommandLine.ArgumentArity.ZeroOrOne };
+        var getNpcsCmd = new Command("getmapsnpcs", TextId.CallDescGetmapsnpcs.Get());
+        var mapKeyArg = new Argument<string>("mapKey", TextId.ArgDescMapKey.Get()) { Arity = System.CommandLine.ArgumentArity.ZeroOrOne };
         mapKeyArg.SetDefaultValue("");
         getNpcsCmd.AddArgument(mapKeyArg);
         getNpcsCmd.SetHandler(ctx =>
@@ -50,12 +50,12 @@ public static class CallCommands
         callCmd.AddCommand(getNpcsCmd);
 
         // /call movecharacter <characterKey> <mapLabel> <x> <y> <rot>
-        var moveCharCmd = new Command("movecharacter", "Move a character on the map");
-        var charKeyArg = new Argument<string>("characterKey", "Character key");
-        var moveMapArg = new Argument<string>("mapKey", "Target map key");
-        var moveXArg = new Argument<float>("x", "X coordinate");
-        var moveYArg = new Argument<float>("y", "Y coordinate");
-        var moveRotArg = new Argument<int>("rot", "Rotation");
+        var moveCharCmd = new Command("movecharacter", TextId.CallDescMovecharacter.Get());
+        var charKeyArg = new Argument<string>("characterKey", TextId.ArgDescCharacterKey.Get());
+        var moveMapArg = new Argument<string>("mapKey", TextId.ArgDescMapKey.Get());
+        var moveXArg = new Argument<float>("x", TextId.ArgDescX.Get());
+        var moveYArg = new Argument<float>("y", TextId.ArgDescY.Get());
+        var moveRotArg = new Argument<int>("rot", TextId.ArgDescRotation.Get());
         moveCharCmd.AddArgument(charKeyArg);
         moveCharCmd.AddArgument(moveMapArg);
         moveCharCmd.AddArgument(moveXArg);
@@ -89,10 +89,10 @@ public static class CallCommands
         callCmd.AddCommand(moveCharCmd);
 
         // /call scene_move <characterKey> <x> <y>
-        var sceneMoveCmd = new Command("scene_move", "Move a character in the scene");
-        var sceneCharArg = new Argument<string>("characterKey", "Character key");
-        var sceneXArg = new Argument<float>("x", "X coordinate");
-        var sceneYArg = new Argument<float>("y", "Y coordinate");
+        var sceneMoveCmd = new Command("scene_move", TextId.CallDescSceneMove.Get());
+        var sceneCharArg = new Argument<string>("characterKey", TextId.ArgDescCharacterKey.Get());
+        var sceneXArg = new Argument<float>("x", TextId.ArgDescX.Get());
+        var sceneYArg = new Argument<float>("y", TextId.ArgDescY.Get());
         sceneMoveCmd.AddArgument(sceneCharArg);
         sceneMoveCmd.AddArgument(sceneXArg);
         sceneMoveCmd.AddArgument(sceneYArg);
@@ -136,28 +136,6 @@ public static class CallCommands
         });
         callCmd.AddCommand(tryCloseCmd);
 
-        // Default handler
-        callCmd.SetHandler(ctx =>
-        {
-            ctx.Log(ConsoleFormat.Header(TextId.CallHelpHeader.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/call getmapsnpcs", "[mapKey]", TextId.CallDescGetmapsnpcs.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/call movecharacter", "<key> <map> <x> <y> <rot>", TextId.CallDescMovecharacter.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/call scene_move", "<key> <x> <y>", TextId.CallDescSceneMove.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/call try_close_izakaya", "", TextId.CallDescTryCloseIzakaya.Get()));
-            ctx.Log(ConsoleFormat.Line);
-        });
-
         root.AddCommand(callCmd);
-
-        CommandRegistry.RegisterCompletions("call", 0, "getmapsnpcs", "movecharacter", "scene_move", "try_close_izakaya");
-        CommandRegistry.RegisterHint("call getmapsnpcs", 0, "[mapKey]");
-        CommandRegistry.RegisterHint("call movecharacter", 0, "<characterKey>");
-        CommandRegistry.RegisterHint("call movecharacter", 1, "<mapKey>");
-        CommandRegistry.RegisterHint("call movecharacter", 2, "<x>");
-        CommandRegistry.RegisterHint("call movecharacter", 3, "<y>");
-        CommandRegistry.RegisterHint("call movecharacter", 4, "<rot>");
-        CommandRegistry.RegisterHint("call scene_move", 0, "<characterKey>");
-        CommandRegistry.RegisterHint("call scene_move", 1, "<x>");
-        CommandRegistry.RegisterHint("call scene_move", 2, "<y>");
     }
 }

@@ -210,6 +210,10 @@
       <HintPath>$(BepInExPath)\interop\DEYU.Singletons.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="DEYU.InputHelper">
+      <HintPath>$(BepInExPath)\interop\DEYU.InputHelper.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="DEYU.AssetHandleUtility">
       <HintPath>$(BepInExPath)\interop\DEYU.AssetHandleUtility.dll</HintPath>
       <Private>False</Private>

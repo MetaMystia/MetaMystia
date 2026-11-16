@@ -1,5 +1,4 @@
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 using MetaMystia.UI;
 
@@ -9,9 +8,9 @@ public static class GetCommands
 {
     public static void Register(RootCommand root)
     {
-        var getCmd = new Command("get", "Query game state fields");
+        var getCmd = new Command("get", TextId.CmdDescGet.Get());
 
-        var fieldArg = new Argument<string>("field", "Field to query")
+        var fieldArg = new Argument<string>("field", TextId.ArgDescField.Get())
             .FromAmong("currentactivemaplabel", "pos");
         getCmd.AddArgument(fieldArg);
 
@@ -30,7 +29,5 @@ public static class GetCommands
         });
 
         root.AddCommand(getCmd);
-
-        CommandRegistry.RegisterCompletions("get", 0, "currentactivemaplabel", "pos");
     }
 }

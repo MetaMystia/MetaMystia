@@ -20,24 +20,22 @@ public static class DayMapCommands
 
     public static void Register(Command resourceEx)
     {
-        var map = new Command("map", "Isolated resource-pack maps");
-        var list = new Command("list", "List registered map IDs");
+        var map = new Command("map", TextId.ResourceExDescMap.Get());
+        var list = new Command("list", TextId.DayMapDescList.Get());
         list.SetHandler(ctx => ctx.Log(TextId.DayMapList.Get(string.Join(", ", DayMapRegistry.Ids.OrderBy(id => id)))));
-        var enter = new Command("goto", "Enter a map by ID and optional spawn marker");
-        var id = new Argument<int>("id");
-        var marker = new Argument<string>("marker", () => null);
+        var enter = new Command("goto", TextId.DayMapDescGoto.Get());
+        var id = new Argument<int>("id", TextId.ArgDescMapId.Get())
+            .AddCompletions(_ => DayMapRegistry.Ids.Select(mapId => mapId.ToString()));
+        var marker = new Argument<string>("marker", () => null, TextId.ArgDescSpawnMarker.Get());
         enter.AddArgument(id);
         enter.AddArgument(marker);
         enter.SetHandler(ctx => Enter(ctx, ctx.ParseResult.GetValueForArgument(id), ctx.ParseResult.GetValueForArgument(marker)));
-        var back = new Command("back", "Return to the original map spawn marker");
+        var back = new Command("back", TextId.DayMapDescBack.Get());
         back.SetHandler(Back);
         map.AddCommand(list);
         map.AddCommand(enter);
         map.AddCommand(back);
-        map.SetHandler(ctx => ctx.Log(TextId.DayMapHelp.Get()));
         resourceEx.AddCommand(map);
-        CommandRegistry.RegisterCompletions("resourceex map", 0, "list", "goto", "back");
-        CommandRegistry.RegisterDynamicCompletions("resourceex map goto", 0, () => DayMapRegistry.Ids.Select(id => id.ToString()).ToArray());
     }
 
     private static bool Ready(InvocationContext ctx)

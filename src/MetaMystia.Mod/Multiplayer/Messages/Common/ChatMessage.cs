@@ -21,18 +21,18 @@ public partial class ChatMessage : MultiplayerMessage
     {
         if (SenderUid == 0)
         {
-            InGameConsole.AddPeerMessage(TextId.ServerChatName.Get(), Message);
+            InGameConsole.AddChat(TextId.ServerChatName.Get(), Message, fromServer: true);
             return;
         }
         if (SenderUid == GameSession.Client.Uid)
         {
-            InGameConsole.AddPeerMessage(LiveModeManager.GetLocalDisplayName(), Message);
+            InGameConsole.AddChat(LiveModeManager.GetLocalDisplayName(), Message);
             if (!LiveModeManager.SuppressFloatingChatBubbles)
                 FloatingTextHelper.ShowFloatingTextSelfOnMainThread(LiveModeManager.MaskMessage(Message));
             return;
         }
         var senderName = PlayerManager.GetPeerName(SenderUid);
-        InGameConsole.AddPeerMessage(senderName, Message);
+        InGameConsole.AddChat(senderName, Message);
         if (!LiveModeManager.SuppressFloatingChatBubbles
             && PlayerManager.TryGetVisiblePeer(SenderUid, out var senderPeer)
             && PlayerManager.LocalMapLabel == senderPeer.MapLabel)

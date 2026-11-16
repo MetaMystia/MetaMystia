@@ -32,7 +32,5 @@ public static class EmoteCommands
             if (Emote.Play(unit, emote)) EmoteMessage.Send(emote);
         });
         root.AddCommand(emoteCmd);
-
-        CommandRegistry.RegisterCompletions("emote", 0, Names);
     }
 }

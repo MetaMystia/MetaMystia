@@ -138,16 +138,16 @@ public static partial class ConfigManager
 
         // Console layout
         ConsoleX = Config.Bind("Console", "X", 8f,
-            "Console panel X position (pixels from left)\n控制台面板X坐标（左侧像素偏移）");
+            "Console panel distance from the left edge (1080p units)\n控制台面板距左边缘的距离（按 1080p 计）");
         ConsoleY = Config.Bind("Console", "Y", -1f,
-            "Console panel Y position (pixels from top, -1 = auto bottom)\n控制台面板Y坐标（顶部像素偏移，-1=自动底部）");
+            "Console panel distance from the bottom edge (1080p units, -1 = default)\n控制台面板距下边缘的距离（按 1080p 计，-1=默认）");
         ConsoleWidth = Config.Bind("Console", "Width", 800f,
-            "Console panel width in pixels\n控制台面板宽度（像素）");
+            "Console panel width (1080p units)\n控制台面板宽度（按 1080p 计）");
         ConsoleHeight = Config.Bind("Console", "Height", 350f,
-            "Console panel height in pixels (log area)\n控制台面板高度（像素，日志区域）");
+            "Console log area height (1080p units)\n控制台日志区域高度（按 1080p 计）");
 
         ConsoleFontSize = Config.Bind("Console", "FontSize", 0,
-            "Console font size (0 = auto based on screen height)\n控制台字体大小（0=根据屏幕高度自动）");
+            "Console font size (1080p units, 0 = 20)\n控制台字体大小（按 1080p 计，0=20）");
 
         ConsolePassiveLingerTime = Config.Bind("Console", "PassiveLingerTime", 4f,
             "Seconds before passive chat messages start fading out\n被动聊天消息开始淡出前的停留时间（秒）");
@@ -157,11 +157,11 @@ public static partial class ConfigManager
 
         // Player list
         PlayerListX = Config.Bind("PlayerList", "X", 8f,
-            "Player list panel X position (pixels from left)\n玩家列表面板X坐标（左侧像素偏移）");
+            "Player list distance from the left edge (1080p units)\n玩家列表距左边缘的距离（按 1080p 计）");
         PlayerListY = Config.Bind("PlayerList", "Y", 8f,
-            "Player list panel Y position (pixels from top)\n玩家列表面板Y坐标（顶部像素偏移）");
+            "Player list distance from the top edge (1080p units)\n玩家列表距上边缘的距离（按 1080p 计）");
         PlayerListFontSize = Config.Bind("PlayerList", "FontSize", 0,
-            "Player list font size (0 = auto based on screen height)\n玩家列表字体大小（0=根据屏幕高度自动）");
+            "Player list font size (1080p units, 0 = 17)\n玩家列表字体大小（按 1080p 计，0=17）");
 
         // Keybinds
         KeyToggleLog = Config.Bind("Keybinds", "ToggleLog", KeyCode.RightShift,

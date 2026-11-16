@@ -3,40 +3,33 @@ using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Builder;
+using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
 using System.Linq;
 
+using MetaMystia.UI;
+
 namespace MetaMystia.ConsoleSystem;
+
+public readonly record struct Suggestion(string Label, string? Detail);
+
+/// <param name="Start">被补全片段在输入中的起始位置（含开头的 '/'）。</param>
+/// <param name="Usage">当前命令用法，正在输入的参数已高亮；不在命令参数位置时为 null。</param>
+public sealed record CompletionResult(int Start, List<Suggestion> Items, string? Usage);
 
 [AutoLog]
 public static partial class CommandRegistry
 {
     private static RootCommand _root = null!;
     private static Parser _parser = null!;
+    private static Language? _language;
 
-    /// <summary>
-    /// Completion metadata: maps "command path" → list of (argIndex, allowedValues).
-    /// e.g. "mp start" → [(0, ["server","client"])]
-    /// </summary>
-    private static readonly Dictionary<string, List<(int argIndex, string[] values)>> _completionMeta = new();
-
-    /// <summary>
-    /// Hint metadata for free-form arguments: maps "command path" → list of (argIndex, hintText).
-    /// e.g. "mp connect" → [(0, "IP address or IP:port")]
-    /// Hints are shown in the dropdown but NOT selectable by Tab.
-    /// </summary>
-    private static readonly Dictionary<string, List<(int argIndex, string hint)>> _hintMeta = new();
-
-    /// <summary>
-    /// Dynamic completion metadata: maps "command path" → list of (argIndex, provider).
-    /// The provider is called each time completions are requested, enabling real-time data.
-    /// </summary>
-    private static readonly Dictionary<string, List<(int argIndex, Func<string[]> provider)>> _dynamicCompletionMeta = new();
-
-    public static void Initialize()
+    // 描述在构建时取当前语言，语言变化后重建。
+    private static void EnsureBuilt()
     {
-        _root = new RootCommand("MetaMystia Console");
-
+        if (_language == L10n.Language) return;
+        _language = L10n.Language;
+        _root = new RootCommand();
         Commands.GeneralCommands.Register(_root);
         Commands.GetCommands.Register(_root);
         Commands.MpCommands.Register(_root);
@@ -48,260 +41,186 @@ public static partial class CommandRegistry
         Commands.LiveCommands.Register(_root);
         Commands.EmoteCommands.Register(_root);
         Commands.CheatCommands.Register(_root);
-
-        // Build parser without default help/version or verbose error reporting
-        _parser = new CommandLineBuilder(_root)
-            .Build();
-
-        Log.Info("CommandRegistry initialized");
+        AddHelpHandlers(_root);
+        _root.SetHandler(ctx => WriteHelp(ctx, _root));
+        _parser = new CommandLineBuilder(_root).UseLocalizationResources(new ConsoleErrors()).Build();
     }
 
-    /// <summary>
-    /// Register completion values for a specific argument position of a command.
-    /// Call this after adding the command to the tree.
-    /// commandPath: space-separated command names, e.g. "mp start", "skin set", "get"
-    /// </summary>
-    public static void RegisterCompletions(string commandPath, int argIndex, params string[] values)
+    private static void AddHelpHandlers(Command command)
     {
-        if (!_completionMeta.TryGetValue(commandPath, out var list))
+        foreach (var sub in command.Subcommands)
         {
-            list = [];
-            _completionMeta[commandPath] = list;
+            if (sub.Handler == null && sub.Subcommands.Count > 0)
+                sub.SetHandler(ctx => WriteHelp(ctx, sub));
+            AddHelpHandlers(sub);
         }
-        list.Add((argIndex, values));
     }
 
-    /// <summary>
-    /// Register a hint for a free-form argument position. Shown in dropdown but not Tab-completable.
-    /// commandPath: space-separated command names, e.g. "mp connect"
-    /// </summary>
-    public static void RegisterHint(string commandPath, int argIndex, string hint)
-    {
-        if (!_hintMeta.TryGetValue(commandPath, out var list))
-        {
-            list = [];
-            _hintMeta[commandPath] = list;
-        }
-        list.Add((argIndex, hint));
-    }
-
-    /// <summary>
-    /// Register a dynamic completion provider for a specific argument position.
-    /// The provider Func is called each time completions are requested.
-    /// commandPath: space-separated command names, e.g. "mp kick id"
-    /// </summary>
-    public static void RegisterDynamicCompletions(string commandPath, int argIndex, Func<string[]> provider)
-    {
-        if (!_dynamicCompletionMeta.TryGetValue(commandPath, out var list))
-        {
-            list = [];
-            _dynamicCompletionMeta[commandPath] = list;
-        }
-        list.Add((argIndex, provider));
-    }
-
-    /// <summary>
-    /// Result of GetCompletions: either completable items or a non-completable hint.
-    /// </summary>
-    public record CompletionResult(List<string> Items, string? Hint)
-    {
-        public static readonly CompletionResult Empty = new([], null);
-    }
-
-    /// <summary>
-    /// Execute a slash command (input should NOT include the leading '/').
-    /// Returns true if the console should close after execution.
-    /// </summary>
+    /// <summary>执行不含开头 '/' 的命令，返回是否关闭控制台。</summary>
     public static bool Execute(string input, ConsoleContext context)
     {
+        EnsureBuilt();
         context.CloseConsole = false;
         try
         {
-            var parseResult = _parser.Parse(input);
-            if (parseResult.Errors.Count > 0)
+            var result = _parser.Parse(input);
+            if (result.Errors.Count > 0)
             {
-                context.Log(ConsoleFormat.Err(parseResult.Errors[0].Message));
-                var hint = FormatUsageHint(parseResult);
-                if (hint != null) context.Log(hint);
+                context.Log(ConsoleFormat.Err(string.Join("；", result.Errors.Select(e => e.Message).Distinct())));
+                if (result.CommandResult.Command != _root)
+                    context.Log("  " + ConsoleFormat.Dim(TextId.ConsoleUsage.Get(Usage(result.CommandResult.Command))));
                 return false;
             }
             _parser.Invoke(input, context);
         }
         catch (Exception ex)
         {
-            context.Log(ConsoleFormat.Err($"Command error: {ex.Message}"));
+            context.Log(ConsoleFormat.Err(ex.Message));
             Log.Error($"Command execution error: {ex}");
         }
         return context.CloseConsole;
     }
 
-    /// <summary>
-    /// Build a concise usage hint for the matched command when a parse error occurs.
-    /// e.g. "  → /skin set ‹characterId› ‹type› ‹skinIndex›"
-    /// </summary>
-    private static string? FormatUsageHint(ParseResult parseResult)
+    /// <summary>补全光标处的片段。text 含开头的 '/'，光标位于末尾。</summary>
+    public static CompletionResult? Complete(string text)
     {
-        var cmd = parseResult.CommandResult.Command;
-        if (cmd == _root) return null;
+        if (!text.StartsWith('/')) return null;
+        EnsureBuilt();
+        int start = text.LastIndexOf(' ') + 1;
+        if (start == 0) start = 1;
+        string partial = text[start..];
+        var words = text[1..start].Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        // Walk up parent chain to build the full command path
-        var pathParts = new List<string>();
-        SymbolResult? sr = parseResult.CommandResult;
-        while (sr is CommandResult cr)
+        Command command = _root;
+        int depth = 0;
+        while (depth < words.Length && FindSubcommand(command, words[depth]) is { } sub)
         {
-            if (cr.Command != _root)
-                pathParts.Insert(0, cr.Command.Name);
-            sr = cr.Parent;
+            command = sub;
+            depth++;
         }
-        if (pathParts.Count == 0) return null;
+        if (command == _root && depth < words.Length) return null;
 
-        string path = "/" + string.Join(" ", pathParts);
-        var usageParts = new List<string>();
-
-        // Add argument names
-        foreach (var arg in cmd.Arguments)
-        {
-            bool optional = arg.Arity.MinimumNumberOfValues == 0;
-            usageParts.Add(optional ? $"[{arg.Name}]" : $"<{arg.Name}>");
-        }
-
-        // Add subcommand names if no arguments
-        if (usageParts.Count == 0)
-        {
-            var subs = cmd.Children.OfType<Command>().Select(c => c.Name).ToList();
-            if (subs.Count > 0)
-                usageParts.Add($"<{string.Join("|", subs)}>");
-        }
-
-        if (usageParts.Count == 0) return null;
-
-        string argStr = string.Join(" ", usageParts);
-        return $"  {ConsoleFormat.Dim("→")} {ConsoleFormat.Cmd(path)} {ConsoleFormat.Arg(argStr)}";
+        int argIndex = words.Length - depth;
+        var candidates = new List<Suggestion>();
+        if (argIndex == 0)
+            candidates.AddRange(Visible(command).Select(c => new Suggestion(c.Name, c.Description)));
+        var argument = ArgumentAt(command, argIndex);
+        if (argument != null)
+            candidates.AddRange(argument.GetCompletions().Select(c => new Suggestion(c.Label, null)));
+        string? usage = command != _root && (argument != null || command.Subcommands.Count == 0)
+            ? Usage(command, argIndex) + (string.IsNullOrEmpty(argument?.Description) ? "" : ConsoleFormat.Dim("  " + argument.Description))
+            : null;
+        return new CompletionResult(start, Filter(candidates, partial), usage);
     }
 
-    /// <summary>
-    /// Get completion suggestions for the partial input (without leading '/').
-    /// Walks the command tree manually to determine exact position,
-    /// then returns only relevant completions for that position.
-    /// Returns completable items OR a non-completable hint for free-form args.
-    /// </summary>
-    public static CompletionResult GetCompletions(string partial)
+    private static List<Suggestion> Filter(List<Suggestion> candidates, string partial)
     {
-        try
+        var distinct = candidates.GroupBy(s => s.Label, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
+        var prefix = distinct.Where(s => s.Label.StartsWith(partial, StringComparison.OrdinalIgnoreCase));
+        var contains = distinct.Where(s => !s.Label.StartsWith(partial, StringComparison.OrdinalIgnoreCase)
+            && s.Label.Contains(partial, StringComparison.OrdinalIgnoreCase));
+        var items = prefix.Concat(contains).ToList();
+        return items.Count == 1 && items[0].Label.Equals(partial, StringComparison.OrdinalIgnoreCase) ? [] : items;
+    }
+
+    private static Command? FindSubcommand(Command command, string name)
+        => command.Subcommands.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+    private static IEnumerable<Command> Visible(Command command) => command.Subcommands.Where(c => !c.IsHidden);
+
+    private static Argument? ArgumentAt(Command command, int index)
+    {
+        var arguments = command.Arguments;
+        if (index < arguments.Count) return arguments[index];
+        return arguments.Count > 0 && arguments[^1].Arity.MaximumNumberOfValues > 1 ? arguments[^1] : null;
+    }
+
+    private static string Path(Command command)
+    {
+        var names = new List<string>();
+        for (Symbol? s = command; s is Command c && c != _root; s = c.Parents.FirstOrDefault())
+            names.Insert(0, c.Name);
+        return "/" + string.Join(" ", names);
+    }
+
+    private static string Signature(Command command, int highlight = -1)
+    {
+        var arguments = command.Arguments;
+        if (arguments.Count == 0)
         {
-            var tokens = partial.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            bool hasTrailingSpace = partial.Length > 0 && partial[^1] == ' ';
-
-            // The token currently being typed (empty if cursor is after a space)
-            string currentPartial = (!hasTrailingSpace && tokens.Length > 0) ? tokens[^1] : "";
-            // Tokens that are fully typed (resolved)
-            var resolvedTokens = hasTrailingSpace ? tokens : tokens.Length > 0 ? tokens[..^1] : [];
-
-            // Walk the command tree with resolved tokens
-            Command current = _root;
-            int tokenIndex = 0;
-            while (tokenIndex < resolvedTokens.Length)
-            {
-                var sub = current.Children.OfType<Command>()
-                    .FirstOrDefault(c => c.Name.Equals(resolvedTokens[tokenIndex], StringComparison.OrdinalIgnoreCase));
-                if (sub != null)
-                {
-                    current = sub;
-                    tokenIndex++;
-                }
-                else
-                    break;
-            }
-
-            int argumentTokensConsumed = resolvedTokens.Length - tokenIndex;
-            var subcommands = current.Children.OfType<Command>().Select(c => c.Name).ToList();
-
-            // If there are subcommands and no argument tokens consumed yet, suggest subcommands
-            if (subcommands.Count > 0 && argumentTokensConsumed == 0)
-                return new CompletionResult(FilterPrefix(subcommands, currentPartial), null);
-
-            // We're at argument position = argumentTokensConsumed
-            int argIndex = argumentTokensConsumed;
-            string cmdPath = string.Join(" ", resolvedTokens[..tokenIndex]
-                .Select(t => t.ToLowerInvariant()));
-
-            // Check for completable values first (static)
-            if (_completionMeta.TryGetValue(cmdPath, out var meta))
-            {
-                var match = meta.FirstOrDefault(m => m.argIndex == argIndex);
-                if (match.values != null && match.values.Length > 0)
-                    return new CompletionResult(FilterPrefix(match.values.ToList(), currentPartial), null);
-            }
-
-            // Check for dynamic completions
-            if (_dynamicCompletionMeta.TryGetValue(cmdPath, out var dynamicMeta))
-            {
-                var dynMatch = dynamicMeta.FirstOrDefault(m => m.argIndex == argIndex);
-                if (dynMatch.provider != null)
-                {
-                    var dynamicValues = dynMatch.provider();
-                    if (dynamicValues.Length > 0)
-                        return new CompletionResult(FilterPrefix(dynamicValues.ToList(), currentPartial), null);
-                }
-            }
-
-            // Check for hint (non-completable info)
-            if (_hintMeta.TryGetValue(cmdPath, out var hints))
-            {
-                var hintMatch = hints.FirstOrDefault(h => h.argIndex == argIndex);
-                if (hintMatch.hint != null)
-                    return new CompletionResult([], hintMatch.hint);
-            }
-
-            return CompletionResult.Empty;
+            var subs = Visible(command).Select(c => c.Name).ToList();
+            return subs.Count == 0 ? "" : ConsoleFormat.Arg($"<{string.Join("|", subs)}>");
         }
-        catch
+        return string.Join(" ", arguments.Select((a, i) =>
         {
-            return CompletionResult.Empty;
+            string text = a.Arity.MinimumNumberOfValues == 0 ? $"[{a.Name}]" : $"<{a.Name}>";
+            return i == highlight || (i == arguments.Count - 1 && highlight > i && a.Arity.MaximumNumberOfValues > 1)
+                ? ConsoleFormat.Current(text) : ConsoleFormat.Arg(text);
+        }));
+    }
+
+    private static string Usage(Command command, int highlight = -1)
+    {
+        string signature = Signature(command, highlight);
+        return signature.Length == 0 ? ConsoleFormat.Cmd(Path(command)) : $"{ConsoleFormat.Cmd(Path(command))} {signature}";
+    }
+
+    /// <summary>输出命令帮助；path 为空时列出全部顶级命令。</summary>
+    public static void WriteHelp(InvocationContext ctx, IReadOnlyList<string> path)
+    {
+        EnsureBuilt();
+        Command command = _root;
+        foreach (var name in path)
+        {
+            if (FindSubcommand(command, name) is not { } sub)
+            {
+                ctx.Log(ConsoleFormat.Err(TextId.ConsoleUnknownCommand.Get(ConsoleFormat.Plain("/" + string.Join(" ", path)))));
+                return;
+            }
+            command = sub;
         }
+        WriteHelp(ctx, command);
     }
 
-    private static List<string> FilterPrefix(List<string> items, string prefix)
+    private static void WriteHelp(InvocationContext ctx, Command command)
     {
-        if (string.IsNullOrEmpty(prefix))
-            return items;
-
-        var filtered = items
-            .Where(i => i.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        // If the only match is an exact match, the token is already fully typed
-        if (filtered.Count == 1 &&
-            filtered[0].Equals(prefix, StringComparison.OrdinalIgnoreCase))
-            return [];
-
-        return filtered;
+        if (command == _root)
+        {
+            ctx.Log(ConsoleFormat.Header(TextId.HelpHeader.Get()));
+            foreach (var sub in Visible(command))
+                ctx.Log(ConsoleFormat.SubCmd(Path(sub), sub.Arguments.Count == 0 && sub.Subcommands.Count > 0 ? ConsoleFormat.Arg("<…>") : Signature(sub), sub.Description));
+            ctx.Log(ConsoleFormat.Dim(TextId.ConsoleHelpHint.Get()));
+            return;
+        }
+        ctx.Log(ConsoleFormat.Header(Path(command)) + "  " + ConsoleFormat.Dim(command.Description ?? ""));
+        if (command.Arguments.Count > 0)
+        {
+            ctx.Log("  " + TextId.ConsoleUsage.Get(Usage(command)));
+            foreach (var argument in command.Arguments.Where(a => !string.IsNullOrEmpty(a.Description)))
+                ctx.Log($"    {ConsoleFormat.Arg(argument.Name)} {ConsoleFormat.Dim("— " + argument.Description)}");
+        }
+        foreach (var sub in Visible(command))
+            ctx.Log(ConsoleFormat.SubCmd(Path(sub), Signature(sub), sub.Description));
     }
 
-    /// <summary>
-    /// Get all top-level command names (for basic completion when input is empty).
-    /// </summary>
-    public static List<string> GetTopLevelCommands()
+    public static IEnumerable<string> TopLevelNames()
     {
-        return _root.Children
-            .OfType<Command>()
-            .Select(c => c.Name)
-            .ToList();
+        EnsureBuilt();
+        return Visible(_root).Select(c => c.Name);
     }
 
-    /// <summary>
-    /// Get command name + description pairs for generating help text.
-    /// Includes subcommands for commands that have them.
-    /// </summary>
-    public static List<(string name, string description, List<string> subcommands)> GetCommandInfo()
+    private sealed class ConsoleErrors : LocalizationResources
     {
-        return _root.Children
-            .OfType<Command>()
-            .Select(c => (
-                c.Name,
-                c.Description ?? "",
-                c.Children.OfType<Command>().Select(s => s.Name).ToList()
-            ))
-            .ToList();
+        public override string UnrecognizedCommandOrArgument(string arg) => TextId.ConsoleErrUnrecognized.Get(ConsoleFormat.Plain(arg));
+        public override string UnrecognizedArgument(string unrecognizedArg, IReadOnlyCollection<string> allowedValues)
+            => TextId.ConsoleErrInvalidValue.Get(ConsoleFormat.Plain(unrecognizedArg), string.Join(", ", allowedValues));
+        public override string RequiredArgumentMissing(SymbolResult symbolResult) => TextId.ConsoleErrMissingArgument.Get();
+        public override string RequiredCommandWasNotProvided() => TextId.ConsoleErrMissingSubcommand.Get();
+        public override string ExpectsOneArgument(SymbolResult symbolResult) => TextId.ConsoleErrMissingArgument.Get();
+        public override string ExpectsFewerArguments(Token token, int providedNumberOfValues, int maximumNumberOfValues)
+            => TextId.ConsoleErrExtraArgument.Get(ConsoleFormat.Plain(token.Value));
+        public override string ArgumentConversionCannotParse(string value, Type expectedType) => TextId.ConsoleErrBadFormat.Get(ConsoleFormat.Plain(value));
+        public override string ArgumentConversionCannotParseForCommand(string value, string commandAlias, Type expectedType)
+            => TextId.ConsoleErrBadFormat.Get(ConsoleFormat.Plain(value));
     }
 }
