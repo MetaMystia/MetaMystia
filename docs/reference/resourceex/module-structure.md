@@ -5,8 +5,9 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 | 目录 | 命名空间 | 职责 |
 |---|---|---|
 | `ResourceEx/Core.cs` | `MetaMystia` | `ResourceExManager`：包加载、DLC 依赖检查、生命周期钩子、包查询 |
-| `ResourceEx/Registries/` | `MetaMystia.ResourceEx.Registries` | 各内容领域注册器：SpecialGuest、Dialog、Gift、Ingredient、Food、Beverage、Recipe、Item、Cloth、MissionNode、EventNode、NewsNode、Merchant、Spell、Buff、AssetBundle；以及 `PixelSpriteFactory`、`SchedulerDataRecovery` |
+| `ResourceEx/Registries/` | `MetaMystia.ResourceEx.Registries` | 各内容领域注册器：SpecialGuest、Dialog、Gift、Ingredient、Food、Beverage、Recipe、Item、Cloth、Decoration、MissionNode、EventNode、NewsNode、Merchant、Spell、Buff、AssetBundle；以及 `PixelSpriteFactory`、`SchedulerDataRecovery` |
 | `ResourceEx/SpellCollection/` | `MetaMystia.ResourceEx.SpellCollection` | 符卡基类 `SpellBaseEx` 与各符卡的行为实现 |
+| `ResourceEx/DecorationCollection/` | `MetaMystia.ResourceEx.DecorationCollection` | 装饰基类 `DecorationBaseEx` 与各装饰的效果实现 |
 | `ResourceEx/Vfx/` | `MetaMystia.ResourceEx.Vfx` | `VfxBundle`：AssetBundle 中特效的播放、全屏遮罩与结束 |
 | `ResourceEx/Mappers/` | `MetaMystia.ResourceEx.Mappers` | config DTO → 游戏对象转换 |
 | `ResourceEx/Models/` | `MetaMystia.ResourceEx.Models` | ResourceEx.json 配置 DTO |
@@ -21,7 +22,7 @@ ResourceEx 资源包子系统按职责分层，目录与命名空间一一对应
 
 游戏数据库初始化由 Patch 调用 `ResourceExManager.OnDataBaseXxxInitialized()` 等钩子驱动，钩子内按固定顺序调用各注册器。注册顺序即依赖顺序：Dialog 先于 MissionNode、EventNode、Merchant、SpecialGuest 构建。
 
-`ItemRegistry` 注册 `items` 与 `clothes` 的 Item 和语言；`ClothRegistry` 只注册服装专属的 ClothesProfile、像素精灵与立绘。
+`ItemRegistry` 注册 `items`、`clothes`、`decorations` 的 Item 和语言；装饰由 `DecorationRegistry` 按实现创建，同一对象写入 Items 与 Decorations，见 [decorations](decorations.md)。`ClothRegistry` 只注册服装专属的 ClothesProfile、像素精灵与立绘。
 
 `GiftRegistry` 按加载的包保留礼物列表，在 `OnDataBaseDayInitialized()` 注册对话后校验物品、食谱、料理、酒水、食材与对话引用。`GiftMailboxManager` 负责菜单和对话结束后经 `Product.SendToStorage` 入库；与 `StoryReplayManager` 共用 `UI/DaySceneSelectionMenu`，不持有领取存档。
 

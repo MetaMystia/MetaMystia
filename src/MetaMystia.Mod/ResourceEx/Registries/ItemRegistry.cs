@@ -12,7 +12,7 @@ using MetaMystia.ResourceEx.Models;
 namespace MetaMystia.ResourceEx.Registries;
 
 /// <summary>
-/// 物品领域注册器：持有 items 与 clothes 的物品配置，负责 Item 与语言注册。
+/// 物品领域注册器：合并 items、clothes、decorations，统一处理物品 ID 与语言注册。
 /// 服装专属的 ClothesProfile、像素精灵与立绘由 <see cref="ClothRegistry"/> 注册。
 /// </summary>
 [AutoLog]
@@ -22,7 +22,7 @@ public static partial class ItemRegistry
 
     internal static void Merge(ResourceConfig config, string packageName)
     {
-        foreach (var itemConfig in (config?.items ?? []).Concat(config?.clothes ?? []))
+        foreach (var itemConfig in (config?.items ?? []).Concat(config?.clothes ?? []).Concat(config?.decorations ?? []))
         {
             if (ItemConfigs.ContainsKey(itemConfig.id))
                 Log.LogWarning($"[{packageName}] Item ID {itemConfig.id} ({itemConfig.name}) overrides a previously loaded item");
@@ -37,7 +37,15 @@ public static partial class ItemRegistry
     {
         foreach (var config in ItemConfigs.Values)
         {
-            DataBaseCore.Items[config.id] = new Item(config.id);
+            if (config is DecorationConfig decorationConfig)
+            {
+                var decoration = DecorationRegistry.CreateDecoration(decorationConfig);
+                if (decoration == null) continue;
+                DataBaseCore.Items[config.id] = decoration;
+                DataBaseCore.Decorations[config.id] = decoration;
+            }
+            else
+                DataBaseCore.Items[config.id] = new Item(config.id);
             Log.Info($"Registered Item ID {config.id} ({config.name})");
         }
     }
@@ -47,6 +55,7 @@ public static partial class ItemRegistry
     {
         foreach (var config in ItemConfigs.Values)
         {
+            if (config is DecorationConfig && !DataBaseCore.Decorations.ContainsKey(config.id)) continue;
             Sprite sprite = null;
             if (!string.IsNullOrEmpty(config.spritePath) && !RexAssetRegistry.TryGetSprite(config.spritePath, out sprite))
                 Log.LogWarning($"Item ID {config.id} ({config.name}) sprite not found: {config.spritePath}");
