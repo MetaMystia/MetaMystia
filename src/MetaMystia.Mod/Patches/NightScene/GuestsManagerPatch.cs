@@ -95,10 +95,6 @@ public partial class GuestsManagerPatch
     private const int MaxNormalGuestRerollAttempts = 32;
     private const int ReimuProtectionGuestId = 7;
 
-    public static readonly PatchBypassToken SkipRepellInternalPatch = new();
-    public static readonly PatchBypassToken SkipPatientDepletedLeavePatch = new();
-    public static readonly PatchBypassToken SkipLeaveFromDeskPatch = new();
-
     private static PendingSpawnArgs? _pendingNormalSpawnArgs;
     private static PendingSpawnArgs? _pendingSpecialSpawnArgs;
 
@@ -500,13 +496,7 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool RepellInternal_Prefix(GuestGroupController guestGroupController)
     {
-        if (IsReimuProtectionGuest(guestGroupController)) return RunOriginal;
-
-        if (SkipRepellInternalPatch.TryConsume())
-        {
-            SkipLeaveFromDeskPatch.Grant();
-            return RunOriginal;
-        }
+        if (Bypass.Active(guestGroupController) || IsReimuProtectionGuest(guestGroupController)) return RunOriginal;
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost && guestGroupController.DeskCode >= 0)
         {
@@ -696,17 +686,13 @@ public partial class GuestsManagerPatch
     [HarmonyPrefix]
     public static bool PatientDepletedLeave_Prefix(GuestGroupController toPatientDepletedLeave)
     {
-        if (SkipPatientDepletedLeavePatch.TryConsume())
-        {
-            SkipLeaveFromDeskPatch.Grant();
-            return RunOriginal;
-        }
+        if (Bypass.Active(toPatientDepletedLeave)) return RunOriginal;
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost)
         {
             // 上游 PatientDepletedDeskMessage 已会让客机完整重放 PatientDepletedLeave 链路
             // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Prefix 再发 GuestLeaveMessage。
-            SkipLeaveFromDeskPatch.Grant();
+            Bypass.Grant(toPatientDepletedLeave);
             GuestFSM.OnPatientDepletedAtDesk(toPatientDepletedLeave);
             return RunOriginal;
         }
@@ -732,13 +718,9 @@ public partial class GuestsManagerPatch
         GuestGroupController.LeaveType leaveType,
         bool triggerLeaveBuff)
     {
+        if (Bypass.Active(toLeave)) return RunOriginal;
         if (YuyukoGuestSync.IsBody(toLeave)) return RunOriginal;
         if (IsReimuProtectionGuest(toLeave)) return RunOriginal;
-
-        if (SkipLeaveFromDeskPatch.TryConsume())
-        {
-            return RunOriginal;
-        }
 
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost)

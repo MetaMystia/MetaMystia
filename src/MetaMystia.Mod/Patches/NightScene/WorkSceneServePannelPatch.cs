@@ -25,7 +25,6 @@ namespace MetaMystia.Patch;
 public partial class WorkSceneServePannelPatch
 {
     public static WorkSceneServePannel instanceRef;
-    public static readonly PatchSkipPermit SkipOnPanelClosePatch = new();
     public static int PanelDeskCode => instanceRef?.currentGuestController?.DeskCode
     ?? instanceRef?.operatingOrder?.DeskCode
     ?? -1;
@@ -74,10 +73,7 @@ public partial class WorkSceneServePannelPatch
     {
         // isPanelOpen = false;
         instanceRef = null;
-        if (SkipOnPanelClosePatch.TryConsume())
-        {
-            return RunOriginal;
-        }
+        if (Bypass.Active(__instance)) return RunOriginal;
 
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
         if (GameSession.IsRoomHost)

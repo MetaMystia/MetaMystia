@@ -31,10 +31,11 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
             return;
         }
 
-        NightSceneEventManagerPatch.HostCloseReplay.Grant();
-        NightSceneEventManagerPatch.StopInstantiationLoopAndCloseIzakaya_ReversePatch(eventManager);
-        UnblockClientCloseWait(eventManager);
-        NightSceneEventManagerPatch.HostCloseReplay.Reset();
+        using (Bypass.Enter(eventManager))
+        {
+            NightSceneEventManagerPatch.StopInstantiationLoopAndCloseIzakaya_ReversePatch(eventManager);
+            UnblockClientCloseWait(eventManager);
+        }
     }
 
     /// <summary>
@@ -57,16 +58,11 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
         var eventManager = EventManager.Instance;
         if (eventManager == null) return false;
 
-        NightSceneEventManagerPatch.HostCloseReplay.Grant();
-        try
+        using (Bypass.Enter(eventManager))
         {
             NightSceneEventManagerPatch.StopInstantiationLoopAndCloseIzakaya_ReversePatch(eventManager);
             ForceUnblockClientCloseWait(eventManager);
             if (GameSession.IsRoomHost) Send();
-        }
-        finally
-        {
-            NightSceneEventManagerPatch.HostCloseReplay.Reset();
         }
 
         return true;

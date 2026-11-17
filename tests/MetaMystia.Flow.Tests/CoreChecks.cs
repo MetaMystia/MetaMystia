@@ -1,6 +1,7 @@
 using MetaMystia;
 using MetaMystia.Multiplayer;
 using MetaMystia.Network;
+using MetaMystia.Patch;
 
 static class CoreChecks
 {
@@ -54,5 +55,21 @@ static class CoreChecks
         client.Submit(true, sent.Add);
         check(sent.SequenceEqual([true]), "客机只在提交值变化时发送");
         GameSession.IsRoomHost = true;
+
+        nint first = 1, second = 2;
+        using (Bypass.Enter(first))
+        {
+            using (Bypass.Enter(first))
+                check(Bypass.Active(first) && !Bypass.Active(second), "放行只作用于指定对象");
+            check(Bypass.Active(first), "嵌套放行退出内层后仍有效");
+        }
+        check(!Bypass.Active(first), "离开放行范围后恢复拦截");
+        Bypass.Grant(first);
+        Bypass.Grant(first);
+        check(!Bypass.Active(second) && Bypass.Active(first) && Bypass.Active(first) && !Bypass.Active(first),
+            "一次性放行按次数消耗，不被其他对象用掉");
+        Bypass.Grant(second);
+        Scopes.EndScene();
+        check(!Bypass.Active(second), "未消耗的一次性放行随场景作废");
     }
 }
