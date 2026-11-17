@@ -3,6 +3,8 @@ using System;
 
 using TMPro;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.UI;
 
 using Common.UI;
@@ -39,6 +41,8 @@ public static partial class OverlayUi
     private static Sprite _round = null!;
     private static TextMeshProUGUI _measure = null!;
     private static float _nextFontSearch;
+    private static AsyncOperationHandle<TMP_FontAsset>? _fontLoad;
+    private static bool _fontLoadFailed;
     private static Canvas? _cursorCanvas;
     private static float _nextCursorCheck;
 
@@ -48,9 +52,23 @@ public static partial class OverlayUi
     public static bool EnsureCreated(bool requireGameFont)
     {
         if (Root != null) return true;
-        if (requireGameFont && Time.unscaledTime < _nextFontSearch) return false;
-        _nextFontSearch = Time.unscaledTime + 0.5f;
-        var font = FindGameFont();
+        TMP_FontAsset? font = null;
+        if (_fontLoad is { IsDone: true } load)
+        {
+            font = load.Result;
+            if (font == null)
+            {
+                Log.Warning($"Failed to load overlay font {GameFontName}");
+                _fontLoad = null;
+                _fontLoadFailed = true;
+            }
+        }
+        if (font == null)
+        {
+            if (requireGameFont && Time.unscaledTime < _nextFontSearch) return false;
+            _nextFontSearch = Time.unscaledTime + 0.5f;
+            font = FindGameFont();
+        }
         if (font == null && requireGameFont) return false;
         Font = font ?? CreateSystemFont();
         Log.Info($"Overlay font: {Font.name}");
@@ -105,15 +123,26 @@ public static partial class OverlayUi
         _cursorCanvas.sortingOrder = CursorSortingOrder;
     }
 
+    /// <summary>开场动画期间游戏尚未加载字体，经 Addressables 主动加载；句柄不释放，字体随后由游戏共用。</summary>
+    public static void LoadGameFont()
+    {
+        if (_fontLoad != null || _fontLoadFailed) return;
+        Log.Info($"Loading overlay font {GameFontName}");
+        _fontLoad = Addressables.LoadAssetAsync<TMP_FontAsset>((Il2CppSystem.Object)(Il2CppSystem.String)GameFontName);
+    }
+
     // 游戏自带的思源黑体 SDF 为动态图集并带完整字库，可显示任意中日韩字符。
+    // 资源名同时是 Addressables 地址。
+    private static string GameFontName => L10n.Language switch
+    {
+        Language.ChineseTraditional => "SourceHanSansTC-Regular SDF",
+        Language.Korean => "SourceHanSansKR-Regular SDF",
+        _ => "SourceHanSansSC-Regular SDF",
+    };
+
     private static TMP_FontAsset? FindGameFont()
     {
-        string wanted = L10n.Language switch
-        {
-            Language.ChineseTraditional => "SourceHanSansTC-Regular SDF",
-            Language.Korean => "SourceHanSansKR-Regular SDF",
-            _ => "SourceHanSansSC-Regular SDF",
-        };
+        string wanted = GameFontName;
         TMP_FontAsset? fallback = null;
         foreach (var font in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
         {

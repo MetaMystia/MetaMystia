@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.IO;
 using System.CommandLine.Invocation;
@@ -12,6 +13,8 @@ namespace MetaMystia.ConsoleSystem;
 public class ConsoleContext : IConsole
 {
     private readonly Action<string> _logToConsole;
+    private List<string>? _group;
+    private int _groupThread;
 
     /// <summary>
     /// When set to true by a command handler, the console UI will close after execution.
@@ -21,8 +24,8 @@ public class ConsoleContext : IConsole
     public ConsoleContext(Action<string> logToConsole)
     {
         _logToConsole = logToConsole;
-        Out = new ConsoleWriter(logToConsole);
-        Error = new ConsoleWriter(logToConsole);
+        Out = new ConsoleWriter(Log);
+        Error = new ConsoleWriter(Log);
     }
 
     public IStandardStreamWriter Out { get; }
@@ -31,7 +34,25 @@ public class ConsoleContext : IConsole
     public bool IsErrorRedirected => true;
     public bool IsInputRedirected => true;
 
-    public void Log(string message) => _logToConsole(message);
+    public void Log(string message)
+    {
+        if (_group != null && Environment.CurrentManagedThreadId == _groupThread) _group.Add(message);
+        else _logToConsole(message);
+    }
+
+    /// <summary>此后本线程的输出合并为一条消息，直到 <see cref="EndGroup"/>；命令结束后的异步输出仍各自成条。</summary>
+    public void BeginGroup()
+    {
+        _group = [];
+        _groupThread = Environment.CurrentManagedThreadId;
+    }
+
+    public void EndGroup()
+    {
+        var lines = _group;
+        _group = null;
+        if (lines is { Count: > 0 }) _logToConsole(string.Join("\n", lines));
+    }
 
     private class ConsoleWriter : IStandardStreamWriter
     {

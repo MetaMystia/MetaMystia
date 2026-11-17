@@ -49,6 +49,8 @@ public static partial class InGameConsole
     private static readonly CompletionEngine _completion = new(CommandRegistry.Complete);
     private static bool _open;
     private static GameObject? _previousSelection;
+    private static string? _pendingOpen;
+    private static float _pendingOpenAt;
 
     public static bool IsOpen => _open;
 
@@ -167,13 +169,25 @@ public static partial class InGameConsole
     public static void Update()
     {
         DrainPending();
-        if (!EnsureView()) return;
+        if (!EnsureView())
+        {
+            // 开场动画期间游戏尚未加载字体：按下打开键时主动加载，加载完成后再打开。
+            if (OpenKeyText() is { } requested)
+            {
+                _pendingOpen = requested;
+                _pendingOpenAt = Time.unscaledTime;
+                OverlayUi.LoadGameFont();
+            }
+            return;
+        }
         OverlayUi.KeepCursorOnTop();
 
         if (!_open)
         {
-            if (Input.GetKeyDown(ConfigManager.KeyOpenCommand.Value)) Open("/");
-            else if (Input.GetKeyDown(ConfigManager.KeyOpenChat.Value)) Open("");
+            // 字体加载失败时不在很久之后突然打开。
+            if (Time.unscaledTime - _pendingOpenAt > 3f) _pendingOpen = null;
+            if ((_pendingOpen ?? OpenKeyText()) is { } text) Open(text);
+            _pendingOpen = null;
         }
         else
         {
@@ -190,6 +204,13 @@ public static partial class InGameConsole
         _caretToEnd = false;
         _caretRestore = -1;
         _caretBefore = _field.stringPosition;
+    }
+
+    private static string? OpenKeyText()
+    {
+        if (Input.GetKeyDown(ConfigManager.KeyOpenCommand.Value)) return "/";
+        if (Input.GetKeyDown(ConfigManager.KeyOpenChat.Value)) return "";
+        return null;
     }
 
     private static void Open(string text)
@@ -306,8 +327,11 @@ public static partial class InGameConsole
         }
         SaveHistory();
         Log.Message($"Console Command: {text}");
-        LogToConsole(ConsoleFormat.Dim("› " + ConsoleFormat.Plain(text)));
+        // 回显与命令的输出合并为一条，只有一个时间。
+        _context.BeginGroup();
+        _context.Log(ConsoleFormat.Dim("› " + ConsoleFormat.Plain(text)));
         bool close = CommandRegistry.Execute(text[1..], _context);
+        _context.EndGroup();
         SetText("", refresh: true);
         ScrollToLatest();
         if (close) Close();
