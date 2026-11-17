@@ -33,7 +33,6 @@ public static partial class CommandRegistry
         Commands.GeneralCommands.Register(_root);
         Commands.GetCommands.Register(_root);
         Commands.MpCommands.Register(_root);
-        Commands.CallCommands.Register(_root);
         Commands.SkinCommands.Register(_root);
         Commands.DebugCommands.Register(_root);
         Commands.LinkCommands.Register(_root);

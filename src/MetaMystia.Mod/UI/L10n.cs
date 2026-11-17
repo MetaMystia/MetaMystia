@@ -185,7 +185,6 @@ public enum TextId
     PeerMessagePrefix,
     ConsoleNewMessages,
     CommandPrompt,
-    BepInExConsoleEnabled,
 
     // Console Command Help & Usage
     AvailableCommands,
@@ -198,7 +197,6 @@ public enum TextId
 
     // Console Status & Queries
     NotInDayScene,
-    NotInWorkScene,
     MapInfoDisplay,
     CurrentMapLabel,
     MystiaPosition,
@@ -234,22 +232,13 @@ public enum TextId
     MapLevel_Izakaya,
     MapLevel_Unknown,
     PeerIzakayaNotSelected,
-    InvalidMapKey,
 
     // Console Error Messages
     UnknownCommand,
     UnknownMethod,
-    ErrorGetMapsnpcs,
-    ErrorMovecharacter,
-    ErrorSceneMove,
 
     // Console Results & Feedback
     MessageSent,
-    NPCListItem,
-    TotalNPCsFound,
-    CharacterMoved,
-    CharacterMovedScene,
-    CalledTryCloseIzakaya,
 
     // Skin Commands
     SkinUsage,
@@ -273,11 +262,9 @@ public enum TextId
     CmdDescClear,
     CmdDescGet,
     CmdDescMp,
-    CmdDescCall,
     CmdDescSkin,
     CmdDescDebug,
     CmdDescWhereami,
-    CmdDescEnableBepinConsole,
 
     // Subcommand help headers
 
@@ -293,10 +280,6 @@ public enum TextId
     MpDescKickId,
     MpDescKickUid,
     MpDescContinue,
-    CallDescGetmapsnpcs,
-    CallDescMovecharacter,
-    CallDescSceneMove,
-    CallDescTryCloseIzakaya,
     SkinDescSet,
     SkinDescNet,
     SkinDescRot,
@@ -427,11 +410,6 @@ public enum TextId
     ArgDescPlayerCount,
     ArgDescRoomCode,
     ArgDescUid,
-    ArgDescMapKey,
-    ArgDescCharacterKey,
-    ArgDescX,
-    ArgDescY,
-    ArgDescRotation,
     ArgDescCharacterId,
     ArgDescSkinType,
     ArgDescSkinIndex,

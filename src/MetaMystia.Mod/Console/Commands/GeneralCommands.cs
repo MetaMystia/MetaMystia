@@ -24,10 +24,6 @@ public static class GeneralCommands
         var whereAmICmd = new Command("whereami", TextId.CmdDescWhereami.Get());
         whereAmICmd.SetHandler(WhereAmIHandler);
         root.AddCommand(whereAmICmd);
-
-        var enableBepinCmd = new Command("enable_bepin_console", TextId.CmdDescEnableBepinConsole.Get());
-        enableBepinCmd.SetHandler(EnableBepInConsoleHandler);
-        root.AddCommand(enableBepinCmd);
     }
 
     private static void WhereAmIHandler(InvocationContext ctx)
@@ -38,12 +34,5 @@ public static class GeneralCommands
             return;
         }
         ctx.Log(TextId.MapInfoDisplay.Get(PlayerManager.LocalMapLabel.GetDisplayName(), PlayerManager.LocalPosition));
-    }
-
-    private static void EnableBepInConsoleHandler(InvocationContext ctx)
-    {
-        BepInEx.ConsoleManager.CreateConsole();
-        ctx.Log(TextId.BepInExConsoleEnabled.Get());
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
     }
 }
