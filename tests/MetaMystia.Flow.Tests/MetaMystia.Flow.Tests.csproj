@@ -7,6 +7,8 @@
   <ItemGroup>
     <Reference Update="Assembly-CSharp" Aliases="GameInterop" />
     <ProjectReference Include="../../src/MetaMystia.Network/MetaMystia.Network.csproj" />
+    <Compile Include="../../src/MetaMystia.Mod/Multiplayer/Core/Scopes.cs" Link="Scopes.cs" />
+    <Compile Include="../../src/MetaMystia.Mod/Multiplayer/Core/RoomBallot.cs" Link="RoomBallot.cs" />
     <Compile Include="../../src/MetaMystia.Mod/Managers/DayDestinationManager.cs" Link="DayDestinationManager.cs" />
     <Compile Include="../../src/MetaMystia.Mod/Managers/BusinessStart.cs" Link="BusinessStart.cs" />
     <Compile Include="../../src/MetaMystia.Mod/Managers/PrepSceneManager.Yuyuko.cs" Link="PrepSceneManager.Yuyuko.cs" />
