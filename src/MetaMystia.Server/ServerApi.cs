@@ -141,7 +141,7 @@ public static class ServerApi
             var status = await server.GetStatusAsync();
             return new(options.InstanceId, version.Game, version.Mod, server.Endpoint.Port,
                 status.Retirement == null ? "running" : "draining", status.Players.Length,
-                status.Retirement?.NoticeId, status.Retirement?.TargetModVersion);
+                status.Retirement?.NoticeId, status.Retirement?.TargetModVersion, status.MaxPlayers, status.Rooms.Length);
         }
 
         async Task<InstanceDetails> Details()
