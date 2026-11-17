@@ -28,7 +28,7 @@ internal sealed record LimitRequest(int Value);
 internal sealed record SayRequest(string Message);
 internal sealed record ConfigRequest(string Content, string? PreviousContent = null);
 
-public static class ServerAdministration
+public static class ServerApi
 {
     /// <summary>测试与嵌入用：日志只收集服务端事件，配置从程序目录重载。</summary>
     public static WebApplication Create(Server server, ServerAdminOptions options, Versions? versions = null, string? configDirectory = null)
@@ -48,7 +48,7 @@ public static class ServerAdministration
         if (address.Scheme != "http" || !IPAddress.TryParse(address.Host.Trim('[', ']'), out var ip) || !IPAddress.IsLoopback(ip))
             throw new ArgumentException("Management HTTP must bind to loopback");
         var version = versions ?? Versions.Current;
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = [], ApplicationName = typeof(ServerAdministration).Assembly.FullName });
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = [], ApplicationName = typeof(ServerApi).Assembly.FullName });
         builder.WebHost.UseUrls(options.Url);
         // 面板会轮询，ASP.NET 自带的逐请求日志会刷满 journald。
         builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
