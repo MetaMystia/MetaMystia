@@ -150,8 +150,10 @@ public static partial class PlayerListPanel
 
         // 本地玩家与房间身份均来自服务器。
         var local = PlayerManager.Local;
+        int uidWidth = PlayerManager.Peers.Keys.Concat(PlayerManager.PublicPeers.Keys).Append(local.Uid)
+            .Max(uid => uid.ToString().Length);
         string localLine = FormatPlayer(
-            local.Uid, local.Id, scene, GameFlow.Stage,
+            local.Uid, uidWidth, local.Id, scene, GameFlow.Stage,
             needsGameplayData && scene == Scene.DayScene ? PlayerManager.LocalMapLabel : MapLabel.Unknown,
             needsGameplayData ? local.Position : Vector2.zero,
             local.IsDayOver, local.IsPrepOver,
@@ -182,7 +184,7 @@ public static partial class PlayerListPanel
             if (hasMotion && sameMap && peer.CanRender && peer.unit != null && peer.rb2d != null)
                 position = peer.Position;
             string line = FormatPlayer(
-                peer.Uid, peer.Id, peer.Scene, peer.NetworkState?.Stage ?? GameStage.Unavailable,
+                peer.Uid, uidWidth, peer.Id, peer.Scene, peer.NetworkState?.Stage ?? GameStage.Unavailable,
                 peer.NetworkState?.Map ?? MapLabel.Unknown,
                 position,
                 peer.IsDayOver, peer.IsPrepOver,
@@ -196,7 +198,7 @@ public static partial class PlayerListPanel
     }
 
     private static string FormatPlayer(
-        int uid, string id, Scene scene, GameStage stage,
+        int uid, int uidWidth, string id, Scene scene, GameStage stage,
         MapLabel mapLabel, Vector2 pos,
         bool isDayOver, bool isPrepOver,
         MapLabel izakayaMapLabel, int izakayaLevel,
@@ -211,7 +213,8 @@ public static partial class PlayerListPanel
         string displayId = LiveModeManager.GetDisplayName(uid);
         string name = LiveModeManager.IsActive
             ? $"<color={nameColor}>{displayId}</color>"
-            : $"<color=#6F6A7A>{uid}</color> <color={nameColor}>{id}</color>";
+            // UID 等宽并右对齐到最长的位数，名字从同一位置开始。
+            : $"<color=#6F6A7A><mspace=0.55em>{uid.ToString().PadLeft(uidWidth)}</mspace></color> <color={nameColor}>{id}</color>";
         string dim = OverlayUi.Hex(OverlayUi.Dim);
         // 只展示本人已提交的选店结果，不用全房间进度推断个人面板。
         if (scene == Scene.DayScene && inRoom && izakayaMapLabel.IsSelected() && izakayaLevel > 0)
