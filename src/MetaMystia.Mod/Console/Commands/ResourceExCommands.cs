@@ -11,17 +11,18 @@ public static class ResourceExCommands
 {
     public static void Register(RootCommand root)
     {
-        var resCmd = new Command("resourceex", "Resource pack management");
+        var resCmd = new Command("resourceex", TextId.CmdDescResourceEx.Get());
         DayMapCommands.Register(resCmd);
 
         // /resourceex list
-        var listCmd = new Command("list", "List all loaded resource packs");
+        var listCmd = new Command("list", TextId.ResourceExDescList.Get());
         listCmd.SetHandler(ListHandler);
         resCmd.AddCommand(listCmd);
 
         // /resourceex info <name>
-        var infoCmd = new Command("info", "Show details of a resource pack");
-        var nameArg = new Argument<string>("name", "Package file name or pack label");
+        var infoCmd = new Command("info", TextId.ResourceExDescInfo.Get());
+        var nameArg = new Argument<string>("name", TextId.ArgDescPackage.Get())
+            .AddCompletions(_ => ResourceExManager.LoadedPackages.Select(p => p.Config?.packInfo?.label ?? p.PackageName));
         infoCmd.AddArgument(nameArg);
         infoCmd.SetHandler(ctx =>
         {
@@ -30,29 +31,7 @@ public static class ResourceExCommands
         });
         resCmd.AddCommand(infoCmd);
 
-        // Default: show help
-        resCmd.SetHandler(ResourceExHelpHandler);
-
         root.AddCommand(resCmd);
-
-        // Register tab completions
-        CommandRegistry.RegisterCompletions("resourceex", 0, "list", "info", "map");
-
-        // Register dynamic completions for info subcommand — package names
-        var packageNames = ResourceExManager.LoadedPackages
-            .Select(p => p.Config?.packInfo?.label ?? p.PackageName)
-            .ToArray();
-        if (packageNames.Length > 0)
-            CommandRegistry.RegisterCompletions("resourceex info", 0, packageNames);
-    }
-
-    private static void ResourceExHelpHandler(InvocationContext ctx)
-    {
-        ctx.Log(ConsoleFormat.Header(TextId.ResourceExHelpHeader.Get()));
-        ctx.Log(ConsoleFormat.SubCmd("list", "", TextId.ResourceExDescList.Get()));
-        ctx.Log(ConsoleFormat.SubCmd("info", "<name>", TextId.ResourceExDescInfo.Get()));
-        ctx.Log(TextId.DayMapHelp.Get());
-        ctx.Log(ConsoleFormat.Line);
     }
 
     private static void ListHandler(InvocationContext ctx)

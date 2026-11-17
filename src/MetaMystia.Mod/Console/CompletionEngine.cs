@@ -1,172 +1,102 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace MetaMystia.ConsoleSystem;
 
 /// <summary>
-/// Minecraft-style tab completion engine for the in-game console.
-/// Tab applies the first match inline; subsequent Tabs cycle through alternatives.
-/// Space confirms the current selection and moves on.
+/// 输入时自动给出候选。↑↓ 选择，Tab 填入并在多个候选间轮换，唯一候选填入后补空格。
 /// </summary>
-public class CompletionEngine
+public sealed class CompletionEngine
 {
-    private List<string> _completions = [];
-    private int _completionIndex = -1;
-    private string _originalInput = "";
-    private string _matchPrefix = "";
-    private int _scrollOffset = 0;
-    private bool _dismissed = false;
-    private string? _hint = null;
+    public const int MaxVisible = 8;
 
-    // Tab-cycling state (Minecraft-style)
-    private bool _isTabCycling = false;
-    private string _tabCycleBase = "";   // Input BEFORE first Tab press
-    private int _tabCycleIndex = -1;
+    private readonly Func<string, CompletionResult?> _complete;
+    private string _text = "";
+    private int _start;
+    private bool _dismissed;
+    private string? _applied;
+    private int _appliedIndex;
 
-    public const int MaxVisibleItems = 8;
+    public IReadOnlyList<Suggestion> Items { get; private set; } = [];
+    public string? Usage { get; private set; }
+    public int Selected { get; private set; }
+    public int Offset { get; private set; }
+    public int Start => _start;
+    public string Partial => _text[_start..];
+    public bool HasItems => !_dismissed && Items.Count > 0;
+    public bool IsVisible => !_dismissed && (Items.Count > 0 || Usage != null);
 
-    public bool IsActive => !_dismissed && (_completions.Count > 0 || _hint != null);
-    public bool HasCompletions => _completions.Count > 0;
-    public bool HasHint => _hint != null && _completions.Count == 0;
-    public string? Hint => _hint;
-    public IReadOnlyList<string> Completions => _completions;
-    public int SelectedIndex => _completionIndex;
-    public int ScrollOffset => _scrollOffset;
-    public string MatchPrefix => _matchPrefix;
-    public bool IsTabCycling => _isTabCycling;
+    /// <summary>已按 Tab 或在列表中选择过，此时 ↑↓ 与 Esc 作用于列表。</summary>
+    public bool IsEngaged { get; private set; }
 
-    /// <summary>
-    /// Called on every input change (from typing, NOT from Tab).
-    /// Exits tab-cycling if active, then refreshes completions.
-    /// </summary>
-    public void UpdateCompletions(string input)
+    /// <summary>用方向键选中了尚未填入的候选。</summary>
+    public bool HasPendingSelection => HasItems && IsEngaged && (_applied == null || Selected != _appliedIndex);
+
+    public CompletionEngine(Func<string, CompletionResult?> complete) => _complete = complete;
+
+    /// <summary>输入变化时调用；由本类填入的文本不会重置轮换状态。</summary>
+    public void Refresh(string text)
     {
-        if (_isTabCycling)
-            ExitTabCycle();
-
+        if (text == _applied) return;
+        _applied = null;
         _dismissed = false;
-
-        if (string.IsNullOrEmpty(input) || !input.StartsWith("/"))
-        {
-            ClearCompletions();
-            return;
-        }
-
-        string commandPart = input[1..];
-        var result = CommandRegistry.GetCompletions(commandPart);
-
-        if (result.Items.Count == 0 && result.Hint == null)
-        {
-            ClearCompletions();
-            return;
-        }
-
-        int lastSpace = input.LastIndexOf(' ');
-        _matchPrefix = lastSpace >= 0 ? input[(lastSpace + 1)..] : input[1..];
-
-        _originalInput = input;
-        _hint = result.Hint;
-
-        if (result.Items.Count > 0)
-        {
-            _completions = result.Items;
-            _completionIndex = 0;
-            _scrollOffset = 0;
-        }
-        else
-        {
-            _completions = [];
-            _completionIndex = -1;
-            _scrollOffset = 0;
-        }
+        IsEngaged = false;
+        _text = text;
+        var result = _complete(text);
+        Items = result?.Items ?? [];
+        Usage = result?.Usage;
+        _start = result?.Start ?? text.Length;
+        Selected = 0;
+        Offset = 0;
     }
 
-    /// <summary>
-    /// Minecraft-style Tab press: enter or advance tab-cycling.
-    /// Returns the new input with the completion applied inline (no trailing space).
-    /// </summary>
-    public string? TabCycle(bool reverse = false)
+    public void Move(int delta)
     {
-        if (!HasCompletions) return null;
-
-        if (!_isTabCycling)
-        {
-            _isTabCycling = true;
-            _tabCycleBase = _originalInput;
-            _tabCycleIndex = 0;
-        }
-        else
-        {
-            if (reverse)
-                _tabCycleIndex = (_tabCycleIndex - 1 + _completions.Count) % _completions.Count;
-            else
-                _tabCycleIndex = (_tabCycleIndex + 1) % _completions.Count;
-        }
-
-        _completionIndex = _tabCycleIndex;
-        EnsureSelectedVisible();
-
-        return ApplyCompletion(_tabCycleBase, _completions[_tabCycleIndex]);
+        if (!HasItems) return;
+        IsEngaged = true;
+        Selected = (Selected + delta + Items.Count) % Items.Count;
+        Offset = Math.Clamp(Offset, Selected - MaxVisible + 1, Selected);
     }
 
-    public void ExitTabCycle()
+    /// <summary>滚动可见范围，不改变选中项。</summary>
+    public void Scroll(int delta)
     {
-        _isTabCycling = false;
-        _tabCycleBase = "";
-        _tabCycleIndex = -1;
+        if (HasItems) Offset = Math.Clamp(Offset + delta, 0, Math.Max(0, Items.Count - MaxVisible));
+    }
+
+    /// <summary>Tab：填入选中项；继续按 Tab 时轮换到下一项。返回新的输入文本。</summary>
+    public string? Cycle(bool reverse)
+    {
+        if (!HasItems) return null;
+        if (_applied != null && Selected == _appliedIndex) Move(reverse ? -1 : 1);
+        IsEngaged = true;
+        if (Items.Count == 1) return Accept(Selected);
+        _appliedIndex = Selected;
+        return _applied = _text[.._start] + Items[Selected].Label;
+    }
+
+    /// <summary>确认第 index 项并补空格，随后给出下一级候选。</summary>
+    public string Accept(int index)
+    {
+        string text = _text[.._start] + Items[index].Label + " ";
+        Refresh(text);
+        return text;
     }
 
     public void Dismiss()
     {
         _dismissed = true;
-        if (_isTabCycling) ExitTabCycle();
+        IsEngaged = false;
     }
 
     public void Reset()
     {
-        ClearCompletions();
+        _applied = null;
+        _text = "";
+        Items = [];
+        Usage = null;
         _dismissed = false;
-        if (_isTabCycling) ExitTabCycle();
-    }
-
-    public string FormatWithHighlight(string item)
-    {
-        if (string.IsNullOrEmpty(_matchPrefix) || !item.StartsWith(_matchPrefix, System.StringComparison.OrdinalIgnoreCase))
-            return item;
-
-        string matched = item[.._matchPrefix.Length];
-        string rest = item[_matchPrefix.Length..];
-        return $"<color=#66AAFF>{matched}</color>{rest}";
-    }
-
-    private void ClearCompletions()
-    {
-        _completions = [];
-        _completionIndex = -1;
-        _scrollOffset = 0;
-        _originalInput = "";
-        _matchPrefix = "";
-        _hint = null;
-    }
-
-    private void EnsureSelectedVisible()
-    {
-        if (_completionIndex < _scrollOffset)
-            _scrollOffset = _completionIndex;
-        else if (_completionIndex >= _scrollOffset + MaxVisibleItems)
-            _scrollOffset = _completionIndex - MaxVisibleItems + 1;
-    }
-
-    /// <summary>
-    /// Replace the last partial token in input with the completion.
-    /// Does NOT add trailing space — the user confirms with space.
-    /// </summary>
-    private static string ApplyCompletion(string input, string completion)
-    {
-        int lastSpace = input.LastIndexOf(' ');
-        if (lastSpace < 0)
-            return "/" + completion;
-        return input[..(lastSpace + 1)] + completion;
+        IsEngaged = false;
     }
 }

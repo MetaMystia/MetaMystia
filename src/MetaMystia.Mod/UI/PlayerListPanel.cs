@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
+using TMPro;
 using UnityEngine;
 
 using Common.UI;
@@ -11,145 +12,134 @@ using MetaMystia.Network;
 namespace MetaMystia.UI;
 
 /// <summary>
-/// 左上角玩家列表面板，IMGUI 实现，可拖拽移动。
-/// 当 InGameConsole 打开或 Enter 被按下时显示。
+/// 玩家列表，可拖动。联机时在控制台打开或按回车后显示。
 /// </summary>
 [AutoLog]
 public static partial class PlayerListPanel
 {
-    // ── 可见状态 ──
-    private static bool _visible = false;
+    private const float HeaderHeight = 26f;
+    private const float Pad = 10f;
+    private const float MinWidth = 220f;
+    private const float DefaultFontSize = 17f;
 
-    // ── 样式缓存 ──
-    private static bool _stylesInitialized = false;
-    private static Font _font;
-    private static GUIStyle _lineStyle;
-    private static GUIStyle _fontBtnStyle;
-    private static Texture2D _bgTexture;
-    private static Texture2D _dragHandleTexture;
+    private static readonly Color HostColor = new(0.56f, 0.83f, 1f);
+    private static readonly Color SelfColor = new(0.55f, 0.88f, 0.64f);
+    private static readonly Color PeerColor = new(0.9f, 0.88f, 0.85f);
+    private static readonly Color ReadyColor = new(0.49f, 0.88f, 0.63f);
+    private static readonly Color NotReadyColor = new(1f, 0.69f, 0.38f);
 
-    public static void ResetStyles() => _stylesInitialized = false;
-
-    // ── 拖拽 ──
-    private static bool _isDragging = false;
+    private static bool _visible;
+    private static RectTransform _root;
+    private static RectTransform _header;
+    private static TextMeshProUGUI _title;
+    private static RectTransform _fontDown;
+    private static RectTransform _fontUp;
+    private static TextMeshProUGUI _body;
+    private static string _shown = "";
+    private static float _shownSize;
+    private static float _nextRefresh;
+    private static bool _dragging;
     private static Vector2 _dragOffset;
-    private const float DragHandleHeight = 10f;
-    private const float Padding = 6f;
-    private const float LinePadding = 2f;
+    private static Vector2 _position;
 
-    // ── 颜色 ──
-    private static readonly Color HostColor = new(0.55f, 0.85f, 1f);   // 淡蓝
-    private static readonly Color SelfColor = new(0.40f, 1f, 0.55f);   // 淡绿
-    private static readonly Color PeerColor = new(0.85f, 0.85f, 0.85f); // 浅灰
-    private static readonly Color DimColor = new(0.6f, 0.6f, 0.6f);    // 暗灰
-    private static readonly Color ReadyColor = new(0.40f, 1f, 0.55f);
-    private static readonly Color NotReadyColor = new(1f, 0.65f, 0.3f);
+    private static float FontSize => ConfigManager.PlayerListFontSize.Value > 0 ? ConfigManager.PlayerListFontSize.Value : DefaultFontSize;
+    // 以右上角定位：宽度随内容和字号变化时，标题栏右侧的字号按钮不移动。
+    private static Vector2 Anchor => Vector2.one;
 
-    // ====================================================================
-    // Update (MonoBehaviour Update)
-    // ====================================================================
     public static void Update()
     {
-        // Enter 键切换显示（控制台打开时不响应，避免与控制台 Enter 冲突）
-        if (!InGameConsole.IsOpen &&
-            (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+        if (!InGameConsole.HasKeyboardFocus && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             _visible = !_visible;
-    }
 
-    // ====================================================================
-    // OnGUI
-    // ====================================================================
-    public static void OnGUI()
-    {
-        if (!GameSession.IsConnectingOrOnline || (!_visible && !InGameConsole.IsOpen))
+        bool show = GameSession.IsConnectingOrOnline && (_visible || InGameConsole.IsOpen);
+        if (_root == null)
+        {
+            if (!show || !OverlayUi.EnsureCreated(requireGameFont: false)) return;
+            Build();
+        }
+        _root.gameObject.SetActive(show);
+        if (!show)
+        {
+            _dragging = false;
             return;
-
-        if (ConfigManager.PlayerListX.Value > Screen.width * 0.95f || ConfigManager.PlayerListY.Value > Screen.height * 0.95f)
-        {
-            ConfigManager.PlayerListX.Value = (float)ConfigManager.PlayerListX.DefaultValue;
-            ConfigManager.PlayerListY.Value = (float)ConfigManager.PlayerListY.DefaultValue;
         }
-
-        InitStyles();
-
-        Event e = Event.current;
-        int fontSize = _lineStyle.fontSize;
-        float lineH = fontSize + LinePadding * 2 + 2;
-
-        // 收集要显示的行
-        var lines = BuildLines();
-        if (lines.Count == 0) return;
-
-        // 计算面板宽度：取最宽行
-        float maxW = 0f;
-        foreach (var text in lines)
+        if (Time.unscaledTime >= _nextRefresh)
         {
-            var content = new GUIContent(StripRichText(text));
-            float w = _lineStyle.CalcSize(content).x + Padding * 2;
-            if (w > maxW) maxW = w;
+            _nextRefresh = Time.unscaledTime + 0.1f;
+            Refresh();
         }
-
-        float panelW = Mathf.Max(maxW + Padding * 2, 200f);
-        float panelH = lines.Sum(text => text.Length == 0 ? lineH / 2 : lineH) + DragHandleHeight + Padding * 2;
-        float panelX = ConfigManager.PlayerListX.Value;
-        float panelY = ConfigManager.PlayerListY.Value;
-
-        // ── 拖拽手柄 ──
-        var dragRect = new Rect(panelX, panelY, panelW, DragHandleHeight);
-        GUI.DrawTexture(dragRect, _dragHandleTexture, ScaleMode.StretchToFill);
-
-        // ── 字体大小按钮（拖拽手柄右侧）──
-        float fontBtnW = DragHandleHeight * 2f;
-        float fontBtnH = DragHandleHeight;
-        if (GUI.Button(new Rect(panelX + panelW - fontBtnW * 2 - 2, panelY, fontBtnW, fontBtnH), "A−", _fontBtnStyle))
-            AdjustFontSize(-2);
-        if (GUI.Button(new Rect(panelX + panelW - fontBtnW, panelY, fontBtnW, fontBtnH), "A+", _fontBtnStyle))
-            AdjustFontSize(2);
-
-        if (e.type == EventType.MouseDown && dragRect.Contains(e.mousePosition))
-        {
-            _isDragging = true;
-            _dragOffset = e.mousePosition - new Vector2(panelX, panelY);
-            e.Use();
-        }
-        if (_isDragging)
-        {
-            if (e.type == EventType.MouseDrag)
-            {
-                float newX = e.mousePosition.x - _dragOffset.x;
-                float newY = e.mousePosition.y - _dragOffset.y;
-                ConfigManager.PlayerListX.Value = Mathf.Clamp(newX, 0, Screen.width - panelW);
-                ConfigManager.PlayerListY.Value = Mathf.Clamp(newY, 0, Screen.height - panelH);
-                e.Use();
-            }
-            if (e.type == EventType.MouseUp)
-            {
-                _isDragging = false;
-                e.Use();
-            }
-        }
-
-        // ── 背景 ──
-        var bgRect = new Rect(panelX, panelY + DragHandleHeight, panelW, panelH - DragHandleHeight);
-        GUI.DrawTexture(bgRect, _bgTexture, ScaleMode.StretchToFill);
-
-        // ── 绘制行 ──
-        float cy = panelY + DragHandleHeight + Padding;
-        foreach (var text in lines)
-        {
-            if (text.Length == 0)
-            {
-                cy += lineH / 2;
-                continue;
-            }
-            GUI.Label(new Rect(panelX + Padding, cy, panelW - Padding * 2, lineH), text, _lineStyle);
-            cy += lineH;
-        }
+        HandleDrag();
     }
 
-    // ====================================================================
-    // 构建行内容
-    // ====================================================================
+    private static void Build()
+    {
+        var panel = OverlayUi.Box("PlayerList", OverlayUi.Root, OverlayUi.Surface, 10f, raycast: true);
+        _root = panel.rectTransform;
+        _header = OverlayUi.Node("Header", _root);
+        _header.anchorMin = new Vector2(0, 1);
+        _header.anchorMax = Vector2.one;
+        _header.pivot = new Vector2(0.5f, 1);
+        _header.sizeDelta = new Vector2(0, HeaderHeight);
+        _title = OverlayUi.Label("Title", _header, 14f, OverlayUi.Dim);
+        _title.alignment = TextAlignmentOptions.MidlineLeft;
+        _title.enableWordWrapping = false;
+        OverlayUi.Fill(_title.rectTransform, Pad + 2, 0, Pad + 2 * OverlayUi.FontButtonWidth, 0);
+        _fontDown = OverlayUi.FontButton(_header, "A−", -6 - OverlayUi.FontButtonWidth);
+        _fontUp = OverlayUi.FontButton(_header, "A+", -6);
+        _body = OverlayUi.Label("Body", _root, FontSize, OverlayUi.Text);
+        _body.enableWordWrapping = false;
+        _body.lineSpacing = 8f;
+        OverlayUi.Fill(_body.rectTransform, Pad + 2, Pad, Pad, HeaderHeight + 4);
+    }
+
+    private static void Refresh()
+    {
+        var lines = BuildLines();
+        string text = string.Join("\n", lines);
+        float fontSize = FontSize;
+        if (text != _shown || fontSize != _shownSize)
+        {
+            _shown = text;
+            _shownSize = fontSize;
+            _body.fontSize = fontSize;
+            _body.text = text;
+            int players = PlayerManager.Peers.Keys.Union(PlayerManager.PublicPeers.Keys).Count() + 1;
+            _title.text = $"{TextId.PlayerListTitle.Get()}  <color=#6F6A7A>{players}</color>";
+        }
+        var measured = _body.GetPreferredValues(text, 4000f, 0f);
+        var size = new Vector2(Mathf.Clamp(measured.x + 2 * Pad + 4, MinWidth, OverlayUi.Size.x * 0.6f), HeaderHeight + 4 + measured.y + Pad);
+        var requested = _dragging ? _position : new Vector2(-ConfigManager.PlayerListX.Value, -ConfigManager.PlayerListY.Value);
+        _position = OverlayUi.Clamp(Anchor, requested, size);
+        OverlayUi.Place(_root, Anchor, _position, size);
+    }
+
+    private static void HandleDrag()
+    {
+        if (Input.GetMouseButtonDown(0) && (OverlayUi.IsPointerOver(_fontDown) || OverlayUi.IsPointerOver(_fontUp)))
+        {
+            OverlayUi.AdjustFontSize(ConfigManager.PlayerListFontSize, (int)DefaultFontSize, OverlayUi.IsPointerOver(_fontUp) ? 2 : -2);
+            _nextRefresh = 0f;
+        }
+        else if (Input.GetMouseButtonDown(0) && OverlayUi.IsPointerOver(_header))
+        {
+            _dragging = true;
+            _dragOffset = _position - OverlayUi.Pointer(Anchor);
+        }
+        if (!_dragging) return;
+        if (Input.GetMouseButton(0))
+        {
+            _position = OverlayUi.Clamp(Anchor, OverlayUi.Pointer(Anchor) + _dragOffset, _root.sizeDelta);
+            _root.anchoredPosition = _position;
+            return;
+        }
+        _dragging = false;
+        ConfigManager.Config.SaveOnConfigSet = false;
+        ConfigManager.PlayerListX.Value = Mathf.Round(-_position.x);
+        ConfigManager.PlayerListY.Value = Mathf.Round(-_position.y);
+        ConfigManager.Config.SaveOnConfigSet = true;
+        ConfigManager.Config.Save();
+    }
+
     private static List<string> BuildLines()
     {
         var lines = new List<string>();
@@ -160,8 +150,10 @@ public static partial class PlayerListPanel
 
         // 本地玩家与房间身份均来自服务器。
         var local = PlayerManager.Local;
+        int uidWidth = PlayerManager.Peers.Keys.Concat(PlayerManager.PublicPeers.Keys).Append(local.Uid)
+            .Max(uid => uid.ToString().Length);
         string localLine = FormatPlayer(
-            local.Uid, local.Id, scene, GameFlow.Stage,
+            local.Uid, uidWidth, local.Id, scene, GameFlow.Stage,
             needsGameplayData && scene == Scene.DayScene ? PlayerManager.LocalMapLabel : MapLabel.Unknown,
             needsGameplayData ? local.Position : Vector2.zero,
             local.IsDayOver, local.IsPrepOver,
@@ -177,7 +169,7 @@ public static partial class PlayerListPanel
             bool inRoom = PlayerManager.Peers.ContainsKey(peer.Uid);
             if (!inRoom && !publicGroupStarted)
             {
-                lines.Add("");
+                lines.Add($"<size=80%><color=#6F6A7A>{TextId.PlayerListOnline.Get()}</color></size>");
                 publicGroupStarted = true;
             }
             var motion = peer.NetworkState?.Motion;
@@ -192,7 +184,7 @@ public static partial class PlayerListPanel
             if (hasMotion && sameMap && peer.CanRender && peer.unit != null && peer.rb2d != null)
                 position = peer.Position;
             string line = FormatPlayer(
-                peer.Uid, peer.Id, peer.Scene, peer.NetworkState?.Stage ?? GameStage.Unavailable,
+                peer.Uid, uidWidth, peer.Id, peer.Scene, peer.NetworkState?.Stage ?? GameStage.Unavailable,
                 peer.NetworkState?.Map ?? MapLabel.Unknown,
                 position,
                 peer.IsDayOver, peer.IsPrepOver,
@@ -206,7 +198,7 @@ public static partial class PlayerListPanel
     }
 
     private static string FormatPlayer(
-        int uid, string id, Scene scene, GameStage stage,
+        int uid, int uidWidth, string id, Scene scene, GameStage stage,
         MapLabel mapLabel, Vector2 pos,
         bool isDayOver, bool isPrepOver,
         MapLabel izakayaMapLabel, int izakayaLevel,
@@ -214,15 +206,16 @@ public static partial class PlayerListPanel
     {
         // 名字颜色
         string nameColor;
-        if (isSelf) nameColor = ColorToHex(SelfColor);
-        else if (isHost) nameColor = ColorToHex(HostColor);
-        else nameColor = ColorToHex(PeerColor);
+        if (isSelf) nameColor = OverlayUi.Hex(SelfColor);
+        else if (isHost) nameColor = OverlayUi.Hex(HostColor);
+        else nameColor = OverlayUi.Hex(PeerColor);
 
         string displayId = LiveModeManager.GetDisplayName(uid);
         string name = LiveModeManager.IsActive
             ? $"<color={nameColor}>{displayId}</color>"
-            : $"<color={nameColor}>[{uid}] {id}</color>";
-        string dim = ColorToHex(DimColor);
+            // UID 等宽并右对齐到最长的位数，名字从同一位置开始。
+            : $"<color=#6F6A7A><mspace=0.55em>{uid.ToString().PadLeft(uidWidth)}</mspace></color> <color={nameColor}>{id}</color>";
+        string dim = OverlayUi.Hex(OverlayUi.Dim);
         // 只展示本人已提交的选店结果，不用全房间进度推断个人面板。
         if (scene == Scene.DayScene && inRoom && izakayaMapLabel.IsSelected() && izakayaLevel > 0)
             return $"{name}  <color={dim}>{izakayaMapLabel.GetDisplayName()} Lv.{izakayaLevel}</color>";
@@ -273,93 +266,7 @@ public static partial class PlayerListPanel
     private static string ReadyTag(bool ready)
     {
         return ready
-            ? $"<color={ColorToHex(ReadyColor)}>✓</color>"
-            : $"<color={ColorToHex(NotReadyColor)}>…</color>";
-    }
-
-    private static string ColorToHex(Color c)
-        => $"#{(int)(c.r * 255):X2}{(int)(c.g * 255):X2}{(int)(c.b * 255):X2}";
-
-    private static string StripRichText(string text)
-        => System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "");
-
-    // ====================================================================
-    // 样式初始化
-    // ====================================================================
-    private static Font GetFont()
-    {
-        if (_font != null) return _font;
-        try
-        {
-            _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei", 1);
-            if (_font != null) return _font;
-        }
-        catch { /* fallback */ }
-        return GUI.skin.font;
-    }
-
-    private static void InitStyles()
-    {
-        if (_stylesInitialized) return;
-        _stylesInitialized = true;
-
-        var font = GetFont();
-
-        _bgTexture = MakeTex(1, 1, new Color(0.05f, 0.05f, 0.08f, 0.55f));
-        _dragHandleTexture = MakeTex(1, 1, new Color(0.3f, 0.3f, 0.4f, 0.6f));
-
-        int fontSize = ConfigManager.PlayerListFontSize.Value > 0
-            ? ConfigManager.PlayerListFontSize.Value
-            : Mathf.Clamp(Screen.height / 55, 12, 20);
-
-        _lineStyle = new GUIStyle(GUI.skin.label)
-        {
-            font = font,
-            fontSize = fontSize,
-            richText = true,
-            wordWrap = false,
-            normal = { textColor = Color.white },
-        };
-        _lineStyle.padding.left = 4;
-        _lineStyle.padding.right = 4;
-        _lineStyle.padding.top = (int)LinePadding;
-        _lineStyle.padding.bottom = (int)LinePadding;
-
-        _fontBtnStyle = new GUIStyle(GUI.skin.button)
-        {
-            font = font,
-            fontSize = 10,
-            alignment = TextAnchor.MiddleCenter,
-        };
-        _fontBtnStyle.padding.left = 0;
-        _fontBtnStyle.padding.right = 0;
-        _fontBtnStyle.padding.top = 0;
-        _fontBtnStyle.padding.bottom = 0;
-        _fontBtnStyle.margin.left = 0;
-        _fontBtnStyle.margin.right = 0;
-        _fontBtnStyle.margin.top = 0;
-        _fontBtnStyle.margin.bottom = 0;
-    }
-
-    private static void AdjustFontSize(int delta)
-    {
-        int current = ConfigManager.PlayerListFontSize.Value;
-        int effective = current > 0
-            ? current
-            : Mathf.Clamp(Screen.height / 55, 12, 20);
-        int newSize = Mathf.Clamp(effective + delta, 10, 36);
-        ConfigManager.PlayerListFontSize.Value = newSize;
-        ResetStyles();
-    }
-
-    private static Texture2D MakeTex(int w, int h, Color col)
-    {
-        var tex = new Texture2D(w, h);
-        for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-                tex.SetPixel(x, y, col);
-        tex.Apply();
-        tex.hideFlags = HideFlags.HideAndDontSave;
-        return tex;
+            ? $"<color={OverlayUi.Hex(ReadyColor)}>✓</color>"
+            : $"<color={OverlayUi.Hex(NotReadyColor)}>…</color>";
     }
 }

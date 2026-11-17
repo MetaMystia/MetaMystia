@@ -14,7 +14,7 @@ public static class CheatCommands
         var modeArg = new Argument<string>("mode", () => "on")
         {
             Arity = ArgumentArity.ZeroOrOne
-        };
+        }.AddCompletions("on", "off");
         feverCmd.AddArgument(modeArg);
         feverCmd.SetHandler(ctx =>
         {
@@ -40,7 +40,7 @@ public static class CheatCommands
         cheatCmd.AddCommand(feverCmd);
 
         var flowRateCmd = new Command("flowrate", TextId.CheatDescFlowRate.Get());
-        var flowRateArg = new Argument<string>("num", () => "1")
+        var flowRateArg = new Argument<string>("num", () => "1", TextId.ArgDescFlowRate.Get())
         {
             Arity = ArgumentArity.ZeroOrOne
         };
@@ -60,16 +60,6 @@ public static class CheatCommands
         });
         cheatCmd.AddCommand(flowRateCmd);
 
-        cheatCmd.SetHandler(ctx =>
-        {
-            ctx.Log(ConsoleFormat.Header(TextId.CmdDescCheat.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/cheat fever", "[on|off]", TextId.CheatDescFever.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/cheat flowrate", "[num]", TextId.CheatDescFlowRate.Get()));
-            ctx.Log(ConsoleFormat.Line);
-        });
         root.AddCommand(cheatCmd);
-
-        CommandRegistry.RegisterCompletions("cheat fever", 0, "on", "off");
-        CommandRegistry.RegisterHint("cheat flowrate", 0, "[0 ≤ num < 16]");
     }
 }

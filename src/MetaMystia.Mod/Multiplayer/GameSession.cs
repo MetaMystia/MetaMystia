@@ -116,7 +116,7 @@ public static partial class GameSession
         client.NoticeReceived += notice =>
         {
             if (Client == client && notice.Code == ServerNoticeCode.Retiring)
-                InGameConsole.AddPeerMessage(TextId.ServerChatName.Get(), TextId.NetworkUpdateNotice.Get(notice.TargetModVersion));
+                InGameConsole.AddChat(TextId.ServerChatName.Get(), TextId.NetworkUpdateNotice.Get(notice.TargetModVersion), fromServer: true);
         };
         client.ConnectionEnded += reason =>
         {
