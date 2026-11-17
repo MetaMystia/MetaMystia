@@ -20,7 +20,7 @@ var recent = new LogBuffer();
 void Write(ServerLogLevel level, string message)
 {
     log.Write(level, message);
-    recent.Add(ServerAdministration.Level(level), message);
+    recent.Add(ServerApi.Level(level), message);
 }
 await using var server = new Server(new ServerOptions
 {
@@ -35,7 +35,7 @@ var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAs
 ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; done.TrySetResult(true); };
 Console.CancelKeyPress += cancel;
 await server.StartAsync();
-await using var admin = adminOptions == null ? null : ServerAdministration.Create(server, adminOptions, null, recent, AppContext.BaseDirectory);
+await using var admin = adminOptions == null ? null : ServerApi.Create(server, adminOptions, null, recent, AppContext.BaseDirectory);
 if (admin != null) await admin.StartAsync();
 using var adminStopping = admin?.Lifetime.ApplicationStopping.Register(() => done.TrySetResult(true));
 var ending = Task.WhenAny(done.Task, server.Drained);
