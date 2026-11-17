@@ -37,9 +37,9 @@
 
 ```text
 dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
-dotnet run --project src/MetaMystia.Network.Tests -c Release
-dotnet run --project src/MetaMystia.Flow.Tests -c Release
-dotnet run --project src/MetaMystia.Spell.Tests -c Release
+dotnet run --project tests/MetaMystia.Network.Tests -c Release
+dotnet run --project tests/MetaMystia.Flow.Tests -c Release
+dotnet run --project tests/MetaMystia.Spell.Tests -c Release
 python tools/check.py
 ```
 
