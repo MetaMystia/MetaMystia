@@ -26,11 +26,14 @@ public static partial class InGameConsole
         public DateTime Time;
         public float Shown;
         public int Count = 1;
-        public TMPro.TextMeshProUGUI? Row;
+        public RectTransform? Row;
+        public UnityEngine.UI.Image Bubble = null!;
+        public CanvasGroup Group = null!;
+        public TMPro.TextMeshProUGUI Text = null!;
+        public float Alpha = -1f;
         public float Top;
         public float Height;
-        public Vector2 FeedSize;
-        public float FeedWidth;
+        public float Width;
     }
 
     private const int MaxEntries = 300;
@@ -109,6 +112,7 @@ public static partial class InGameConsole
             LogToConsole(factory());
         _deferred.Clear();
         OverlayUi.RefreshFont();
+        if (_root != null) ApplyLayout(force: true);
     }
 
     public static void ClearLogs()
@@ -133,7 +137,6 @@ public static partial class InGameConsole
                 last.Count++;
                 last.Time = DateTime.Now;
                 last.Shown = now;
-                last.FeedWidth = 0f;
                 UpdateRow(last);
                 _layoutDirty = true;
                 continue;
@@ -144,7 +147,7 @@ public static partial class InGameConsole
             {
                 var removed = _entries[0];
                 _entries.RemoveAt(0);
-                if (!_follow) _scroll = Mathf.Max(0f, _scroll - removed.Height);
+                if (!_follow) _scroll = Mathf.Max(0f, _scroll - removed.Height - RowGap);
                 if (removed.Row != null) UnityEngine.Object.Destroy(removed.Row.gameObject);
             }
             UpdateRow(entry);
@@ -154,9 +157,9 @@ public static partial class InGameConsole
     }
 
     private static string RowText(Entry entry) =>
-        $"<color=#6F6A7A><size=72%>{entry.Time:HH:mm}</size></color><indent=2.6em>{FeedText(entry)}</indent>";
+        $"<color=#6F6A7A><size=72%>{entry.Time:HH:mm}</size></color><indent=2.6em>{BodyText(entry)}</indent>";
 
-    private static string FeedText(Entry entry) =>
+    private static string BodyText(Entry entry) =>
         entry.Count > 1 ? $"{entry.Body} <color=#8C8698>×{entry.Count}</color>" : entry.Body;
 
     // ── 帧循环 ──
@@ -214,6 +217,7 @@ public static partial class InGameConsole
         _field.DeactivateInputField();
         SetText("", refresh: false);
         _completion.Reset();
+        ScrollToLatest();
         ShowOpen(false);
         var eventSystem = EventSystem.current;
         if (eventSystem != null)

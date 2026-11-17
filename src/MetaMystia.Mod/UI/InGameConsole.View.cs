@@ -17,15 +17,6 @@ public static partial class InGameConsole
 {
     private enum DragMode { None, Move, Resize, Scrollbar }
 
-    private sealed class FeedRow
-    {
-        public RectTransform Rect = null!;
-        public CanvasGroup Group = null!;
-        public TextMeshProUGUI Text = null!;
-        public Entry? Entry;
-        public int Count;
-    }
-
     private sealed class PopupRow
     {
         public RectTransform Rect = null!;
@@ -36,13 +27,9 @@ public static partial class InGameConsole
     private const float HeaderHeight = 30f;
     private const float Pad = 8f;
     private const float Radius = 10f;
-    private const float RowGap = 3f;
+    private const float RowGap = 4f;
     private const float RowInset = 4f;
     private const float ScrollbarSpace = 10f;
-    private const float BubblePadX = 9f;
-    private const float BubblePadY = 3f;
-    private const float FeedGap = 3f;
-    private const int FeedLines = 10;
     private const float DefaultBottom = 64f;
     private const float MinWidth = 360f;
     private const float MinLogHeight = 100f;
@@ -66,12 +53,10 @@ public static partial class InGameConsole
     private static Image _stripe = null!;
     private static TMP_InputField _field = null!;
     private static TextMeshProUGUI _placeholder = null!;
-    private static RectTransform _feed = null!;
     private static RectTransform _popup = null!;
     private static GameObject _outline = null!;
-    private static readonly List<FeedRow> _feedRows = [];
     private static readonly List<PopupRow> _popupRows = [];
-    private static readonly List<Entry> _feedVisible = [];
+    private static bool _fadeFull = true;
     private static UnityAction<string> _onSubmit = null!;
     private static UnityAction<string> _onEndEdit = null!;
 
@@ -153,7 +138,8 @@ public static partial class InGameConsole
                 OverlayUi.Place(dot.rectTransform, Vector2.one, new Vector2(-4 - (2 - column) * 5, -4 - row * 5), new Vector2(2.5f, 2.5f));
             }
 
-        _viewport = OverlayUi.Node("Viewport", _panel.transform);
+        // 日志区不属于面板，关闭时仍在原位置显示最近的消息。
+        _viewport = OverlayUi.Node("Viewport", _root);
         _viewport.gameObject.AddComponent<RectMask2D>();
         _content = OverlayUi.Node("Content", _viewport);
         _content.anchorMin = _content.anchorMax = _content.pivot = new Vector2(0, 1);
@@ -203,7 +189,6 @@ public static partial class InGameConsole
         _field.onSubmit.AddListener(_onSubmit);
         _field.onEndEdit.AddListener(_onEndEdit);
 
-        _feed = OverlayUi.Node("Feed", _root);
         _popup = OverlayUi.Box("Popup", _root, OverlayUi.Raised, 8f).rectTransform;
         for (int i = 0; i < CompletionEngine.MaxVisible + 2; i++)
         {
@@ -244,8 +229,8 @@ public static partial class InGameConsole
     {
         _blocker.SetActive(open);
         _panel.SetActive(open);
-        _feed.gameObject.SetActive(!open);
         _popup.gameObject.SetActive(false);
+        _fadeFull = true;
         if (!open) return;
         _placeholder.text = TextId.ConsoleInputPlaceholder.Get();
         _hints.text = TextId.ConsoleKeyHints.Get();
@@ -258,11 +243,18 @@ public static partial class InGameConsole
         if (_root == null) return;
         if (entry.Row == null)
         {
-            entry.Row = OverlayUi.Label("Line", _content, _fontSize, OverlayUi.Text);
-            var rect = entry.Row.rectTransform;
+            // 底色只在关闭时显示。
+            entry.Bubble = OverlayUi.Box("Line", _content, _open ? Color.clear : OverlayUi.Bubble, 4f);
+            entry.Row = entry.Bubble.rectTransform;
+            entry.Row.anchorMin = entry.Row.anchorMax = entry.Row.pivot = new Vector2(0, 1);
+            entry.Group = entry.Bubble.gameObject.AddComponent<CanvasGroup>();
+            entry.Group.blocksRaycasts = false;
+            entry.Text = OverlayUi.Label("Text", entry.Row, _fontSize, OverlayUi.Text);
+            var rect = entry.Text.rectTransform;
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1);
+            rect.anchoredPosition = new Vector2(RowInset, -(RowGap - 1f) / 2f);
         }
-        entry.Row.text = RowText(entry);
+        entry.Text.text = RowText(entry);
     }
 
     // ── 布局 ──
@@ -270,16 +262,13 @@ public static partial class InGameConsole
     private static void UpdateView()
     {
         ApplyLayout(force: false);
+        if (_layoutDirty) LayoutRows();
+        ApplyScroll();
+        UpdateFade();
         if (_open)
         {
-            if (_layoutDirty) LayoutRows();
-            ApplyScroll();
             if (_popupDirty) RenderPopup();
             _stripe.color = _text.StartsWith('/') ? OverlayUi.CommandColor : new Color(OverlayUi.Dim.r, OverlayUi.Dim.g, OverlayUi.Dim.b, 0.5f);
-        }
-        else
-        {
-            UpdateFeed();
         }
         _outline.SetActive(LiveModeManager.ShowUntrustedZoneOutline);
     }
@@ -314,7 +303,6 @@ public static partial class InGameConsole
         _inputBar.anchoredPosition = new Vector2(0, Pad);
         OverlayUi.Place(_stripe.rectTransform, new Vector2(0, 0.5f), new Vector2(8, 0), new Vector2(3, InputHeight - 16));
         _field.pointSize = _fontSize;
-        OverlayUi.Fill(_feed, Pad, Pad + InputHeight + Pad, Pad, HeaderHeight);
         _rowWidth = _width - 2 * Pad - ScrollbarSpace - RowInset;
 
         if (reflow)
@@ -322,10 +310,8 @@ public static partial class InGameConsole
             foreach (var entry in _entries)
             {
                 entry.Height = 0f;
-                entry.FeedWidth = 0f;
-                if (entry.Row != null) entry.Row.fontSize = _fontSize;
+                if (entry.Row != null) entry.Text.fontSize = _fontSize;
             }
-            foreach (var row in _feedRows) row.Text.fontSize = _fontSize;
             foreach (var row in _popupRows) row.Text.fontSize = _fontSize;
         }
         _layoutDirty = true;
@@ -340,13 +326,19 @@ public static partial class InGameConsole
         {
             if (entry.Row == null) continue;
             if (entry.Height <= 0f)
-                entry.Height = OverlayUi.Measure(entry.Row.text, _fontSize, _rowWidth).y;
+            {
+                var size = OverlayUi.Measure(entry.Text.text, _fontSize, _rowWidth);
+                entry.Height = size.y;
+                entry.Width = Mathf.Min(size.x, _rowWidth);
+            }
             entry.Top = y;
-            entry.Row.rectTransform.anchoredPosition = new Vector2(RowInset, -y);
-            entry.Row.rectTransform.sizeDelta = new Vector2(_rowWidth, entry.Height);
+            // 底色比文字多出半个行距，相邻两行之间留 1 像素。
+            entry.Row.anchoredPosition = new Vector2(0, -y);
+            entry.Row.sizeDelta = new Vector2(entry.Width + 2 * RowInset, entry.Height + RowGap - 1f);
+            entry.Text.rectTransform.sizeDelta = new Vector2(_rowWidth, entry.Height);
             y += entry.Height + RowGap;
         }
-        _contentHeight = Mathf.Max(0f, y - RowGap);
+        _contentHeight = Mathf.Max(0f, y - 1f);
         _content.sizeDelta = new Vector2(_rowWidth + RowInset, _contentHeight);
     }
 
@@ -363,7 +355,7 @@ public static partial class InGameConsole
         _content.anchoredPosition = new Vector2(0, _contentHeight <= _viewHeight ? _contentHeight - _viewHeight : _scroll);
 
         bool scrollable = _contentHeight > _viewHeight;
-        _scrollbar.gameObject.SetActive(scrollable);
+        _scrollbar.gameObject.SetActive(_open && scrollable);
         if (scrollable)
         {
             float handle = Mathf.Max(24f, _viewHeight * _viewHeight / _contentHeight);
@@ -371,7 +363,7 @@ public static partial class InGameConsole
             OverlayUi.Place(_scrollbar, Vector2.one, new Vector2(-3, -top), new Vector2(4, handle));
         }
 
-        _unreadPill.gameObject.SetActive(_unread > 0);
+        _unreadPill.gameObject.SetActive(_open && _unread > 0);
         if (_unread > 0 && _unread != _unreadShown)
         {
             _unreadShown = _unread;
@@ -396,58 +388,26 @@ public static partial class InGameConsole
 
     // ── 关闭时的消息 ──
 
-    private static void UpdateFeed()
+    /// <summary>关闭时只显示最近的消息并渐隐，位置与打开时一致。</summary>
+    private static void UpdateFade()
     {
         float now = Time.unscaledTime;
         float linger = ConfigManager.ConsolePassiveLingerTime.Value;
         float fade = Mathf.Max(0.01f, ConfigManager.ConsolePassiveFadeTime.Value);
-        _feedVisible.Clear();
-        for (int i = _entries.Count - 1; i >= 0 && _feedVisible.Count < FeedLines; i--)
+        bool full = _fadeFull;
+        _fadeFull = false;
+        for (int i = _entries.Count - 1; i >= 0; i--)
         {
-            if (now - _entries[i].Shown >= linger + fade) break;
-            _feedVisible.Add(_entries[i]);
+            var entry = _entries[i];
+            if (entry.Row == null) continue;
+            float alpha = _open ? 1f : Mathf.Clamp01(1f - (now - entry.Shown - linger) / fade);
+            if (full) entry.Bubble.color = _open ? Color.clear : OverlayUi.Bubble;
+            // 更早的消息已是同样的透明度。
+            else if (alpha == entry.Alpha && (_open || alpha == 0f)) break;
+            if (alpha == entry.Alpha) continue;
+            entry.Alpha = alpha;
+            entry.Group.alpha = alpha;
         }
-
-        float maxText = _width - 2 * Pad - 2 * BubblePadX;
-        float y = 0f;
-        for (int i = 0; i < FeedLines; i++)
-        {
-            if (i >= _feedVisible.Count)
-            {
-                if (i < _feedRows.Count) _feedRows[i].Rect.gameObject.SetActive(false);
-                continue;
-            }
-            var entry = _feedVisible[i];
-            var row = i < _feedRows.Count ? _feedRows[i] : CreateFeedRow();
-            if (entry.FeedWidth != maxText)
-            {
-                entry.FeedSize = OverlayUi.Measure(FeedText(entry), _fontSize, maxText);
-                entry.FeedWidth = maxText;
-            }
-            if (row.Entry != entry || row.Count != entry.Count)
-            {
-                row.Entry = entry;
-                row.Count = entry.Count;
-                row.Text.text = FeedText(entry);
-            }
-            var size = new Vector2(Mathf.Min(entry.FeedSize.x, maxText) + 2 * BubblePadX, entry.FeedSize.y + 2 * BubblePadY);
-            OverlayUi.Place(row.Rect, Vector2.zero, new Vector2(0, y), size);
-            row.Rect.gameObject.SetActive(true);
-            float age = now - entry.Shown;
-            row.Group.alpha = age < linger ? 1f : 1f - Mathf.Clamp01((age - linger) / fade);
-            y += size.y + FeedGap;
-        }
-    }
-
-    private static FeedRow CreateFeedRow()
-    {
-        var bubble = OverlayUi.Box("Bubble", _feed, OverlayUi.Bubble, 7f);
-        var text = OverlayUi.Label("Text", bubble.rectTransform, _fontSize, OverlayUi.Text);
-        OverlayUi.Fill(text.rectTransform, BubblePadX, BubblePadY, BubblePadX, BubblePadY);
-        var row = new FeedRow { Rect = bubble.rectTransform, Group = bubble.gameObject.AddComponent<CanvasGroup>(), Text = text };
-        row.Group.blocksRaycasts = false;
-        _feedRows.Add(row);
-        return row;
     }
 
     // ── 补全弹层 ──
