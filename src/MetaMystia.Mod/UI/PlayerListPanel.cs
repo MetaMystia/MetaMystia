@@ -12,7 +12,7 @@ using MetaMystia.Network;
 namespace MetaMystia.UI;
 
 /// <summary>
-/// 左上角玩家列表，可拖动。联机时在控制台打开或按回车后显示。
+/// 玩家列表，可拖动。联机时在控制台打开或按回车后显示。
 /// </summary>
 [AutoLog]
 public static partial class PlayerListPanel
@@ -43,7 +43,8 @@ public static partial class PlayerListPanel
     private static Vector2 _position;
 
     private static float FontSize => ConfigManager.PlayerListFontSize.Value > 0 ? ConfigManager.PlayerListFontSize.Value : DefaultFontSize;
-    private static Vector2 Anchor => new(0, 1);
+    // 以右上角定位：宽度随内容和字号变化时，标题栏右侧的字号按钮不移动。
+    private static Vector2 Anchor => Vector2.one;
 
     public static void Update()
     {
@@ -107,7 +108,7 @@ public static partial class PlayerListPanel
         }
         var measured = _body.GetPreferredValues(text, 4000f, 0f);
         var size = new Vector2(Mathf.Clamp(measured.x + 2 * Pad + 4, MinWidth, OverlayUi.Size.x * 0.6f), HeaderHeight + 4 + measured.y + Pad);
-        var requested = _dragging ? _position : new Vector2(ConfigManager.PlayerListX.Value, -ConfigManager.PlayerListY.Value);
+        var requested = _dragging ? _position : new Vector2(-ConfigManager.PlayerListX.Value, -ConfigManager.PlayerListY.Value);
         _position = OverlayUi.Clamp(Anchor, requested, size);
         OverlayUi.Place(_root, Anchor, _position, size);
     }
@@ -133,7 +134,7 @@ public static partial class PlayerListPanel
         }
         _dragging = false;
         ConfigManager.Config.SaveOnConfigSet = false;
-        ConfigManager.PlayerListX.Value = Mathf.Round(_position.x);
+        ConfigManager.PlayerListX.Value = Mathf.Round(-_position.x);
         ConfigManager.PlayerListY.Value = Mathf.Round(-_position.y);
         ConfigManager.Config.SaveOnConfigSet = true;
         ConfigManager.Config.Save();

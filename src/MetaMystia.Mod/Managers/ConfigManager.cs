@@ -157,7 +157,7 @@ public static partial class ConfigManager
 
         // Player list
         PlayerListX = Config.Bind("PlayerList", "X", 8f,
-            "Player list distance from the left edge (1080p units)\n玩家列表距左边缘的距离（按 1080p 计）");
+            "Player list distance from the right edge (1080p units)\n玩家列表距右边缘的距离（按 1080p 计）");
         PlayerListY = Config.Bind("PlayerList", "Y", 8f,
             "Player list distance from the top edge (1080p units)\n玩家列表距上边缘的距离（按 1080p 计）");
         PlayerListFontSize = Config.Bind("PlayerList", "FontSize", 0,
