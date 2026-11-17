@@ -13,8 +13,8 @@ namespace MetaMystia.UI;
 [AutoLog]
 public static partial class OverlayUi
 {
-    // 高于操作面板 UIPannelRoot（8000），低于 RootCanvas（32600，暂停菜单、淡入淡出、光标），光标不被遮挡。
-    private const int SortingOrder = 30000;
+    // 高于各场景的主画布（最高 32500），低于 RootCanvas（32600，暂停菜单、淡入淡出、光标），光标不被遮挡。
+    private const int SortingOrder = 32550;
     private const float ReferenceHeight = 1080f;
     private const int SpriteRadius = 16;
 
@@ -191,15 +191,13 @@ public static partial class OverlayUi
         rect.sizeDelta = size;
     }
 
+    // 覆盖层画布的世界坐标即屏幕坐标。
     public static bool IsPointerOver(RectTransform rect)
-        => rect.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, null);
+        => rect.gameObject.activeInHierarchy && rect.rect.Contains((Vector2)rect.InverseTransformPoint(Input.mousePosition));
 
     /// <summary>指针相对于给定锚点的位置（参考分辨率单位）。</summary>
     public static Vector2 Pointer(Vector2 anchor)
-    {
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(Root, Input.mousePosition, null, out var local);
-        return local - (anchor - new Vector2(0.5f, 0.5f)) * Size;
-    }
+        => (Vector2)Root.InverseTransformPoint(Input.mousePosition) - (anchor - new Vector2(0.5f, 0.5f)) * Size;
 
     /// <summary>限制锚点与轴心相同的面板完全处于屏幕内。</summary>
     public static Vector2 Clamp(Vector2 anchor, Vector2 position, Vector2 size)
@@ -210,5 +208,6 @@ public static partial class OverlayUi
             Mathf.Clamp(position.y, anchor.y * (size.y - screen.y), (1f - anchor.y) * (screen.y - size.y)));
     }
 
-    public static string Hex(Color color) => "#" + ColorUtility.ToHtmlStringRGB(color);
+    // ColorUtility 在游戏中被裁剪。
+    public static string Hex(Color color) => $"#{(int)(color.r * 255):X2}{(int)(color.g * 255):X2}{(int)(color.b * 255):X2}";
 }
