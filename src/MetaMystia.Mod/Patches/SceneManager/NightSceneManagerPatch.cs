@@ -4,9 +4,8 @@ using Common.UI;
 using NightScene;
 
 using MetaMystia.Multiplayer;
-using MetaMystia.Patch;
 
-namespace MetaMystia;
+namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(NightScene.SceneManager))]
