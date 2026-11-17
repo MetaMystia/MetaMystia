@@ -75,16 +75,16 @@ jobs:
         run: dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
 
       - name: 网络测试
-        run: dotnet run --project src/MetaMystia.Network.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Network.Tests -c Release
 
       - name: 流程测试
-        run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Flow.Tests -c Release
 
       - name: 部署流程测试
-        run: dotnet run --project src/MetaMystia.Hosting.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
 
       - name: 符卡测试
-        run: dotnet run --project src/MetaMystia.Spell.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Spell.Tests -c Release
 
       - name: 构建服务端
         run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release --self-contained false -p:UseAppHost=false

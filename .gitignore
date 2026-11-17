@@ -16,6 +16,8 @@ copilot-instructions.md
 /obj
 /src/**/bin/
 /src/**/obj/
+/tests/**/bin/
+/tests/**/obj/
 
 private.pem
 chat-filter.json

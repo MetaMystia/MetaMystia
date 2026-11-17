@@ -41,7 +41,7 @@ jobs:
           printf '%s\n' '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' > global.json
       - name: 验证并构建 Gateway
         run: |
-          dotnet run --project src/MetaMystia.Hosting.Tests -c Release
+          dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
           dotnet publish src/MetaMystia.Gateway -c Release -r linux-x64 --self-contained true -o .tmp/gateway
           tar -czf .tmp/gateway.tar.gz -C .tmp/gateway .
       - name: 停止并部署 Gateway

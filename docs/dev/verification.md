@@ -16,10 +16,10 @@
 
 ```text
 dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
-dotnet run --project src/MetaMystia.Network.Tests -c Release
-dotnet run --project src/MetaMystia.Flow.Tests -c Release
-dotnet run --project src/MetaMystia.Hosting.Tests -c Release
-dotnet run --project src/MetaMystia.Spell.Tests -c Release
+dotnet run --project tests/MetaMystia.Network.Tests -c Release
+dotnet run --project tests/MetaMystia.Flow.Tests -c Release
+dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
+dotnet run --project tests/MetaMystia.Spell.Tests -c Release
 python tools/check.py
 dotnet build src/MetaMystia.Server -c Release              # 修改服务端时
 python -m dayart.validate <资源包.zip>      # 在 tools/day-map-art 下运行

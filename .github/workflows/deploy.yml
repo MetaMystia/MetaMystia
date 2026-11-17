@@ -68,11 +68,11 @@ jobs:
           '{"sdk":{"version":"10.0.303","rollForward":"disable"}}' |
             Set-Content global.json -Encoding utf8
       - name: 网络测试
-        run: dotnet run --project src/MetaMystia.Network.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Network.Tests -c Release
       - name: 流程测试
-        run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Flow.Tests -c Release
       - name: 部署流程测试
-        run: dotnet run --project src/MetaMystia.Hosting.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
       - name: 构建 Linux 服务端（包含运行时）
         run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release -r linux-x64 --self-contained true
       - name: 记录部署版本
