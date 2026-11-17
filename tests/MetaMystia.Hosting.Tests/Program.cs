@@ -62,7 +62,10 @@ await using var old = new Server(new() { Versions = v1 });
 await using var newer = new Server(new() { Versions = v2 });
 await old.StartAsync(); await newer.StartAsync();
 var configDirectory = Path.GetDirectoryName(path)!;
-Directory.CreateDirectory(configDirectory);
+var sharedConfig = Path.Combine(configDirectory, "shared", "server.json");
+Directory.CreateDirectory(Path.GetDirectoryName(sharedConfig)!);
+File.WriteAllText(sharedConfig, "{\"logChat\":false,\"welcomeMessages\":[]}");
+File.CreateSymbolicLink(Path.Combine(configDirectory, "server.json"), sharedConfig);
 await using var oldApi = ServerApi.Create(old, new("old", "http://127.0.0.1:0", "instance-test"), v1, configDirectory);
 await using var newApi = ServerApi.Create(newer, new("new", "http://127.0.0.1:0", "instance-test"), v2);
 await oldApi.StartAsync(); await newApi.StartAsync();
@@ -113,7 +116,8 @@ var originalConfig = config.GetProperty("content").GetString();
 var editedConfig = "{\"logChat\":true,\"welcomeMessages\":[\"欢迎\"]}";
 Check((await http.PutAsJsonAsync(configUrl, new { content = editedConfig, previousContent = originalConfig })).StatusCode == HttpStatusCode.NoContent &&
     (await old.GetStatusAsync()).LogChat && (await old.GetStatusAsync()).WelcomeMessages == 1 &&
-    File.ReadAllText(Path.Combine(configDirectory, "server.json")) == editedConfig, "面板配置保存到文件并立即应用");
+    File.ReadAllText(sharedConfig) == editedConfig && new FileInfo(Path.Combine(configDirectory, "server.json")).LinkTarget != null,
+    "面板配置写入符号链接目标并立即应用");
 Check((await http.PutAsJsonAsync(configUrl, new { content = "{}", previousContent = originalConfig })).StatusCode == HttpStatusCode.Conflict,
     "过期编辑不能覆盖新配置");
 foreach (var invalid in new[] { "{", "null", "{\"welcomeMessages\":[\"\"]}" })

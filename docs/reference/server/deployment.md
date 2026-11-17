@@ -113,7 +113,7 @@ Gateway 只有独立的 `Deploy gateway (manual)` 按钮，仅允许 main 分支
 
 管理面板由 `Deploy admin panel` 部署：`src/AdminPanel/` 推到 main 时自动运行，也可手动运行。服务器端 `deploy_panel.py` 只替换 `/var/www/metamystia-admin` 的静态文件，不重启任何服务。
 
-实例操作页可编辑公告、聊天记录开关与敏感词配置，需实例支持配置接口；端口、令牌等启动参数仍通过部署配置修改。退役和删除登记须勾选对应实例的风险确认。Gateway 页可导出筛选后的连接记录和趋势 CSV，实例玩家页可导出当前全部玩家。令牌页签发、吊销只读令牌。连接记录只保留内存中最近 2000 条，趋势只保留最近 24 小时，重启清空；导出不等于服务器长期归档。
+实例操作页可编辑公告、聊天记录开关与敏感词配置，需实例支持配置接口；端口、令牌等启动参数仍通过部署配置修改。实例目录中的 `server.json`、`chat-filter.json` 是指向 `/opt/metamystia-hosting/config/` 的符号链接，各实例共用；该目录归 `metamystia` 所有并列入实例单元的 `ReadWritePaths`。保存只让当前实例立即应用，其他实例在重新加载或重启后生效。退役和删除登记须勾选对应实例的风险确认。Gateway 页可导出筛选后的连接记录和趋势 CSV，实例玩家页可导出当前全部玩家。令牌页签发、吊销只读令牌。连接记录只保留内存中最近 2000 条，趋势只保留最近 24 小时，重启清空；导出不等于服务器长期归档。
 
 部署 SSH forced command 只接受 `deploy-instance`、`deploy-gateway` 和 `deploy-panel`；sudo 只授权对应 Python 脚本。Nginx 继续使用已有 HTTPS 证书，对公网只开放 `40815` 和 HTTPS，实例端口不开放防火墙。
 

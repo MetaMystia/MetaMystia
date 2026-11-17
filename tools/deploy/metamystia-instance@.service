@@ -18,7 +18,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/opt/metamystia-hosting/instances/%i/logs
+ReadWritePaths=/opt/metamystia-hosting/instances/%i/logs /opt/metamystia-hosting/config
 
 [Install]
 WantedBy=multi-user.target
