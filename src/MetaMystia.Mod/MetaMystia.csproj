@@ -198,7 +198,7 @@
       <HintPath>$(BepInExPath)\interop\Unity.TextMeshPro.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.InputSystem.dll">
+    <Reference Include="Unity.InputSystem">
       <HintPath>$(BepInExPath)\interop\Unity.InputSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
@@ -222,7 +222,7 @@
       <HintPath>$(BepInExPath)\interop\Omt.GamePlatformAPI.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Omt.GamePlatformAPI">
+    <Reference Include="DEYU.AdaptiveUISystem">
       <HintPath>$(BepInExPath)\interop\DEYU.AdaptiveUISystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
