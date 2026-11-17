@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Gateway", "src\M
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Common", "src\MetaMystia.Common\MetaMystia.Common.csproj", "{F2EFF1BC-94B2-448E-9DFD-34A4A8D02A71}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMystia.Hosting", "src\MetaMystia.Hosting\MetaMystia.Hosting.csproj", "{76D74EDE-8303-434D-8371-CEC5B95ACF21}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -155,6 +157,18 @@ Global
 		{F2EFF1BC-94B2-448E-9DFD-34A4A8D02A71}.Release|x64.Build.0 = Release|Any CPU
 		{F2EFF1BC-94B2-448E-9DFD-34A4A8D02A71}.Release|x86.ActiveCfg = Release|Any CPU
 		{F2EFF1BC-94B2-448E-9DFD-34A4A8D02A71}.Release|x86.Build.0 = Release|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Debug|x64.Build.0 = Debug|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Debug|x86.Build.0 = Debug|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Release|Any CPU.Build.0 = Release|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Release|x64.ActiveCfg = Release|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Release|x64.Build.0 = Release|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Release|x86.ActiveCfg = Release|Any CPU
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -168,6 +182,7 @@ Global
 		{EEBB8543-A211-4146-8648-AD6DE1D1D0E3} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{7ADBCF1F-A067-4517-87D8-4B1DF015DE00} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{F2EFF1BC-94B2-448E-9DFD-34A4A8D02A71} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{76D74EDE-8303-434D-8371-CEC5B95ACF21} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C3E907FF-3702-47A9-B1C1-F415BF723E06}
