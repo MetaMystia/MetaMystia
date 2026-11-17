@@ -5,10 +5,10 @@ namespace MetaMystia.Hosting;
 
 // Gateway 与实例共用的管理面板数据；只在内存中保留，进程重启即清空。
 
-internal sealed record LogRecord(long Seq, DateTimeOffset Time, string Level, string Message);
-internal sealed record LogPage(long Next, LogRecord[] Entries);
+public sealed record LogRecord(long Seq, DateTimeOffset Time, string Level, string Message);
+public sealed record LogPage(long Next, LogRecord[] Entries);
 
-internal sealed class LogBuffer(int capacity = 2000)
+public sealed class LogBuffer(int capacity = 2000)
 {
     private readonly object gate = new();
     private readonly Queue<LogRecord> entries = new();
@@ -37,10 +37,10 @@ internal sealed class LogBuffer(int capacity = 2000)
     }
 }
 
-internal sealed record ProcessInfo(DateTimeOffset StartedAt, double UptimeSeconds, long WorkingSetBytes, long ManagedBytes,
+public sealed record ProcessInfo(DateTimeOffset StartedAt, double UptimeSeconds, long WorkingSetBytes, long ManagedBytes,
     double CpuSeconds, int Threads, int[] GcCollections, int Processors, string Runtime);
 
-internal static class ProcessMetrics
+public static class ProcessMetrics
 {
     private static readonly DateTimeOffset started = Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
@@ -60,10 +60,10 @@ internal static class ProcessMetrics
     }
 }
 
-internal sealed record HistorySnapshot(int IntervalSeconds, string[] Names, double[][] Points);
+public sealed record HistorySnapshot(int IntervalSeconds, string[] Names, double[][] Points);
 
 /// <summary>按固定间隔采样，每个点为 [Unix 毫秒, 值...]。</summary>
-internal sealed class MetricHistory : IDisposable
+public sealed class MetricHistory : IDisposable
 {
     private readonly object gate = new();
     private readonly Queue<double[]> points = new();
@@ -117,7 +117,7 @@ internal sealed class MetricHistory : IDisposable
 }
 
 /// <summary>两次采样之间的 CPU 占用百分比（按单核计，可超过 100）。</summary>
-internal sealed class CpuMeter
+public sealed class CpuMeter
 {
     private double lastCpu = ProcessMetrics.CpuSeconds();
     private long lastTicks = Stopwatch.GetTimestamp();
