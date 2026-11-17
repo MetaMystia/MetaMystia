@@ -46,12 +46,16 @@ public static partial class InGameConsole
     private const float DefaultBottom = 64f;
     private const float MinWidth = 360f;
     private const float MinLogHeight = 100f;
+    private const float EdgeGrab = 6f;
+    private const float CornerGrab = 28f;
+    private static readonly Color HoverColor = new(1f, 1f, 1f, 0.06f);
 
     private static RectTransform? _root;
     private static GameObject _blocker = null!;
     private static GameObject _panel = null!;
     private static RectTransform _header = null!;
-    private static RectTransform _grip = null!;
+    private static RectTransform _fontDown = null!;
+    private static RectTransform _fontUp = null!;
     private static TextMeshProUGUI _hints = null!;
     private static RectTransform _viewport = null!;
     private static RectTransform _content = null!;
@@ -85,6 +89,8 @@ public static partial class InGameConsole
     private static DragMode _drag;
     private static Vector2 _dragOffset;
     private static Vector2 _dragStart;
+    private static Vector2 _resizeAxes;
+    private static int _popupHover = -1;
     private static int _unreadShown;
 
     private static Vector2 _requested;
@@ -95,7 +101,8 @@ public static partial class InGameConsole
     private static Vector2 _screen;
     private static float _rowWidth;
 
-    private static float FontSize => ConfigManager.ConsoleFontSize.Value > 0 ? ConfigManager.ConsoleFontSize.Value : 20f;
+    private const float DefaultFontSize = 20f;
+    private static float FontSize => ConfigManager.ConsoleFontSize.Value > 0 ? ConfigManager.ConsoleFontSize.Value : DefaultFontSize;
     private static float InputHeight => Mathf.Round(_fontSize * 1.9f);
     private static float TotalHeight => Pad + InputHeight + Pad + _logHeight + HeaderHeight;
 
@@ -134,13 +141,15 @@ public static partial class InGameConsole
         _hints.alignment = TextAlignmentOptions.MidlineRight;
         _hints.enableWordWrapping = false;
         _hints.overflowMode = TextOverflowModes.Ellipsis;
-        OverlayUi.Fill(_hints.rectTransform, 110, 0, 30, 0);
-        _grip = OverlayUi.Node("Grip", _header);
-        OverlayUi.Place(_grip, Vector2.one, new Vector2(-4, -4), new Vector2(22, 22));
+        OverlayUi.Fill(_hints.rectTransform, 110, 0, 36 + 2 * OverlayUi.FontButtonWidth, 0);
+        _fontDown = OverlayUi.FontButton(_header, "A−", -32 - OverlayUi.FontButtonWidth);
+        _fontUp = OverlayUi.FontButton(_header, "A+", -32);
+        var grip = OverlayUi.Node("Grip", _header);
+        OverlayUi.Place(grip, Vector2.one, new Vector2(-4, -4), new Vector2(22, 22));
         for (int row = 0; row < 3; row++)
             for (int column = row; column < 3; column++)
             {
-                var dot = OverlayUi.Box("Dot", _grip, OverlayUi.Dim);
+                var dot = OverlayUi.Box("Dot", grip, OverlayUi.Dim);
                 OverlayUi.Place(dot.rectTransform, Vector2.one, new Vector2(-4 - (2 - column) * 5, -4 - row * 5), new Vector2(2.5f, 2.5f));
             }
 
@@ -478,7 +487,9 @@ public static partial class InGameConsole
             row.Rect.gameObject.SetActive(i < lines.Count);
             if (i >= lines.Count) continue;
             row.Text.text = lines[i].Text;
-            row.Background.color = lines[i].Selected ? OverlayUi.Selection : Color.clear;
+            int item = i - (_completion.Usage != null ? 1 : 0);
+            row.Background.color = lines[i].Selected ? OverlayUi.Selection
+                : item >= 0 && item < visible && item == _popupHover ? HoverColor : Color.clear;
             row.Text.alignment = footer && i == lines.Count - 1 ? TextAlignmentOptions.MidlineRight : TextAlignmentOptions.MidlineLeft;
             OverlayUi.Place(row.Rect, new Vector2(0, 1), new Vector2(4, -4 - i * rowHeight), new Vector2(width - 8, rowHeight));
         }
@@ -502,6 +513,12 @@ public static partial class InGameConsole
 
     private static void HandlePointer()
     {
+        int hover = HoveredItem();
+        if (hover != _popupHover)
+        {
+            _popupHover = hover;
+            _popupDirty = true;
+        }
         if (Input.GetMouseButtonDown(0)) PointerDown();
         if (_drag != DragMode.None)
         {
@@ -509,22 +526,35 @@ public static partial class InGameConsole
             else EndDrag();
         }
         float wheel = Input.mouseScrollDelta.y;
-        if (wheel != 0f && OverlayUi.IsPointerOver(_viewport))
+        if (wheel == 0f) return;
+        if (_popup.gameObject.activeSelf && _completion.HasItems && OverlayUi.IsPointerOver(_popup))
+        {
+            _completion.Scroll(wheel > 0f ? -1 : 1);
+            _popupDirty = true;
+        }
+        else if (OverlayUi.IsPointerOver(_viewport))
+        {
             ScrollBy(-wheel * _fontSize * 3f);
+        }
+    }
+
+    /// <summary>指针所在的候选在可见行中的序号，没有时为 -1。</summary>
+    private static int HoveredItem()
+    {
+        if (!_popup.gameObject.activeSelf || !_completion.HasItems) return -1;
+        int first = _completion.Usage != null ? 1 : 0;
+        int visible = Math.Min(_completion.Items.Count, CompletionEngine.MaxVisible);
+        for (int i = 0; i < visible; i++)
+            if (OverlayUi.IsPointerOver(_popupRows[first + i].Rect)) return i;
+        return -1;
     }
 
     private static void PointerDown()
     {
-        if (_popup.gameObject.activeSelf && _completion.HasItems)
+        if (_popupHover >= 0)
         {
-            int first = _completion.Usage != null ? 1 : 0;
-            int visible = Math.Min(_completion.Items.Count, CompletionEngine.MaxVisible);
-            for (int i = 0; i < visible; i++)
-            {
-                if (!OverlayUi.IsPointerOver(_popupRows[first + i].Rect)) continue;
-                SetText(_completion.Accept(_completion.Offset + i), refresh: false);
-                return;
-            }
+            SetText(_completion.Accept(_completion.Offset + _popupHover), refresh: false);
+            return;
         }
         if (_unreadPill.gameObject.activeSelf && OverlayUi.IsPointerOver(_unreadPill))
         {
@@ -539,9 +569,28 @@ public static partial class InGameConsole
             return;
         }
         if (LiveModeManager.LockConsoleUi) return;
-        if (OverlayUi.IsPointerOver(_grip)) _drag = DragMode.Resize;
-        else if (OverlayUi.IsPointerOver(_header)) _drag = DragMode.Move;
-        _dragOffset = _position - OverlayUi.Pointer(Vector2.zero);
+        if (OverlayUi.IsPointerOver(_fontDown) || OverlayUi.IsPointerOver(_fontUp))
+        {
+            OverlayUi.AdjustFontSize(ConfigManager.ConsoleFontSize, (int)DefaultFontSize, OverlayUi.IsPointerOver(_fontUp) ? 2 : -2);
+            return;
+        }
+        var pointer = OverlayUi.Pointer(Vector2.zero);
+        var size = new Vector2(_width, TotalHeight);
+        // 右上角（面板以左下角定位）：指针到右边缘、上边缘的距离，面板外为负。
+        var toEdge = _position + size - pointer;
+        if (toEdge.x >= -EdgeGrab && toEdge.y >= -EdgeGrab && pointer.x >= _position.x && pointer.y >= _position.y)
+        {
+            _resizeAxes = toEdge.x <= CornerGrab && toEdge.y <= CornerGrab ? Vector2.one
+                : new Vector2(toEdge.x <= EdgeGrab ? 1f : 0f, toEdge.y <= EdgeGrab ? 1f : 0f);
+            if (_resizeAxes != Vector2.zero)
+            {
+                _drag = DragMode.Resize;
+                _dragOffset = toEdge;
+                return;
+            }
+        }
+        if (OverlayUi.IsPointerOver(_header)) _drag = DragMode.Move;
+        _dragOffset = _position - pointer;
     }
 
     private static void Drag()
@@ -554,11 +603,15 @@ public static partial class InGameConsole
                 _root!.anchoredPosition = _position;
                 break;
             case DragMode.Resize:
+                // 保持按下时指针与边缘的距离，按下瞬间尺寸不变。
                 var screen = OverlayUi.Size;
                 float chrome = TotalHeight - _logHeight;
+                var target = pointer + _dragOffset - _position;
                 ConfigManager.Config.SaveOnConfigSet = false;
-                ConfigManager.ConsoleWidth.Value = Mathf.Round(Mathf.Clamp(pointer.x - _position.x, MinWidth, screen.x - _position.x));
-                ConfigManager.ConsoleHeight.Value = Mathf.Round(Mathf.Clamp(pointer.y - _position.y - chrome, MinLogHeight, screen.y - _position.y - chrome));
+                if (_resizeAxes.x > 0f)
+                    ConfigManager.ConsoleWidth.Value = Mathf.Round(Mathf.Clamp(target.x, MinWidth, screen.x - _position.x));
+                if (_resizeAxes.y > 0f)
+                    ConfigManager.ConsoleHeight.Value = Mathf.Round(Mathf.Clamp(target.y - chrome, MinLogHeight, screen.y - _position.y - chrome));
                 break;
             case DragMode.Scrollbar:
                 float handle = Mathf.Max(24f, _viewHeight * _viewHeight / _contentHeight);

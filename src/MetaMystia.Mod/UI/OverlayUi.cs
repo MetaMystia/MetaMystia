@@ -5,6 +5,8 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+using Common.UI;
+
 namespace MetaMystia.UI;
 
 /// <summary>
@@ -13,10 +15,13 @@ namespace MetaMystia.UI;
 [AutoLog]
 public static partial class OverlayUi
 {
-    // 高于各场景的主画布（最高 32500），低于 RootCanvas（32600，暂停菜单、淡入淡出、光标），光标不被遮挡。
-    private const int SortingOrder = 32550;
+    // 高于各场景的主画布（最高 32500）和 RootCanvas（32600，暂停菜单、淡入淡出、光标）。
+    // 光标另设画布排到覆盖层之上。
+    private const int SortingOrder = 32700;
+    private const int CursorSortingOrder = 32767;
     private const float ReferenceHeight = 1080f;
     private const int SpriteRadius = 16;
+    public const float FontButtonWidth = 26f;
 
     public static readonly Color Surface = new(0.071f, 0.063f, 0.09f, 0.86f);
     public static readonly Color Raised = new(0.13f, 0.118f, 0.16f, 0.97f);
@@ -34,6 +39,8 @@ public static partial class OverlayUi
     private static Sprite _round = null!;
     private static TextMeshProUGUI _measure = null!;
     private static float _nextFontSearch;
+    private static Canvas? _cursorCanvas;
+    private static float _nextCursorCheck;
 
     public static Vector2 Size => Root.rect.size;
 
@@ -75,6 +82,27 @@ public static partial class OverlayUi
         foreach (var text in Root.GetComponentsInChildren<TMP_Text>(true))
             text.font = font;
         Log.Info($"Overlay font: {font.name}");
+    }
+
+    /// <summary>让游戏光标显示在覆盖层之上；光标随场景重建，每秒检查一次。</summary>
+    public static void KeepCursorOnTop()
+    {
+        if (Time.unscaledTime < _nextCursorCheck) return;
+        _nextCursorCheck = Time.unscaledTime + 1f;
+        if (_cursorCanvas == null)
+        {
+            foreach (var tracker in Resources.FindObjectsOfTypeAll<MouseTracker>())
+            {
+                if (!tracker.gameObject.activeInHierarchy) continue;
+                _cursorCanvas = tracker.GetComponent<Canvas>();
+                if (_cursorCanvas == null) _cursorCanvas = tracker.gameObject.AddComponent<Canvas>();
+                Log.Info("Cursor canvas raised above overlay");
+                break;
+            }
+            if (_cursorCanvas == null) return;
+        }
+        _cursorCanvas.overrideSorting = true;
+        _cursorCanvas.sortingOrder = CursorSortingOrder;
     }
 
     // 游戏自带的思源黑体 SDF 为动态图集并带完整字库，可显示任意中日韩字符。
@@ -152,6 +180,26 @@ public static partial class OverlayUi
             image.pixelsPerUnitMultiplier = SpriteRadius / radius;
         }
         return image;
+    }
+
+    /// <summary>标题栏右侧的字号按钮，纵向居中；x 为按钮右边缘到父节点右边缘的偏移。</summary>
+    public static RectTransform FontButton(RectTransform header, string text, float x)
+    {
+        var button = Box("FontButton", header, new Color(1f, 1f, 1f, 0.06f), 5f);
+        Place(button.rectTransform, new Vector2(1f, 0.5f), new Vector2(x, 0f), new Vector2(FontButtonWidth - 2f, 22f));
+        var label = Label("Label", button.rectTransform, 13f, Dim);
+        label.text = text;
+        label.alignment = TextAlignmentOptions.Center;
+        label.enableWordWrapping = false;
+        Fill(label.rectTransform, 0, 0, 0, 0);
+        return button.rectTransform;
+    }
+
+    /// <summary>每次 ±2，范围 10–36；配置为 0 时从 fallback 开始。</summary>
+    public static void AdjustFontSize(BepInEx.Configuration.ConfigEntry<int> entry, int fallback, int delta)
+    {
+        int current = entry.Value > 0 ? entry.Value : fallback;
+        entry.Value = Math.Clamp(current + delta, 10, 36);
     }
 
     public static TextMeshProUGUI Label(string name, Transform parent, float size, Color color)

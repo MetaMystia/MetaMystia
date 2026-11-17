@@ -59,6 +59,12 @@ public sealed class CompletionEngine
         Offset = Math.Clamp(Offset, Selected - MaxVisible + 1, Selected);
     }
 
+    /// <summary>滚动可见范围，不改变选中项。</summary>
+    public void Scroll(int delta)
+    {
+        if (HasItems) Offset = Math.Clamp(Offset + delta, 0, Math.Max(0, Items.Count - MaxVisible));
+    }
+
     /// <summary>Tab：填入选中项；继续按 Tab 时轮换到下一项。返回新的输入文本。</summary>
     public string? Cycle(bool reverse)
     {

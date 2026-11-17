@@ -165,6 +165,7 @@ public static partial class InGameConsole
     {
         DrainPending();
         if (!EnsureView()) return;
+        OverlayUi.KeepCursorOnTop();
 
         if (!_open)
         {

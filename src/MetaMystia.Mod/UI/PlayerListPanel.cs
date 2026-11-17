@@ -20,6 +20,7 @@ public static partial class PlayerListPanel
     private const float HeaderHeight = 26f;
     private const float Pad = 10f;
     private const float MinWidth = 220f;
+    private const float DefaultFontSize = 17f;
 
     private static readonly Color HostColor = new(0.56f, 0.83f, 1f);
     private static readonly Color SelfColor = new(0.55f, 0.88f, 0.64f);
@@ -31,6 +32,8 @@ public static partial class PlayerListPanel
     private static RectTransform _root;
     private static RectTransform _header;
     private static TextMeshProUGUI _title;
+    private static RectTransform _fontDown;
+    private static RectTransform _fontUp;
     private static TextMeshProUGUI _body;
     private static string _shown = "";
     private static float _shownSize;
@@ -39,7 +42,7 @@ public static partial class PlayerListPanel
     private static Vector2 _dragOffset;
     private static Vector2 _position;
 
-    private static float FontSize => ConfigManager.PlayerListFontSize.Value > 0 ? ConfigManager.PlayerListFontSize.Value : 17f;
+    private static float FontSize => ConfigManager.PlayerListFontSize.Value > 0 ? ConfigManager.PlayerListFontSize.Value : DefaultFontSize;
     private static Vector2 Anchor => new(0, 1);
 
     public static void Update()
@@ -77,9 +80,11 @@ public static partial class PlayerListPanel
         _header.pivot = new Vector2(0.5f, 1);
         _header.sizeDelta = new Vector2(0, HeaderHeight);
         _title = OverlayUi.Label("Title", _header, 14f, OverlayUi.Dim);
-        _title.alignment = TextAlignmentOptions.BottomLeft;
+        _title.alignment = TextAlignmentOptions.MidlineLeft;
         _title.enableWordWrapping = false;
-        OverlayUi.Fill(_title.rectTransform, Pad + 2, 0, Pad, 0);
+        OverlayUi.Fill(_title.rectTransform, Pad + 2, 0, Pad + 2 * OverlayUi.FontButtonWidth, 0);
+        _fontDown = OverlayUi.FontButton(_header, "A−", -6 - OverlayUi.FontButtonWidth);
+        _fontUp = OverlayUi.FontButton(_header, "A+", -6);
         _body = OverlayUi.Label("Body", _root, FontSize, OverlayUi.Text);
         _body.enableWordWrapping = false;
         _body.lineSpacing = 8f;
@@ -109,7 +114,12 @@ public static partial class PlayerListPanel
 
     private static void HandleDrag()
     {
-        if (Input.GetMouseButtonDown(0) && OverlayUi.IsPointerOver(_header))
+        if (Input.GetMouseButtonDown(0) && (OverlayUi.IsPointerOver(_fontDown) || OverlayUi.IsPointerOver(_fontUp)))
+        {
+            OverlayUi.AdjustFontSize(ConfigManager.PlayerListFontSize, (int)DefaultFontSize, OverlayUi.IsPointerOver(_fontUp) ? 2 : -2);
+            _nextRefresh = 0f;
+        }
+        else if (Input.GetMouseButtonDown(0) && OverlayUi.IsPointerOver(_header))
         {
             _dragging = true;
             _dragOffset = _position - OverlayUi.Pointer(Anchor);
