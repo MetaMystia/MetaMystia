@@ -75,6 +75,7 @@ public static partial class PatchRegistry
         typeof(NormalGuestsControllerPatch),
 
         typeof(RunTimeAlbumPatch),
+        typeof(RunTimePlayerDataPatch),
         typeof(RunTimeSchedulerPatch),
 
         // ResourceEx Patches
