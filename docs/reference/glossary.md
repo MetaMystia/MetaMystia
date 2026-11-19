@@ -75,6 +75,73 @@ GameData.Core.NonTradableObjectBase
 | 桌号 | `DeskCode` |
 | 小费 | `Tip` |
 
+## 符卡
+
+以下同时为游戏内角色名对照：「中文名」为游戏内角色名，「类名」为符卡类（`Spell_*`），「持有者标识」为 `OnGettingSpellOwnerIdentifier()` 的返回值。
+
+| 中文名 | 类名 | 持有者标识 | 备注 |
+| --- | --- | --- | --- |
+| — | `Spell_` | `—` | 基类占位（OnNegativeBuffExecute 抛 NotImplementedException） |
+| 稗田阿求 | `Spell_Akyuu` | `Akyuu` | |
+| 爱丽丝 | `Spell_Alice` | `Alice` | |
+| 射命丸文 | `Spell_Aya` | `ShameimaruAya` | |
+| 橙 | `Spell_Chen` | `Chen` | |
+| 琪露诺 | `Spell_Cirno` | `Cirno` | |
+| 爱莲 | `Spell_Ellen` | `Ellen` | |
+| 芙兰朵露 | `Spell_Flandre_Intro` | `Flandre` | 开场/介绍用符卡 |
+| 物部布都 | `Spell_Futo` | `MononobeFuto` | |
+| 今泉影狼 | `Spell_Kagerou` | `ImaizumiKagerou` | |
+| 蓬莱山辉夜 | `Spell_Kaguya` | `Kaguya` | |
+| 茨木华扇 | `Spell_Kasen` | `Kasen` | |
+| 上白泽慧音 | `Spell_Keine` | `Keine` | |
+| 上白泽慧音 | `Spell_Keine_Intro` | `—` | 代码无持有者标识；editor 中 Keine_Intro 名为占位符 |
+| 多多良小伞 | `Spell_Kogasa` | `TataraKogasa` | |
+| 古明地恋 | `Spell_Koishi` | `Koishi` | |
+| 秦心 | `Spell_Kokoro` | `TBSKokoro` | 4.4.0e 新增；owner 为 TBSKokoro |
+| 露易兹 | `Spell_Luize` | `Luize` | |
+| 二岩猯藏 | `Spell_Mamizou` | `HutatsuiwaMamizou` | |
+| 雾雨魔理沙 | `Spell_Marisa` | `Marisa` | |
+| 梅蒂欣 | `Spell_Medicine` | `Medicine` | |
+| 红美铃 | `Spell_Meirin` | `Meirin` | |
+| 魅魔 | `Spell_Mima` | `Mima` | |
+| 藤原妹红 | `Spell_Mokou` | `Mokou` | |
+| 犬走椛 | `Spell_Momizi` | `Momizi` | |
+| 村纱水蜜 | `Spell_Murasa` | `MurasaMinamitu` | |
+| 矢田寺成美 | `Spell_Narumi` | `Narumi` | |
+| 河城荷取 | `Spell_Nitori` | `Nitori` | |
+| 封兽鵺 | `Spell_Nue` | `HoujuuNue` | |
+| 火焰猫燐 | `Spell_Orin` | `Orin` | |
+| 水桥帕露西 | `Spell_Parsee` | `Parsee` | |
+| 帕秋莉 | `Spell_Patchouli` | `Patchouli` | |
+| 博丽灵梦 | `Spell_Reimu` | `Reimu` | |
+| 铃仙 | `Spell_Reisen2` | `Reisen2` | |
+| 蕾米莉亚 | `Spell_Remilia` | `DLC4_Remilia` | |
+| 冴月麟 | `Spell_Rin` | `Rin` | |
+| 森近霖之助 | `Spell_Rinnosuke` | `Rinnosuke` | |
+| 露米娅 | `Spell_Rumia` | `Rumia` | |
+| 东风谷早苗 | `Spell_Sanae` | `Sanae` | |
+| 古明地觉 | `Spell_Satori` | `Satori` | |
+| 霍青娥 | `Spell_Seiga` | `KakuSeiga` | |
+| 鬼人正邪 | `Spell_Seija` | `KijinSeija` | |
+| 少名针妙丸 | `Spell_Shinmyoumaru` | `SukunaShinmyoumaru` | |
+| 伊吹萃香 | `Spell_Suika` | `Suika` | |
+| 比那名居天子 | `Spell_Tenshi` | `Tenshi` | |
+| 因幡帝 | `Spell_Tewi` | `Tewi` | |
+| 饕餮尤魔 | `Spell_TotetsuYuuma` | `Totetsu` | editor 中拼作 Toutetsu |
+| 绵月丰姬 | `Spell_Toyohime` | `Toyohime` | |
+| 苏我屠自古 | `Spell_Toziko` | `SogaToziko` | |
+| 立空汐 | `Spell_Ushio` | `Ushio` | |
+| 灵乌路空 | `Spell_Utsuho` | `Utsuho` | |
+| 莉格露 | `Spell_Wriggle` | `Wriggle` | |
+| 黑谷山女 | `Spell_Yamame` | `Yamame` | |
+| 绵月依姬 | `Spell_Yorihime` | `Yorihime` | |
+| 魂魄妖梦 | `Spell_Youmu` | `Youmu_Free` | |
+| 八云紫 | `Spell_Yukari` | `Yukari` | |
+| 时焉侑 | `Spell_Yuu` | `Yuu` | |
+| 星熊勇仪 | `Spell_Yuugi` | `Yuugi` | |
+| 风见幽香 | `Spell_Yuuka` | `KazamiYuuka` | |
+| 西行寺幽幽子 | `Spell_Yuyuko` | `Yuyuko_Free` | |
+
 ## 食堂等级
 
 “食堂”也特指三级店铺。名称对应模组的 [等级映射](../../src/MetaMystia.Mod/Utils/MapLabel.cs) 与 [中文文本](../../src/MetaMystia.Mod/UI/Locales/zh-CN.json)。
