@@ -521,7 +521,7 @@ public partial class GuestFSM
                 // 游戏中仅对 Special Guest 执行无副作用的 CheckRemainingFund 以做等价预测
                 overrideResult = CheckRemainingFund(orderGenerationResult, controller);
             }
-            GenerateOrderMessage.Send(fsm.RuntimeId, orderGenerationResult, overrideResult, orderData);
+            GenerateOrderMessage.Send(fsm.RuntimeId, orderGenerationResult, overrideResult, orderData, controller.GetFund, controller.remainOrderCount);
 
             var finalResult = overrideResult ?? orderGenerationResult;
             if (finalResult == OrderGenerationResult.Succeed)
@@ -574,8 +574,10 @@ public partial class GuestFSM
     /// <param name="orderGenerationResult">订单生成结果</param>
     /// <param name="overrideResult">SpecialGuest 的订单覆盖结果(主机预测)</param>
     /// <param name="orderData">订单数据</param>
+    /// <param name="fund">主机点单后的剩余资金</param>
+    /// <param name="remainOrderCount">主机点单后的剩余点单次数</param>
     /// <returns></returns>
-    public static bool DoGenerateOrderSession(int runtimeId, OrderGenerationResult orderGenerationResult, OrderGenerationResult? overrideResult, OrderBase orderData)
+    public static bool DoGenerateOrderSession(int runtimeId, OrderGenerationResult orderGenerationResult, OrderGenerationResult? overrideResult, OrderBase orderData, int fund, int remainOrderCount)
     {
         var fsm = GuestsMap.GetGuestFsm(runtimeId);
         if (fsm == null) return false;
@@ -587,7 +589,9 @@ public partial class GuestFSM
             RuntimeId = runtimeId,
             OrderGenerationResult = orderGenerationResult,
             OrderData = orderData,
-            OverrideResult = overrideResult
+            OverrideResult = overrideResult,
+            Fund = fund,
+            RemainOrderCount = remainOrderCount
         };
 
         // 暂存主机口径的订单数据：让本地 GenerateOrderSession 重入 GenerateOrderInternal 时
