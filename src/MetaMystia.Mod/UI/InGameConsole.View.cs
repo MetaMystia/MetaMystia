@@ -94,7 +94,7 @@ public static partial class InGameConsole
     private static bool EnsureView()
     {
         if (_root != null) return true;
-        if (!OverlayUi.EnsureCreated(requireGameFont: !_deferredFlushed)) return false;
+        if (!OverlayUi.EnsureCreated(loadFont: _deferredFlushed)) return false;
         Build();
         return true;
     }

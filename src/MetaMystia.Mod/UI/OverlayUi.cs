@@ -48,8 +48,8 @@ public static partial class OverlayUi
 
     public static Vector2 Size => Root.rect.size;
 
-    /// <summary>创建画布。requireGameFont 为真时，游戏字体尚未加载则暂不创建。</summary>
-    public static bool EnsureCreated(bool requireGameFont)
+    /// <summary>创建画布。游戏字体尚未加载时暂不创建；loadFont 为真时经 Addressables 主动加载。</summary>
+    public static bool EnsureCreated(bool loadFont)
     {
         if (Root != null) return true;
         TMP_FontAsset? font = null;
@@ -65,12 +65,13 @@ public static partial class OverlayUi
         }
         if (font == null)
         {
-            if (requireGameFont && Time.unscaledTime < _nextFontSearch) return false;
+            if (Time.unscaledTime < _nextFontSearch) return false;
             _nextFontSearch = Time.unscaledTime + 0.5f;
-            font = FindGameFont();
+            font = FindGameFont(anySourceHanSans: _fontLoadFailed);
+            if (font == null && loadFont) LoadGameFont();
         }
-        if (font == null && requireGameFont) return false;
-        Font = font ?? CreateSystemFont();
+        if (font == null) return false;
+        Font = font;
         Log.Info($"Overlay font: {Font.name}");
 
         var go = new GameObject("MetaMystiaOverlay");
@@ -123,7 +124,7 @@ public static partial class OverlayUi
         _cursorCanvas.sortingOrder = CursorSortingOrder;
     }
 
-    /// <summary>开场动画期间游戏尚未加载字体，经 Addressables 主动加载；句柄不释放，字体随后由游戏共用。</summary>
+    /// <summary>游戏未加载所需字体时（开场动画期间，以及英文、日文下的简中字体）经 Addressables 主动加载；句柄不释放。</summary>
     public static void LoadGameFont()
     {
         if (_fontLoad != null || _fontLoadFailed) return;
@@ -132,6 +133,7 @@ public static partial class OverlayUi
     }
 
     // 游戏自带的思源黑体 SDF 为动态图集并带完整字库，可显示任意中日韩字符。
+    // 英文、日文界面所用的 SourceHanSans-Regular SDF 不带源字体文件，只有预烘焙字符，因此用简中字体。
     // 资源名同时是 Addressables 地址。
     private static string GameFontName => L10n.Language switch
     {
@@ -140,25 +142,17 @@ public static partial class OverlayUi
         _ => "SourceHanSansSC-Regular SDF",
     };
 
-    private static TMP_FontAsset? FindGameFont()
+    private static TMP_FontAsset? FindGameFont(bool anySourceHanSans = false)
     {
         string wanted = GameFontName;
         TMP_FontAsset? fallback = null;
         foreach (var font in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
         {
             if (font.name == wanted) return font;
-            if (font.name == "SourceHanSansSC-Regular SDF") fallback = font;
+            if (font.name == "SourceHanSansSC-Regular SDF" || anySourceHanSans && fallback == null && font.name.StartsWith("SourceHanSans"))
+                fallback = font;
         }
         return fallback;
-    }
-
-    private static TMP_FontAsset CreateSystemFont()
-    {
-        var font = UnityEngine.Font.CreateDynamicFontFromOSFont(
-            new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei", "Arial" }, 48);
-        var asset = TMP_FontAsset.CreateFontAsset(font);
-        asset.hideFlags = HideFlags.HideAndDontSave;
-        return asset;
     }
 
     private static Sprite CreateRoundSprite()
