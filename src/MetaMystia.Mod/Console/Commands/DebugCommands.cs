@@ -1,17 +1,19 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 
+using MetaMystia.UI;
+
 namespace MetaMystia.ConsoleSystem.Commands;
 
 public static class DebugCommands
 {
     public static void Register(RootCommand root)
     {
-        var debugCmd = new Command("debug", "Multiplayer debug commands");
+        var debugCmd = new Command("debug", TextId.CmdDescDebug.Get());
 
         // /debug kill <id>
-        var killCmd = new Command("kill", "Kill a guest by runtime ID");
-        var guestIdArg = new Argument<int>("id", "Guest runtime ID");
+        var killCmd = new Command("kill", TextId.DebugDescKill.Get());
+        var guestIdArg = new Argument<int>("id", TextId.ArgDescGuestId.Get());
         killCmd.AddArgument(guestIdArg);
         killCmd.SetHandler(ctx =>
         {
@@ -32,8 +34,5 @@ public static class DebugCommands
             ctx.Log(MetaMystia.UI.MultiplayerStatus.DebugText);
         });
         root.AddCommand(debugCmd);
-
-        CommandRegistry.RegisterCompletions("debug", 0, "kill");
-        CommandRegistry.RegisterHint("debug kill", 0, "<guest id>");
     }
 }

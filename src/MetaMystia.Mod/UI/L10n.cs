@@ -63,9 +63,6 @@ public enum TextId
     NetworkConnecting,
     NetworkOffline,
     NetworkStatus,
-    NetworkCommands,
-
-    DayMapHelp,
     DayMapList,
     DayMapUnavailable,
     DayMapInvalid,
@@ -188,7 +185,6 @@ public enum TextId
     PeerMessagePrefix,
     ConsoleNewMessages,
     CommandPrompt,
-    BepInExConsoleEnabled,
 
     // Console Command Help & Usage
     AvailableCommands,
@@ -201,7 +197,6 @@ public enum TextId
 
     // Console Status & Queries
     NotInDayScene,
-    NotInWorkScene,
     MapInfoDisplay,
     CurrentMapLabel,
     MystiaPosition,
@@ -237,22 +232,13 @@ public enum TextId
     MapLevel_Izakaya,
     MapLevel_Unknown,
     PeerIzakayaNotSelected,
-    InvalidMapKey,
 
     // Console Error Messages
     UnknownCommand,
     UnknownMethod,
-    ErrorGetMapsnpcs,
-    ErrorMovecharacter,
-    ErrorSceneMove,
 
     // Console Results & Feedback
     MessageSent,
-    NPCListItem,
-    TotalNPCsFound,
-    CharacterMoved,
-    CharacterMovedScene,
-    CalledTryCloseIzakaya,
 
     // Skin Commands
     SkinUsage,
@@ -276,16 +262,11 @@ public enum TextId
     CmdDescClear,
     CmdDescGet,
     CmdDescMp,
-    CmdDescCall,
     CmdDescSkin,
     CmdDescDebug,
     CmdDescWhereami,
-    CmdDescEnableBepinConsole,
 
     // Subcommand help headers
-    MpHelpHeader,
-    CallHelpHeader,
-    SkinHelpHeader,
 
     // Subcommand descriptions (short)
     MpDescStart,
@@ -299,10 +280,6 @@ public enum TextId
     MpDescKickId,
     MpDescKickUid,
     MpDescContinue,
-    CallDescGetmapsnpcs,
-    CallDescMovecharacter,
-    CallDescSceneMove,
-    CallDescTryCloseIzakaya,
     SkinDescSet,
     SkinDescNet,
     SkinDescRot,
@@ -327,7 +304,6 @@ public enum TextId
     // Console startup & link
     ConsoleStarPrompt,
     ConsoleHelpHint,
-    ConsoleMapSwapping,
     ConsoleTestServerWelcome,
     CmdDescLink,
     LinkDescMetaMystia,
@@ -338,7 +314,6 @@ public enum TextId
     ResourceExConsoleLoadedNoInfo,
     ResourceExConsoleRejected,
     CmdDescResourceEx,
-    ResourceExHelpHeader,
     ResourceExDescList,
     ResourceExDescInfo,
     ResourceExListHeader,
@@ -415,6 +390,47 @@ public enum TextId
     ConnectionVersionMismatch,
     ConnectionHandshakeTimeout,
     ConnectionHandshakeFailed,
+
+    // Console
+    MpDescPlay,
+    MpDescRooms,
+    MpDescCreate,
+    MpDescJoin,
+    MpDescLeave,
+    DebugDescKill,
+    ResourceExDescMap,
+    DayMapDescList,
+    DayMapDescGoto,
+    DayMapDescBack,
+    ArgDescCommand,
+    ArgDescField,
+    ArgDescPort,
+    ArgDescPlayerName,
+    ArgDescAddress,
+    ArgDescPlayerCount,
+    ArgDescRoomCode,
+    ArgDescUid,
+    ArgDescCharacterId,
+    ArgDescSkinType,
+    ArgDescSkinIndex,
+    ArgDescNetSkin,
+    ArgDescGuestId,
+    ArgDescPackage,
+    ArgDescMapId,
+    ArgDescSpawnMarker,
+    ArgDescLiveMode,
+    ArgDescFlowRate,
+    ConsoleInputPlaceholder,
+    ConsoleKeyHints,
+    ConsoleUsage,
+    ConsoleUnknownCommand,
+    ConsoleErrUnrecognized,
+    ConsoleErrInvalidValue,
+    ConsoleErrMissingArgument,
+    ConsoleErrBadFormat,
+    ConsoleErrExtraArgument,
+    ConsoleErrMissingSubcommand,
+    PlayerListTitle,
 }
 
 public static class L10n

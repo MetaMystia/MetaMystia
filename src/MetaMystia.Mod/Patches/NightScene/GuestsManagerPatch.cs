@@ -718,6 +718,9 @@ public partial class GuestsManagerPatch
         GuestGroupController.LeaveType leaveType,
         bool triggerLeaveBuff)
     {
+        // 单机不暂停时客人可能在上菜面板打开期间离桌，原版关面板会把物品写进已离开客人的订单。
+        if (GameTimeManagerPatch.NoPanelPause) GuestFSM.TryCloseServePanel(toLeave.DeskCode, returnToTray: true);
+
         if (Bypass.Active(toLeave)) return RunOriginal;
         if (YuyukoGuestSync.IsBody(toLeave)) return RunOriginal;
         if (IsReimuProtectionGuest(toLeave)) return RunOriginal;

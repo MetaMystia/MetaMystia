@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>0.31.2</Version>
+    <Version>0.31.4</Version>
     <TargetGameVersion>RELEASE 4.4.0e</TargetGameVersion>
     <NetworkProtocolVersion>0</NetworkProtocolVersion>
   </PropertyGroup>

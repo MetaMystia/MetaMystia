@@ -35,6 +35,8 @@ internal static class ServerConfiguration
     public static void Save(string directory, string name, string content)
     {
         var path = Path.Combine(directory, name + ".json");
+        // 托管实例的配置是指向共享目录的符号链接：写到链接目标，不把链接替换成普通文件。
+        if (File.Exists(path)) path = File.ResolveLinkTarget(path, true)?.FullName ?? path;
         var temporary = path + ".tmp";
         try
         {

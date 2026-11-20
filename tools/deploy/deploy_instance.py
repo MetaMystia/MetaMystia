@@ -113,8 +113,8 @@ def main():
         logs.mkdir(mode=0o750)
         os.chown(logs, user, group)
         for name in ("server.json", "chat-filter.json"):
-            if (ROOT / name).exists():
-                (staging / name).symlink_to(ROOT / name)
+            if (ROOT / "config" / name).exists():
+                (staging / name).symlink_to(ROOT / "config" / name)
         environment = {
             "MM_INSTANCE_ID": instance_id, "MM_GAME_PORT": str(game_port),
             "MM_GAME_ADDRESS": "127.0.0.1",
