@@ -15,8 +15,7 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public static partial class NightSceneEventManagerPatch
 {
-    public static readonly PatchBypassToken HostCloseReplay = new();
-    public static bool IsHostCloseReplay => HostCloseReplay.Pending > 0;
+    public static bool IsHostCloseReplay => Bypass.Active(EventManager.Instance);
 
     [HarmonyPatch(nameof(EventManager.Initialize))]
     [HarmonyPostfix]

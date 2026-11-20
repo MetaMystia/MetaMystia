@@ -415,16 +415,8 @@ public partial class GuestFSM
         eventManager.CallExternOnComboUpdate(result.Combo);
         eventManager.CallExternOnMusicIndexUpdate(eventManager.CurrentMusicLevelHandle.Invoke());
         TryCloseServePanel(controller.DeskCode);
-        GuestsManagerPatch.SkipRepellInternalPatch.Grant();
-        try
-        {
+        using (Bypass.Enter(controller))
             GuestsManager.Instance.RepellInternal(controller, out _, result.LeaveType, result.TriggerLeaveBuff);
-        }
-        finally
-        {
-            GuestsManagerPatch.SkipRepellInternalPatch.Reset();
-            GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
-        }
     }
 
     /// <summary>
@@ -920,10 +912,10 @@ public partial class GuestFSM
             if (panel.willServeBeverage != null) IzakayaTray.Instance.Receive(panel.willServeBeverage);
         }
 
-        WorkSceneServePannelPatch.instanceRef?.willServeFood = null;
-        WorkSceneServePannelPatch.instanceRef?.willServeBeverage = null;
-        WorkSceneServePannelPatch.SkipOnPanelClosePatch.Grant();
-        WorkSceneServePannelPatch.instanceRef?.CloseExternPanel();
+        panel.willServeFood = null;
+        panel.willServeBeverage = null;
+        Bypass.Grant(panel);
+        panel.CloseExternPanel();
         return true;
     }
 
@@ -1207,16 +1199,8 @@ public partial class GuestFSM
         fsm.To(State.Leaving);
         // 同时放行耐心耗尽入口和它内部的离桌，重放原版订单清理与回调。
         TryCloseServePanel(fsm.DeskCode);
-        GuestsManagerPatch.SkipPatientDepletedLeavePatch.Grant();
-        try
-        {
+        using (Bypass.Enter(controller))
             GuestsManager.Instance.PatientDepletedLeave(controller);
-        }
-        finally
-        {
-            GuestsManagerPatch.SkipPatientDepletedLeavePatch.Reset();
-            GuestsManagerPatch.SkipLeaveFromDeskPatch.Reset();
-        }
         return true;
     }
 
@@ -1251,8 +1235,8 @@ public partial class GuestFSM
         if (fsm == null) return false;
         if (fsm.CurrentState == State.Dead || fsm.CurrentState == State.Left) return true;
         FlowLog($"Guest #{runtimeId} DoLeaveFromDesk from {fsm.CurrentState}, leaveType={leaveType}");
-        GuestsManagerPatch.SkipLeaveFromDeskPatch.Grant();
-        GuestsManager.Instance.LeaveFromDesk(fsm.Controller, leaveType, null, triggerLeaveBuff);
+        using (Bypass.Enter(fsm.Controller))
+            GuestsManager.Instance.LeaveFromDesk(fsm.Controller, leaveType, null, triggerLeaveBuff);
         fsm.To(State.Left);
         return true;
     }

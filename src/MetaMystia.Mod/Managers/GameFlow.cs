@@ -60,7 +60,7 @@ public static partial class GameFlow
     {
         CharactersReady = false;
         PlayerManager.OnSceneUnloading();
-        RoomTimeStop.Reset();
+        Scopes.EndScene();
         // 在新白天触发剧情入口之前结束上一段玩法；加载就绪另由 Stage 发布。
         if (scene == Scene.DayScene && IsCooperative) ResetGameplay(resetEntry: false);
         if (IsCooperative && LocalScene == Scene.DayScene && scene != Scene.DayScene) DayDestinationManager.Reset();
@@ -90,15 +90,15 @@ public static partial class GameFlow
         PlayerProfile.SendProfile();
     }
 
-    public static void ResetGameplay(bool resetEntry = true)
+    public static void ResetGameplay(bool resume = false, bool resetEntry = true)
     {
+        // 先结束作用域，交还等待中的原流程。
+        Scopes.EndCoop(resume);
         Destination = DayDestination.None;
         // 离开白天已清理旧入口，正常返回时保留较快成员提交的下一次意向。
         if (resetEntry) DayDestinationManager.Reset();
         PrepSceneManager.ClearPrepTable();
         PrepSceneManager.ResetYuyukoPrep();
-        BusinessStart.Reset();
-        RoomTimeStop.Reset();
         PlayerManager.Local.ResetState();
         foreach (var peer in PlayerManager.Peers.Values) peer.ResetState();
     }

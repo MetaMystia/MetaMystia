@@ -31,10 +31,10 @@ namespace MetaMystia
             : LocalScene != Scene.DayScene ? GameStage.Loading
             : Destination == DayDestination.None ? GameStage.Day : GameStage.DayEnd;
         public static void BeginCooperative(DayDestination destination) => Destination = destination;
-        public static void ResetGameplay()
+        public static void ResetGameplay(bool resume = false)
         {
+            Multiplayer.Scopes.EndCoop(resume);
             Destination = DayDestination.None;
-            BusinessStart.Reset();
             DayDestinationManager.Reset();
         }
     }
