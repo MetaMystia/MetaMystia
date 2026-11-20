@@ -21,6 +21,8 @@ public partial class GenerateOrderMessage : MultiplayerMessage
     public int DeskCode { get; set; }
     public bool NotShowInUI { get; set; }
     public bool FreeOrder { get; set; }
+    public int Fund { get; set; }
+    public int RemainOrderCount { get; set; }
 
     [DiscardOnStory]
     [CheckScene(Common.UI.Scene.WorkScene)]
@@ -35,6 +37,8 @@ public partial class GenerateOrderMessage : MultiplayerMessage
         var deskCode = DeskCode;
         var notShowInUI = NotShowInUI;
         var freeOrder = FreeOrder;
+        var fund = Fund;
+        var remainOrderCount = RemainOrderCount;
 
         var fsm = GuestsMap.GetGuestFsm(rid);
         if (fsm == null) return;
@@ -51,11 +55,11 @@ public partial class GenerateOrderMessage : MultiplayerMessage
                 var specialGuest = DataBaseCharacter.RefSGuest(fsm.Ids[0]);
                 orderData = new GuestsManager.SpecialOrder(specialGuest, requestFood, requestBev, deskCode, notShowInUI, freeOrder);
             }
-            return GuestFSM.DoGenerateOrderSession(rid, result, overrideResult, orderData);
+            return GuestFSM.DoGenerateOrderSession(rid, result, overrideResult, orderData, fund, remainOrderCount);
         });
     }
 
-    public static void Send(int runtimeId, GuestsManager.OrderGenerationResult result, GuestsManager.OrderGenerationResult? overrideResult, GuestsManager.OrderBase orderData) =>
+    public static void Send(int runtimeId, GuestsManager.OrderGenerationResult result, GuestsManager.OrderGenerationResult? overrideResult, GuestsManager.OrderBase orderData, int fund, int remainOrderCount) =>
         new GenerateOrderMessage
         {
             RuntimeId = runtimeId,
@@ -66,6 +70,8 @@ public partial class GenerateOrderMessage : MultiplayerMessage
             RequestBev = orderData?.beverageRequest ?? 0,
             DeskCode = orderData?.DeskCode ?? -1,
             NotShowInUI = orderData?.NotShowInUI ?? false,
-            FreeOrder = orderData?.FreeOrder ?? false
+            FreeOrder = orderData?.FreeOrder ?? false,
+            Fund = fund,
+            RemainOrderCount = remainOrderCount
         }.Enqueue();
 }

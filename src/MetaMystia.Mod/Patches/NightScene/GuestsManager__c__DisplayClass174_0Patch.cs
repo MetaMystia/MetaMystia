@@ -11,6 +11,7 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 
+// 4.4.0e：GenerateOrderSession 的闭包，..._GuestGroupController_byref_OrderBase_0 为 <GenerateOrderSession>g__GenerateOrderInternal|1，..._SpecialGuestsController_0 为 g__CheckRemainingFund|0。
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.GuestsManager.__c__DisplayClass174_0))]
 [AutoLog]
 public partial class GuestsManager__c__DisplayClass174_0Patch
@@ -38,6 +39,8 @@ public partial class GuestsManager__c__DisplayClass174_0Patch
             var pending = GuestsMap.GetGuestFsm(toGenerate)?.PendingOrder;
             if (pending.HasValue)
             {
+                toGenerate.GetFund = pending.Value.Fund;
+                toGenerate.remainOrderCount = pending.Value.RemainOrderCount;
                 toGenerate.RefreshCurrentFundAndOrder();
                 orderData = pending.Value.OrderData;
                 __result = pending.Value.OrderGenerationResult;

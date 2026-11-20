@@ -23,4 +23,14 @@ public struct GeneratedOrderInfo
     /// 实际点单信息，分 Special 和 Normal
     /// </summary>
     public OrderBase OrderData;
+
+    /// <summary>
+    /// 主机 GenerateOrderInternal 结束时的剩余资金
+    /// </summary>
+    public int Fund;
+
+    /// <summary>
+    /// 主机 GenerateOrderInternal 结束时的剩余点单次数
+    /// </summary>
+    public int RemainOrderCount;
 }
