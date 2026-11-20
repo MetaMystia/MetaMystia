@@ -6,6 +6,7 @@
 - 游戏目录：
 - 编译依赖（`MetaMystia.local.props` 的 `BepInExPath`）：
 - 运行时调试器（UnityRuntimeDebugger）：
+- 游戏实测环境（启动、多开、调试器地址与 Token）：
 - 逆向工具（IDA 等）：
 - Unity 2021.3.28f1（符卡特效）：
 - 工作树目录：

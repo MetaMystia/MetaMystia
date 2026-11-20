@@ -1,10 +1,17 @@
 # 游戏实测
 
-只在用户要求时进行。需要用户启动游戏并提供调试器 Token。
+只在用户要求时进行。需要可连接的游戏实例及其调试器地址和 Token；由谁启动、能否多开见 `AGENTS.local.md`，缺失时向用户索取。
 
 ## 工具
 
 UnityRuntimeDebugger，位置见 `AGENTS.local.md`。接口说明从运行中的调试器 `GET /help` 读取。Token 每次启动都会变化，只作为本次请求参数，不写入文件、文档或输出。调试请求须经用户批准。用户关闭游戏后只整理已有材料，不重连或重启。
+
+[`tests/runtime`](../../tests/runtime) 下，`actions/` 是在游戏内执行的单步操作和状态读取，`cases/` 是按功能记录的可重跑用例。`render.py` 填入参数后输出脚本，交给调试器 CLI（UnityRuntimeDebugger 仓库的 `cli/urdbg.py`，地址和 Token 用环境变量 `URDBG_URL`、`URDBG_TOKEN`）执行：
+
+```text
+python tests/runtime/render.py night | python urdbg.py eval --program -f -
+python tests/runtime/render.py serve MODE=open DESK=3 | python urdbg.py eval --program -f -
+```
 
 ## 方法
 
@@ -28,6 +35,10 @@ UnityRuntimeDebugger，位置见 `AGENTS.local.md`。接口说明从运行中的
 - 托管协程用 `BepInEx.Unity.IL2CPP.Utils` 的 `StartCoroutine(IEnumerator)` 扩展挂到存活的 `MonoBehaviour` 上。宿主随场景销毁时协程一并结束，例如 `GuestsManager` 在夜间结束时销毁。
 - 截图在 `WaitForEndOfFrame` 后调用 `ScreenCapture.CaptureScreenshotAsTexture()`，编码 PNG 后释放纹理。
 - 调试器读取存档中的嵌套值类型曾得到异常数值。存档状态以原版 UI、实际 JSON 文件和重载结果交叉核对。
+- 读档走标题的「继续」：设 `PlayerPrefs` 的 `LAST_SAVED_SAVEFILE` 后提交按钮（`load_slot`）。复制 `PlayerSaveFile` 再调用 `LoadPlayerData` 会抛 `MethodAccessException`，停在 `LoadScene`。
+- 调试器的字符串结果超过 300 字会被截断，状态读取保持一行。
+- `MetaMystia.Network` 的类型（如 `GameStage`）在调试器中无法直接引用，相关属性用反射读取（见 `state`）。
+- 检查日志时排除脚本自身引起的错误，例如单机调用 `GuestsMap.GetGuestFsm` 会记 `Attempted to get FSM of a guest that is not stored`。
 
 ### UI
 
@@ -36,6 +47,33 @@ UnityRuntimeDebugger，位置见 `AGENTS.local.md`。接口说明从运行中的
 - `UIButtonBase.CallSubmitAction()` 对 `PointerClickAsSelect` 的按钮只执行选择。选择会触发列表滚动，等滚动完成后再提交。
 - `UILogicalUnit.TryInvokeCurrentCancel()` 对电话菜单、产物汇总面板无效，改用面板的返回按钮或 `ClosePanel()`。
 - 快进、前往开店等长按按钮使用 `TryExecuteHold` 或 `ExternalStartHold()`。
+
+### 流程推进
+
+场景流转见 [scene-flow](../reference/multiplayer/scene-flow.md)。下表为用 `actions/` 推进普通营业一轮的方式（运行时实测）。
+
+| 阶段 | 推进 | 下一步就绪 |
+|---|---|---|
+| 开场 | `splash` | `state` 的 `scene` 不再是 `Splash` |
+| 标题 | `load_slot SLOT=n` | `state` 为 `local=DayScene ready=True story=False` |
+| 白天 | `day_business` | `izakaya` 显示 `spot=` |
+| 选店 | `izakaya MODE=go` | `prep` 显示 `panel=True` |
+| 备菜 | `prep MODE=go` | `night` 的 `cd` 大于 0；联机还需 `wait=False` |
+| 营业 | 房主 `close_izakaya` | 客人离场后进入结算，实测 80–125 秒 |
+| 结算 | `result`，每次前进一步，不存档 | `state` 为 `local=DayScene` |
+
+- 单机在入夜、选店后和开店前播放原版对话并等待输入，营业中也可能出现；对话期间上菜面板打不开。用 `dialog MODE=skip` 快进。联机时入夜对话由模组替换为空对话。
+- 单机营业时长为原版（约 240 秒）；`worktime` 只在有房间成员时生效。
+
+### 联机
+
+- 同一台机器可开两个实例联机：房主 `/mp start`，客机 `/mp connect 127.0.0.1`。每个实例需要独立的游戏身份和调试器端口，多开方式见 `AGENTS.local.md`。
+- 同步点的日志顺序：白天 `DayDestinationIntentMessage` → `DayDestinationConfirmMessage`；选店 `SelectIzakayaMessage` → `ConfirmIzakayaMessage`；备菜 `PrepReadyMessage` → `PrepAllReadyMessage`；开店客机 `BusinessStartMessage {"Start":false}` → 房主 `{"Start":true}`；打烊 `IzakayaCloseMessage` → 客机 `Received close command from host`。
+- 客机晚到：客机提交备菜后用 `block` 阻塞其主线程。`BusinessStart.IsWaitingForStart` 在房主开始等待前已为 `true`，以房主日志出现本轮 `StartGuestSpawningAndTiming_Prefix` 作为等待开始。
+- `timestop` 走原版面板时停的同一入口，可单端模拟打开面板。
+- 两端对照桌位用客人编号（`GuestFSM.RuntimeId`）；入座中（`SeatMoving`、`SeatedDelay`）的桌可能暂时对不上。
+- 顾客离桌在客机上有三条路径：普通离桌 `DoLeaveFromDesk`；驱赶 `Received GuestRepellMessage`；耐心耗尽 `Received PatientDepletedDeskMessage` 后重放 `PatientDepletedLeave`。
+- 营业中断开联机后，两端各自转为单机继续营业，倒计时改为原版时长。
 
 ### 白天
 
@@ -52,7 +90,7 @@ UnityRuntimeDebugger，位置见 `AGENTS.local.md`。接口说明从运行中的
 ### 夜间
 
 - 普通伙伴只处理 `NormalOrder`，`SpecialOrder` 只由 `PartnerBossBehaviour` 处理；稀客订单通常需要玩家上菜。
-- 上菜面板：`Send(料理)` → `Send(酒水)` → `ClosePanel()`，经 `OnPanelClose` 判定并评价。`CloseExternPanel` 是取消路径，会回收待上菜物品。
+- 上菜面板：`Send(料理)` → `Send(酒水)` → `ClosePanel()`，经 `OnPanelClose` 判定并评价。`CloseExternPanel` 是取消路径，回收待上菜物品；放入料理和酒水后取消，单机、联机实测都只回收了料理（#145）。
 - 稀客入座到首单约 15 秒，此前 `AllOrdersCount == 0`，调用 `PeekOrders` 会抛出异常。
 - 营业倒计时归零（`TryCloseIzakaya`）后，已入座的客人在耐心耗尽前仍可服务，还可能继续追加订单。稀客的耐心窗口约 1–2 分钟。
 - 订单只需命中标签；直接放入托盘的料理不受当天菜单限制。

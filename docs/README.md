@@ -13,7 +13,7 @@
 - [setup](dev/setup.md)：依赖、构建、部署
 - [verification](dev/verification.md)：验证等级、离线测试、汇报
 - [workflow](dev/workflow.md)：分支、提交、PR、CI、发布
-- [runtime-testing](dev/runtime-testing.md)：游戏实测方法与运行时经验
+- [runtime-testing](dev/runtime-testing.md)：游戏实测方法、脚本与运行时经验
 
 ## 编码规范
 
