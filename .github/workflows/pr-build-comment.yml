@@ -1,0 +1,61 @@
+name: PR build comment
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  comment:
+    name: 评论测试构建
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: 发布或更新评论
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 此工作流不检出也不运行 PR 代码；产物内容视为不可信数据。
+          gh run download "$RUN_ID" -n pr-meta -D meta
+          pr=$(tr -d '[:space:]' < meta/pr-number.txt)
+          [[ "$pr" =~ ^[0-9]+$ ]]
+          if [[ "$(gh api "repos/$GH_REPO/pulls/$pr" --jq .head.sha)" != "$HEAD_SHA" ]]; then
+            echo "::notice::PR #$pr 已有新提交，跳过"
+            exit 0
+          fi
+
+          {
+            echo '<!-- metamystia-pr-build -->'
+            echo "### 测试构建 \`${HEAD_SHA:0:7}\`"
+            echo
+            gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --paginate \
+              --jq '.artifacts[] | select(.expired | not) | [.name, .id, .size_in_bytes] | @tsv' |
+              while IFS=$'\t' read -r name id size; do
+                [[ "$name" =~ ^MetaMystia(\.Server)?-pr[0-9]+-[0-9a-f]{7}$ ]] || continue
+                echo "- [\`$name\`](https://github.com/$GH_REPO/actions/runs/$RUN_ID/artifacts/$id)（$(( size / 1024 )) KB）"
+              done
+            echo
+            echo '下载需登录 GitHub，产物保留 14 天。'
+          } > body.md
+
+          id=$(gh api "repos/$GH_REPO/issues/$pr/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- metamystia-pr-build -->"))) | .id' |
+            sed -n 1p)
+          if [[ -n "$id" ]]; then
+            gh api -X PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@body.md > /dev/null
+          else
+            gh api -X POST "repos/$GH_REPO/issues/$pr/comments" -F body=@body.md > /dev/null
+          fi
