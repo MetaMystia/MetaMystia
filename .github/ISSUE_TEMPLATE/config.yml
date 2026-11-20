@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: 使用文档
+    url: https://doc.meta-mystia.izakaya.cc/index.html
+    about: 安装与使用
   - name: 【QQ】夜雀食堂MetaMystia联机交流
     url: https://qm.qq.com/q/3KC2JsksWA
     about: 群号：1034953242
