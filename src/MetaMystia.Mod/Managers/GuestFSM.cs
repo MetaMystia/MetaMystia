@@ -905,10 +905,16 @@ public partial class GuestFSM
     /// </summary>
     /// <param name="deskCode"></param>
     /// <returns></returns>
-    public static bool TryCloseServePanel(int deskCode)
+    public static bool TryCloseServePanel(int deskCode, bool returnToTray = false)
     {
-        if (deskCode < 0 || WorkSceneServePannelPatch.instanceRef == null) return false;
+        if (deskCode < 0 || WorkSceneServePannelPatch.instanceRef is not { } panel) return false;
         if (WorkSceneServePannelPatch.PanelDeskCode != deskCode) return false;
+
+        if (returnToTray)
+        {
+            if (panel.willServeFood != null) IzakayaTray.Instance.Receive(panel.willServeFood);
+            if (panel.willServeBeverage != null) IzakayaTray.Instance.Receive(panel.willServeBeverage);
+        }
 
         WorkSceneServePannelPatch.instanceRef?.willServeFood = null;
         WorkSceneServePannelPatch.instanceRef?.willServeBeverage = null;
