@@ -1,51 +1,12 @@
----
-name: "✨ 功能请求 / Feature Request"
-description: "为项目建议新功能或改进 / Suggest a new feature or improvement"
-title: "[FEATURE] "
+name: 功能建议
+description: 新功能或改进
 labels: ["enhancement"]
 assignees: ["MetaMikuAI"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        ## ✨ 新功能建议
-        感谢您的想法！请简要描述您的建议。
-
-        ## ✨ Feature Request
-        Thanks for your idea! Please briefly describe your suggestion.
-
   - type: textarea
-    id: feature-description
+    id: description
     attributes:
-      label: "功能描述 / Description"
-      description: "您希望添加什么功能？为什么需要它？ / What feature would you like? Why is it needed?"
-      placeholder: "简要描述您希望实现的功能... / Briefly describe the feature you want..."
+      label: 建议
+      description: 想要什么，用在什么场景。
     validations:
       required: true
-
-  - type: textarea
-    id: use-case
-    attributes:
-      label: "使用场景 / Use Case"
-      description: "这个功能将解决什么问题？如何被使用？ / What problem will this feature solve? How will it be used?"
-      placeholder: "这个功能将帮助我... / This feature would help me..."
-
-  - type: dropdown
-    id: priority
-    attributes:
-      label: "优先级 / Priority"
-      description: "您认为这个功能有多重要？ / How important is this feature?"
-      options:
-        - "低 - 锦上添花 / Low - Nice to have"
-        - "中 - 有用但不是必需 / Medium - Useful but not essential"
-        - "高 - 迫切需要 / High - Urgently needed"
-      default: 0
-
-  - type: checkboxes
-    id: terms
-    attributes:
-      label: "确认 / Confirmation"
-      options:
-        - label: "我已经搜索过现有问题，确认这是一个新功能请求 / I have searched existing issues and confirm this is a new feature request"
-          required: true
-        - label: "我愿意协助完善此功能想法 / I'm willing to help refine this idea"

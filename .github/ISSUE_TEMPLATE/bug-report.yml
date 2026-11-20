@@ -1,170 +1,32 @@
----
-name: "🐛 Bug 报告 / Bug Report"
-description: "报告一个错误或问题 / Report a bug or issue"
-title: "[BUG] "
+name: Bug 报告
+description: 报告错误或异常
 labels: ["bug"]
 assignees: ["MetaMikuAI"]
 body:
-  - type: markdown
+  - type: dropdown
+    id: scene
     attributes:
-      value: |
-        ## 🐛 Bug 报告 / Bug Report
-        感谢您花时间报告问题！ / Thank you for taking the time to report an issue!
-
-  - type: textarea
-    id: bug-description
-    attributes:
-      label: "问题描述 / Description"
-      description: "请清晰准确地描述您遇到的问题 / Please describe the issue clearly and accurately"
-      placeholder: "描述发生了什么问题... / Describe what happened..."
-    validations:
-      required: true
-
-  - type: textarea
-    id: steps-to-reproduce
-    attributes:
-      label: "复现步骤 / Steps to Reproduce"
-      description: "请详细说明如何复现这个问题 / Please detail how to reproduce this issue"
-      placeholder: |
-        1. 第一步 / Step 1
-        2. 第二步 / Step 2
-        3. 第三步 / Step 3
-
-  - type: textarea
-    id: expected-behavior
-    attributes:
-      label: "预期行为 / Expected Behavior"
-      description: "您期望发生什么？ / What did you expect to happen?"
-
-  - type: textarea
-    id: actual-behavior
-    attributes:
-      label: "实际行为 / Actual Behavior"
-      description: "实际发生了什么？ / What actually happened?"
-
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: "截图 / Screenshots"
-      description: "如果有的话，请提供相关截图 / If applicable, add screenshots"
-      placeholder: "拖放截图到此处或粘贴链接 / Drag & drop screenshots here or paste links"
-
-  - type: input
-    id: game-version
-    attributes:
-      label: "游戏版本 / Game Version"
-      description: "您正在使用的游戏版本 / The version of the game you are using"
-      placeholder: "例如：Release4.3.0c  / e.g., Release4.3.0c"
-    validations:
-      required: true
-
-  - type: input
-    id: mod-version
-    attributes:
-      label: "本Mod版本 / Mod Version"
-      description: "您正在使用的本Mod版本 / The version of this mod you are using"
-      placeholder: "例如：0.12.4  / e.g., 0.12.4"
-    validations:
-      required: true
-
-  - type: input
-    id: os-version
-    attributes:
-      label: "操作系统版本 / OS Version"
-      description: "您的操作系统版本 / Your operating system version"
-      placeholder: "例如：Windows 11 / e.g., Windows 11"
-    validations:
-      required: true
-
-  - type: markdown
-    attributes:
-      value: |
-        ## 📝 日志信息 / Log Information
-
-        **重要提示** / **Important Note**: 如果日志过长，请使用 [GitHub Gist](https://gist.github.com) 上传并粘贴链接。
-        If logs are too long, please upload to [GitHub Gist](https://gist.github.com) and paste the link here.
-
-  - type: markdown
-    attributes:
-      value: |
-        ### 主机端启用的DLC / Host-side Enabled DLCs
-
-  - type: checkboxes
-    id: host-dlc-enabled
-    attributes:
-      label: "请选择主机端启用的DLC / Please select DLCs enabled on host side"
+      label: 场景
       options:
-        - label: "DLC1"
-        - label: "DLC2"
-        - label: "DLC2.5"
-        - label: "DLC3"
-        - label: "DLC4"
-        - label: "DLC5"
-        - label: "MetaMystia ResourceEx Pack"
+        - 单机
+        - 联机主机
+        - 联机客机
+        - 安装或启动
+    validations:
+      required: true
 
   - type: textarea
-    id: host-logs
+    id: description
     attributes:
-      label: "Host 日志 / Host Logs"
-      description: |
-        主机端日志 / Host-side logs
-
-        适用于多人游戏主机端或单人游戏的日志
-        For multiplayer host logs or single-player logs
-      render: shell
-      placeholder: |
-        粘贴 Host 日志或 Gist 链接...
-        Paste Host logs or Gist link...
-
-  - type: markdown
-    attributes:
-      value: |
-        ### 客户端启用的DLC / Client-side Enabled DLCs
-
-  - type: checkboxes
-    id: client-dlc-enabled
-    attributes:
-      label: "请选择客户端启用的DLC / Please select DLCs enabled on client side"
-      options:
-        - label: "DLC1"
-        - label: "DLC2"
-        - label: "DLC2.5"
-        - label: "DLC3"
-        - label: "DLC4"
-        - label: "DLC5"
-        - label: "MetaMystia ResourceEx Pack"
+      label: 问题
+      description: 发生了什么，怎么复现。可附截图或录屏。
+    validations:
+      required: true
 
   - type: textarea
-    id: client-logs
+    id: logs
     attributes:
-      label: "Client 日志 / Client Logs"
-      description: |
-        客户端日志 / Client-side logs
-
-        适用于多人游戏客户端的日志
-        For client-side logs
-      render: shell
-      placeholder: |
-        粘贴 Client 日志或 Gist 链接...
-        Paste Client logs or Gist link...
-
-  - type: textarea
-    id: additional-context
-    attributes:
-      label: "附加信息 / Additional Context"
-      description: |
-        任何其他有助于解决问题的信息 / Any other information that might help
-
-        **请注意** / **Please note**: 如果您使用了其他资源包，请在此处标注并提供对应的下载链接。
-        If you are using other resource packs, please indicate them here and provide download links.
-
-  - type: checkboxes
-    id: terms
-    attributes:
-      label: "确认 / Acknowledgement"
-      description: "请确认以下事项 / Please confirm the following"
-      options:
-        - label: "我已经搜索过现有问题，确认这是一个新问题 / I have searched the existing issues and this is a new issue"
-          required: true
-        - label: "我确认该问题可以复现 / I have confirmed this issue is reproducible"
-        - label: "我愿意协助调查此问题 / I'm willing to help investigate this issue"
+      label: 日志
+      description: 拖入管理工具「导出诊断包」生成的 zip，或 `BepInEx/LogOutput.log`。联机请附主机和客机两份。诊断包含 Windows 用户名和硬件信息。
+    validations:
+      required: true
