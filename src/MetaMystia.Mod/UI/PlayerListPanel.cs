@@ -54,7 +54,7 @@ public static partial class PlayerListPanel
         bool show = GameSession.IsConnectingOrOnline && (_visible || InGameConsole.IsOpen);
         if (_root == null)
         {
-            if (!show || !OverlayUi.EnsureCreated(requireGameFont: false)) return;
+            if (!show || !OverlayUi.EnsureCreated(loadFont: true)) return;
             Build();
         }
         _root.gameObject.SetActive(show);
