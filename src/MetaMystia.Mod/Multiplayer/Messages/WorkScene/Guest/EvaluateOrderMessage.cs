@@ -59,17 +59,21 @@ public partial class EvaluateOrderMessage : MultiplayerMessage, IGuestEvent
         if (guest?.Track == GuestTrack.Replicated && controller.HasEvaluated) guest.EvalPending = true;
     }
 
-    /// <summary>评价后续处理入口：客机换成主机结果并消耗；两端记为已吃完，续单或离场由主机决定。</summary>
+    /// <summary>
+    /// 评价后续处理入口：客机换成主机结果并消耗。主机若评价台词入口未发出结果，在此补发。
+    /// </summary>
     public static void BeforePostEvaluation(GuestGroupController controller, ref EvaluationResult result)
     {
         var guest = GuestRegistry.Of(controller);
         if (guest == null || guest.Track != GuestTrack.Replicated) return;
-        if (guest.FinalEval != EvaluationResult.Null)
+        if (GameSession.IsRoomHost)
         {
-            result = guest.FinalEval;
-            guest.FinalEval = EvaluationResult.Null;
+            Detect(controller, result);
+            return;
         }
-        if (guest.State == GuestPhase.Evaluating) guest.State = GuestPhase.Eaten;
+        if (guest.FinalEval == EvaluationResult.Null) return;
+        result = guest.FinalEval;
+        guest.FinalEval = EvaluationResult.Null;
     }
 
     public static void Detect(GuestGroupController controller, EvaluationResult result)

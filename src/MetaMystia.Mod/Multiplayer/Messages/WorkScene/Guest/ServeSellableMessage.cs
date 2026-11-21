@@ -57,7 +57,7 @@ public partial class ServeSellableMessage : MultiplayerMessage, IGuestEvent
         {
             Log.Warning($"Serve #{RuntimeId}/{OrderSeq} {requested?.Text?.BriefName ?? "cancel"} from {SenderUid} rejected, slot has {slot?.Text?.BriefName}");
             if (requested != null)
-                ServeRejectMessage.Send(SenderUid, RuntimeId, food ? requested : null, food ? null : requested);
+                ServeRejectMessage.Send(SenderUid, RuntimeId, OrderSeq, false, food ? requested : null, food ? null : requested);
             return;
         }
         ServeSlots.OnRemoteChange(guest, SellableType, basedOn);

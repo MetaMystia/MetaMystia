@@ -87,8 +87,9 @@ public partial class WorkSceneServePannelPatch
     public static bool Send_Prefix(WorkSceneServePannel __instance, Sellable toSend)
     {
         if (GuestRegistry.Of(__instance.currentGuestController) == null) return RunOriginal;
+        // 已上桌或正在投掷时原版不放入，不能记为本端放入。
         var order = __instance.operatingOrder;
-        if (toSend.Type == Sellable.SellableType.Food ? order.ServFood != null : order.ServBeverage != null)
+        if ((toSend.Type == Sellable.SellableType.Food ? order.ServFood ?? order.ServedFoodInAir : order.ServBeverage ?? order.ServedBeverageInAir) != null)
         {
             Log.Info($"Already have {toSend.Type} in order, skipping Send");
             return SkipOriginal;

@@ -67,14 +67,16 @@ public static class ServeSlots
         guest.ClaimBeverage = null;
     }
 
-    /// <summary>评价时：已被上桌的 Claim 视为交出，其余退回；已确认的清除。</summary>
+    /// <summary>
+    /// 评价时：已上桌的本端物品视为交出，其余放入的退回。已确认但未上桌的仍在等主机拒绝，保留以便退回。
+    /// </summary>
     public static void SettleOnEvaluate(GuestRecord guest, Sellable food, Sellable beverage)
     {
         if (Same(guest.ClaimFood, food)) guest.ClaimFood = null;
         if (Same(guest.ClaimBeverage, beverage)) guest.ClaimBeverage = null;
         ReturnClaims(guest);
-        guest.ConfirmedFood = null;
-        guest.ConfirmedBeverage = null;
+        if (Same(guest.ConfirmedFood, food)) guest.ConfirmedFood = null;
+        if (Same(guest.ConfirmedBeverage, beverage)) guest.ConfirmedBeverage = null;
     }
 
     /// <summary>他人的上菜变更以本端物品为基准（替换或取消），本端物品已转到对方托盘。</summary>
@@ -83,8 +85,11 @@ public static class ServeSlots
         if (Same(guest.Claim(type), basedOn)) guest.SetClaim(type, null);
     }
 
-    /// <summary>主机拒绝本端的放入或确认，物品退回托盘。只退回仍记在本端名下的物品，避免重复退回。</summary>
-    public static void OnRejected(GuestRecord guest, Sellable.SellableType type, Sellable item)
+    /// <summary>
+    /// 主机拒绝本端的放入或确认：仍记在本端名下的物品退回托盘，避免重复退回。
+    /// 被拒的确认属于当前订单时，撤下原版已写入本地订单（含投掷中）的该物品。
+    /// </summary>
+    public static void OnRejected(GuestRecord guest, Sellable.SellableType type, Sellable item, bool confirm, bool currentOrder)
     {
         var food = type == Sellable.SellableType.Food;
         Sellable owned = null;
@@ -92,26 +97,35 @@ public static class ServeSlots
         {
             owned = guest.Claim(type);
             guest.SetClaim(type, null);
-            var panel = WorkSceneServePannelPatch.instanceRef;
-            if (panel != null && WorkSceneServePannelPatch.PanelDeskCode == guest.DeskCode
-                && Same(food ? panel.willServeFood : panel.willServeBeverage, item))
-                UpdatePanel(guest.DeskCode, null, type, true);
         }
         else if (Same(food ? guest.ConfirmedFood : guest.ConfirmedBeverage, item))
         {
             owned = food ? guest.ConfirmedFood : guest.ConfirmedBeverage;
             if (food) guest.ConfirmedFood = null;
             else guest.ConfirmedBeverage = null;
-            var order = guest.CurrentOrder;
-            if (order != null && Same(food ? order.ServFood : order.ServBeverage, item))
+        }
+        var order = guest.CurrentOrder;
+        if (currentOrder && !confirm && Same(guest.Slot(type), item))
+        {
+            guest.SetSlot(type, null);
+            UpdatePanel(guest.DeskCode, null, type, true);
+            UpdateDesk(guest.DeskCode, order == null ? null : food ? order.ServFood : order.ServBeverage, type);
+        }
+        if (currentOrder && confirm && order != null)
+        {
+            if (food && (Same(order.ServFood, item) || Same(order.ServedFoodInAir, item)))
             {
-                if (food) order.ServFood = null;
-                else order.ServBeverage = null;
+                order.ServFood = null;
+                order.ServedFoodInAir = null;
+                UpdateDesk(guest.DeskCode, guest.Slot(type), type);
+            }
+            else if (!food && (Same(order.ServBeverage, item) || Same(order.ServedBeverageInAir, item)))
+            {
+                order.ServBeverage = null;
+                order.ServedBeverageInAir = null;
                 UpdateDesk(guest.DeskCode, guest.Slot(type), type);
             }
         }
-        if (Same(guest.Slot(type), item)) guest.SetSlot(type, null);
-        if (owned == null) return;
-        IzakayaTray.Instance.Receive(owned);
+        if (owned != null) IzakayaTray.Instance.Receive(owned);
     }
 }

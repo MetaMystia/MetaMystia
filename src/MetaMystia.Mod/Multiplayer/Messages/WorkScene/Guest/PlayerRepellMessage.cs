@@ -72,7 +72,8 @@ public partial class PlayerRepellMessage : MultiplayerMessage
         var events = EventManager.Instance;
         if (events.TryGetCountedBuffValue((EventManager.BuffType)159) > 0) guest.LocalRepel = RepelBranch.Counted;
         else if (events.CheckTimedBuffExists((EventManager.BuffType)74)) guest.LocalRepel = null;
-        else if (!controller.IsFirst && events.CheckTimedBuffExists((EventManager.BuffType)56)) guest.LocalRepel = RepelBranch.Kisume;
+        else if (!controller.IsFirst && events.CheckTimedBuffExists((EventManager.BuffType)56))
+            guest.LocalRepel = GuestsManager.Instance.KisumeRepellCallback != null ? RepelBranch.Kisume : null;
         else guest.LocalRepel = RepelBranch.Normal;
     }
 
@@ -88,5 +89,6 @@ public partial class PlayerRepellMessage : MultiplayerMessage
             Branch = guest.LocalRepel.Value,
             Mood = guest.Controller.Mood,
         }.Enqueue();
+        guest.LocalRepel = null;
     }
 }

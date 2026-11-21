@@ -400,11 +400,16 @@ public partial class GuestsManagerPatch
         GuestRegistry.Mode(guestGroup) != GuestMode.Client || GuestRegistry.Of(guestGroup).PendingOrder.HasValue
             ? RunOriginal : SkipOriginal;
 
-    /// <summary>续单与否由主机决定。</summary>
+    /// <summary>吃完进入续单判定，记为已吃完；客机的续单与否由主机决定。</summary>
     [HarmonyPatch(nameof(GuestsManager.MainOrderCycle))]
     [HarmonyPrefix]
-    public static bool MainOrderCycle_Prefix(GuestGroupController toCycle) =>
-        GuestRegistry.Mode(toCycle) == GuestMode.Client ? SkipOriginal : RunOriginal;
+    public static bool MainOrderCycle_Prefix(GuestGroupController toCycle)
+    {
+        var mode = GuestRegistry.Mode(toCycle);
+        if (mode is GuestMode.Host or GuestMode.Client && GuestRegistry.Of(toCycle) is { State: GuestPhase.Evaluating } guest)
+            guest.State = GuestPhase.Eaten;
+        return mode == GuestMode.Client ? SkipOriginal : RunOriginal;
+    }
 
     /// <summary>客机只重放主机评价；本地上齐触发的评价跳过。</summary>
     [HarmonyPatch(nameof(GuestsManager.EvaluateOrder))]
@@ -474,6 +479,8 @@ public partial class GuestsManagerPatch
                 var guest = GuestRegistry.Of(guestGroupController);
                 if (guest.LocalRepel == null || guest.IsLeft) return SkipOriginal;
                 PlayerRepellMessage.Report(guest);
+                // 放行其中的离桌。
+                Bypass.Grant(guestGroupController);
                 return RunOriginal;
             default:
                 return RunOriginal;
@@ -514,7 +521,10 @@ public partial class GuestsManagerPatch
                 GuestLeaveMessage.DetectDesk(toLeave, leaveType);
                 return RunOriginal;
             case GuestMode.Client:
-                return GuestRegistry.Of(toLeave).LocalRepel != null ? RunOriginal : SkipOriginal;
+                // 吃完付款离开被截住：断线时据此补上离桌。
+                if (GuestRegistry.Of(toLeave) is { State: GuestPhase.Evaluating or GuestPhase.Eaten } guest)
+                    guest.State = GuestPhase.Leaving;
+                return SkipOriginal;
             default:
                 return RunOriginal;
         }

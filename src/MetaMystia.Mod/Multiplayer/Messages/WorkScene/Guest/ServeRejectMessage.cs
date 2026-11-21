@@ -12,6 +12,9 @@ namespace MetaMystia.Multiplayer.Messages;
 public partial class ServeRejectMessage : MultiplayerMessage
 {
     public int RuntimeId { get; set; }
+    public int OrderSeq { get; set; }
+    /// <summary>被拒的是确认上桌；否则是放入。</summary>
+    public bool Confirm { get; set; }
     public SellableFood Food { get; set; }
     public SellableFood Beverage { get; set; }
 
@@ -22,14 +25,17 @@ public partial class ServeRejectMessage : MultiplayerMessage
     {
         var guest = GuestRegistry.Current.Find(RuntimeId);
         if (guest == null) return;
-        if (Food != null) ServeSlots.OnRejected(guest, Sellable.SellableType.Food, Food.ToSellable());
-        if (Beverage != null) ServeSlots.OnRejected(guest, Sellable.SellableType.Beverage, Beverage.ToSellable());
+        var current = OrderSeq == guest.OrderSeq;
+        if (Food != null) ServeSlots.OnRejected(guest, Sellable.SellableType.Food, Food.ToSellable(), Confirm, current);
+        if (Beverage != null) ServeSlots.OnRejected(guest, Sellable.SellableType.Beverage, Beverage.ToSellable(), Confirm, current);
     }
 
-    public static void Send(int uid, int runtimeId, Sellable food, Sellable beverage) =>
+    public static void Send(int uid, int runtimeId, int orderSeq, bool confirm, Sellable food, Sellable beverage) =>
         new ServeRejectMessage
         {
             RuntimeId = runtimeId,
+            OrderSeq = orderSeq,
+            Confirm = confirm,
             Food = SellableFood.FromSellable(food),
             Beverage = SellableFood.FromSellable(beverage),
             WireTargetUid = uid,

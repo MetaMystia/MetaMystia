@@ -20,7 +20,9 @@ public partial class GuestSeatMessage : MultiplayerMessage, IGuestEvent
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived() => GuestRegistry.Current.Post(this);
 
-    /// <summary>本地桌位仍被占用时等待；宽限期满后以主机为准清理占用者再入座。</summary>
+    /// <summary>
+    /// 本地桌位仍被占用时等待；宽限期满后以主机为准清理占用的同步顾客再入座。本端剧情顾客占桌时继续等待。
+    /// </summary>
     public bool Apply(GuestRecord guest, bool force)
     {
         if (guest.State is not (GuestPhase.Constructed or GuestPhase.Queued)) return true;
@@ -28,6 +30,8 @@ public partial class GuestSeatMessage : MultiplayerMessage, IGuestEvent
         if (!DeskAvailable(guest.Controller))
         {
             if (!force) return false;
+            var occupant = GuestsManager.Instance.GetInDeskGuest(DeskCode);
+            if (occupant != null && GuestRegistry.Current.Find(occupant) == null) return false;
             GuestReplay.ClearDesk(DeskCode);
         }
         GuestReplay.Seat(guest, DeskCode, FromQueue && guest.State == GuestPhase.Queued);

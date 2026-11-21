@@ -22,8 +22,8 @@ public enum GuestPhase
     Seated,         // 已到座，等待首单
     WaitingServe,
     Evaluating,     // 已评价，正在吃
-    Eaten,          // 吃完，等待续单或离场
-    Leaving,        // 主机点单失败，等待离场结果
+    Eaten,          // 吃完，进入续单判定
+    Leaving,        // 等待离场（点单失败或本地离桌被截住）
     Left,
     Manual,         // 脚本顾客空闲，由剧情驱动
 }
@@ -75,8 +75,11 @@ public sealed class GuestRecord
     public Sellable ConfirmedFood { get; set; }
     public Sellable ConfirmedBeverage { get; set; }
 
-    internal readonly Queue<IGuestEvent> Inbox = new();
+    internal readonly List<IGuestEvent> Inbox = new();
     internal float Waited = -1;
+
+    /// <summary>客机：主机最近下发的数值，控制器建立前收到时在生成后补上。</summary>
+    public GuestStats Stats { get; set; }
 
     internal int SentMood = -1, SentFund = -1, SentRemain = -1, SentPatient = -1, SentMaxPatient = -1;
 

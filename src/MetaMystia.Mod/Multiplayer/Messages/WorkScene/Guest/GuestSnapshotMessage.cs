@@ -40,7 +40,7 @@ public partial class GuestSnapshotMessage : MultiplayerMessage
         if (guest.Controller == null) GuestReplay.Spawn(guest);
         if (Phase == GuestPhase.Queued)
         {
-            if (guest.State == GuestPhase.Constructed) GuestReplay.Queue(guest, false);
+            new MoveToQueueMessage { RuntimeId = RuntimeId }.Apply(guest, true);
             return;
         }
         if (Phase == GuestPhase.Constructed) return;

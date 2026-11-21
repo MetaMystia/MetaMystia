@@ -103,7 +103,7 @@ public sealed partial class GuestRegistry : IScopeEnd
             guest.Inbox.Clear();
             guest.Waited = -1;
         }
-        guest.Inbox.Enqueue(message);
+        guest.Inbox.Add(message);
         if (!GameFlow.InStory) Process(guest, false);
     }
 
@@ -115,16 +115,19 @@ public sealed partial class GuestRegistry : IScopeEnd
         GuestQueryMessage.Send(runtimeId);
     }
 
+    /// <summary>按序应用。事件先取出再应用，应用中抛出的事件不再重试。</summary>
     private static void Process(GuestRecord guest, bool force)
     {
-        while (guest.Inbox.TryPeek(out var head))
+        while (guest.Inbox.Count > 0)
         {
+            var head = guest.Inbox[0];
+            guest.Inbox.RemoveAt(0);
             if (!head.Apply(guest, force))
             {
+                guest.Inbox.Insert(0, head);
                 if (guest.Waited < 0) guest.Waited = 0;
                 return;
             }
-            if (guest.Inbox.TryPeek(out var current) && ReferenceEquals(current, head)) guest.Inbox.Dequeue();
             guest.Waited = -1;
             force = false;
         }
@@ -165,6 +168,7 @@ public sealed partial class GuestRegistry : IScopeEnd
                 case GuestPhase.Seated:
                     GuestsManager.Instance.StartCoroutine(DelayFirstOrder(controller).WrapToIl2Cpp());
                     break;
+                // 吃饭中由原版延迟回调继续；已吃完说明续单入口已被截住，在此补上。
                 case GuestPhase.Eaten:
                     GuestsManager.Instance.MainOrderCycle(controller, 0f);
                     break;

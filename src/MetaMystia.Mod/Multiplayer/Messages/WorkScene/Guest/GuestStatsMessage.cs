@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using MemoryPack;
 
 using NightScene.EventUtility;
+using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer.Guests;
 
@@ -46,13 +47,10 @@ public partial class GuestStatsMessage : MultiplayerMessage
         var registry = GuestRegistry.Current;
         foreach (var stats in Guests)
         {
-            var controller = registry.Find(stats.RuntimeId)?.Controller;
-            if (controller == null || !controller.HaveNotLeft()) continue;
-            if (controller.Mood != stats.Mood) controller.Mood = stats.Mood;
-            controller.GetFund = stats.Fund;
-            controller.remainOrderCount = stats.RemainOrderCount;
-            controller.MaxPatient = stats.MaxPatient;
-            if (controller.CurrentPatient != stats.Patient) controller.SetPatient(stats.Patient);
+            var guest = registry.Find(stats.RuntimeId);
+            if (guest == null) continue;
+            guest.Stats = stats;
+            if (guest.Controller is { } controller && controller.HaveNotLeft()) ApplyTo(controller, stats);
         }
         if (!HasCombo) return;
         var events = EventManager.Instance;
@@ -62,6 +60,16 @@ public partial class GuestStatsMessage : MultiplayerMessage
         events.LoseComboGuestSetNum = LoseComboGuestSetNum;
         events.CallExternOnComboUpdate(Combo);
         events.CallExternOnMusicIndexUpdate(events.CurrentMusicLevelHandle.Invoke());
+    }
+
+    /// <summary>覆盖本地数值。控制器建立前收到的由生成重放补上。</summary>
+    public static void ApplyTo(GuestGroupController controller, GuestStats stats)
+    {
+        if (controller.Mood != stats.Mood) controller.Mood = stats.Mood;
+        controller.GetFund = stats.Fund;
+        controller.remainOrderCount = stats.RemainOrderCount;
+        controller.MaxPatient = stats.MaxPatient;
+        if (controller.CurrentPatient != stats.Patient) controller.SetPatient(stats.Patient);
     }
 
     /// <summary>主机每帧调用：收集与上次下发不同的数值，有变化时发送一条。</summary>

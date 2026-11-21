@@ -36,12 +36,12 @@ public partial class GuestGroupControllerPatch
     public static bool Evaluate_Prefix(GuestGroupController __instance, ref int __result) =>
         YuyukoGuestSync.OverrideEvaluation(__instance, ref __result) ? SkipOriginal : RunOriginal;
 
-    /// <summary>到座处理（TrySendToSeat 的到座回调）开头调用，记录已到座。</summary>
+    /// <summary>主机到座处理（TrySendToSeat 的到座回调）开头调用，记录已到座。客机由重放的到座处理记录。</summary>
     [HarmonyPatch(nameof(GuestGroupController.RefreshCurrentFundAndOrder))]
     [HarmonyPrefix]
     public static void RefreshCurrentFundAndOrder_Prefix(GuestGroupController __instance)
     {
-        if (GuestRegistry.Of(__instance) is { Track: GuestTrack.Replicated, State: GuestPhase.Seating } guest)
+        if (GuestRegistry.Mode(__instance) == GuestMode.Host && GuestRegistry.Of(__instance) is { State: GuestPhase.Seating } guest)
             guest.State = GuestPhase.Seated;
     }
 

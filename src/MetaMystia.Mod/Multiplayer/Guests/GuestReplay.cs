@@ -9,6 +9,7 @@ using Night.UI.HUD.Ordering;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
 
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 using SgrYuki.Utils;
 
@@ -57,6 +58,7 @@ public static partial class GuestReplay
         manager.PostInitializeGuestGroup(controller, hasArgs ? info.TargetDeskCode : -1, false, !hasArgs || info.ShouldFade);
         controller.GetFund = info.Fund;
         controller.MaxFundCarry = info.MaxFundCarry;
+        if (guest.Stats != null) GuestStatsMessage.ApplyTo(controller, guest.Stats);
     }
 
     /// <summary>

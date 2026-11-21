@@ -76,7 +76,7 @@ public partial class ConfirmServeMessage : MultiplayerMessage, IGuestEvent
         if (rejectFood != null || rejectBeverage != null)
         {
             Log.Warning($"Confirm #{RuntimeId}/{OrderSeq} from {SenderUid} rejected: food={rejectFood?.Text?.BriefName}, beverage={rejectBeverage?.Text?.BriefName}");
-            ServeRejectMessage.Send(SenderUid, RuntimeId, rejectFood, rejectBeverage);
+            ServeRejectMessage.Send(SenderUid, RuntimeId, OrderSeq, true, rejectFood, rejectBeverage);
         }
         if (!acceptFood && !acceptBeverage) return;
         if (acceptFood) Serve(guest, order, food, Sellable.SellableType.Food);
@@ -95,21 +95,30 @@ public partial class ConfirmServeMessage : MultiplayerMessage, IGuestEvent
         else GuestsManager.Instance.EvaluateOrder(guest.Controller, false, null);
     }
 
-    /// <summary>本端关闭面板确认上桌，原版已写入本地订单。未确认的本端物品转为待主机结果。</summary>
+    /// <summary>
+    /// 本端关闭面板确认上桌，原版已写入本地订单。确认的是本端放入的物品时转为待主机结果；
+    /// 否则本端放入的物品仍在等主机拒绝，保留以便退回。
+    /// </summary>
     public static void Local(GuestGroupController controller, Sellable food, Sellable beverage)
     {
         var guest = GuestRegistry.Of(controller);
         if (guest == null || guest.State != GuestPhase.WaitingServe || (food == null && beverage == null)) return;
         if (food != null)
         {
-            guest.ConfirmedFood = GameSession.IsRoomClient && ServeSlots.Same(guest.ClaimFood, food) ? guest.ClaimFood : null;
-            guest.ClaimFood = null;
+            if (ServeSlots.Same(guest.ClaimFood, food))
+            {
+                if (GameSession.IsRoomClient) guest.ConfirmedFood = guest.ClaimFood;
+                guest.ClaimFood = null;
+            }
             guest.WillServeFood = null;
         }
         if (beverage != null)
         {
-            guest.ConfirmedBeverage = GameSession.IsRoomClient && ServeSlots.Same(guest.ClaimBeverage, beverage) ? guest.ClaimBeverage : null;
-            guest.ClaimBeverage = null;
+            if (ServeSlots.Same(guest.ClaimBeverage, beverage))
+            {
+                if (GameSession.IsRoomClient) guest.ConfirmedBeverage = guest.ClaimBeverage;
+                guest.ClaimBeverage = null;
+            }
             guest.WillServeBeverage = null;
         }
         new ConfirmServeMessage
