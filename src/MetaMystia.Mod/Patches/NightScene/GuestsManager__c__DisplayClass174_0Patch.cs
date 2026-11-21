@@ -7,6 +7,8 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 using static NightScene.GuestManagementUtility.GuestsManager;
 
 using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Guests;
+using MetaMystia.Multiplayer.Messages;
 
 namespace MetaMystia.Patch;
 
@@ -17,55 +19,30 @@ namespace MetaMystia.Patch;
 public partial class GuestsManager__c__DisplayClass174_0Patch
 {
     /// <summary>
-    /// 顾客生成点单的内部方法。
-    /// 主机正常进行，并将在 <see cref="GenerateOrderInternal_Postfix"/> 捕获订单信息。
-    /// 客机重放主机订单，并跳过原方法。
+    /// 顾客生成点单的内部方法。主机正常进行，并在 <see cref="GenerateOrderInternal_Postfix"/> 广播；客机回填主机订单并跳过原方法。
     /// </summary>
-    /// <param name="__result"></param>
-    /// <param name="toGenerate"></param>
-    /// <param name="orderData"></param>
-    /// <returns></returns>
     [HarmonyPatch(nameof(GuestsManager.__c__DisplayClass174_0.Method_Internal_OrderGenerationResult_GuestGroupController_byref_OrderBase_0))]
     [HarmonyPrefix]
     public static bool GenerateOrderInternal_Prefix(ref OrderGenerationResult __result, GuestGroupController toGenerate, ref GuestsManager.OrderBase orderData)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost)
+        if (GuestRegistry.Mode(toGenerate) != GuestMode.Client) return RunOriginal;
+        if (GuestRegistry.Of(toGenerate).PendingOrder is { } pending)
         {
-            return RunOriginal;
+            toGenerate.GetFund = pending.Fund;
+            toGenerate.remainOrderCount = pending.RemainOrderCount;
+            toGenerate.RefreshCurrentFundAndOrder();
+            orderData = pending.OrderData;
+            __result = pending.OrderGenerationResult;
         }
-        if (GameSession.IsRoomClient)
-        {
-            var pending = GuestsMap.GetGuestFsm(toGenerate)?.PendingOrder;
-            if (pending.HasValue)
-            {
-                toGenerate.GetFund = pending.Value.Fund;
-                toGenerate.remainOrderCount = pending.Value.RemainOrderCount;
-                toGenerate.RefreshCurrentFundAndOrder();
-                orderData = pending.Value.OrderData;
-                __result = pending.Value.OrderGenerationResult;
-            }
-            return SkipOriginal;
-        }
-        
-        return RunOriginal;
+        return SkipOriginal;
     }
 
-    /// <summary>
-    /// 主机捕获订单并并广播。
-    /// </summary>
-    /// <param name="__result"></param>
-    /// <param name="toGenerate"></param>
-    /// <param name="orderData"></param>
+    /// <summary>主机点单收口。</summary>
     [HarmonyPatch(nameof(GuestsManager.__c__DisplayClass174_0.Method_Internal_OrderGenerationResult_GuestGroupController_byref_OrderBase_0))]
     [HarmonyPostfix]
     public static void GenerateOrderInternal_Postfix(GuestsManager.OrderGenerationResult __result, GuestGroupController toGenerate, ref GuestsManager.OrderBase orderData)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        if (GameSession.IsRoomHost)
-        {
-            GuestFSM.OnGenerateOrderInternal(__result, toGenerate, orderData);
-        }
+        if (GuestRegistry.Mode(toGenerate) == GuestMode.Host) GenerateOrderMessage.Detect(__result, toGenerate, orderData);
     }
 
 
@@ -76,14 +53,7 @@ public partial class GuestsManager__c__DisplayClass174_0Patch
     [HarmonyPostfix]
     public static void CheckRemainingFund_Postfix(ref OrderGenerationResult __result, SpecialGuestsController toGenerate)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        if (GameSession.IsRoomClient)
-        {
-            var pending = GuestsMap.GetGuestFsm(toGenerate)?.PendingOrder;
-            if (pending.HasValue)
-            {
-                __result = pending.Value.OverrideResult ?? __result;
-            }
-        }
+        if (GuestRegistry.Mode(toGenerate) == GuestMode.Client && GuestRegistry.Of(toGenerate).PendingOrder is { } pending)
+            __result = pending.OverrideResult ?? __result;
     }
 }

@@ -2,8 +2,7 @@ using HarmonyLib;
 
 using NightScene.GuestManagementUtility;
 
-
-using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 
 namespace MetaMystia.Patch;
 
@@ -11,15 +10,9 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public partial class NormalGuestsControllerPatch
 {
-    /// <summary>
-    /// 主机或客机用于推进 EatingDelay -> ContinueDecision
-    /// </summary>
-    /// <param name="__instance"></param>
     [HarmonyPatch(nameof(NormalGuestsController.PostEvaluation))]
-    [HarmonyPostfix]
-    public static void NormalGuest_PostEvaluation_Postfix(NormalGuestsController __instance)
-    {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        GuestFSM.OnPostEvaluation(__instance);
-    }
+    [HarmonyPrefix]
+    public static void PostEvaluation_Prefix(NormalGuestsController __instance,
+        ref GuestGroupController.EvaluationResult evaluationType) =>
+        EvaluateOrderMessage.BeforePostEvaluation(__instance, ref evaluationType);
 }
