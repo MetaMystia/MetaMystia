@@ -68,6 +68,7 @@ public partial class EvaluateOrderMessage : MultiplayerMessage, IGuestEvent
         if (guest == null || guest.Track != GuestTrack.Replicated) return;
         if (GameSession.IsRoomHost)
         {
+            if (guest.EvalPending) Log.Warning($"Guest {guest} evaluation sent at PostEvaluation; dialog hook missed");
             Detect(controller, result);
             return;
         }

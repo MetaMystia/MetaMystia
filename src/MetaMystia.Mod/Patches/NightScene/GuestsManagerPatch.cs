@@ -449,6 +449,8 @@ public partial class GuestsManagerPatch
     {
         var manager = GuestsManager.Instance;
         var guest = manager.GetInDeskGuest(deskCode);
+        // 另一端的赶客先到时桌已空，原版对空桌会空引用。
+        if (guest == null) return SkipOriginal;
         switch (GuestRegistry.Mode(guest))
         {
             case GuestMode.Client:
