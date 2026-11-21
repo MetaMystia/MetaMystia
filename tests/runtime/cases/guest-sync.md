@@ -1,6 +1,6 @@
 # 顾客同步
 
-房主 H、客机 C 读同一份存档，各端 `worktime SECONDS=1200` 后共同进入普通营业。三人用例另加客机 C2，H 在开房前执行 `console CMD="mp maxplayers 3"`。N 为等待上菜的顾客编号，D 为其桌号，Q 为排队顾客编号，均从 `guests` 读取。
+房主 H、客机 C 读同一份存档，各端 `worktime SECONDS=1200` 后共同进入普通营业。三人用例另加客机 C2，H 在开房前执行 `console CMD="mp maxplayers 3"`。N 为等待上菜的顾客编号，D 为其桌号，Q 为排队顾客编号，均从 `guests` 读取。进入营业后 H 执行 `spawning MODE=off` 关闭自然来客，店里只留用例生成的顾客。`serve` 的 stage 会先把物品放进本端托盘（4 格），用例前各端 `tray_clear`。
 
 通用判定：
 
@@ -24,7 +24,7 @@
 
 ### 3 排队耐心耗尽
 
-- 操作：有 Q 时 H `patience ID=Q VALUE=0`。
+- 操作：取队尾的 Q，等它走到排队位置（原版到位后才开始扣排队耐心；队首可能先因空桌入座），H `patience ID=Q VALUE=0`。
 - 期望：两端 Q 离开，`queue=` 相同。
 - 依据：H `Send GuestLeaveMessage` 带 `"Reason":"Unseated"`（`MoveToSpawn` Hook 生效）。
 
