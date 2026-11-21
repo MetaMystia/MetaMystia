@@ -135,7 +135,7 @@ flowchart TD
 
 - [选店补丁](../../../src/MetaMystia.Mod/Patches/Common/IzakayaSelectorPanelPatch.cs)：提交选择、主机确认、继续原流程。
 - [备菜完成消息](../../../src/MetaMystia.Mod/Multiplayer/Messages/PrepScene/PrepAllReadyMessage.cs)：阶段推进前先统一必要配置。
-- [顾客补丁](../../../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)与 [GuestFSM](../../../src/MetaMystia.Mod/Managers/GuestFSM.cs)：探测生命周期变化，按业务状态应用同步。
+- [顾客补丁](../../../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)与[顾客登记表](../../../src/MetaMystia.Mod/Multiplayer/Guests/GuestRegistry.cs)：在原版收口探测生命周期变化，客机按事件重放原版入口。
 - [夜间事件补丁](../../../src/MetaMystia.Mod/Patches/NightScene/NightSceneEventManagerPatch.cs)：约束客机自主变更，捕获主机产生的业务变化。
 
 这些示例对应前期已阅读的游戏选店、备菜、顾客订单及营业结束调用链。新模式仍从它自己的主线开始审计。

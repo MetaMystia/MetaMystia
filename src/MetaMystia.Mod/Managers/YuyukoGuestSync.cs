@@ -8,6 +8,7 @@ using Il2CppSystem.Linq;
 using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Guests;
 using MetaMystia.Multiplayer.Messages;
 using MetaMystia.Patch;
 
@@ -24,7 +25,7 @@ namespace MetaMystia;
 public static partial class YuyukoGuestSync
 {
     private static GuestGroupController body;
-    private static GuestFSM fsm;
+    private static GuestRecord guest;
     private static Guid session;
     private static YuyukoGuestMessage binding;
     private static YuyukoGuestMessage pendingClear;
@@ -51,8 +52,8 @@ public static partial class YuyukoGuestSync
         GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge && controller != null
         && body?.Pointer == controller.Pointer;
 
-    /// <summary>判断网络编号是否属于已绑定本体，供上菜消息在剧情期间接收并暂存。</summary>
-    internal static bool OwnsRuntimeId(int runtimeId) => fsm != null && fsm.RuntimeId == runtimeId;
+    /// <summary>判断网络编号是否属于已绑定本体。</summary>
+    private static bool OwnsRuntimeId(int runtimeId) => guest != null && guest.RuntimeId == runtimeId;
     /// <summary>原版订单安装调用正在执行；安装 Hook 据此放行，避免再次将订单暂存。</summary>
     internal static bool IsInstalling => installing;
     /// <summary>当前正同步调用客机评价重放；异步评价完成由完成回调另外跟踪。</summary>
@@ -71,7 +72,7 @@ public static partial class YuyukoGuestSync
         if (GameSession.IsRoomHost)
         {
             session = Guid.NewGuid();
-            fsm = GuestFSM.BindManual(body);
+            guest = Bind(0);
             SendBinding();
         }
         else if (binding == null) YuyukoGuestBoundMessage.Send(Guid.Empty, 0);
@@ -125,12 +126,27 @@ public static partial class YuyukoGuestSync
     /// </summary>
     private static void TryBind()
     {
-        if (!GameSession.IsRoomClient || body == null || binding == null || fsm != null) return;
+        if (!GameSession.IsRoomClient || body == null || binding == null || guest != null) return;
         body.GetFund = binding.Fund;
         body.MaxFundCarry = binding.MaxFund;
-        fsm = GuestFSM.BindManual(body, binding.RuntimeId);
-        YuyukoGuestBoundMessage.Send(session, fsm.RuntimeId);
-        Log.Info($"幽幽子本体已绑定 #{fsm.RuntimeId}");
+        guest = Bind(binding.RuntimeId);
+        YuyukoGuestBoundMessage.Send(session, guest.RuntimeId);
+        Log.Info($"幽幽子本体已绑定 #{guest.RuntimeId}");
+    }
+
+    /// <summary>剧情已经创建实体；只登记网络身份，不重放出生、排队或普通首单。</summary>
+    private static GuestRecord Bind(int runtimeId)
+    {
+        var bound = GuestRegistry.Current.Add(runtimeId, GuestTrack.Scripted, null, body);
+        bound.State = GuestPhase.Manual;
+        return bound;
+    }
+
+    private static void SetState(GuestPhase state)
+    {
+        guest.WillServeFood = null;
+        guest.WillServeBeverage = null;
+        guest.State = state;
     }
 
     /// <summary>
@@ -143,7 +159,7 @@ public static partial class YuyukoGuestSync
         if (targetSession == Guid.Empty && runtimeId == 0)
         {
             // 客机可能在首个 Bind 发出后才进入营业场景。
-            if (fsm != null) SendBinding();
+            if (guest != null) SendBinding();
             return;
         }
         if (targetSession == session && OwnsRuntimeId(runtimeId) && PlayerManager.Peers.ContainsKey(uid))
@@ -165,9 +181,9 @@ public static partial class YuyukoGuestSync
     private static YuyukoGuestMessage Message(YuyukoGuestEvent kind) => new()
     {
         Session = session,
-        RuntimeId = fsm.RuntimeId,
+        RuntimeId = guest.RuntimeId,
         Event = kind,
-        OrderSeq = fsm.OrderSeq,
+        OrderSeq = guest.OrderSeq,
     };
 
     /// <summary>
@@ -197,22 +213,22 @@ public static partial class YuyukoGuestSync
     /// <param name="generation">启动时的生命周期编号；重置后旧协程直接退出，不能清理新会话。</param>
     /// <remarks>
     /// 断线且仍在挑战场景时，将待安装订单或已完成回调交回原版；其他退出情况重置本体同步。
-    /// 该协程与 GuestFSM 的上菜队列独立，TCP 接收有序不代表订单已经安装完成。
+    /// 该协程与顾客登记表的上菜事件队列独立，TCP 接收有序不代表订单已经安装完成。
     /// </remarks>
     private static IEnumerator Process(int generation)
     {
         while (generation == lifetime && GameSession.HasRoomPeers && PrepSceneManager.IsYuyukoChallenge)
         {
             TryBind();
-            if (fsm != null && !GameFlow.InStory)
+            if (guest != null && !GameFlow.InStory)
             {
                 PlayPendingSwallows();
                 if (pendingClear != null)
                 {
-                    if (pendingClear.OrderSeq >= fsm.OrderSeq)
+                    if (pendingClear.OrderSeq >= guest.OrderSeq)
                     {
                         CancelOrder();
-                        fsm.SetManualOrderSeq(pendingClear.OrderSeq);
+                        guest.OrderSeq = pendingClear.OrderSeq;
                         if (body.AllOrdersCount > 0) GuestsManager.Instance.CleanOrderInfo(body);
                     }
                     pendingClear = null;
@@ -221,7 +237,7 @@ public static partial class YuyukoGuestSync
                     && PlayerManager.Peers.Keys.All(boundPeers.Contains))
                 {
                     var order = pendingOrder;
-                    Install(order, fsm.OrderSeq + 1);
+                    Install(order, guest.OrderSeq + 1);
                     var message = Message(YuyukoGuestEvent.Order);
                     message.OrderType = order.Type;
                     message.FoodRequest = order.foodRequest;
@@ -269,9 +285,9 @@ public static partial class YuyukoGuestSync
         switch (message.Event)
         {
             case YuyukoGuestEvent.Order:
-                if (message.OrderSeq <= fsm.OrderSeq) return true;
+                if (message.OrderSeq <= guest.OrderSeq) return true;
                 if (pendingOrder == null || body.DeskCode != message.DeskCode) return false;
-                if (message.OrderSeq != fsm.OrderSeq + 1) return false;
+                if (message.OrderSeq != guest.OrderSeq + 1) return false;
                 OrderBase order = message.OrderType == OrderBase.OrderType.Normal
                     ? new GuestsManager.NormalOrder(body.GetAllGuests().ToArray().First(), message.FoodRequest,
                         message.BeverageRequest, message.DeskCode, message.NotShowInUI, message.FreeOrder)
@@ -281,15 +297,15 @@ public static partial class YuyukoGuestSync
                 Install(order, message.OrderSeq);
                 return true;
             case YuyukoGuestEvent.Evaluate:
-                if (message.OrderSeq < fsm.OrderSeq) return true;
-                if (message.OrderSeq != fsm.OrderSeq) return false;
-                if (body.HasEvaluated || fsm.CurrentState == GuestFSM.State.Manual) return true;
-                if (fsm.CurrentState != GuestFSM.State.WaitingServe) return false;
+                if (message.OrderSeq < guest.OrderSeq) return true;
+                if (message.OrderSeq != guest.OrderSeq) return false;
+                if (body.HasEvaluated || guest.State == GuestPhase.Manual) return true;
+                if (guest.State != GuestPhase.WaitingServe) return false;
                 ReplayEvaluation(message);
                 return true;
             case YuyukoGuestEvent.Complete:
-                if (message.OrderSeq < fsm.OrderSeq) return true;
-                if (message.OrderSeq != fsm.OrderSeq) return false;
+                if (message.OrderSeq < guest.OrderSeq) return true;
+                if (message.OrderSeq != guest.OrderSeq) return false;
                 hostCompleted = message.Result;
                 return true;
             default:
@@ -309,7 +325,7 @@ public static partial class YuyukoGuestSync
         pendingCallback = null;
         localCompleted = null;
         hostCompleted = null;
-        fsm.SetManualOrderSeq(seq);
+        guest.OrderSeq = seq;
         int generation = lifetime;
         int version = ++orderVersion;
         wrappedCallback = (System.Action<EvaluationResult>)(result => OnCompleted(generation, version, seq, result));
@@ -319,15 +335,15 @@ public static partial class YuyukoGuestSync
             GuestsManager.Instance.SetManualControllerOrderInternal(body, wrappedCallback, order);
         }
         finally { installing = false; }
-        fsm.SetManualState(GuestFSM.State.WaitingServe);
-        Log.Info($"幽幽子本体订单 #{fsm.RuntimeId}/{seq}: {order.Type}");
+        SetState(GuestPhase.WaitingServe);
+        Log.Info($"幽幽子本体订单 #{guest.RuntimeId}/{seq}: {order.Type}");
     }
 
     /// <summary>
     /// 普通实体直接放行；本体必须等待上菜，且由主机发起或处于客机重放期间，才允许手动评价。
     /// </summary>
     internal static bool CanEvaluate(GuestGroupController controller) =>
-        !IsBody(controller) || (fsm?.CurrentState == GuestFSM.State.WaitingServe
+        !IsBody(controller) || (guest?.State == GuestPhase.WaitingServe
             && (GameSession.IsRoomHost || IsReplayingEvaluation));
 
     /// <summary>
@@ -336,7 +352,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void EvaluateConfirmed()
     {
-        if (fsm?.CurrentState == GuestFSM.State.WaitingServe && GameSession.IsRoomHost)
+        if (guest?.State == GuestPhase.WaitingServe && GameSession.IsRoomHost)
             GuestsManager.Instance.EvaulateManualOrder(body, wrappedCallback);
     }
 
@@ -386,7 +402,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void BeforePostEvaluation(GuestGroupController controller, EvaluationResult result)
     {
-        if (!IsBody(controller) || fsm == null) return;
+        if (!IsBody(controller) || guest == null) return;
         if (replayEvaluation != null) body.Mood = replayEvaluation.Mood;
         if (GameSession.IsRoomHost)
         {
@@ -401,7 +417,7 @@ public static partial class YuyukoGuestSync
             message.DamageMultiplier = YuyukoBossDataPatch.CurrentContext.dmgMultiplier;
             YuyukoGuestMessage.Send(message);
         }
-        fsm.SetManualState(GuestFSM.State.Evaluating);
+        SetState(GuestPhase.Evaluating);
     }
 
     /// <summary>
@@ -411,9 +427,12 @@ public static partial class YuyukoGuestSync
     private static void ReplayEvaluation(YuyukoGuestMessage message)
     {
         var order = body.PeekOrders();
-        GuestFSM.TryCloseServePanel(body.DeskCode);
-        order.ServFood = message.Food.ToSellable();
-        order.ServBeverage = message.Beverage.ToSellable();
+        var food = message.Food.ToSellable();
+        var beverage = message.Beverage.ToSellable();
+        ServeSlots.SettleOnEvaluate(guest, food, beverage);
+        ServeSlots.ClosePanel(body.DeskCode, guest, returnLocal: false);
+        order.ServFood = food;
+        order.ServBeverage = beverage;
         order.ServedFoodInAir = null;
         order.ServedBeverageInAir = null;
         replayEvaluation = message;
@@ -433,8 +452,8 @@ public static partial class YuyukoGuestSync
     /// </summary>
     private static void OnCompleted(int generation, int version, int seq, EvaluationResult result)
     {
-        if (generation != lifetime || version != orderVersion || fsm == null
-            || fsm.OrderSeq != seq || localCompleted.HasValue) return;
+        if (generation != lifetime || version != orderVersion || guest == null
+            || guest.OrderSeq != seq || localCompleted.HasValue) return;
         localCompleted = result;
         if (!GameSession.HasRoomPeers)
         {
@@ -465,7 +484,7 @@ public static partial class YuyukoGuestSync
     {
         var callback = orderCallback;
         orderCallback = null;
-        fsm.SetManualState(GuestFSM.State.Manual);
+        SetState(GuestPhase.Manual);
         callback?.Invoke(result);
     }
 
@@ -475,7 +494,7 @@ public static partial class YuyukoGuestSync
     /// </summary>
     internal static void OnClean(GuestGroupController controller)
     {
-        if (!IsBody(controller) || fsm == null) return;
+        if (!IsBody(controller) || guest == null) return;
         if (GameSession.IsRoomHost) YuyukoGuestMessage.Send(Message(YuyukoGuestEvent.Clear));
         CancelOrder();
     }
@@ -487,8 +506,12 @@ public static partial class YuyukoGuestSync
     private static void CancelOrder()
     {
         orderVersion++;
-        fsm?.CancelManualOrder();
-        if (body != null) GuestFSM.TryCloseServePanel(body.DeskCode);
+        if (guest != null)
+        {
+            guest.Inbox.Clear();
+            if (body != null) ServeSlots.ClosePanel(body.DeskCode, guest, returnLocal: true);
+            SetState(GuestPhase.Manual);
+        }
         pendingOrder = null;
         pendingCallback = null;
         orderCallback = null;
@@ -508,8 +531,8 @@ public static partial class YuyukoGuestSync
         ResetChallengeEvents();
         lifetime++;
         CancelOrder();
-        if (fsm != null) GuestsMap.Remove(fsm.RuntimeId);
-        fsm = null;
+        if (guest != null) GuestRegistry.Current.Remove(guest);
+        guest = null;
         body = null;
         session = Guid.Empty;
         binding = null;

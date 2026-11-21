@@ -2,9 +2,11 @@ using HarmonyLib;
 
 using NightScene.GuestManagementUtility;
 
-using static MetaMystia.Patch.HarmonyPrefixFlow;
-
 using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Guests;
+using MetaMystia.Multiplayer.Messages;
+
+using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 namespace MetaMystia.Patch;
 
@@ -34,83 +36,53 @@ public partial class GuestGroupControllerPatch
     public static bool Evaluate_Prefix(GuestGroupController __instance, ref int __result) =>
         YuyukoGuestSync.OverrideEvaluation(__instance, ref __result) ? SkipOriginal : RunOriginal;
 
-    /// <summary>
-    /// RefreshCurrentFundAndOrder 在 _TrySendToSeat_b__0 (OnArrive 回调) 中被调用，
-    /// 此时角色刚到达桌位，随后进入 10s/speed 的首单延时。
-    /// </summary>
-    /// <param name="__instance"></param>
+    /// <summary>主机到座处理（TrySendToSeat 的到座回调）开头调用，记录已到座。客机由重放的到座处理记录。</summary>
     [HarmonyPatch(nameof(GuestGroupController.RefreshCurrentFundAndOrder))]
     [HarmonyPrefix]
     public static void RefreshCurrentFundAndOrder_Prefix(GuestGroupController __instance)
     {
-        if (YuyukoGuestSync.IsBody(__instance)) return;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        if (GameSession.IsRoomHost)
-        {
-            GuestFSM.OnRefreshCurrentFundAndOrder(__instance);
-        }
+        if (GuestRegistry.Mode(__instance) == GuestMode.Host && GuestRegistry.Of(__instance) is { State: GuestPhase.Seating } guest)
+            guest.State = GuestPhase.Seated;
     }
 
-    /// <summary>
-    /// 主机捕捉 MoveToDesk 的目标桌号并同步。顾客组可能刚生成即可入座，也可能因座满先入队，后被送出队伍入座。
-    /// </summary>
-    /// <param name="__instance"></param>
-    /// <param name="deskCode"></param>
-    /// <param name="onMovementFinishCallback"></param>
-    [HarmonyPatch(nameof(GuestGroupController.MoveToDesk))]
-    [HarmonyPrefix]
-    public static void MoveToDesk_Prefix(GuestGroupController __instance, int deskCode, ref Il2CppSystem.Action onMovementFinishCallback)
-    {
-        if (YuyukoGuestSync.IsBody(__instance)) return;
-        if (GuestsManagerPatch.IsReimuProtectionGuest(__instance)) return;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        if (GameSession.IsRoomHost)
-        {
-            GuestFSM.OnMoveToDesk(__instance, deskCode);
-        }
-    }
-
-    /// <summary>
-    /// 因座满，主机刚生成的顾客组需要先入队时，主机同步入队事件
-    /// </summary>
-    /// <param name="__instance"></param>
+    /// <summary>主机入队收口。</summary>
     [HarmonyPatch(nameof(GuestGroupController.MoveToQueue))]
     [HarmonyPostfix]
-    public static void MoveToQueue_Postfix(GuestGroupController __instance)
+    public static void MoveToQueue_Postfix(GuestGroupController __instance, bool tryToJumpQueue)
     {
-        // 注：有且只有在 Spell_Orin 的负面符卡中会有 tryToJumpQueue = true
-        // TODO(Spell)
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        if (GameSession.IsRoomHost)
-        {
-            GuestFSM.OnMoveToQueue(__instance);
-        }
+        if (GuestRegistry.Mode(__instance) == GuestMode.Host) MoveToQueueMessage.Detect(__instance, tryToJumpQueue);
+    }
+
+    /// <summary>主机未入座离开收口：生成后无处可去、排队耐心耗尽、打烊清队、符卡驱逐。</summary>
+    [HarmonyPatch(nameof(GuestGroupController.MoveToSpawn))]
+    [HarmonyPrefix]
+    public static void MoveToSpawn_Prefix(GuestGroupController __instance)
+    {
+        if (GuestRegistry.Mode(__instance) == GuestMode.Host) GuestLeaveMessage.DetectUnseated(__instance, false, false);
+    }
+
+    [HarmonyPatch(nameof(GuestGroupController.FlyToSpawn))]
+    [HarmonyPrefix]
+    public static void FlyToSpawn_Prefix(GuestGroupController __instance, bool shouldFade)
+    {
+        if (GuestRegistry.Mode(__instance) == GuestMode.Host) GuestLeaveMessage.DetectUnseated(__instance, true, shouldFade);
     }
 
     /// <summary>
-    /// 主机 hook 用于捕获主机顾客的评价，其后几乎不存在更多改判情况，因此以此判定结果为同步基准。
-    /// 客机 hook 用于选择性覆写评价结果。
+    /// 主机记下评价已开始，最终结果在评价台词显示时广播。客机重放评价时换成主机结果。
     /// </summary>
-    /// <param name="__instance"></param>
-    /// <param name="__result"></param>
     [HarmonyPatch(nameof(GuestGroupController.TryOverrideEvaluateByBuff))]
     [HarmonyPostfix]
     public static void TryOverrideEvaluateByBuff_Postfix(GuestGroupController __instance, ref int __result)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-
-        var fsm = GuestsMap.GetGuestFsm(__instance);
-        if (GameSession.IsRoomHost)
+        switch (GuestRegistry.Mode(__instance))
         {
-            var evalResult = GuestsManager.Instance.EvaluationTrans(__result);
-            GuestFSM.OnEvaluateOrder(__instance, evalResult);
-            return;
-        }
-        if (GameSession.IsRoomClient)
-        {
-            if (fsm.OverrideEvalResult == GuestGroupController.EvaluationResult.Null)
-                return;
-            __result = (int)fsm.OverrideEvalResult;
+            case GuestMode.Host:
+                EvaluateOrderMessage.MarkPending(__instance);
+                break;
+            case GuestMode.Client when GuestRegistry.Of(__instance).FinalEval is var final && final != GuestGroupController.EvaluationResult.Null:
+                __result = (int)final;
+                break;
         }
     }
 }

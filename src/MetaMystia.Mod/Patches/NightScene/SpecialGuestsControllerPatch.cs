@@ -1,10 +1,8 @@
-using System;
-
 using HarmonyLib;
 
 using NightScene.GuestManagementUtility;
 
-using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 
 namespace MetaMystia.Patch;
 
@@ -15,20 +13,9 @@ public partial class SpecialGuestsControllerPatch
     [HarmonyPatch(nameof(SpecialGuestsController.PostEvaluation))]
     [HarmonyPrefix]
     public static void PostEvaluation_Prefix(SpecialGuestsController __instance,
-        GuestGroupController.EvaluationResult evaluationType) =>
-        YuyukoGuestSync.BeforePostEvaluation(__instance, evaluationType);
-
-    /// <summary>
-    /// 主机或客机用于推进 EatingDelay -> ContinueDecision
-    /// </summary>
-    /// <param name="__instance"></param>
-    /// <exception cref="InvalidOperationException"></exception>
-    [HarmonyPatch(nameof(SpecialGuestsController.PostEvaluation))]
-    [HarmonyPostfix]
-    public static void PostEvaluation_Postfix(SpecialGuestsController __instance)
+        ref GuestGroupController.EvaluationResult evaluationType)
     {
-        if (YuyukoGuestSync.IsBody(__instance)) return;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        GuestFSM.OnPostEvaluation(__instance);
+        EvaluateOrderMessage.BeforePostEvaluation(__instance, ref evaluationType);
+        YuyukoGuestSync.BeforePostEvaluation(__instance, evaluationType);
     }
 }

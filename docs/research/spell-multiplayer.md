@@ -38,13 +38,11 @@
 | 问题 | 涉及 | 依据 |
 |---|---|---|
 | 客机生成返回 null 后直接使用，必定空引用 | `Mamizou` 红卡（分身 `OnLeaveCallback +=`）、`Luize` 红卡（相片客人 `MaxFundCarry =`） | 已核对调用点 |
-| 客机本地驱逐：`RepellInternal` 置 `Left`、移出耐心倒计时与图标，`LeaveFromDesk` 被跳过；选中与主机不同的顾客时留下幽灵顾客，相同时与 `GuestRepellMessage` 重复处理 | `Meirin`、`Tenshi`、`Nitori`、`Yuuka` 黑卡，`Akyuu` 黑卡，`Marisa` 黑卡，`Wriggle` 黑卡 | 已核对 `RepellInternal` |
 | `LockCookers`、`LockCookers_Forever` 内部 `InterruptCook` 丢弃锅内料理；两端锁不同厨具即打乱已同步的厨具内容 | `Cirno`、`TotetsuYuuma`、`Alice` 黑卡，`Utsuho` 黑卡 | 源码推断 |
 | `CallQTENotFullScore` 只由本地 QTE 面板调用；挂在其上的效果只在打 QTE 的一端触发，另一端计数不消耗 | `Utsuho`、`Toziko` 黑卡 | 已核对调用点 |
 | `IzakayaCloseMessage` 重放打烊后把 `RegisteredDoNotCloseIzakayaStatus` 置 0，客机无法延长营业 | `Remilia` 红卡、`Luize` 红卡 | 已核对 |
 | 客机本地回调写入稀客状态：`IzakayaConfigure.Gacha` 改本地稀客池；`ManualSpawnGuestGroupsFromTargetIzakaya` 标记今晚已来 | `Yuuka` 红卡、`Toyohime` 红卡 | 源码推断 |
 | 护盾 `Skill_Reimu_Shield` 是本地计数；红卡排队后才登记，黑卡在触发时检查，可能一端挡下一端执行；觉的内联调用不检查护盾；被挡的黑卡不触发 `OnSpellEnd` | 全部黑卡 | 源码推断 |
-| `GuestLeaveMessage` 注释称客机强制 `triggerLeaveBuff = false`，代码透传 | 离场卡 | 已核对 |
 
 ## 适配方案
 
@@ -56,7 +54,7 @@
 
 通用入口：
 
-- 客机非重放的 `RepellInternal` 跳过，由 `GuestRepellMessage` 落地。
+- 客机非重放的 `RepellInternal` 已跳过，由主机离场收口（`GuestLeaveMessage`）落地。
 - `TargetTablesAny`、`TargetTablesGuests`、`TargetCookersAny`、`LockDailyRecipes`、`RandomSelectBuff`、`MasterEvaluationEdit` 同步返回结果，客机无法在其内部等待，仍需在各卡协程中设等待点。
 - 锁厨具与现有厨具同步配合，参考吞厨具对内部 `Extract` 广播的抑制。
 

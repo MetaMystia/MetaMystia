@@ -28,7 +28,7 @@
 
 - 操作：H 侧让客人分别上菜后离开（`serve MODE=send`）、被驱赶（`serve MODE=repell`）、耐心耗尽离开。
 - 期望：C 对应桌位的客人离开一次，桌位清空，无重复离开和残留；之后两端同一桌的客人编号一致（入座中的桌除外）。
-- 依据：普通离桌 H `Guest #N OnLeaveFromDesk ... broadcast=True` → C `Guest #N DoLeaveFromDesk`；驱赶 H `Send GuestRepellMessage` → C `Received GuestRepellMessage`；耐心耗尽 H `Guest #N patient depleted at desk` → C `Received PatientDepletedDeskMessage` 并重放 `PatientDepletedLeave`。
+- 依据：H `Send GuestLeaveMessage`，`Reason` 依次为 `Desk`、`Repel`、`PatientDepleted` → C `Received GuestLeaveMessage` 并重放对应离场。
 
 ## 6 面板被离桌打断
 

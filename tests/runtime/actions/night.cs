@@ -1,6 +1,6 @@
 // 夜间营业一行状态（调试器的字符串结果超过 300 字会截断，保持简短）：
 // wait=开店等待 frozen=房间冻结 ts=timeScale cd=营业倒计时 close=打烊中 occ=占用桌数 panel=打开的上菜面板桌号
-// desks=桌号:客人编号/FSM 状态；单机没有 GuestFSM，显示 桌号:o订单数
+// desks=桌号:客人编号/同步阶段；单机或未登记的顾客显示 桌号:o订单数
 public static class Program {
   public static object Execute() {
     var sb = new System.Text.StringBuilder();
@@ -15,9 +15,8 @@ public static class Program {
       NightScene.GuestManagementUtility.GuestGroupController c = null;
       try { c = gm.GetInDeskGuest(d); } catch { }
       if (c == null) continue;
-      var fsm = MetaMystia.Multiplayer.GameSession.HasRoomPeers ? MetaMystia.GuestsMap.GetGuestFsm(c) : null;
-      // 单机查 GuestFSM 会让模组记 Error 日志
-      sb.Append(d + ":" + (fsm == null ? "o" + c.AllOrdersCount : fsm.RuntimeId + "/" + fsm.CurrentState) + " ");
+      var guest = MetaMystia.Multiplayer.Guests.GuestRegistry.Of(c);
+      sb.Append(d + ":" + (guest == null ? "o" + c.AllOrdersCount : guest.RuntimeId + "/" + guest.State) + " ");
     }
     return sb.ToString().TrimEnd();
   }

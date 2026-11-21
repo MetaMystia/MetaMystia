@@ -28,7 +28,7 @@ namespace MetaMystia.Multiplayer.Messages;
 [MemoryPackUnion((ushort)GameMessageType.Buff, typeof(BuffMessage))]
 [MemoryPackUnion((ushort)GameMessageType.GuestInvite, typeof(GuestInviteMessage))]
 [MemoryPackUnion((ushort)GameMessageType.GuestSpawn, typeof(GuestSpawnMessage))]
-[MemoryPackUnion((ushort)GameMessageType.MoveToDesk, typeof(MoveToDeskMessage))]
+[MemoryPackUnion((ushort)GameMessageType.GuestSeat, typeof(GuestSeatMessage))]
 [MemoryPackUnion((ushort)GameMessageType.MoveToQueue, typeof(MoveToQueueMessage))]
 [MemoryPackUnion((ushort)GameMessageType.PlayerRepell, typeof(PlayerRepellMessage))]
 [MemoryPackUnion((ushort)GameMessageType.GenerateOrder, typeof(GenerateOrderMessage))]
@@ -36,16 +36,15 @@ namespace MetaMystia.Multiplayer.Messages;
 [MemoryPackUnion((ushort)GameMessageType.EvaluateOrder, typeof(EvaluateOrderMessage))]
 [MemoryPackUnion((ushort)GameMessageType.ConfirmServe, typeof(ConfirmServeMessage))]
 [MemoryPackUnion((ushort)GameMessageType.GuestLeave, typeof(GuestLeaveMessage))]
-[MemoryPackUnion((ushort)GameMessageType.SendFromQueue, typeof(SendFromQueueMessage))]
-[MemoryPackUnion((ushort)GameMessageType.PatientDepletedQueue, typeof(PatientDepletedQueueMessage))]
-[MemoryPackUnion((ushort)GameMessageType.PatientDepletedDesk, typeof(PatientDepletedDeskMessage))]
-[MemoryPackUnion((ushort)GameMessageType.GuestKill, typeof(GuestKillMessage))]
+[MemoryPackUnion((ushort)GameMessageType.GuestStats, typeof(GuestStatsMessage))]
+[MemoryPackUnion((ushort)GameMessageType.ServeReject, typeof(ServeRejectMessage))]
+[MemoryPackUnion((ushort)GameMessageType.GuestQuery, typeof(GuestQueryMessage))]
+[MemoryPackUnion((ushort)GameMessageType.GuestSnapshot, typeof(GuestSnapshotMessage))]
 [MemoryPackUnion((ushort)GameMessageType.FundEdit, typeof(FundEditMessage))]
 [MemoryPackUnion((ushort)GameMessageType.TipEdit, typeof(TipEditMessage))]
 [MemoryPackUnion((ushort)GameMessageType.ExpEdit, typeof(ExpEditMessage))]
 [MemoryPackUnion((ushort)GameMessageType.PassionEdit, typeof(PassionEditMessage))]
 [MemoryPackUnion((ushort)GameMessageType.IzakayaClose, typeof(IzakayaCloseMessage))]
-[MemoryPackUnion((ushort)GameMessageType.GuestRepell, typeof(GuestRepellMessage))]
 [MemoryPackUnion((ushort)GameMessageType.YuyukoFailed, typeof(YuyukoFailedMessage))]
 [MemoryPackUnion((ushort)GameMessageType.YuyukoLife, typeof(YuyukoLifeMessage))]
 [MemoryPackUnion((ushort)GameMessageType.DayDestinationIntent, typeof(DayDestinationIntentMessage))]
@@ -72,9 +71,6 @@ public abstract partial class MultiplayerMessage
     [MemoryPackIgnore] public MessageContext Context { get; set; }
     [MemoryPackIgnore, System.Text.Json.Serialization.JsonIgnore] public Client Connection { get; set; }
     [MemoryPackIgnore] protected bool IsCurrent => Connection == GameSession.Client && Connection?.IsCurrent(Context) == true;
-
-    protected void QueueForGuest(GuestFSM guest, string name, Func<bool> execute) =>
-        guest?.Enqueue(name, () => !IsCurrent || execute());
 
 
     [MemoryPackIgnore]
@@ -147,13 +143,10 @@ public abstract partial class MultiplayerMessage
 
     private bool ShouldDiscardOnStory()
     {
-        if (!GameFlow.InStory || CanReceiveDuringStory) return false;
+        if (!GameFlow.InStory) return false;
         var method = this.GetType().GetMethod(nameof(OnReceivedDerived));
         return method.GetCustomAttribute<DiscardOnStoryAttribute>() != null;
     }
-
-    [MemoryPackIgnore]
-    protected virtual bool CanReceiveDuringStory => false;
 
     public override string ToString()
     {

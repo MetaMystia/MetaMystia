@@ -52,7 +52,7 @@ namespace MetaMystia.Multiplayer.Messages
     public class BuffMessage : MultiplayerMessage {}
     public class GuestInviteMessage : MultiplayerMessage {}
     public class GuestSpawnMessage : MultiplayerMessage {}
-    public class MoveToDeskMessage : MultiplayerMessage {}
+    public class GuestSeatMessage : MultiplayerMessage {}
     public class MoveToQueueMessage : MultiplayerMessage {}
     public class PlayerRepellMessage : MultiplayerMessage {}
     public class GenerateOrderMessage : MultiplayerMessage {}
@@ -60,16 +60,15 @@ namespace MetaMystia.Multiplayer.Messages
     public class EvaluateOrderMessage : MultiplayerMessage {}
     public class ConfirmServeMessage : MultiplayerMessage { public int ActorUid { get; set; } }
     public class GuestLeaveMessage : MultiplayerMessage {}
-    public class SendFromQueueMessage : MultiplayerMessage {}
-    public class PatientDepletedQueueMessage : MultiplayerMessage {}
-    public class PatientDepletedDeskMessage : MultiplayerMessage {}
-    public class GuestKillMessage : MultiplayerMessage {}
+    public class GuestStatsMessage : MultiplayerMessage {}
+    public class ServeRejectMessage : MultiplayerMessage {}
+    public class GuestQueryMessage : MultiplayerMessage {}
+    public class GuestSnapshotMessage : MultiplayerMessage {}
     public class FundEditMessage : MultiplayerMessage {}
     public class TipEditMessage : MultiplayerMessage {}
     public class ExpEditMessage : MultiplayerMessage {}
     public class PassionEditMessage : MultiplayerMessage {}
     public class IzakayaCloseMessage : MultiplayerMessage {}
-    public class GuestRepellMessage : MultiplayerMessage {}
     public class YuyukoFailedMessage : MultiplayerMessage {}
     public class YuyukoLifeMessage : MultiplayerMessage {}
     public class DayDestinationIntentMessage : MultiplayerMessage {}
