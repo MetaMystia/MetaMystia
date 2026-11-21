@@ -1,9 +1,17 @@
 // 单个登记顾客。ID=编号。
-// MODE=info   阶段、心情、资金、剩余点单、耐心/上限、订单需求与已上菜（料理/酒水编号）、待上菜槽位、本端放入（claim）与已确认（conf）、待应用事件数
+// MODE=info   阶段、心情、资金、剩余点单、耐心/上限、订单需求与已上菜（料理/酒水编号）、点单人（组内序号/人数）、待上菜槽位、本端放入（claim）与已确认（conf）、待应用事件数
 // MODE=forget 客机：本地强制清理并移出登记表，模拟漏收该顾客；之后主机发来该顾客的事件时请求快照重建
 // MODE=unslot 清空本端记录的待上菜槽位和面板显示，不动托盘，模拟尚未收到对方的放入；房主执行即改变裁定依据
 public static class Program {
   static string Id(GameData.Core.Collections.Sellable s) { return s == null ? "-" : s.Id.ToString(); }
+  // 点单人在组内的序号/组人数；稀客为 -。
+  static string Ordering(NightScene.GuestManagementUtility.GuestGroupController c) {
+    var n = c.TryCast<NightScene.GuestManagementUtility.NormalGuestsController>();
+    if (n == null) return "-";
+    var groups = n.NormalGuestsGroups;
+    for (int i = 0; i < groups.Length; i++) if (c.OrderingGuest != null && groups[i].Pointer == c.OrderingGuest.Pointer) return i + "/" + groups.Length;
+    return "?/" + groups.Length;
+  }
   public static object Execute() {
     if (MetaMystia.GameFlow.LocalScene != Common.UI.Scene.WorkScene) return "not in night scene: " + MetaMystia.GameFlow.LocalScene;
     int id = @@ID@@; string mode = "@@MODE@@";
@@ -18,6 +26,7 @@ public static class Program {
         return "#" + id + " " + g.State + " desk=" + g.DeskCode + " seq=" + g.OrderSeq
           + (c == null ? " no-controller" : " mood=" + c.Mood + " fund=" + c.GetFund + " remain=" + c.remainOrderCount + " pat=" + c.CurrentPatient + "/" + c.MaxPatient)
           + " order=" + (o == null ? "-" : o.foodRequest + "/" + o.beverageRequest + " served=" + Id(o.ServFood) + "/" + Id(o.ServBeverage))
+          + (c == null ? "" : " by=" + Ordering(c))
           + " slot=" + Id(g.WillServeFood) + "/" + Id(g.WillServeBeverage)
           + " claim=" + Id(g.ClaimFood) + "/" + Id(g.ClaimBeverage)
           + " conf=" + Id(g.ConfirmedFood) + "/" + Id(g.ConfirmedBeverage)
