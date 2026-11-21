@@ -15,7 +15,7 @@
 
 已由主机裁定、客机调用被跳过的入口：`FundEdit`、`TipEdit`、`ExpEdit`、`PassionEdit`，顾客生成（客机返回 null），`LeaveFromDesk`、耐心耗尽、出队入座、点单、评价、打烊。`RepellInternal` 在客机仍执行原函数，只有其中的 `LeaveFromDesk` 被跳过。
 
-未同步：EventManager 的 buff 与修正、桌子和厨具的锁、顾客心情和耐心的修改、个人库存 `RunTimeStorage`、图鉴 `RunTimeAlbum`、玩家角色、伙伴、托盘 `IzakayaTray`、符卡生成的场景物体。厨具内容和保温箱已同步。联机禁用伙伴（进入备菜场景时清空），作用于伙伴的效果不需适配。
+未同步：EventManager 的 buff 与修正、桌子和厨具的锁、顾客心情和耐心的修改、个人库存 `RunTimeStorage`、图鉴 `RunTimeAlbum`、玩家角色、托盘 `IzakayaTray`、符卡生成的场景物体。厨具内容和保温箱已同步。联机禁用伙伴（进入备菜场景时清空），作用于伙伴的效果不需适配。
 
 时序：符卡队列 `OnExecutingSpellQueue` 与宣言 `CallSpellDeclaration` 都等本端 `CurrentInputMode == 0`；联机时停需全员请求。一端开着面板时，该端符卡持续排队，两端执行时刻不同。`FinalBuffTime` 还按本人等级加成缩放，同一张卡两端持续时间本就不同。
 
