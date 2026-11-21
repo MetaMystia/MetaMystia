@@ -39,6 +39,7 @@
 ## 调研
 
 - [guest-fsm-audit](research/guest-fsm-audit.md)：普通营业顾客同步问题清单
+- [guest-sync-refactor](research/guest-sync-refactor.md)：顾客同步根因归并与分步重构方案（未实现）
 - [day-map-native](research/day-map-native.md)：原版白天地图结构、NPC 与出口
 - [native-keybinding](research/native-keybinding.md)：接入原版按键设置（未实现）
 - [spell-multiplayer](research/spell-multiplayer.md)：原版符卡联机适配分类与逐卡清单（未实现）
