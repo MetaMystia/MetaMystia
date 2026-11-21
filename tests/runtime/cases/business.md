@@ -28,7 +28,7 @@
 
 - 操作：H 侧让客人分别上菜后离开（`serve MODE=send`）、被驱赶（`serve MODE=repell`）、耐心耗尽离开。
 - 期望：C 对应桌位的客人离开一次，桌位清空，无重复离开和残留；之后两端同一桌的客人编号一致（入座中的桌除外）。
-- 依据：普通离桌 H `Guest #N OnLeaveFromDesk ... broadcast=True` → C `Guest #N DoLeaveFromDesk`；驱赶 H `Send GuestRepellMessage` → C `Received GuestRepellMessage`；耐心耗尽 H `Guest #N patient depleted at desk` → C `Received PatientDepletedDeskMessage` 并重放 `PatientDepletedLeave`。
+- 依据：H `Send GuestLeaveMessage`，`Reason` 依次为 `Desk`、`Repel`、`PatientDepleted` → C `Received GuestLeaveMessage` 并重放对应离场。
 
 ## 6 面板被离桌打断
 
@@ -46,3 +46,25 @@
 
 - 操作：单机，`MetaMystia.ConfigManager.NoPanelPause.Value = true`。对一桌有订单的客人 `serve MODE=open`、`serve MODE=stage`，等该客人离开。结束后恢复设置。
 - 期望：面板打开期间 `ts=1`，`cd` 下降；客人离开后 `panel=-1`，托盘里有放入的料理和酒水。
+
+## 9 客机赶客
+
+- 操作：C 对有订单的客人 `serve MODE=repell DESK=D`。
+- 期望：C 的客人立即离开；H 的同一客人离开一次，资金与热情只在 H 变化后同步；C 不重复离开。
+- 依据：C `Send PlayerRepellMessage` → H `Send GuestLeaveMessage`（`Reason` 为 `Repel`）。
+
+## 10 外部关闭面板
+
+- 操作：C `serve MODE=open DESK=D`、`serve MODE=stage DESK=D`、`serve MODE=cancel`。
+- 期望：C 托盘收回料理和酒水；H 该桌待上菜清空。
+
+## 11 同桌上菜
+
+- 操作：H、C 同时打开同一桌面板，C `stage` 后 H `send`。
+- 期望：后到的放入被拒绝时物品回到其托盘；客人评价一次，两端评价结果一致。
+- 依据：被拒一端收到 `ServeRejectMessage`。
+
+## 12 客机断线
+
+- 操作：营业中 C `console CMD="mp stop"`。
+- 期望：C 店内客人按原版继续点单、评价、离开，打烊正常结算。
