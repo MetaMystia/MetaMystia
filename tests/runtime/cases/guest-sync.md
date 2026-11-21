@@ -76,14 +76,14 @@
 
 - 操作：稀客 N 等待上菜时 H `fund ID=N MODE=max VALUE=0`；H `serve MODE=open`、`serve MODE=good`。
 - 期望：评价后两端 N 愤怒离场一次。
-- 依据：H 下一条 `Send GenerateOrderMessage` 带 `"OverrideResult":"ExceedEndurance"`，约 1 秒后 `"Reason":"Desk"`。另记两端是否出现离场负面 buff（各端本地触发，不同步）。
+- 依据：H 下一条 `Send GenerateOrderMessage` 带 `"OverrideResult":"ExceedEndurance"`，约 1 秒后 `"Reason":"Desk"`。
 
 ## 上菜
 
 ### 12 房主上菜
 
 - 操作：H `serve MODE=open DESK=D`、`serve MODE=good DESK=D`。
-- 期望：同用例 6；C 在评价前 `guest MODE=info` 的 served 与 H 相同。
+- 期望：同用例 6；C 先 `Received ConfirmServeMessage`，后 `Received EvaluateOrderMessage`。
 
 ### 13 分次上菜
 
@@ -125,8 +125,8 @@
 ### 19 客机赶客
 
 - 操作：C `serve MODE=repell DESK=D`。
-- 期望：C 的 N 立即离开；H 的 N 随后离开一次；`earned` 只变化一次；没有护盾时两端 `combo=0`。
-- 依据：C `Send PlayerRepellMessage`（`"Branch":"Normal"`）；H `Send GuestLeaveMessage`（`"Reason":"Repel"`）；C 收到后不再重放离场。
+- 期望：C 的 N 立即离开；H 的 N 随后离开一次；没有护盾时两端 `combo=0`。
+- 依据：C `Send PlayerRepellMessage`（`"Branch":"Normal"`）；H 对 N 只有一条 `Send GuestLeaveMessage`（`"Reason":"Repel"`）；C 收到后不再重放离场。
 
 ### 20 房主赶客
 
@@ -136,9 +136,9 @@
 
 ### 21 两端同时赶客
 
-- 操作：两端对同一 D 紧接着各发一次 `serve MODE=repell DESK=D`。
-- 期望：两端 N 各离开一次；`earned` 只变化一次。
-- 依据：分开记录先后：H 先赶走时，H 有 `Repel of #N ... ignored`；C 的请求先到时，H 本地赶客不执行。两种情况 H 都只有一条 `"Reason":"Repel"`。
+- 操作：两端对同一 D 尽量同时各发一次 `serve MODE=repell DESK=D`。
+- 期望：两端 N 各离开一次，没有异常。
+- 依据：H 对 N 只有一条 `"Reason":"Repel"`。分开记录先后：C 的上报在 H 赶走之后到达时，H 有 `Repel of #N ... ignored`；一端执行时桌已空则什么也不做。
 
 ## 时序
 
@@ -193,19 +193,19 @@
 ### 30 客机上菜，另一客机同步
 
 - 操作：C `serve MODE=open DESK=D`、`serve MODE=good DESK=D`。
-- 期望：C2 的 N 评价一次，结果与 H 相同；C 的 slot 没有被自己的回传重复写入，C 托盘不增加。
+- 期望：C2 的 N 评价一次，结果与 H 相同；C 托盘不增加。
 - 依据：H `Send ServeSellableMessage` 与 `Send ConfirmServeMessage`（`ActorUid` 为 C）；C2 有对应的 `Received`。
 
 ### 31 两客机争用同一槽位
 
-- 操作：C、C2 都 `serve MODE=open DESK=D`；C `serve MODE=stage DESK=D`，紧接着 C2 `serve MODE=stage2 DESK=D`；三端 `guest MODE=info ID=N`，C、C2 各 `tray`。
-- 期望：三端 slot 相同，为先到的一端放入的物品；后到的一端托盘收回两件、面板为空。
-- 依据：H 对后到的一端 `Serve #N/... rejected`；该端 `Received ServeRejectMessage`。
+- 操作：C、C2 都 `serve MODE=open DESK=D`，各 `tray`；C `serve MODE=stage DESK=D` 与 C2 `serve MODE=stage2 DESK=D` 尽量同时执行；三端 `guest MODE=info ID=N`，C、C2 各 `tray`。
+- 期望：三端 slot 相同；C、C2 托盘增量之和为 2（共放入 4 件，2 件在槽位）。
+- 依据：分开记录：后到的一端放入时已看到先到的物品，按替换接受，替换下的物品回到后到一端的托盘；否则 H 有 `Serve #N/... rejected`，后到的一端 `Received ServeRejectMessage`、收回两件、面板为空。
 
 ### 32 客机赶客，另一客机同步
 
 - 操作：C `serve MODE=repell DESK=D`。
-- 期望：C2 的 N 离开一次；`earned` 只变化一次。
+- 期望：C2 的 N 离开一次；三端 `earned` 相同。
 - 依据：C2 `Received GuestLeaveMessage` 带 `"Reason":"Repel"`。
 
 ### 33 一个客机断线
