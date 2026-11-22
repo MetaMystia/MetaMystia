@@ -17,7 +17,6 @@ namespace MetaMystia.Patch;
 [HarmonyPatch(typeof(NightScene.UI.GuestManagementUtility.WorkSceneServePannel))]
 [TracePatch(nameof(WorkSceneServePannel.OnPanelInitialize))]
 [TracePatch(nameof(WorkSceneServePannel.OnPanelOpen))]
-[TracePatch(nameof(WorkSceneServePannel.OnPanelDestroyed))]
 [TracePatch(nameof(WorkSceneServePannel.OnPanelClose))]
 [TracePatch(nameof(WorkSceneServePannel.Send))]
 [TracePatch(nameof(WorkSceneServePannel.Cancel))]
