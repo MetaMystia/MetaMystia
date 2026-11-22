@@ -42,6 +42,7 @@ dotnet run --project tests/MetaMystia.Flow.Tests -c Release
 dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
 dotnet run --project tests/MetaMystia.Spell.Tests -c Release
 python tools/check.py
+dotnet run --project tools/icf -c Release -- check src/MetaMystia.Mod/bin/Release/MetaMystia-v<版本>.dll <BepInExPath>
 ```
 
 环境准备见 [setup](docs/dev/setup.md)，验证等级与汇报见 [verification](docs/dev/verification.md)，提交与 PR 见 [workflow](docs/dev/workflow.md)，游戏实测见 [runtime-testing](docs/dev/runtime-testing.md)。

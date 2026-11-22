@@ -19,6 +19,9 @@ public sealed class TracePatchAttribute : Attribute
     /// <summary>用于区分重载方法的参数类型列表</summary>
     public Type[]? ParameterTypes { get; }
 
+    /// <summary>目标已折叠时的说明，生成的追踪方法带 [IcfFolded]</summary>
+    public string? IcfFolded { get; set; }
+
     /// <param name="methodName">要 Patch 的方法名</param>
     public TracePatchAttribute(string methodName)
     {
