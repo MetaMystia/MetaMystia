@@ -67,9 +67,7 @@ public class Plugin : BasePlugin
         Log.LogInfo(MetaMystia.UI.MultiplayerStatus.DebugText);
 
         var harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
-        var originalHandle = AccessTools.Method(typeof(CanvasScaler), "Handle");
-        var postHandle = AccessTools.Method(typeof(BootstrapPatch), "Handle");
-        harmony.Patch(originalHandle, postfix: new HarmonyMethod(postHandle));
+        harmony.PatchAll(typeof(BootstrapPatch));
 
         PatchRegistry.ApplyAll(harmony);
 
@@ -95,8 +93,10 @@ public class Plugin : BasePlugin
         }
     }
 
+    [HarmonyPatch(typeof(UnityEngine.UI.CanvasScaler))]
     class BootstrapPatch
     {
+        [HarmonyPatch(nameof(CanvasScaler.Handle))]
         [HarmonyPostfix]
         static void Handle()
         {

@@ -27,7 +27,8 @@ namespace MetaMystia.Patch;
     typeof(int),
     typeof(bool),
 }, DisplayName = "GuestsManager.SpawnNormalGuestGroup_WithArgs")]
-[TracePatch(nameof(GuestsManager.SpawnNormalGuestGroup), new Type[0], DisplayName = "GuestsManager.SpawnNormalGuestGroup")]
+[TracePatch(nameof(GuestsManager.SpawnNormalGuestGroup), new Type[0], DisplayName = "GuestsManager.SpawnNormalGuestGroup",
+    IcfFolded = "与 SpawnNormalGuestGroupExtern 折叠，无参重载只调用它，行为相同")]
 [TracePatch(nameof(GuestsManager.SpawnManualControlledSpecialGuestGroup))]
 [TracePatch(nameof(GuestsManager.SpawnGuest))]
 [TracePatch(nameof(GuestsManager.PostInitializeGuestGroup))]
@@ -184,6 +185,7 @@ public partial class GuestsManagerPatch
     /// <returns></returns>
     [HarmonyPatch(nameof(GuestsManager.SpawnNormalGuestGroup), [])]
     [HarmonyPrefix]
+    [IcfFolded("与 SpawnNormalGuestGroupExtern 折叠，无参重载只调用它，行为相同")]
     public static bool SpawnNormalGuestGroup_Prefix()
     {
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;

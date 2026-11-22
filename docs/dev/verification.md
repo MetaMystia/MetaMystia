@@ -6,7 +6,7 @@
 |---|---|---|---|
 | 审计 | 逆向调用链、Interop 签名 | 实现与游戏逻辑一致（推断） | 运行时行为 |
 | 编译 | Mod、测试项目；修改服务端时加 Server | 类型与签名正确 | Hook 目标在运行时生效、时机正确 |
-| 离线测试 | 网络、流程、符卡测试；`tools/check.py`；地图离线校验 | 被测逻辑、协议与一致性 | 游戏对象、场景时序 |
+| 离线测试 | 网络、流程、符卡测试；`tools/check.py`；ICF 检查；地图离线校验 | 被测逻辑、协议与一致性 | 游戏对象、场景时序 |
 | 单机实测 | 游戏内操作与状态核对 | 该场景下的单机行为 | 联机一致性、未覆盖的场景 |
 | 联机实测 | 主机、客机分别观察 | 该场景下的同步 | 其他场景、断线重连等未覆盖路径 |
 
@@ -21,11 +21,12 @@ dotnet run --project tests/MetaMystia.Flow.Tests -c Release
 dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
 dotnet run --project tests/MetaMystia.Spell.Tests -c Release
 python tools/check.py
+dotnet run --project tools/icf -c Release -- check src/MetaMystia.Mod/bin/Release/MetaMystia-v<版本>.dll <BepInExPath>
 dotnet build src/MetaMystia.Server -c Release              # 修改服务端时
 python -m dayart.validate <资源包.zip>      # 在 tools/day-map-art 下运行
 ```
 
-CI 在 PR 和 `main` 推送时运行编译、三组测试、`tools/check.py` 与服务端发布。
+CI 在 PR 和 `main` 推送时运行编译、三组测试、`tools/check.py`、ICF 检查与服务端发布。
 
 ## 离线测试
 

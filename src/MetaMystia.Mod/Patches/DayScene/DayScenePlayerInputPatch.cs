@@ -22,6 +22,7 @@ public partial class DayScenePlayerInputPatch
 
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.OnSprintCanceled))]
     [HarmonyPrefix]
+    [IcfFolded("与 OnPanelWillOpenCallback 折叠，两者都只设置 Sprint = false，打开面板时同步停止疾跑同样正确")]
     public static void OnSprintCanceled_Prefix()
     {
         PlayerManager.LocalIsSprinting = false;

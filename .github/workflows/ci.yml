@@ -74,6 +74,9 @@ jobs:
       - name: 编译模组
         run: dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
 
+      - name: ICF 检查
+        run: dotnet run --project tools/icf -c Release -- check (Get-Item src/MetaMystia.Mod/bin/Release/MetaMystia-v*.dll).FullName .tmp/deps
+
       - name: 网络测试
         run: dotnet run --project tests/MetaMystia.Network.Tests -c Release
 
