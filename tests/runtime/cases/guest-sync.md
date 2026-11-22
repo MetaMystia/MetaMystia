@@ -213,9 +213,34 @@
 - 操作：C2 `console CMD="mp stop"`；之后 H `spawn MODE=normal COUNT=1`，C 对一位 N 上菜。
 - 期望：H 与 C 继续一致；C2 交还原版后独立营业。
 
+## 灵梦保护
+
+白天在博丽神社纳贡 500 円以上，当晚营业开始前在纳贡端生成灵梦，施放护盾后离场。灵梦不登记，只在纳贡端出现，护盾是本端计数。纳贡：`shrine MODE=travel`，`shrine MODE=info` 显示 `box=1` 后 `donate AMOUNT=500`（或 1000）。这些用例不关闭自然来客。
+
+通用期望：三端都开始营业（`night` 为 `wait=False`，`cd` 下降）。纳贡端 `shrine MODE=info` 为 `pending=0`，`shield` 大于 0（被稀客符卡消耗时可为 0），其他端为 0。营业开始后三端 `guests` 一致，`occ` 相同（自然来客变化快，先三端 `timestop MODE=Freeze` 再比对，比完 `Resume`）。H `spawn MODE=normal COUNT=1` 后，由纳贡端给该顾客上菜（`serve MODE=good`），三端结果一致。
+
+通用依据：纳贡端日志依次有 `ReimuProtection prefix called.`、`ReimuProtection postfix called.`，其他端没有。H 没有 `"GuestSpawnType":"HakureiMoneyBoxReimu"` 的 `Send GuestSpawnMessage`，客机也没有对应的 `Received`（自然来店的稀客灵梦同样是 `"Ids":[7]`，但生成类型为 `Normal`，照常同步）。
+
+### 34 房主纳贡
+
+- 操作：H 纳贡 500 円，三端共同营业。
+
+### 35 客机纳贡
+
+- 操作：C 纳贡 1000 円，三端共同营业；C 提交备菜后 `block SECONDS=45`。
+- 期望：H 等到 C 恢复、C 的灵梦离场后才开始营业。
+
+### 36 另一客机纳贡
+
+- 操作：C2 纳贡 500 円，三端共同营业。
+
+### 37 三端同日纳贡
+
+- 操作：H、C、C2 各纳贡 1000 円，三端共同营业。
+
 ## 未覆盖
 
-- 剧情期间暂存与剧情顾客、灵梦保护：需要触发夜间剧情的存档。
+- 剧情期间暂存与剧情顾客：需要触发夜间剧情的存档。
 - 带 buff 赶客（计次免罚、琪斯美）、符卡驱逐（`FlyToSpawn`）、投掷上菜：暂无获取 buff、发动符卡、投掷的动作。
 - 同桌两端同时确认或取消造成的复制：已知，未处理。
 - 幽幽子挑战：按[幽幽子挑战同步](../../../docs/reference/multiplayer/yuyuko-challenge.md)回归。

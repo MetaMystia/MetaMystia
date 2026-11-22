@@ -6,7 +6,7 @@
 
 - 操作：C 提交备菜后执行 `block SECONDS=45`，H 先进夜间。
 - 期望：C 阻塞期间 H 的 `night` 为 `wait=True`、`occ=0`；C 恢复后两端 `wait=False`，`cd` 下降。
-- 依据：H 日志依次为 `StartGuestSpawningAndTiming_Prefix`、来自 C 的 `Received BusinessStartMessage: {"Start":false`、`Send BusinessStartMessage: {"Start":true`；C 日志有 `Received BusinessStartMessage: {"Start":true`。
+- 依据：H 日志依次为 `gameTotalSeconds set to`、来自 C 的 `Received BusinessStartMessage: {"Start":false`、`Send BusinessStartMessage: {"Start":true`；C 日志有 `Received BusinessStartMessage: {"Start":true`。
 
 ## 2 开店等待中退出联机
 
