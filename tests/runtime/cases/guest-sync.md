@@ -238,9 +238,55 @@
 
 - 操作：H、C、C2 各纳贡 1000 円，三端共同营业。
 
+## 最终试炼
+
+白天三端 `trial` 提交重修意向，全员提交后 H 确认，各端进入挑战。开场和阶段之间有剧情，用 `dialog MODE=skip` 跳过。每个阶段前有一轮备菜，挑战的备菜默认全空，先 `prep MODE=fill` 再 `prep MODE=go`。一阶段营业额达标，二阶段正面符卡次数达标，三阶段本体点单、分身轮换，本体生命清零即通过。`yuyuko MODE=info` 看主循环位置、生命、被吞的厨具、本体登记与订单；本体在 `guests` 里是 `#1`。
+
+通用期望：三端 `yuyuko` 的 `state`、`life`、`locked`、`body`、`order` 一致，`guests` 一致；客机的 `phases` 包含 H 已结束的阶段位置。二阶段起各端 `earned` 可能不同（H 先发阶段快照再清场结账），挑战营业额不计入钱包，不比对。三端日志没有 Exception 或 Error。
+
+### 38 进入挑战
+
+- 操作：三端 `trial`（先后不限），跳过剧情。
+- 期望：三端进入第一轮备菜（`prepRound=1(open)`），三端 `body=#1:Manual/0`。
+- 依据：H 有 `Confirmed day destination FinalTrialAgain`；客机有 `幽幽子本体已绑定 #1`。
+
+### 39 一阶段失败
+
+- 操作：不填备菜直接 `prep MODE=go`，不上菜，等一阶段计时结束。
+- 期望：三端进入失败剧情，跳过后回到白天，房间人数不变。
+- 依据：H 有 `Yuyuko phase 1 settled: fund=0` 和 `Send YuyukoFailedMessage`；客机有 `收到主机的幽幽子挑战失败结果`。
+
+### 40 一、二阶段通过
+
+- 操作：三端轮流给 `WaitingServe` 的顾客 `serve MODE=good`，直到阶段达标。也可以由 H `yuyuko MODE=pass` 直接达标。
+- 期望：一阶段达标后三端 `state=6`，`earned` 都是 H 的结算值；二阶段 `spells=5` 后三端 `state=12`。
+- 依据：H 有 `Yuyuko phase 1 settled: fund=N, nextState=6`；客机有 `Yuyuko phase 1 applying settled fund: N`。
+
+### 41 本体上菜
+
+- 操作：三阶段由 H、C、C2 分别给本体上菜，其中一次与其他端给分身上菜同时进行。
+- 期望：每单之后三端 `body` 的订单序号同时加一，`order` 相同。
+- 依据：H 每单依次发出 `"Event":"Evaluate"`、`"Event":"Complete"` 和下一单的 `"Event":"Order"`。
+
+### 42 吞厨具
+
+- 操作：分别给分身和本体上错的菜（`serve MODE=bad`）；H `patience ID=<分身编号> VALUE=0`，让分身耐心耗尽离场。
+- 期望：每次三端 `locked` 都多出同一个位置；离场的分身由新分身补位，三端编号一致。
+
+### 43 三阶段结束
+
+- 操作：一轮等三阶段计时结束；另一轮由 H `yuyuko MODE=pass` 将生命清零。
+- 期望：计时结束时三端进入失败剧情；生命清零时三端主循环结束（`state=-1`），`locked=[]`。跳过剧情后都回到白天。分身拿到 Good 以上时三端 `life` 同时下降。
+- 依据：H 依次发出 `"PhaseState":16` 的 `"Event":"Phase"` 和 `"Event":"Clear"`，客机同时收到。
+
+### 44 挑战后营业
+
+- 操作：挑战结束后三端共同营业，各端上一单。
+- 期望：三端 `yuyuko` 为 `mode=NotChallenge … loop=none`，顾客编号从 1 开始，冻结后 `guests` 一致。
+
 ## 未覆盖
 
 - 剧情期间暂存与剧情顾客：需要触发夜间剧情的存档。
 - 带 buff 赶客（计次免罚、琪斯美）、符卡驱逐（`FlyToSpawn`）、投掷上菜：暂无获取 buff、发动符卡、投掷的动作。
 - 同桌两端同时确认或取消造成的复制：已知，未处理。
-- 幽幽子挑战：按[幽幽子挑战同步](../../../docs/reference/multiplayer/yuyuko-challenge.md)回归。
+- 最终试炼的烹饪中被吞、阶段结束与吞食重叠、各端剧情速度不同：暂无对应动作。
