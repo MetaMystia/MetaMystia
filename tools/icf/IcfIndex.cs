@@ -10,6 +10,10 @@ using System.Text.Json;
 sealed class IcfIndex
 {
     public const string Header = "rva\tshared\timage\ttoken\tmethod";
+    const string GamePrefix = "# game: ";
+
+    /// <summary>表头声明的游戏版本，对应 Versions.props 的 TargetGameVersion。</summary>
+    public string Game { get; private set; }
 
     public sealed record Entry(long Rva, int Shared, string Image, uint Token, string Method);
 
@@ -22,6 +26,8 @@ sealed class IcfIndex
         bool header = false;
         foreach (var line in File.ReadLines(path))
         {
+            if (line.StartsWith(GamePrefix))
+                index.Game = line[GamePrefix.Length..];
             if (line.StartsWith('#'))
                 continue;
             if (!header)
@@ -45,7 +51,7 @@ sealed class IcfIndex
 
     public IReadOnlyList<Entry> At(long rva) => byRva[rva];
 
-    public static int Generate(string dumperDir, TextWriter output)
+    public static int Generate(string dumperDir, string game, TextWriter output)
     {
         var shared = CountByRva(Path.Combine(dumperDir, "script.json"));
         var entries = new List<Entry>();
@@ -55,6 +61,7 @@ sealed class IcfIndex
             throw new InvalidDataException("DummyDll 中没有带 Token 与 RVA 的折叠方法，确认 Il2CppDumper 开启了 DummyDllAddToken");
 
         output.NewLine = "\n";
+        output.WriteLine(GamePrefix + game);
         output.WriteLine("# ICF 折叠表：同一 RVA 上有多个方法时列出其中的方法定义，shared 为该 RVA 上的方法数（含泛型实例）。");
         output.WriteLine("# 由 tools/icf index 从 Il2CppDumper 输出生成。");
         foreach (var file in new[] { "GameAssembly.dll", "global-metadata.dat" })

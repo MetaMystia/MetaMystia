@@ -27,6 +27,11 @@ static class IcfCheck
             return 1;
         }
         var index = IcfIndex.Load(tablePath);
+        if (index.Game != game)
+        {
+            Error($"{Path.GetFileName(tablePath)} 声明的游戏版本是 {index.Game ?? "（未声明）"}，与 Versions.props 的 {game} 不一致，用 tools/icf index 重新生成");
+            return 1;
+        }
 
         var interopDir = Path.GetFullPath(Path.Combine(depsDir, "interop"));
         string[] probe = [Path.GetFullPath(Path.Combine(depsDir, "core")), interopDir];

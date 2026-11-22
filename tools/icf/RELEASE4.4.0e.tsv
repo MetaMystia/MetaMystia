@@ -1,3 +1,4 @@
+# game: RELEASE 4.4.0e
 # ICF 折叠表：同一 RVA 上有多个方法时列出其中的方法定义，shared 为该 RVA 上的方法数（含泛型实例）。
 # 由 tools/icf index 从 Il2CppDumper 输出生成。
 # GameAssembly.dll sha256 ddef9cda4af57acedb3de5031d9d79ced27e8e5abfebd0d8f28b6094696deb48
