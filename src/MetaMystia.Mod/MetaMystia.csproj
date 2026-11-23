@@ -198,7 +198,7 @@
       <HintPath>$(BepInExPath)\interop\Unity.TextMeshPro.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.InputSystem.dll">
+    <Reference Include="Unity.InputSystem">
       <HintPath>$(BepInExPath)\interop\Unity.InputSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
@@ -208,6 +208,10 @@
     </Reference>
     <Reference Include="DEYU.Singletons">
       <HintPath>$(BepInExPath)\interop\DEYU.Singletons.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DEYU.InputHelper">
+      <HintPath>$(BepInExPath)\interop\DEYU.InputHelper.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="DEYU.AssetHandleUtility">
@@ -222,7 +226,7 @@
       <HintPath>$(BepInExPath)\interop\Omt.GamePlatformAPI.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Omt.GamePlatformAPI">
+    <Reference Include="DEYU.AdaptiveUISystem">
       <HintPath>$(BepInExPath)\interop\DEYU.AdaptiveUISystem.dll</HintPath>
       <Private>False</Private>
     </Reference>

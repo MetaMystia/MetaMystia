@@ -21,8 +21,10 @@
 
 1. `System.*`。
 2. BepInEx、HarmonyLib、Il2CppInterop、Il2CppSystem、MemoryPack、UnityEngine 等框架与第三方命名空间。
-3. Common、GameData、DayScene、NightScene 等游戏命名空间。
+3. Common、GameData、DayScene、NightScene、DEYU 等游戏命名空间。
 4. MetaMystia、SgrYuki 等项目命名空间。
 5. `using static` 和别名。
+
+DEYU 属于游戏命名空间，归入第 3 组，而非项目命名空间。
 
 删除未使用或重复的 `using`。

@@ -13,7 +13,7 @@
 - [setup](dev/setup.md)：依赖、构建、部署
 - [verification](dev/verification.md)：验证等级、离线测试、汇报
 - [workflow](dev/workflow.md)：分支、提交、PR、CI、发布
-- [runtime-testing](dev/runtime-testing.md)：游戏实测方法与运行时经验
+- [runtime-testing](dev/runtime-testing.md)：游戏实测方法、脚本与运行时经验
 
 ## 编码规范
 
@@ -32,15 +32,15 @@
 - [glossary](reference/glossary.md)：游戏名词与类型对照
 - [il2cppinterop-defects](reference/il2cppinterop-defects.md)：已确认的 Interop 缺陷与绕过
 - [analytics](reference/analytics.md)：使用统计事件、参数约定与接入位置
-- 联机：[architecture](reference/multiplayer/architecture.md)、[business-sync](reference/multiplayer/business-sync.md)（开发方法）、[scene-flow](reference/multiplayer/scene-flow.md)、[yuyuko-challenge](reference/multiplayer/yuyuko-challenge.md)
+- 联机：[architecture](reference/multiplayer/architecture.md)、[business-sync](reference/multiplayer/business-sync.md)（开发方法）、[guest-sync](reference/multiplayer/guest-sync.md)、[scene-flow](reference/multiplayer/scene-flow.md)、[yuyuko-challenge](reference/multiplayer/yuyuko-challenge.md)
 - ResourceEx：[package-contract](reference/resourceex/package-contract.md)、[module-structure](reference/resourceex/module-structure.md)、[day-maps](reference/resourceex/day-maps.md)、[decorations](reference/resourceex/decorations.md)、[RuntimeAddressables](../src/MetaMystia.Mod/ResourceEx/Addressables/README.md)
 - 服务端：[console](reference/server/console.md)、[chat-filter](reference/server/chat-filter.md)、[deployment](reference/server/deployment.md)
 
 ## 调研
 
-- [guest-fsm-audit](research/guest-fsm-audit.md)：普通营业顾客同步问题清单
 - [day-map-native](research/day-map-native.md)：原版白天地图结构、NPC 与出口
 - [native-keybinding](research/native-keybinding.md)：接入原版按键设置（未实现）
+- [spell-multiplayer](research/spell-multiplayer.md)：原版符卡联机适配分类与逐卡清单（未实现）
 
 ## 编写规则
 

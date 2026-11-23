@@ -54,7 +54,7 @@
 
 ## 构建与检查
 
-- 库存离线检查：`dotnet run --project src/MetaMystia.Spell.Tests/MetaMystia.Spell.Tests.csproj`。直接编译库存实现与 Hook，使用游戏接口替身覆盖 13 项检查；不验证原生 Hook 安装或游戏表现。
+- 库存离线检查：`dotnet run --project tests/MetaMystia.Spell.Tests/MetaMystia.Spell.Tests.csproj`。直接编译库存实现与 Hook，使用游戏接口替身覆盖 13 项检查；不验证原生 Hook 安装或游戏表现。
 - 贴图：`python tools/spell-vfx/scripts/minoriko/gen_textures.py`。
 - 特效包：`pwsh tools/spell-vfx/scripts/build.ps1 -Spell Minoriko -Probe`，Unity 路径由 `UNITY_EXE` 提供。
 - 美术预览：Unity 批处理运行 `MinorikoPreview.Run`，须启用图形设备；输出位于 `tools/spell-vfx/Build/Minoriko/`。

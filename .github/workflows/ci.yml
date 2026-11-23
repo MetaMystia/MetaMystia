@@ -74,25 +74,54 @@ jobs:
       - name: 编译模组
         run: dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
 
+      - name: ICF 检查
+        run: dotnet run --project tools/icf -c Release -- check (Get-Item src/MetaMystia.Mod/bin/Release/MetaMystia-v*.dll).FullName .tmp/deps
+
       - name: 网络测试
-        run: dotnet run --project src/MetaMystia.Network.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Network.Tests -c Release
 
       - name: 流程测试
-        run: dotnet run --project src/MetaMystia.Flow.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Flow.Tests -c Release
 
       - name: 部署流程测试
-        run: dotnet run --project src/MetaMystia.Hosting.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
 
       - name: 符卡测试
-        run: dotnet run --project src/MetaMystia.Spell.Tests -c Release
+        run: dotnet run --project tests/MetaMystia.Spell.Tests -c Release
 
       - name: 构建服务端
         run: dotnet publish src/MetaMystia.Server/MetaMystia.Server.csproj -c Release --self-contained false -p:UseAppHost=false
 
+      - name: 确定产物名称
+        id: names
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+            $suffix = "pr$($env:PR_NUMBER)-$($env:PR_HEAD_SHA.Substring(0, 7))"
+            $dll = Get-Item src/MetaMystia.Mod/bin/Release/MetaMystia-v*.dll
+            Rename-Item $dll "$($dll.BaseName)-$suffix$($dll.Extension)"
+            New-Item -ItemType Directory -Force .tmp/pr-meta | Out-Null
+            Set-Content .tmp/pr-meta/pr-number.txt $env:PR_NUMBER
+          } else {
+            $suffix = $env:GITHUB_SHA
+          }
+          "suffix=$suffix" >> $env:GITHUB_OUTPUT
+
+      - name: 保存 PR 编号
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-meta
+          path: .tmp/pr-meta/pr-number.txt
+          if-no-files-found: error
+          retention-days: 1
+
       - name: 保存模组产物
         uses: actions/upload-artifact@v7
         with:
-          name: MetaMystia-${{ github.sha }}
+          name: MetaMystia-${{ steps.names.outputs.suffix }}
           path: src/MetaMystia.Mod/bin/Release/MetaMystia-v*.dll
           if-no-files-found: error
           retention-days: 14
@@ -100,7 +129,7 @@ jobs:
       - name: 保存服务端产物
         uses: actions/upload-artifact@v7
         with:
-          name: MetaMystia.Server-${{ github.sha }}
+          name: MetaMystia.Server-${{ steps.names.outputs.suffix }}
           path: src/MetaMystia.Server/bin/Release/net6.0/publish/
           if-no-files-found: error
           retention-days: 14

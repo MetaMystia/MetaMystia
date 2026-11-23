@@ -74,7 +74,7 @@ export function icon(name, extra) {
 export function iconButton(name, title, onclick, cls) {
   return h('button', { type: 'button', class: 'icon-btn' + (cls ? ' ' + cls : ''), title, 'aria-label': title, onclick }, icon(name));
 }
-export function mark(cls) { return h('img', { class: cls, src: 'favicon.svg', alt: '' }); }
+export function mark(cls) { return h('img', { class: cls, src: 'favicon.png', alt: '' }); }
 
 // ---------- 接口 ----------
 

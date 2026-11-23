@@ -6,26 +6,27 @@
 |---|---|---|---|
 | 审计 | 逆向调用链、Interop 签名 | 实现与游戏逻辑一致（推断） | 运行时行为 |
 | 编译 | Mod、测试项目；修改服务端时加 Server | 类型与签名正确 | Hook 目标在运行时生效、时机正确 |
-| 离线测试 | 网络、流程、符卡测试；`tools/check.py`；地图离线校验 | 被测逻辑、协议与一致性 | 游戏对象、场景时序 |
+| 离线测试 | 网络、流程、符卡测试；`tools/check.py`；ICF 检查；地图离线校验 | 被测逻辑、协议与一致性 | 游戏对象、场景时序 |
 | 单机实测 | 游戏内操作与状态核对 | 该场景下的单机行为 | 联机一致性、未覆盖的场景 |
 | 联机实测 | 主机、客机分别观察 | 该场景下的同步 | 其他场景、断线重连等未覆盖路径 |
 
-前三级可在本地和 CI 完成。实测需要用户启动游戏，方法见 [runtime-testing](runtime-testing.md)。
+前三级可在本地和 CI 完成。实测需要可连接的游戏实例，方法见 [runtime-testing](runtime-testing.md)。
 
 ## 命令
 
 ```text
 dotnet build src/MetaMystia.Mod/MetaMystia.csproj -c Release -p:DeployToGame=false
-dotnet run --project src/MetaMystia.Network.Tests -c Release
-dotnet run --project src/MetaMystia.Flow.Tests -c Release
-dotnet run --project src/MetaMystia.Hosting.Tests -c Release
-dotnet run --project src/MetaMystia.Spell.Tests -c Release
+dotnet run --project tests/MetaMystia.Network.Tests -c Release
+dotnet run --project tests/MetaMystia.Flow.Tests -c Release
+dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
+dotnet run --project tests/MetaMystia.Spell.Tests -c Release
 python tools/check.py
+dotnet run --project tools/icf -c Release -- check src/MetaMystia.Mod/bin/Release/MetaMystia-v<版本>.dll <BepInExPath>
 dotnet build src/MetaMystia.Server -c Release              # 修改服务端时
 python -m dayart.validate <资源包.zip>      # 在 tools/day-map-art 下运行
 ```
 
-CI 在 PR 和 `main` 推送时运行编译、三组测试、`tools/check.py` 与服务端发布。
+CI 在 PR 和 `main` 推送时运行编译、三组测试、`tools/check.py`、ICF 检查与服务端发布。
 
 ## 离线测试
 
@@ -39,6 +40,15 @@ CI 在 PR 和 `main` 推送时运行编译、三组测试、`tools/check.py` 与
 | `Spell.Tests` | 符卡库存与绕过逻辑 | 链接模组源文件；`Ports.cs` 替代 Interop 类型与 Harmony 特性 |
 
 模组代码通过 `<Compile Include="../MetaMystia.Mod/..." Link="..." />` 进入测试项目，不加载 Unity。判定逻辑与游戏对象调用写在一起时无法链接，需要离线测试的逻辑应能单独编译。新增或修改这类逻辑时补充检查。
+
+## 实测用例
+
+`tests/runtime/cases/` 按功能记录可重跑的用例：操作、期望、日志依据。PR 的实测用例中需要长期回归的并入对应文件。
+
+- 判定写成可核对的条件：状态值、计数、日志原文。
+- 同一现象有多条代码路径时分开判定，如顾客离桌。
+- 有时间窗口的取样，窗口要远大于两次操作的间隔。
+- “或”条件分开报告；只满足一侧时说明另一侧未触发。
 
 ## 汇报
 

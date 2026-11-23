@@ -71,15 +71,18 @@ namespace MetaMystia.Generators
                         .ToArray();
                 }
 
-                // Read DisplayName from named arguments
+                // Read DisplayName and IcfFolded from named arguments
                 string? displayName = null;
+                string? icfFolded = null;
                 foreach (var named in attr.NamedArguments)
                 {
                     if (named.Key == "DisplayName" && named.Value.Value is string dn)
                         displayName = dn;
+                    if (named.Key == "IcfFolded" && named.Value.Value is string folded)
+                        icfFolded = folded;
                 }
 
-                methods.Add(new TraceMethodEntry(methodName, displayName, paramTypeNames));
+                methods.Add(new TraceMethodEntry(methodName, displayName, paramTypeNames, icfFolded));
             }
 
             if (methods.Count == 0) return null;
@@ -132,6 +135,10 @@ namespace MetaMystia.Generators
                 {
                     patchAttr = $"[HarmonyPatch(\"{entry.MethodName}\")]";
                 }
+                if (entry.IcfFolded != null)
+                {
+                    patchAttr += $"\n    [MetaMystia.Patch.IcfFolded({SymbolDisplay.FormatLiteral(entry.IcfFolded, true)})]";
+                }
 
                 sb.AppendLine();
                 sb.AppendLine($"    {patchAttr}");
@@ -171,12 +178,14 @@ namespace MetaMystia.Generators
             public readonly string MethodName;
             public readonly string? DisplayName;
             public readonly string[]? ParameterTypeNames;
+            public readonly string? IcfFolded;
 
-            public TraceMethodEntry(string methodName, string? displayName, string[]? parameterTypeNames)
+            public TraceMethodEntry(string methodName, string? displayName, string[]? parameterTypeNames, string? icfFolded)
             {
                 MethodName = methodName;
                 DisplayName = displayName;
                 ParameterTypeNames = parameterTypeNames;
+                IcfFolded = icfFolded;
             }
         }
 

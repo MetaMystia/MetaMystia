@@ -9,11 +9,11 @@ public static class LiveCommands
 {
     public static void Register(RootCommand root)
     {
-        var liveCmd = new Command("live", "Toggle live streaming privacy mode");
-        var modeArg = new Argument<string>("mode", "off, partial, full (omit for emergency full)")
+        var liveCmd = new Command("live", TextId.CmdDescLive.Get());
+        var modeArg = new Argument<string>("mode", TextId.ArgDescLiveMode.Get())
         {
             Arity = ArgumentArity.ZeroOrOne
-        };
+        }.AddCompletions("off", "partial", "full");
         liveCmd.AddArgument(modeArg);
         liveCmd.SetHandler(ctx =>
         {
@@ -37,8 +37,6 @@ public static class LiveCommands
             ctx.Log(GetModeSetMessage(parsed));
         });
         root.AddCommand(liveCmd);
-
-        CommandRegistry.RegisterCompletions("live", 0, "off", "partial", "full");
     }
 
     private static bool TryParseMode(string value, out LiveMode mode)

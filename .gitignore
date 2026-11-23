@@ -16,10 +16,13 @@ copilot-instructions.md
 /obj
 /src/**/bin/
 /src/**/obj/
+/tests/**/bin/
+/tests/**/obj/
+/tools/**/bin/
+/tools/**/obj/
 
 private.pem
 chat-filter.json
 
 server.json
 /src/MetaMystia.Server/logs/
-/src/MetaMystia.Directory/data/

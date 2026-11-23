@@ -20,6 +20,10 @@ public static partial class PatchRegistry
         typeof(UniversalGameManagerPatch),
         typeof(SaveManagementPatch),
 
+        // Input Patches
+        typeof(AdpPlayerInputWrapperPatch),
+        typeof(DynamicDeviceActionProviderPatch),
+
         // DayScene Patches
         typeof(DaySceneSustainedPannelPatch),
         typeof(YuyukoExtraDialogData__c__DisplayClass4_0Patch),

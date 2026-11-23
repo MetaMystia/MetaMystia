@@ -24,7 +24,10 @@ public static class GatewayApi
         builder.WebHost.UseUrls(url);
         // 面板会轮询，ASP.NET 自带的逐请求日志会刷满 journald。
         builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
-        builder.Services.AddSingleton(new InstanceRegistry(path, instanceToken));
+        var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        var events = new EventLog(Path.Combine(directory, "events.json"));
+        var tokens = new AccessTokens(Path.Combine(directory, "tokens.json"), adminToken);
+        builder.Services.AddSingleton(new InstanceRegistry(path, instanceToken, events));
         builder.Services.AddSingleton(new GatewayStats());
         var app = builder.Build();
         var stats = app.Services.GetRequiredService<GatewayStats>();
@@ -35,8 +38,10 @@ public static class GatewayApi
         }
         app.Use(async (context, next) =>
         {
-            if (context.Request.Headers.Authorization != "Bearer " + adminToken)
-            { context.Response.StatusCode = 401; return; }
+            var caller = tokens.Authenticate(context.Request.Headers.Authorization.ToString());
+            if (caller == null) { context.Response.StatusCode = 401; return; }
+            if (!caller.Admin && !context.Request.Path.StartsWithSegments("/api")) { context.Response.StatusCode = 403; return; }
+            context.Items[nameof(Caller)] = caller;
             context.Response.Headers.CacheControl = "no-store";
             try { await next(context); }
             catch (KeyNotFoundException) { context.Response.StatusCode = 404; }
@@ -51,6 +56,21 @@ public static class GatewayApi
         app.MapGet("/admin/connections", (int? limit) => stats.Recent(limit ?? 500));
         app.MapGet("/admin/logs", (long? after, int? limit) => stats.Logs.Read(after, limit));
         app.MapGet("/admin/history", () => stats.History.Snapshot());
+
+        app.MapGet("/admin/tokens", () => tokens.List());
+        app.MapPost("/admin/tokens", async (TokenRequest body, CancellationToken token) =>
+        {
+            var created = await tokens.CreateAsync(body.Name, token);
+            Audit($"签发只读令牌 {created.Id}（{ServerLogEntry.Quote(created.Name)}）。");
+            return Results.Created("/admin/tokens/" + created.Id, created);
+        });
+        app.MapDelete("/admin/tokens/{id}", async (string id, CancellationToken token) =>
+        {
+            await tokens.DeleteAsync(id, token);
+            Audit($"吊销只读令牌 {id}。");
+            return Results.NoContent();
+        });
+        PublicApi.Map(app, app.Services.GetRequiredService<InstanceRegistry>(), events, stats);
 
         app.MapGet("/admin/instances", (InstanceRegistry registry) => registry.List());
         app.MapPut("/admin/instances/{id}", async (string id, InstanceRegistration body, InstanceRegistry registry, CancellationToken token) =>

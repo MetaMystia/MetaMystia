@@ -15,6 +15,7 @@
 | `MetaMystia.Network/Client` | 请求与确认、状态快照、调用线程上的有序派发 |
 | `MetaMystia.Network/LanSession` | 本地开服与房主连接；服务端在握手时创建或分配默认房间 |
 | `MetaMystia.Mod/Multiplayer/GameSession` | 游戏连接入口、主线程派发、异步操作提示与清理 |
+| `Scopes`、`RoomBallot` | 共同推进与场景内联机状态的生命周期；按房间成员汇总各端提交 |
 | `GameFlow`、`DayDestinationManager`、`BusinessStart` | 游戏阶段、场景转换规则、入口确认与营业开场等待 |
 | `PlayerProfile`、`PlayerManager.Network` | 玩家资料和运动转换、世界及房间角色显示 |
 | `GameMessages`、`GameMessageRules` | 玩法消息类型、路由、发送者身份与房间校验 |
@@ -58,9 +59,9 @@
 
 玩家资料发布玩法阶段，不比较日期。玩家只提交意向，房主决定共同推进，各端执行命令时不再比较最新选择。入口协调使用 `DayDestinationManager.Round`，忽略旧轮次的意向与重复执行命令；试炼备菜使用准备编号，没有统一的玩法轮次。
 
-离开白天时清理旧入口；正常回白天时保留其他成员已提交的下一次意向。备菜、开场等待等状态各自重置。`GuestFSM` 队列保存已收到、等待执行的顾客操作。
+离开白天时清理旧入口；正常回白天时保留其他成员已提交的下一次意向。开场等待和时停随作用域结束重置，备菜等状态各自重置。顾客登记表随场景作用域结束，保存已收到、等待应用的顾客事件。
 
-开发原则见[营业联机开发方法](business-sync.md)，具体审计见[顾客同步](../../research/guest-fsm-audit.md)和[幽幽子挑战同步](yuyuko-challenge.md)。
+开发原则见[营业联机开发方法](business-sync.md)，具体见[顾客同步](guest-sync.md)和[幽幽子挑战同步](yuyuko-challenge.md)。
 
 ## 命令
 

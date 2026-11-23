@@ -34,6 +34,7 @@ public static partial class ConfigManager
     public static ConfigEntry<bool> Debug;
     public static ConfigEntry<bool> CheatFever;
     public static ConfigEntry<float> CheatFlowRate;
+    public static ConfigEntry<bool> NoPanelPause;
     public static ConfigEntry<string> PlayerId;
     public static ConfigEntry<bool> SignatureCheck;
     public static ConfigEntry<bool> IgnoreDlcDependencyCheck;
@@ -81,6 +82,10 @@ public static partial class ConfigManager
         CheatFlowRate = Config.Bind("Cheat", "FlowRate", 1f,
             "Guest flow rate multiplier (0 = stop natural guests, 1 = vanilla). Takes effect on the next business night. Range: 0 <= value < 16\n" +
             "客流量倍率（0 = 不刷客，1 = 原版），在下一次夜间营业生效。范围：0 <= 数值 < 16");
+
+        NoPanelPause = Config.Bind("Cheat", "NoPanelPause", false,
+            "Keep night time running while cooking, serving and other panels or QTE are open (single player). ESC still pauses.\n" +
+            "单机营业时打开烹饪、上菜等面板或 QTE 不暂停，ESC 照常暂停。");
 
         PlayerId = Config.Bind("General", "PlayerId", "", "Player ID for multiplayer, empty to device name\n联机用玩家 ID，为空则默认为设备名称");
 
@@ -138,16 +143,16 @@ public static partial class ConfigManager
 
         // Console layout
         ConsoleX = Config.Bind("Console", "X", 8f,
-            "Console panel X position (pixels from left)\n控制台面板X坐标（左侧像素偏移）");
+            "Console panel distance from the left edge (1080p units)\n控制台面板距左边缘的距离（按 1080p 计）");
         ConsoleY = Config.Bind("Console", "Y", -1f,
-            "Console panel Y position (pixels from top, -1 = auto bottom)\n控制台面板Y坐标（顶部像素偏移，-1=自动底部）");
+            "Console panel distance from the bottom edge (1080p units, -1 = default)\n控制台面板距下边缘的距离（按 1080p 计，-1=默认）");
         ConsoleWidth = Config.Bind("Console", "Width", 800f,
-            "Console panel width in pixels\n控制台面板宽度（像素）");
+            "Console panel width (1080p units)\n控制台面板宽度（按 1080p 计）");
         ConsoleHeight = Config.Bind("Console", "Height", 350f,
-            "Console panel height in pixels (log area)\n控制台面板高度（像素，日志区域）");
+            "Console log area height (1080p units)\n控制台日志区域高度（按 1080p 计）");
 
         ConsoleFontSize = Config.Bind("Console", "FontSize", 0,
-            "Console font size (0 = auto based on screen height)\n控制台字体大小（0=根据屏幕高度自动）");
+            "Console font size (1080p units, 0 = 20)\n控制台字体大小（按 1080p 计，0=20）");
 
         ConsolePassiveLingerTime = Config.Bind("Console", "PassiveLingerTime", 4f,
             "Seconds before passive chat messages start fading out\n被动聊天消息开始淡出前的停留时间（秒）");
@@ -157,11 +162,11 @@ public static partial class ConfigManager
 
         // Player list
         PlayerListX = Config.Bind("PlayerList", "X", 8f,
-            "Player list panel X position (pixels from left)\n玩家列表面板X坐标（左侧像素偏移）");
+            "Player list distance from the right edge (1080p units)\n玩家列表距右边缘的距离（按 1080p 计）");
         PlayerListY = Config.Bind("PlayerList", "Y", 8f,
-            "Player list panel Y position (pixels from top)\n玩家列表面板Y坐标（顶部像素偏移）");
+            "Player list distance from the top edge (1080p units)\n玩家列表距上边缘的距离（按 1080p 计）");
         PlayerListFontSize = Config.Bind("PlayerList", "FontSize", 0,
-            "Player list font size (0 = auto based on screen height)\n玩家列表字体大小（0=根据屏幕高度自动）");
+            "Player list font size (1080p units, 0 = 17)\n玩家列表字体大小（按 1080p 计，0=17）");
 
         // Keybinds
         KeyToggleLog = Config.Bind("Keybinds", "ToggleLog", KeyCode.RightShift,

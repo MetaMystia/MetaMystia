@@ -86,7 +86,7 @@ flowchart TD
 
 优先调用已有游戏方法，让原游戏完成状态登记、回调、清理和显示。调用前必须审计副作用：它是否还会随机决策、扣除资源、发放收益或触发其他 Hook？需要保留的照常执行，已经由主机裁定或本地执行过的部分应避免重复。
 
-需要受控重放时可以使用 ReversePatch 或已有放行机制，但要检查内部调用。绕过外层 Hook，不代表内部 Hook 也被绕过；收到同步后再次广播同一变化，会形成回声。
+需要受控重放时可以使用 ReversePatch 或 `Bypass`，但要检查内部调用。ReversePatch 只绕过外层 Hook；`Bypass` 按对象放行，只对检查它的 Hook 生效。收到同步后再次广播同一变化，会形成回声。
 
 收到消息时，还要确认对象及阶段是否允许执行：
 
@@ -135,7 +135,7 @@ flowchart TD
 
 - [选店补丁](../../../src/MetaMystia.Mod/Patches/Common/IzakayaSelectorPanelPatch.cs)：提交选择、主机确认、继续原流程。
 - [备菜完成消息](../../../src/MetaMystia.Mod/Multiplayer/Messages/PrepScene/PrepAllReadyMessage.cs)：阶段推进前先统一必要配置。
-- [顾客补丁](../../../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)与 [GuestFSM](../../../src/MetaMystia.Mod/Managers/GuestFSM.cs)：探测生命周期变化，按业务状态应用同步。
+- [顾客补丁](../../../src/MetaMystia.Mod/Patches/NightScene/GuestsManagerPatch.cs)与[顾客登记表](../../../src/MetaMystia.Mod/Multiplayer/Guests/GuestRegistry.cs)：在原版收口探测生命周期变化，客机按事件重放原版入口。
 - [夜间事件补丁](../../../src/MetaMystia.Mod/Patches/NightScene/NightSceneEventManagerPatch.cs)：约束客机自主变更，捕获主机产生的业务变化。
 
 这些示例对应前期已阅读的游戏选店、备菜、顾客订单及营业结束调用链。新模式仍从它自己的主线开始审计。

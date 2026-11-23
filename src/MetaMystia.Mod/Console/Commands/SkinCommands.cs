@@ -9,14 +9,14 @@ public static class SkinCommands
 {
     public static void Register(RootCommand root)
     {
-        var skinCmd = new Command("skin", "Character skin management");
+        var skinCmd = new Command("skin", TextId.CmdDescSkin.Get());
 
         // /skin set <characterId> <type> <skinIndex>
-        var setCmd = new Command("set", "Set character skin");
-        var charIdArg = new Argument<int>("characterId", "Character ID");
-        var typeArg = new Argument<string>("type", "Skin type: Default, Explicit, or DLC")
+        var setCmd = new Command("set", TextId.SkinDescSet.Get());
+        var charIdArg = new Argument<int>("characterId", TextId.ArgDescCharacterId.Get());
+        var typeArg = new Argument<string>("type", TextId.ArgDescSkinType.Get())
             .FromAmong("Default", "Explicit", "DLC");
-        var skinIndexArg = new Argument<int>("skinIndex", "Skin index");
+        var skinIndexArg = new Argument<int>("skinIndex", TextId.ArgDescSkinIndex.Get());
         setCmd.AddArgument(charIdArg);
         setCmd.AddArgument(typeArg);
         setCmd.AddArgument(skinIndexArg);
@@ -41,7 +41,7 @@ public static class SkinCommands
         skinCmd.AddCommand(setCmd);
 
         // /skin off
-        var offCmd = new Command("off", "Reset skin to game default");
+        var offCmd = new Command("off", TextId.SkinDescOff.Get());
         offCmd.SetHandler(ctx =>
         {
             PlayerManager.Local.RefreshSkin(resetOverride: true);
@@ -50,8 +50,9 @@ public static class SkinCommands
         skinCmd.AddCommand(offCmd);
 
         // /skin net <name> | /skin net off
-        var netCmd = new Command("net", "Use a network skin from the skin station");
-        var netNameArg = new Argument<string>("name", "Net skin name (or 'off' to clear)");
+        var netCmd = new Command("net", TextId.SkinDescNet.Get());
+        var netNameArg = new Argument<string>("name", TextId.ArgDescNetSkin.Get())
+            .AddCompletions("off", "refresh");
         netCmd.AddArgument(netNameArg);
         netCmd.SetHandler(ctx =>
         {
@@ -104,8 +105,8 @@ public static class SkinCommands
         skinCmd.AddCommand(netCmd);
 
         // /skin rot on|off|clear
-        var rotCmd = new Command("rot", "Toggle character rotation");
-        var rotStateArg = new Argument<string>("state", "Rotation state: on, off, or clear")
+        var rotCmd = new Command("rot", TextId.SkinDescRot.Get());
+        var rotStateArg = new Argument<string>("state")
             .FromAmong("on", "off", "clear");
         rotCmd.AddArgument(rotStateArg);
         rotCmd.SetHandler(ctx =>
@@ -120,32 +121,13 @@ public static class SkinCommands
         skinCmd.AddCommand(rotCmd);
 
         // /skin list
-        var listCmd = new Command("list", "List all available skins");
+        var listCmd = new Command("list", TextId.SkinDescList.Get());
         listCmd.SetHandler(ctx =>
         {
             ctx.Log(PlayerSkin.GetAllSkinsTable());
         });
         skinCmd.AddCommand(listCmd);
 
-        // Default handler
-        skinCmd.SetHandler(ctx =>
-        {
-            ctx.Log(ConsoleFormat.Header(TextId.SkinHelpHeader.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/skin set", "<charId> <Default|Explicit|DLC> <skinIdx>", TextId.SkinDescSet.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/skin net", "<name|off|refresh>", TextId.SkinDescNet.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/skin rot", "<on|off|clear>", TextId.SkinDescRot.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/skin off", null, TextId.SkinDescOff.Get()));
-            ctx.Log(ConsoleFormat.SubCmd("/skin list", null, TextId.SkinDescList.Get()));
-            ctx.Log(ConsoleFormat.Line);
-        });
-
         root.AddCommand(skinCmd);
-
-        CommandRegistry.RegisterCompletions("skin", 0, "set", "net", "rot", "off", "list");
-        CommandRegistry.RegisterCompletions("skin set", 1, "Default", "Explicit", "DLC");
-        CommandRegistry.RegisterCompletions("skin rot", 0, "on", "off", "clear");
-        CommandRegistry.RegisterHint("skin set", 0, "<characterId>");
-        CommandRegistry.RegisterHint("skin set", 2, "<skinIndex>");
-        CommandRegistry.RegisterHint("skin net", 0, "<name|off|refresh>");
     }
 }

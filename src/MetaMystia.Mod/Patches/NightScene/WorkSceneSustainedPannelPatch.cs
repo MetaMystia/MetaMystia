@@ -9,6 +9,7 @@ using NightScene.UI;
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
 using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Guests;
 
 namespace MetaMystia.Patch;
 
@@ -29,17 +30,17 @@ public partial class WorkSceneSustainedPannelPatch
         ref Il2CppSystem.Action<Sprite> onBevDelieverStatusUpdated)
     {
         if (!YuyukoGuestSync.IsBody(currentGuestController)) return;
-        var fsm = GuestsMap.GetGuestFsm(currentGuestController);
-        if (fsm == null) return;
-        int seq = fsm.OrderSeq;
+        var guest = GuestRegistry.Of(currentGuestController);
+        if (guest == null) return;
+        int seq = guest.OrderSeq;
         var evaluate = onOrderEvaluate;
         var updateFood = onFoodDelieverStatusUpdated;
         var updateBeverage = onBevDelieverStatusUpdated;
 
         bool IsCurrentOrder() => currentGuestController.AllOrdersCount > 0
-            && fsm.CurrentOrder?.Pointer == order.Pointer
+            && guest.CurrentOrder?.Pointer == order.Pointer
             && (!GameSession.HasRoomPeers || (YuyukoGuestSync.IsBody(currentGuestController)
-                && fsm.OrderSeq == seq && fsm.CurrentState == GuestFSM.State.WaitingServe));
+                && guest.OrderSeq == seq && guest.State == GuestPhase.WaitingServe));
 
         onOrderEvaluate = (Action)(() =>
         {

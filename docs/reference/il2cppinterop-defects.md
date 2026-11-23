@@ -4,7 +4,7 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 不得将普通逻辑错误默认归因于 Il2CppInterop。必须先按 [`il2cpp-interop-guide.md`](../rules/il2cpp-interop.md) 的排查顺序确认版本、签名、时机、生命周期和类型边界。只有缺陷可复现且原因明确时，才允许增加低层绕过；绕过必须限定到具体类型和签名。
 
-## `Utils/MetaMikuUtils.cs`
+## `Utils/MetaMiku/MetaMikuUtils.cs`
 
 `ForceAddOrUpdateValueTuple<TKey, TValue>` 用于修复 Il2Cpp `Dictionary` 写入已装箱值类型时的数据偏移。
 
@@ -24,7 +24,7 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 在 RELEASE 4.4.0e、BepInEx 6 be.785 环境实测：临时字典写入前的三级食堂数组均为 `Int32[]`，写入后变为 `String[] / String[] / Int32[]`；指针对比分别对应原采集点标签、出生点标签、一级食堂数组。
 
-该方法位于 `Utils/MetaMikuUtils.cs`，用于字符串键与装箱值类型，当前调用为 `DayMapRegistry` 的 `Dictionary<string, DaySceneMapProfile.MapNode>`。调用前检查字典声明的 Value 是原生值类型，禁止对普通引用类型拆箱；其他类型需先确认同类缺陷再使用。
+该方法位于 `Utils/MetaMiku/MetaMikuUtils.cs`，用于字符串键与装箱值类型，当前调用为 `DayMapRegistry` 的 `Dictionary<string, DaySceneMapProfile.MapNode>`。调用前检查字典声明的 Value 是原生值类型，禁止对普通引用类型拆箱；其他类型需先确认同类缺陷再使用。
 
 从字典类型获取双参数 `set_Item`，字符串 Key 传对象指针，Value 使用 `il2cpp_object_unbox` 取得结构体数据。调用期间保留对象引用，原生异常照常抛出，不吞掉失败。原有值类型 Key 的 `ForceAddOrUpdateValueTuple` 保持不变。
 

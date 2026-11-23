@@ -12,9 +12,9 @@ public static class LinkCommands
 
     public static void Register(RootCommand root)
     {
-        var linkCmd = new Command("link", "Open project links in browser");
+        var linkCmd = new Command("link", TextId.CmdDescLink.Get());
 
-        var metamystiaCmd = new Command("MetaMystia", "MetaMystia GitHub repository");
+        var metamystiaCmd = new Command("MetaMystia", TextId.LinkDescMetaMystia.Get());
         metamystiaCmd.SetHandler(ctx =>
         {
             OpenUrl(MetaMystiaUrl);
@@ -22,7 +22,7 @@ public static class LinkCommands
         });
         linkCmd.AddCommand(metamystiaCmd);
 
-        var izakayaCmd = new Command("Izakaya", "Touhou Mystia Izakaya Helper");
+        var izakayaCmd = new Command("Izakaya", TextId.LinkDescIzakaya.Get());
         izakayaCmd.SetHandler(ctx =>
         {
             OpenUrl(IzakayaUrl);
@@ -38,8 +38,6 @@ public static class LinkCommands
         });
 
         root.AddCommand(linkCmd);
-
-        CommandRegistry.RegisterCompletions("link", 0, "MetaMystia", "Izakaya");
     }
 
     private static void OpenUrl(string url)

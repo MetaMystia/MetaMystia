@@ -3,10 +3,9 @@ using HarmonyLib;
 using Common.UI;
 using MainScene;
 
-using MetaMystia.Patch;
 using MetaMystia.UI;
 
-namespace MetaMystia;
+namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(MainScene.SceneManager))]

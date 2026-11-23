@@ -92,7 +92,7 @@
 ## 联机
 
 - 符卡由 `SpecialGuestsController.PostEvaluation` 触发。客机会重放主机的评价，所以符卡在两端各自运行。
-- 项目的业务同步挂在原版操作入口上（例如上菜面板调用 `GuestFSM.OnServe` / `OnConfirmServe`）。符卡直接改字段不会同步。
+- 项目的业务同步挂在原版操作入口上（例如上菜面板的放入与确认、顾客离桌与未入座离开的收口）。符卡直接改字段不会同步；顾客心情、资金、耐心由主机每帧比较后下发。
 - 订单结算由主机的 `EvaluateOrder` 发出 `EvaluateOrderMessage`，其中带有料理、酒水和结果；客机本地发起的 `EvaluateOrder` 会被拦截。
 - 没有专门做联机适配时的做法：客机（`!GameFlow.ShouldSkipAction && GameSession.HasRoomPeers && GameSession.IsRoomClient`）只播放演出、不改业务状态，由主机的结算同步结果。客机按对象原生指针记录已播放的目标，避免重复演出。
 - 限制：主机的中间状态（例如已上酒但未结算）不会同步到客机。需要完整一致时，要改走现有同步消息，或新增消息。

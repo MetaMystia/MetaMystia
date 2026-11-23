@@ -9,14 +9,6 @@ namespace MetaMystia;
 [AutoLog]
 public static partial class Utils
 {
-    public static void test()
-    {
-        var Ingredients = GameData.CoreLanguage.Collections.DataBaseLanguage.Ingredients;
-        foreach (var kvp in Ingredients)
-        {
-            Log.LogInfo($"Ingredient ID: {kvp.Key}, Name: {kvp.Value.ToString()}");
-        }
-    }
     public static Sprite GetArtWork(string filePath, Vector2 pivot, int width = 0, int height = 0, int pixelOffsetX = 0, int pixelOffsetY = 0)
     {
         if (!File.Exists(filePath)) return null;

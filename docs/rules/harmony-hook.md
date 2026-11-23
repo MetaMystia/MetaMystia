@@ -59,8 +59,10 @@ if (GameSession.IsRoomClient)
 IL2CPP 发布构建可能经链接器做相同代码折叠（ICF）：机器码相同的函数合并到同一个原生地址。Harmony 在原生地址上安装跳板，Hook 其中一个方法时，折叠在一起的其他方法也会进入该 Hook，`SkipOriginal` 同样会跳过它们。
 
 - 新增 Hook 时核对目标是否与其他方法共享原生地址。方法体很小时（属性访问器、空方法、只转发或返回常量）尤其需要核对。
-- 核对依据：IDA 中该地址是否对应多个方法；与游戏版本一致的 Il2CppDumper 输出中是否有多个方法同一 RVA；运行时调试器 `GET /api/methods?q=<类型全名>::<方法>` 返回的 `native.folded`。逆向仓库与游戏版本不一致时，其中的 RVA 不能作为依据。
-- 已折叠时，优先改为 Hook 未折叠的调用方或上游方法；无法避开时，在 Hook 中按 `__instance` 的 Il2Cpp 运行时类型或参数区分调用，并在附近注明折叠的方法。静态方法和同一类的方法无法按实例区分。
+- `tools/icf check` 解析全部 Hook 目标并查折叠表 `tools/icf/<TargetGameVersion 去掉空格>.tsv`，CI 中有未标注的折叠目标即失败。表头 `# game:` 须与 `TargetGameVersion` 一致。更新游戏版本时用 `tools/icf index <Il2CppDumper 输出目录> "<TargetGameVersion>"` 重新生成折叠表，Il2CppDumper 需开启 `DummyDllAddToken`。
+- 人工核对依据：IDA 中该地址是否对应多个方法；与游戏版本一致的 Il2CppDumper 输出中是否有多个方法同一 RVA；运行时调试器 `GET /api/methods?q=<类型全名>::<方法>` 返回的 `native.folded`。逆向仓库与游戏版本不一致时，其中的 RVA 不能作为依据。
+- 已折叠时，优先改为 Hook 未折叠的调用方或上游方法；无法避开时，在 Hook 中按 `__instance` 的 Il2Cpp 运行时类型或参数区分调用。静态方法和同一类的方法无法按实例区分。
+- 处理后或确认折叠的方法进入 Hook 同样正确时，用 `[IcfFolded("说明")]` 标注 Hook 方法，说明写折叠的方法和理由；`TracePatch` 用 `IcfFolded` 参数。
 
 ## Il2CppInterop 目标
 

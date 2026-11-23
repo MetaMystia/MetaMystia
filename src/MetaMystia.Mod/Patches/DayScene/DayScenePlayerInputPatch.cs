@@ -4,7 +4,6 @@ using DayScene.Input;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.ResourceEx.Registries;
-using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
@@ -20,19 +19,15 @@ public partial class DayScenePlayerInputPatch
 
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.OnSprintPerformed))]
     [HarmonyPrefix]
-    public static bool OnSprintPerformed_Prefix()
+    public static void OnSprintPerformed_Prefix()
     {
-        if (InGameConsole.IsOpen)
-        {
-            return SkipOriginal;
-        }
         PlayerManager.LocalIsSprinting = true;
         PlayerProfile.SendMotion();
-        return RunOriginal;
     }
 
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.OnSprintCanceled))]
     [HarmonyPrefix]
+    [IcfFolded("与 OnPanelWillOpenCallback 折叠，两者都只设置 Sprint = false，打开面板时同步停止疾跑同样正确")]
     public static void OnSprintCanceled_Prefix()
     {
         PlayerManager.LocalIsSprinting = false;
@@ -43,11 +38,6 @@ public partial class DayScenePlayerInputPatch
     [HarmonyPrefix]
     public static bool TryInteract_Prefix()
     {
-        if (InGameConsole.IsOpen)
-        {
-            Log.Debug($"Console is open, skipping interaction");
-            return SkipOriginal;
-        }
         if (!GameSession.HasRoomPeers)
         {
             return RunOriginal;

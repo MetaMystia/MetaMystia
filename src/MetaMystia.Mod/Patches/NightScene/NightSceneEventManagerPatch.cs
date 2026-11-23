@@ -15,8 +15,7 @@ namespace MetaMystia.Patch;
 [AutoLog]
 public static partial class NightSceneEventManagerPatch
 {
-    public static readonly PatchBypassToken HostCloseReplay = new();
-    public static bool IsHostCloseReplay => HostCloseReplay.Pending > 0;
+    public static bool IsHostCloseReplay => Bypass.Active(EventManager.Instance);
 
     [HarmonyPatch(nameof(EventManager.Initialize))]
     [HarmonyPostfix]
@@ -222,4 +221,15 @@ public static partial class NightSceneEventManagerPatch
             PassionEditMessage.Send(value, mathOperation);
         }
     }
+
+    /// <summary>连击由主机计算，经顾客数值消息下发；客机重放评价、赶客时不再本地改动。</summary>
+    [HarmonyPatch(nameof(EventManager.ComboEdit))]
+    [HarmonyPrefix]
+    public static bool ComboEdit_Prefix() =>
+        !GameFlow.ShouldSkipAction && GameSession.IsRoomClient ? SkipOriginal : RunOriginal;
+
+    [HarmonyPatch(nameof(EventManager.LoseAllCombo))]
+    [HarmonyPrefix]
+    public static bool LoseAllCombo_Prefix() =>
+        !GameFlow.ShouldSkipAction && GameSession.IsRoomClient ? SkipOriginal : RunOriginal;
 }

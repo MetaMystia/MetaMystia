@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.Json;
 
+using MetaMystia.Hosting;
 using MetaMystia.Network;
 
 namespace MetaMystia.Gateway;
@@ -13,18 +13,17 @@ public sealed record InstanceRecord(string Id, InstanceRegistration Registration
 
 public sealed class InstanceRegistry : IDisposable
 {
-    private static readonly JsonSerializerOptions json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly SemaphoreSlim gate = new(1);
     private readonly HttpClient http = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(3) };
     private readonly string path;
+    private readonly EventLog? events;
     private Dictionary<string, InstanceRecord> records;
 
-    public InstanceRegistry(string path, string instanceToken)
+    public InstanceRegistry(string path, string instanceToken, EventLog? events = null)
     {
         this.path = Path.GetFullPath(path);
-        records = File.Exists(path)
-            ? (JsonSerializer.Deserialize<InstanceRecord[]>(File.ReadAllText(path), json) ?? throw new InvalidDataException("Invalid registry"))
-                .ToDictionary(r => r.Id) : [];
+        this.events = events;
+        records = JsonFile.Read<InstanceRecord>(this.path).ToDictionary(r => r.Id);
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", instanceToken);
     }
 
@@ -62,15 +61,16 @@ public sealed class InstanceRegistry : IDisposable
                 (r.State == "active" && r.Registration.GameVersion == registration.GameVersion && r.Registration.ModVersion == registration.ModVersion))))
                 throw new InvalidOperationException("Endpoint or version already registered");
             var record = new InstanceRecord(id, registration);
-            var status = await Status(record, token);
+            var status = await StatusAsync(record, token);
             if (status.State != "running") throw new InvalidOperationException("Instance is not running");
-            await Save(new(records) { [id] = record }, token);
+            Save(new(records) { [id] = record });
+            if (existing == null) events?.Add("registered", record);
         }
         finally { gate.Release(); }
     }
 
-    public Task<InstanceStatus> StatusAsync(string id, CancellationToken token) => Status(Get(id), token);
-    private async Task<InstanceStatus> Status(InstanceRecord record, CancellationToken token)
+    public Task<InstanceStatus> StatusAsync(string id, CancellationToken token) => StatusAsync(Get(id), token);
+    public async Task<InstanceStatus> StatusAsync(InstanceRecord record, CancellationToken token)
     {
         var status = await http.GetFromJsonAsync<InstanceStatus>(record.Registration.AdminUrl.TrimEnd('/') + "/admin/status", token)
             ?? throw new InvalidDataException("Empty instance status");
@@ -84,7 +84,7 @@ public sealed class InstanceRegistry : IDisposable
     public async Task<ForwardResult> ForwardAsync(string id, HttpMethod method, string path, byte[]? body, CancellationToken token)
     {
         var record = Get(id);
-        await Status(record, token);
+        await StatusAsync(record, token);
         using var request = new HttpRequestMessage(method, record.Registration.AdminUrl.TrimEnd('/') + path);
         if (body != null) request.Content = new ByteArrayContent(body) { Headers = { ContentType = new("application/json") } };
         using var response = await http.SendAsync(request, token);
@@ -104,7 +104,9 @@ public sealed class InstanceRegistry : IDisposable
         try
         {
             var record = Get(id);
-            await Save(new(records) { [id] = record with { State = "draining", TargetModVersion = request.TargetModVersion } }, token);
+            var draining = record with { State = "draining", TargetModVersion = request.TargetModVersion };
+            Save(new(records) { [id] = draining });
+            if (draining != record) events?.Add("draining", draining);
             using var response = await http.PostAsJsonAsync(record.Registration.AdminUrl.TrimEnd('/') + "/admin/drain", request, token);
             response.EnsureSuccessStatusCode();
         }
@@ -117,17 +119,16 @@ public sealed class InstanceRegistry : IDisposable
         try
         {
             var next = new Dictionary<string, InstanceRecord>(records);
-            if (!next.Remove(id)) throw new KeyNotFoundException();
-            await Save(next, token);
+            if (!next.Remove(id, out var record)) throw new KeyNotFoundException();
+            Save(next);
+            events?.Add("removed", record);
         }
         finally { gate.Release(); }
     }
 
-    private async Task Save(Dictionary<string, InstanceRecord> next, CancellationToken token)
+    private void Save(Dictionary<string, InstanceRecord> next)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        await File.WriteAllTextAsync(path + ".tmp", JsonSerializer.Serialize(next.Values.ToArray(), json), token);
-        File.Move(path + ".tmp", path, true);
+        JsonFile.Write(path, next.Values.ToArray());
         Volatile.Write(ref records, next);
     }
 

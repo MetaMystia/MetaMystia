@@ -7,9 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../Hosting.Shared/*.cs" Link="Shared/%(Filename)%(Extension)" />
-  </ItemGroup>
-  <ItemGroup>
+    <ProjectReference Include="../MetaMystia.Hosting/MetaMystia.Hosting.csproj" />
     <ProjectReference Include="../MetaMystia.Network/MetaMystia.Network.csproj" />
   </ItemGroup>
 </Project>

@@ -15,7 +15,7 @@ using SgrYuki;
 namespace MetaMystia;
 
 /// <summary>
-/// 模组主要的 MonoBehaviour 宿主：驱动帧循环（Update / FixedUpdate / OnGUI）与托管协程。
+/// 模组主要的 MonoBehaviour 宿主：驱动帧循环（Update / LateUpdate / FixedUpdate / OnGUI）与托管协程。
 /// 业务逻辑均在静态 Manager 中，宿主仅负责转发。由 Plugin.BootstrapPatch 在首个 Canvas 出现时注入。
 /// </summary>
 [AutoLog]
@@ -58,12 +58,17 @@ public partial class PluginHost : MonoBehaviour
         PluginManager.TickMainThreadQueue();
         GameFlow.RefreshInStoryCache();
         GameSession.Tick();
-        GuestsMap.TickAllPending();
+        Multiplayer.Guests.GuestRegistry.Current.Tick();
 
         InGameConsole.Update();
         PlayerListPanel.Update();
 
         PluginManager.HandleShortcuts();
+    }
+
+    private void LateUpdate()
+    {
+        InGameConsole.LateUpdate();
     }
 
     private void FixedUpdate()
@@ -81,8 +86,6 @@ public partial class PluginHost : MonoBehaviour
 
     private void OnGUI()
     {
-        InGameConsole.OnGUI();
-        PlayerListPanel.OnGUI();
         PluginManager.DrawStatusOverlay();
     }
 

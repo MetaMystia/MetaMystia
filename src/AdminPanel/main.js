@@ -1,8 +1,9 @@
-// 入口：登录、顶栏、路由（#/、#/instance/<id>/<tab>、#/gateway）与定时刷新。
+// 入口：登录、顶栏、路由（#/、#/instance/<id>/<tab>、#/gateway、#/tokens）与定时刷新。
 import { h, iconButton, api, session, read, write, closeModal, mark } from './core.js';
 import { mountOverview } from './overview.js';
 import { mountInstance } from './instance.js';
 import { mountGateway } from './gateway.js';
+import { mountTokens } from './tokens.js';
 
 const TOKEN_KEY = 'mm-gateway-token';
 const THEME_KEY = 'mm-gateway-theme';
@@ -47,7 +48,7 @@ function showLogin(error) {
         if (failure.status === 401) return;
         session.token = null;
         message.hidden = false;
-        message.textContent = failure.status === 0 ? '无法连接 Gateway' : 'Gateway 返回 ' + failure.status;
+        message.textContent = failure.status === 0 ? '无法连接 Gateway' : failure.status === 403 ? '该令牌没有管理权限' : 'Gateway 返回 ' + failure.status;
         submit.disabled = false;
       }
     },
@@ -125,10 +126,11 @@ async function tick() {
 function navigate() {
   if (!session.token || !shell.main) return;
   const parts = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
-  const page = parts[0] === 'instance' && parts[1] ? 'instance' : parts[0] === 'gateway' ? 'gateway' : 'overview';
+  const page = parts[0] === 'instance' && parts[1] ? 'instance' : ['gateway', 'tokens'].includes(parts[0]) ? parts[0] : 'overview';
   shell.nav.replaceChildren(
-    h('a', { class: 'top-tab' + (page !== 'gateway' ? ' active' : ''), href: '#/' }, '实例'),
-    h('a', { class: 'top-tab' + (page === 'gateway' ? ' active' : ''), href: '#/gateway' }, '连接'));
+    h('a', { class: 'top-tab' + (page === 'overview' || page === 'instance' ? ' active' : ''), href: '#/' }, '实例'),
+    h('a', { class: 'top-tab' + (page === 'gateway' ? ' active' : ''), href: '#/gateway' }, '连接'),
+    h('a', { class: 'top-tab' + (page === 'tokens' ? ' active' : ''), href: '#/tokens' }, '令牌'));
   const key = page === 'instance' ? 'instance/' + parts[1] : page;
   if (key === route && page === 'instance') { view.setTab(parts[2] || 'overview'); return; }
   if (key === route) return;
@@ -137,8 +139,8 @@ function navigate() {
   closeModal();
   shell.main.scrollTop = 0;
   view = page === 'instance' ? mountInstance(shell.main, app, parts[1], parts[2])
-    : page === 'gateway' ? mountGateway(shell.main, app) : mountOverview(shell.main, app);
-  document.title = (page === 'instance' ? parts[1] + ' · ' : page === 'gateway' ? '连接 · ' : '') + 'MetaMystia Gateway';
+    : page === 'gateway' ? mountGateway(shell.main, app) : page === 'tokens' ? mountTokens(shell.main, app) : mountOverview(shell.main, app);
+  document.title = (page === 'instance' ? parts[1] + ' · ' : page === 'gateway' ? '连接 · ' : page === 'tokens' ? '令牌 · ' : '') + 'MetaMystia Gateway';
   tick();
 }
 window.addEventListener('hashchange', navigate);

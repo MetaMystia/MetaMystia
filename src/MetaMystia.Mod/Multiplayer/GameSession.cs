@@ -116,7 +116,7 @@ public static partial class GameSession
         client.NoticeReceived += notice =>
         {
             if (Client == client && notice.Code == ServerNoticeCode.Retiring)
-                InGameConsole.AddPeerMessage(TextId.ServerChatName.Get(), TextId.NetworkUpdateNotice.Get(notice.TargetModVersion));
+                InGameConsole.AddChat(TextId.ServerChatName.Get(), TextId.NetworkUpdateNotice.Get(notice.TargetModVersion), fromServer: true);
         };
         client.ConnectionEnded += reason =>
         {
@@ -140,8 +140,7 @@ public static partial class GameSession
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (previous != RoomMembershipId)
         {
-            BusinessStart.Reset(resume: resumeGameplay && previous != 0 && RoomMembershipId == 0);
-            GameFlow.ResetGameplay();
+            GameFlow.ResetGameplay(resume: resumeGameplay && previous != 0 && RoomMembershipId == 0);
             DayDestinationManager.ResetSession();
             YuyukoGuestSync.Reset();
             RoomClock.Reset();
@@ -226,8 +225,7 @@ public static partial class GameSession
         lan = null;
         IsConnecting = false;
         State = new();
-        BusinessStart.Reset(resumeGameplay);
-        GameFlow.ResetGameplay();
+        GameFlow.ResetGameplay(resume: resumeGameplay);
         PlayerManager.ClearPeers();
         PlayerManager.Local.Uid = 0;
         YuyukoGuestSync.Reset();

@@ -13,30 +13,30 @@ public static class MpCommands
 {
     public static void Register(RootCommand root)
     {
-        var mp = new Command("mp", "Multiplayer commands");
-        var start = new Command("start", "Start a local server and room");
-        var startPort = new Argument<int>("port", () => GameSession.ConfigPort);
+        var mp = new Command("mp", TextId.CmdDescMp.Get());
+        var start = new Command("start", TextId.MpDescStart.Get());
+        var startPort = new Argument<int>("port", () => GameSession.ConfigPort, TextId.ArgDescPort.Get());
         start.AddArgument(startPort);
         start.SetHandler(ctx => Start(ctx.ParseResult.GetValueForArgument(startPort)));
-        var legacyStart = new Command("server", "Use /mp start");
+        var legacyStart = new Command("server") { IsHidden = true };
         legacyStart.SetHandler(() => Start(GameSession.ConfigPort));
         start.AddCommand(legacyStart);
         mp.AddCommand(start);
-        var stop = new Command("stop", "Stop multiplayer");
+        var stop = new Command("stop", TextId.MpDescStop.Get());
         stop.SetHandler(() => GameSession.Stop());
         mp.AddCommand(stop);
-        var disconnect = new Command("disconnect", "Disconnect and close the local server");
+        var disconnect = new Command("disconnect", TextId.MpDescDisconnect.Get());
         disconnect.SetHandler(() => GameSession.Stop());
         mp.AddCommand(disconnect);
-        var restart = new Command("restart", "Restart the local server");
+        var restart = new Command("restart", TextId.MpDescRestart.Get());
         restart.SetHandler(GameSession.Restart);
         mp.AddCommand(restart);
-        var status = new Command("status", "Show connection and room state");
+        var status = new Command("status", TextId.MpDescStatus.Get());
         status.SetHandler(ctx => ctx.Log(MultiplayerStatus.GetStatus()));
         mp.AddCommand(status);
 
-        var id = new Command("id", "Set player name");
-        var name = new Argument<string>("name");
+        var id = new Command("id", TextId.MpDescId.Get());
+        var name = new Argument<string>("name", TextId.ArgDescPlayerName.Get());
         id.AddArgument(name);
         id.SetHandler(ctx =>
         {
@@ -50,27 +50,27 @@ public static class MpCommands
         });
         mp.AddCommand(id);
 
-        var connect = new Command("connect", "Connect to a server; LAN servers assign the room automatically");
-        var address = new Argument<string>("address");
-        var port = new Argument<int?>("port", () => null);
+        var connect = new Command("connect", TextId.MpDescConnect.Get());
+        var address = new Argument<string>("address", TextId.ArgDescAddress.Get());
+        var port = new Argument<int?>("port", () => null, TextId.ArgDescPort.Get());
         connect.AddArgument(address);
         connect.AddArgument(port);
         connect.SetHandler(ctx => Connect(ctx, ctx.ParseResult.GetValueForArgument(address), ctx.ParseResult.GetValueForArgument(port)));
         mp.AddCommand(connect);
 
-        var play = new Command("play", "Connect to the official test server");
+        var play = new Command("play", TextId.MpDescPlay.Get());
         play.SetHandler(GameSession.ConnectOfficial);
         mp.AddCommand(play);
 
-        var rooms = new Command("rooms", "List rooms in the world");
+        var rooms = new Command("rooms", TextId.MpDescRooms.Get());
         rooms.SetHandler(ctx =>
         {
             foreach (var room in GameSession.State.Rooms)
                 ctx.Log(TextId.NetworkRoomLine.Get(RoomCode.Format(room.Id), room.Host, room.Count, room.MaxPlayers, (room.Joinable ? TextId.NetworkRoomOpen : TextId.NetworkRoomClosed).Get()));
         });
         mp.AddCommand(rooms);
-        var create = new Command("create", "Create a room with a server-assigned code; count sets player capacity");
-        var capacity = new Argument<int>("count", () => ConfigManager.MaxPlayers.Value);
+        var create = new Command("create", TextId.MpDescCreate.Get());
+        var capacity = new Argument<int>("count", () => ConfigManager.MaxPlayers.Value, TextId.ArgDescPlayerCount.Get());
         create.AddArgument(capacity);
         create.SetHandler(ctx =>
         {
@@ -81,8 +81,9 @@ public static class MpCommands
             GameSession.CreateRoom(count);
         });
         mp.AddCommand(create);
-        var join = new Command("join", "Join a room on the connected server");
-        var roomId = new Argument<string>("room", "Four-digit hexadecimal room code (case-insensitive)");
+        var join = new Command("join", TextId.MpDescJoin.Get());
+        var roomId = new Argument<string>("room", TextId.ArgDescRoomCode.Get())
+            .AddCompletions(_ => GameSession.State.Rooms.Select(r => RoomCode.Format(r.Id)));
         join.AddArgument(roomId);
         join.SetHandler(ctx =>
         {
@@ -93,13 +94,14 @@ public static class MpCommands
             GameSession.JoinRoom(code);
         });
         mp.AddCommand(join);
-        var leave = new Command("leave", "Leave the room; standalone servers retain the world connection");
+        var leave = new Command("leave", TextId.MpDescLeave.Get());
         leave.SetHandler(() => GameSession.LeaveRoom());
         mp.AddCommand(leave);
 
-        var kick = new Command("kick", "Remove a room member (host only)");
-        var kickId = new Command("id", "Kick by name");
-        var kickName = new Argument<string>("name");
+        var kick = new Command("kick", TextId.MpDescKick.Get());
+        var kickId = new Command("id", TextId.MpDescKickId.Get());
+        var kickName = new Argument<string>("name", TextId.ArgDescPlayerName.Get())
+            .AddCompletions(_ => PlayerManager.Peers.Values.Select(p => p.Id));
         kickId.AddArgument(kickName);
         kickId.SetHandler(ctx =>
         {
@@ -107,17 +109,17 @@ public static class MpCommands
             var target = PlayerManager.Peers.Values.FirstOrDefault(p => string.Equals(p.Id, value, StringComparison.OrdinalIgnoreCase));
             Kick(ctx, target?.Uid ?? 0);
         });
-        var kickUid = new Command("uid", "Kick by UID");
-        var uid = new Argument<int>("uid");
+        var kickUid = new Command("uid", TextId.MpDescKickUid.Get());
+        var uid = new Argument<int>("uid", TextId.ArgDescUid.Get())
+            .AddCompletions(_ => PlayerManager.Peers.Keys.Select(p => p.ToString()));
         kickUid.AddArgument(uid);
         kickUid.SetHandler(ctx => Kick(ctx, ctx.ParseResult.GetValueForArgument(uid)));
         kick.AddCommand(kickId);
         kick.AddCommand(kickUid);
-        kick.SetHandler(ctx => ctx.Log("/mp kick id <name> | /mp kick uid <uid>"));
         mp.AddCommand(kick);
 
-        var max = new Command("maxplayers", "View or set room capacity");
-        var maximum = new Argument<int>("count", () => -1);
+        var max = new Command("maxplayers", TextId.MpDescMaxPlayers.Get());
+        var maximum = new Argument<int>("count", () => -1, TextId.ArgDescPlayerCount.Get());
         max.AddArgument(maximum);
         max.SetHandler(ctx =>
         {
@@ -136,7 +138,7 @@ public static class MpCommands
             }
         });
         mp.AddCommand(max);
-        var next = new Command("continue", "Continue a waiting preparation phase");
+        var next = new Command("continue", TextId.MpDescContinue.Get());
         var phase = new Argument<string>("phase").FromAmong("day", "prep");
         next.AddArgument(phase);
         next.SetHandler(ctx =>
@@ -146,7 +148,7 @@ public static class MpCommands
             ctx.Log((success ? TextId.MpContinueSuccess : TextId.MpContinueFailed).Get(value));
         });
         mp.AddCommand(next);
-        var ipv6 = new Command("ipv6", "Configure IPv6 dual-stack listening");
+        var ipv6 = new Command("ipv6", TextId.MpDescIpv6.Get());
         var enabled = new Argument<string>("action").FromAmong("enable", "disable");
         ipv6.AddArgument(enabled);
         ipv6.SetHandler(ctx =>
@@ -156,15 +158,7 @@ public static class MpCommands
             if (GameSession.HasLocalServer) GameSession.Restart();
         });
         mp.AddCommand(ipv6);
-        mp.SetHandler(ctx => ctx.Log(TextId.NetworkCommands.Get()));
         root.AddCommand(mp);
-        CommandRegistry.RegisterCompletions("mp", 0, "start", "stop", "restart", "status", "id", "connect", "play", "disconnect", "rooms", "create", "join", "leave", "kick", "maxplayers", "continue", "ipv6");
-        CommandRegistry.RegisterCompletions("mp continue", 0, "day", "prep");
-        CommandRegistry.RegisterCompletions("mp ipv6", 0, "enable", "disable");
-        CommandRegistry.RegisterCompletions("mp kick", 0, "id", "uid");
-        CommandRegistry.RegisterDynamicCompletions("mp kick id", 0, () => PlayerManager.Peers.Values.Select(p => p.Id).ToArray());
-        CommandRegistry.RegisterDynamicCompletions("mp kick uid", 0, () => PlayerManager.Peers.Keys.Select(p => p.ToString()).ToArray());
-        CommandRegistry.RegisterDynamicCompletions("mp join", 0, () => GameSession.State.Rooms.Select(r => RoomCode.Format(r.Id)).ToArray());
     }
 
     private static void Connect(InvocationContext ctx, string address, int? port)

@@ -3,7 +3,7 @@ using HarmonyLib;
 using Common.UI;
 using StaffScene;
 
-namespace MetaMystia;
+namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(StaffScene.SceneManager))]
 [AutoLog]
