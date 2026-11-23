@@ -3,6 +3,7 @@
 // MODE=give    原版 RunTimeStorage.ItemInRange 获得 IDS（同拾取、购买的入库）
 // MODE=equip   原版装饰面板提交的同一调用 RunTimeAlbum.TryRecordUsedDecoration；MODE=unequip 对应 TryRemoveUsedDecoration
 // MODE=dark    夜间：以黑暗料理调用 CookSystemManager.CallOnResultCompleteCallback（原版烹饪完成的汇合点，跳过烹饪过程）；MODE=food 以当日第一道料理调用
+// MODE=describe 夜间：在 buff 栏选中 BUFF 并显示说明框（原版 R/F 切换 buff 的同一方法），输出标题和当前说明
 public static class Program {
   public static object Execute() {
     string mode = "@@MODE@@";
@@ -26,6 +27,22 @@ public static class Program {
           : GameData.RunTime.NightSceneUtility.IzakayaConfigure.Instance.DailyRecipes[0].foodID;
         NightScene.CookingUtility.CookSystemManager.Instance.CallOnResultCompleteCallback(GameData.Core.Collections.DataBaseCore.AsNewFood(foodId));
         break;
+      }
+      case "describe": {
+        if (local != Common.UI.Scene.WorkScene) return "not in night scene: " + local;
+        var module = UnityEngine.Object.FindObjectOfType<NightScene.UI.EventUtility.BuffModule>();
+        string name = GameData.CoreLanguage.Collections.DataBaseLanguage.RefBuffLang((NightScene.EventUtility.EventManager.BuffType)buff).Name;
+        var elements = module.registeredBuffElement;
+        for (int i = 0; i < elements.Count; i++) {
+          elements[i].Item2.GetBuffInformation(null, out Sprite visual, out string title, out string description, out Il2CppSystem.Action cancel);
+          if (cancel != null) cancel.Invoke();
+          if (title != name) continue;
+          module.CloseCurrentSelection();
+          module.currentFocusingBuffIndex = i;
+          module.UpdateCurrentFocusingDescriptor();
+          return "describe " + title + " / " + description;
+        }
+        return "describe " + name + " not in buff bar (" + elements.Count + " buffs)";
       }
       case "info": break;
       default: return "unknown mode " + mode;
