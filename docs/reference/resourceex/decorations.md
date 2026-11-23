@@ -54,6 +54,6 @@
 | 文件 | 效果 |
 |---|---|
 | `DovePendantDecoration.cs` | 白天移速 +0.12；营业时玩家移速、伙伴工作效率与移速 ×1.2 |
-| `DarumaYukiyukiDecoration.cs` | 营业时做出黑暗料理后获得 30 秒 buff：返还食材概率 +20%（原版 `FreeCookRate`，与其他来源相加），烹饪时间 ×0.8；重复触发用 `TryOverrideTimedBuff` 刷新时长，不叠加 |
+| `DarumaYukiyukiDecoration.cs` | 营业时做出黑暗料理后获得 30 秒 buff：返还食材概率 +20%（原版 `FreeCookRate`，与其他来源相加），烹饪时间 ×0.8；重复触发用 `TryOverrideTimedBuff`（`BuffRegisterType.Overlay`）刷新时长，不叠加；默认的 `Additive` 会把剩余时间加到新时长上 |
 
 示例实现对应示例资源包的达摩雪雪 11000、小鸽子挂坠 11001，buff「不倒翁七転八起」11004；buff 说明中 `$a` 为剩余秒数。以上行为未经游戏实测。

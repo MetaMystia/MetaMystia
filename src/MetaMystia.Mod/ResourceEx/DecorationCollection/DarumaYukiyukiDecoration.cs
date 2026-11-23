@@ -37,10 +37,10 @@ public sealed class DarumaYukiyukiDecoration : DecorationBaseEx, IDecorationDepe
     [HideFromIl2Cpp]
     private static void Trigger(EventManager eventManager)
     {
-        // 原版 Additive 覆盖：结束旧 buff 后按新旧剩余时间较长者重新登记，即刷新而不叠加。
+        // Overlay：结束旧 buff 后按新旧剩余时间较长者重新登记，即刷新而不叠加。默认的 Additive 会把剩余时间加到新时长上。
         eventManager.TryOverrideTimedBuff(Buff, Duration,
             DelegateSupport.ConvertDelegate<Il2CppSystem.Action<int>>((int duration) => Register(eventManager, duration)),
-            EventManager.BuffTimeType.OtherPositiveBuff);
+            EventManager.BuffTimeType.OtherPositiveBuff, EventManager.BuffRegisterType.Overlay);
     }
 
     [HideFromIl2Cpp]
