@@ -1,6 +1,6 @@
 # 装饰
 
-房主 H、客机 C 读同一份存档，加载同一个资源包：在示例资源包中加入 `decorations` 达摩雪雪 11000（`DarumaYukiyuki`）、小鸽子挂坠 11001（`DovePendant`），以及 `buffs` 不倒翁七転八起 11004。各端 `worktime SECONDS=1200` 后共同营业。H 装备装饰，C 只获得不装备，作为同一存档、同一晚的对照。下文的 `decoration` 均带 `IDS=11000,11001 BUFF=11004`。
+房主 H、客机 C 读同一份存档，加载同一个资源包：在示例资源包中加入 `decorations` 达摩雪雪 11000（`DarumaYukiyuki`）、小鸽子挂坠 11001（`DovePendant`），以及 `buffs` 不倒翁七転八起 11004。各端 `worktime SECONDS=1200` 后共同营业。H 装备装饰，C 只获得不装备，作为同一存档、同一晚的对照。下文的 `decoration` 均带 `IDS=11000,11001 BUFF=11004`。用例 1–9 在 0.31.4（#132）通过，5 的伙伴部分因存档没有伙伴未覆盖（运行时实测，同机两实例）。
 
 通用判定：两端日志没有异常堆栈；没有 `跳过注册`、`buff 11004 图标加载失败`。
 
@@ -15,7 +15,7 @@
 ### 2 获得
 
 - 操作：两端 `decoration MODE=give`。
-- 期望：两件都是 `own=1 use=0`；原版获得装饰提示显示占位图标和名称。
+- 期望：两件都是 `own=1 use=0`。
 
 ### 3 白天移速
 
@@ -39,13 +39,13 @@ H 营业前已装备 11000 与 11001。
 ### 6 达摩雪雪触发
 
 - 操作：两端先 `MODE=info` 取基准；各 `MODE=food`，再各 `MODE=dark`，每步后 `MODE=info`。
-- 期望：`food` 后两端都是 `buff=none`。`dark` 后 H 为 `buff=30`（读取延迟可到 28），`free` 比基准多 0.2，`cook` 为基准的 0.8 倍；C 仍为 `buff=none`，`free`、`cook` 不变。H 的 buff 栏显示占位图标，说明里的剩余秒数已替换。
+- 期望：`food` 后两端都是 `buff=none`。`dark` 后 H 为 `buff=30`（读取延迟可到 28），`free` 比基准多 0.2，`cook` 为基准的 0.8 倍；C 仍为 `buff=none`，`free`、`cook` 不变。
 - 说明：`dark` 直接调用原版烹饪完成汇合点 `CallOnResultCompleteCallback`，不经过 QTE、厨具或符卡来源。
 
 ### 7 刷新不叠加
 
-- 操作：用例 6 后等约 10 秒，H `MODE=info`；再 H `MODE=dark`、`MODE=info`。
-- 期望：等待后 `buff` 降到 17–22；再次触发后回到 28–30，只有一个计时；`free` 仍为基准 + 0.2，`cook` 仍为基准 × 0.8（不是 +0.4、×0.64）。
+- 操作：用例 6 后等约 10 秒，H `MODE=info`；再 H `MODE=dark`。
+- 期望：等待后 `buff` 按经过的秒数减少；再次触发后回到 28–30，只有一个计时；`free` 仍为基准 + 0.2，`cook` 仍为基准 × 0.8（不是 +0.4、×0.64）。
 
 ### 8 结束
 
@@ -61,4 +61,4 @@ H 营业前已装备 11000 与 11001。
 
 ## 未覆盖
 
-挑战存档挂载（`RunTimePlayerData.MountAndOverridePlayerRuntimeData`）、剧情移动中更换装备、读档后恢复、DLC5 肉鸽、配置错误时跳过注册。
+伙伴倍率、获得提示与 buff 栏的图标和说明、真实黑暗料理来源（QTE、厨具、伙伴、符卡）、挑战存档挂载（`RunTimePlayerData.MountAndOverridePlayerRuntimeData`）、剧情移动中更换装备、读档后恢复、DLC5 肉鸽、配置错误时跳过注册。
