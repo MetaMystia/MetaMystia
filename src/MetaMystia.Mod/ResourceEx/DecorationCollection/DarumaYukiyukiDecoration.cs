@@ -46,12 +46,12 @@ public sealed class DarumaYukiyukiDecoration : DecorationBaseEx, IDecorationDepe
     [HideFromIl2Cpp]
     private static void Register(EventManager eventManager, int duration)
     {
-        eventManager.registeredFreeCookRate.Add(FreeCookRate);
         eventManager.SetExtraCookSpeedFunc(
             DelegateSupport.ConvertDelegate<Il2CppSystem.Func<float>>(() => CookTimeMultiplier),
             duration, out _, Buff,
-            DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() => eventManager.registeredFreeCookRate.Remove(FreeCookRate)),
+            DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() => { eventManager.registeredFreeCookRate.Remove(FreeCookRate); }),
             DelegateSupport.ConvertDelegate<Il2CppSystem.Func<int, string, string>>(
                 (int seconds, string description) => description.Replace("$a", seconds.ToString())));
+        eventManager.registeredFreeCookRate.Add(FreeCookRate);
     }
 }
