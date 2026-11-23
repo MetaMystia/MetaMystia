@@ -16,8 +16,7 @@ namespace MetaMystia.ResourceEx.DecorationCollection;
 /// </summary>
 public sealed class DarumaYukiyukiDecoration : DecorationBaseEx, IDecorationDependencies
 {
-    // 占位 ID，正式 ID 分配后替换。
-    private const EventManager.BuffType Buff = (EventManager.BuffType)8997;
+    private const EventManager.BuffType Buff = (EventManager.BuffType)11004;
     private const int Duration = 30;
     private const float FreeCookRate = 0.2f;
     private const float CookTimeMultiplier = 0.8f;

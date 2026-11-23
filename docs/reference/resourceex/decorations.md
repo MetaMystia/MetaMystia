@@ -7,10 +7,10 @@
 ```json
 "decorations": [
   {
-    "id": 8999,
+    "id": 11001,
     "name": "小鸽子挂坠",
     "description": "白天移动速度提高0.12；营业时移动速度、伙伴工作效率和伙伴移动速度提高20%。",
-    "spritePath": "assets/Decoration/8999.png",
+    "spritePath": "assets/Decoration/11001.png",
     "implementation": "DovePendant"
   }
 ]
@@ -56,4 +56,4 @@
 | `DovePendantDecoration.cs` | 白天移速 +0.12；营业时玩家移速、伙伴工作效率与移速 ×1.2 |
 | `DarumaYukiyukiDecoration.cs` | 营业时做出黑暗料理后获得 30 秒 buff：返还食材概率 +20%（原版 `FreeCookRate`，与其他来源相加），烹饪时间 ×0.8；重复触发用 `TryOverrideTimedBuff` 刷新时长，不叠加 |
 
-示例中的装饰 ID 8999、8998 与 buff ID 8997 为占位，位于游戏保留段，资源包 ID 校验不会通过，分配正式 ID 后替换。达摩的 buff 说明中 `$a` 为剩余秒数。以上行为未经游戏实测。
+示例实现对应示例资源包的达摩雪雪 11000、小鸽子挂坠 11001，buff「不倒翁七転八起」11004；buff 说明中 `$a` 为剩余秒数。以上行为未经游戏实测。
