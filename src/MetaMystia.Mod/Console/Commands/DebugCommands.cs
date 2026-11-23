@@ -1,6 +1,11 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 
+using NightScene.GuestManagementUtility;
+
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Guests;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 
 namespace MetaMystia.ConsoleSystem.Commands;
@@ -18,14 +23,16 @@ public static class DebugCommands
         killCmd.SetHandler(ctx =>
         {
             int id = ctx.ParseResult.GetValueForArgument(guestIdArg);
-            var fsm = GuestsMap.GetGuestFsm(id);
-            if (fsm == null)
+            var guest = GuestRegistry.Current.Find(id);
+            if (guest?.Controller == null || guest.IsLeft)
             {
                 ctx.Log(ConsoleFormat.Err($"Guest #{id} not found"));
                 return;
             }
-            ctx.Log($"Killing guest #{id} ({fsm.CurrentState})");
-            fsm.Kill();
+            ctx.Log($"Killing guest {guest}");
+            if (GameSession.IsRoomHost) GuestLeaveMessage.Send(guest, LeaveReason.Force, GuestGroupController.LeaveType.Fading);
+            guest.State = GuestPhase.Left;
+            GuestReplay.ForceCleanup(guest.Controller);
         });
         debugCmd.AddCommand(killCmd);
 

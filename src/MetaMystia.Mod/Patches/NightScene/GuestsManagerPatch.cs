@@ -11,6 +11,7 @@ using GameData.RunTime.NightSceneUtility;
 using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Guests;
 using MetaMystia.Multiplayer.Messages;
 using SgrYuki.Utils;
 
@@ -52,9 +53,8 @@ namespace MetaMystia.Patch;
 [TracePatch(nameof(GuestsManager.GuestPay))]
 [TracePatch(nameof(GuestsManager.PayByMood))]
 [TracePatch(nameof(GuestsManager.LeaveFromDesk))]
-[TracePatch(nameof(GuestsManager.Method_Private_Void_GuestGroupController_PDM_1),
-    DisplayName = "GuestsManager.PostInitializeGuestGroup.OnPatientDepleted(OnPatiendDepleted)")]
 [TracePatch(nameof(GuestsManager.TryCloseIzakaya))]
+[TracePatch(nameof(GuestsManager.ShowEvaluationDialog))]
 [AutoLog]
 public partial class GuestsManagerPatch
 {
@@ -180,56 +180,45 @@ public partial class GuestsManagerPatch
     }
 
     /// <summary>
-    /// 主机生成无参普通客人。
+    /// 无参普通客人是原版的自动生成循环。客机不自行生成；主机在剧情外重抽全员可用的顾客组，剧情中按原版生成本端顾客。
     /// </summary>
-    /// <returns></returns>
     [HarmonyPatch(nameof(GuestsManager.SpawnNormalGuestGroup), [])]
     [HarmonyPrefix]
     [IcfFolded("与 SpawnNormalGuestGroupExtern 折叠，无参重载只调用它，行为相同")]
     public static bool SpawnNormalGuestGroup_Prefix()
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (!GameSession.HasRoomPeers) return RunOriginal;
+        if (GameSession.IsRoomClient) return SkipOriginal;
+        if (GameFlow.InStory) return RunOriginal;
 
-        if (GameSession.IsRoomHost)
+        var cook = NightScene.CookingUtility.CookSystemManager.Instance;
+        for (var attempt = 0; attempt < MaxNormalGuestRerollAttempts; attempt++)
         {
-            var cook = NightScene.CookingUtility.CookSystemManager.Instance;
-            for (var attempt = 0; attempt < MaxNormalGuestRerollAttempts; attempt++)
+            var guestGroups = cook?.GetRandomNormalGuestGroups();
+            if (guestGroups == null)
             {
-                var guestGroups = cook?.GetRandomNormalGuestGroups();
-                if (guestGroups == null)
-                {
-                    Log.Error("CookSystemManager failed to GetRandomNormalGuestGroups.");
-                    return RunOriginal;
-                }
-
-                var guests = guestGroups.ToArray();
-                if (!IsNormalGuestGroupAvailable(guests)) continue;
-
-                GuestsManager.Instance.SpawnNormalGuestGroup(
-                    guestGroups,
-                    new Il2CppSystem.Nullable<Vector3>(),
-                    GuestGroupController.LeaveType.Move,
-                    -1,
-                    true);
-                return SkipOriginal;
+                Log.Error("CookSystemManager failed to GetRandomNormalGuestGroups.");
+                return RunOriginal;
             }
 
-            Log.Warning("No globally available normal guest group found after reroll, skipping spawn.");
+            var guests = guestGroups.ToArray();
+            if (!IsNormalGuestGroupAvailable(guests)) continue;
+
+            GuestsManager.Instance.SpawnNormalGuestGroup(
+                guestGroups,
+                new Il2CppSystem.Nullable<Vector3>(),
+                GuestGroupController.LeaveType.Move,
+                -1,
+                true);
             return SkipOriginal;
         }
 
-        if (GameSession.IsRoomClient)
-        {
-            // 客机不生成顾客，应由主机通过联机 OnSpawn 通知生成
-            Log.Info("Skipping SpawnNormalGuestGroup on client");
-            return SkipOriginal;
-        }
-
-        return RunOriginal;
+        Log.Warning("No globally available normal guest group found after reroll, skipping spawn.");
+        return SkipOriginal;
     }
 
     /// <summary>
-    /// 主机生成带参普通客人时，暂存额外生成参数；客机不允许本地自发生成。
+    /// 主机生成带参普通客人时，暂存额外生成参数；客机不自行生成。剧情中两端按原版生成本端顾客。
     /// </summary>
     [HarmonyPatch(nameof(GuestsManager.SpawnNormalGuestGroup), [
         typeof(Il2CppSystem.Collections.Generic.IEnumerable<NormalGuest>),
@@ -247,32 +236,28 @@ public partial class GuestsManagerPatch
         bool shouldFade,
         ref NormalGuestsController __result)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
+        if (!GameSession.HasRoomPeers || GameFlow.InStory) return RunOriginal;
         if (GameSession.IsRoomClient)
         {
             __result = null;
             return SkipOriginal;
         }
 
-        if (GameSession.IsRoomHost)
+        if (!TryReplaceUnavailableNormalGuests(ref normalGuests))
         {
-            if (!TryReplaceUnavailableNormalGuests(ref normalGuests))
-            {
-                Log.Warning("No globally available normal guest fallback found, skipping spawn.");
-                __result = null;
-                return SkipOriginal;
-            }
-
-            _pendingNormalSpawnArgs = new PendingSpawnArgs
-            {
-                HasOverrideSpawnPosition = overrideSpawnPosition.HasValue,
-                OverrideSpawnPosition = overrideSpawnPosition.GetValueOrDefault(),
-                LeaveType = leaveType,
-                TargetDeskCode = targetDeskCode,
-                ShouldFade = shouldFade,
-            };
+            Log.Warning("No globally available normal guest fallback found, skipping spawn.");
+            __result = null;
+            return SkipOriginal;
         }
 
+        _pendingNormalSpawnArgs = new PendingSpawnArgs
+        {
+            HasOverrideSpawnPosition = overrideSpawnPosition.HasValue,
+            OverrideSpawnPosition = overrideSpawnPosition.GetValueOrDefault(),
+            LeaveType = leaveType,
+            TargetDeskCode = targetDeskCode,
+            ShouldFade = shouldFade,
+        };
         return RunOriginal;
     }
 
@@ -300,11 +285,8 @@ public partial class GuestsManagerPatch
     }
 
     /// <summary>
-    /// 主机生成指定稀客，并判定
+    /// 主机生成稀客，房间内有人不可用时重抽；客机不自行生成。剧情中两端按原版生成本端顾客。
     /// </summary>
-    /// <param name="id"></param>
-    /// <param name="__result"></param>
-    /// <returns></returns>
     [HarmonyPatch(nameof(GuestsManager.SpawnSpecialGuestGroup))]
     [HarmonyPrefix]
     public static bool SpawnSpecialGuestGroup_Prefix(
@@ -317,31 +299,21 @@ public partial class GuestsManagerPatch
         ref SpecialGuestsController __result)
     {
         if (IsReimuProtectionGuest(id)) return RunOriginal;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomClient)
+        if (!GameSession.HasRoomPeers || GameFlow.InStory) return RunOriginal;
+        if (GameSession.IsRoomClient || !TryResolveAvailableSpecialGuest(ref id))
         {
             __result = null;
             return SkipOriginal;
         }
-        if (GameSession.IsRoomHost)
+        _pendingSpecialSpawnArgs = new PendingSpawnArgs
         {
-            if (TryResolveAvailableSpecialGuest(ref id))
-            {
-                _pendingSpecialSpawnArgs = new PendingSpawnArgs
-                {
-                    HasOverrideSpawnPosition = overrideSpawnPosition.HasValue,
-                    OverrideSpawnPosition = overrideSpawnPosition.GetValueOrDefault(),
-                    LeaveType = leaveType,
-                    TargetDeskCode = targetDeskCode,
-                    ShouldFade = shouldFade,
-                    GuestSpawnType = guestSpawnType,
-                };
-                return RunOriginal;
-            }
-            __result = null;
-            return SkipOriginal;
-        }
-
+            HasOverrideSpawnPosition = overrideSpawnPosition.HasValue,
+            OverrideSpawnPosition = overrideSpawnPosition.GetValueOrDefault(),
+            LeaveType = leaveType,
+            TargetDeskCode = targetDeskCode,
+            ShouldFade = shouldFade,
+            GuestSpawnType = guestSpawnType,
+        };
         return RunOriginal;
     }
 
@@ -387,241 +359,179 @@ public partial class GuestsManagerPatch
     }
 
 
+    /// <summary>
+    /// 主机在剧情外生成的顾客登记并广播，此后进入同步；剧情中生成的顾客和灵梦保护不登记，两端各按原版运行。
+    /// </summary>
     [HarmonyPatch(nameof(GuestsManager.PostInitializeGuestGroup))]
     [HarmonyPrefix]
     public static void PostInitializeGuestGroup_Prefix(GuestGroupController initializedController)
     {
-        if (IsReimuProtectionGuest(initializedController)) return;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        if (GameSession.IsRoomHost)
+        var spawnArgs = initializedController.ControllType switch
         {
-            // 将主机生成的顾客信息广播给客机
-            var spawnArgs = initializedController.ControllType switch
-            {
-                GuestsManager.GuestType.Normal => ConsumePendingNormalSpawnArgs(),
-                GuestsManager.GuestType.Special => ConsumePendingSpecialSpawnArgs(),
-                _ => null,
-            };
-            GuestFSM.OnSpawn(initializedController, spawnArgs);
-        }
+            GuestsManager.GuestType.Normal => ConsumePendingNormalSpawnArgs(),
+            GuestsManager.GuestType.Special => ConsumePendingSpecialSpawnArgs(),
+            _ => null,
+        };
+        if (!GameSession.HasRoomPeers || !GameSession.IsRoomHost || GameFlow.InStory) return;
+        if (IsReimuProtectionGuest(initializedController) || GuestRegistry.Of(initializedController) != null) return;
+        GuestSpawnMessage.Detect(initializedController, spawnArgs);
     }
 
-    /// <summary>
-    /// 主机和客机玩家赶客
-    /// </summary>
-    /// <param name="deskCode"></param>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
-    [HarmonyPatch(nameof(GuestsManager.PlayerRepell))]
-    [HarmonyPrefix]
-    public static bool PlayerRepell_Prefix(int deskCode)
-    {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomClient)
-        {
-            GuestFSM.OnPlayerRepell(deskCode);
-            return SkipOriginal;
-        }
-
-        var manager = GuestsManager.Instance;
-        var guest = manager.GetInDeskGuest(deskCode);
-        return guest != null && guest.HaveNotLeft() && manager.CheckCanPlayerRepelGuest(deskCode)
-            ? RunOriginal : SkipOriginal;
-    }
-
-
-    /// <summary>
-    /// 顾客点单满足，触发订单评价。
-    /// 主机正常执行，客机根据 OverrideEvalResult 判断是重放中(正常执行) 还是游戏主动调用(跳过)。
-    /// </summary>
-    /// <param name="toEvaluate"></param>
-    /// <returns></returns>
-    [HarmonyPatch(nameof(GuestsManager.EvaluateOrder))]
-    [HarmonyPrefix]
-    public static bool EvaluateOrder_Prefix(GuestGroupController toEvaluate)
-    {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GuestsMap.GetGuestFsm(toEvaluate)?.IsRepelling == true) return SkipOriginal;
-        if (GameSession.IsRoomHost)
-        {
-            return RunOriginal;
-        }
-        if (GameSession.IsRoomClient)
-        {
-            var fsm = GuestsMap.GetGuestFsm(toEvaluate);
-            return fsm.OverrideEvalResult != GuestGroupController.EvaluationResult.Null
-                ? RunOriginal
-                : SkipOriginal;
-        }
-
-        return RunOriginal;
-    }
-
-    /// <summary>
-    /// 订单评价结束，推进 Evaluating -> EatingDelay
-    /// </summary>
-    /// <param name="toEvaluate"></param>
-    /// <param name="isTriggerByPartner"></param>
-    [HarmonyPatch(nameof(GuestsManager.EvaluateOrder))]
-    [HarmonyPostfix]
-    public static void EvaluateOrder_Postfix(GuestGroupController toEvaluate, bool isTriggerByPartner)
-    {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        if (GuestsMap.GetGuestFsm(toEvaluate)?.IsRepelling == true) return;
-        if (GameSession.IsRoomHost)
-        {
-            // 主机端直接记录评价结束，推进 Evaluating -> EatingDelay
-            GuestFSM.OnEatingDelay(toEvaluate);
-            return;
-        }
-        if (GameSession.IsRoomClient)
-        {
-            var fsm = GuestsMap.GetGuestFsm(toEvaluate);
-            if (fsm?.CurrentState == GuestFSM.State.Evaluating &&
-                fsm.OverrideEvalResult != GuestGroupController.EvaluationResult.Null)
-            {
-                // 客机客人正处于 Evaluating 且存在 OverrideEvalResult 时才推进 Evaluating -> EatingDelay
-                // 否则认为是游戏主动执行的 EvaluateOrder，不执行状态推进
-                // TODO: 是否能移除
-                GuestFSM.OnEatingDelay(toEvaluate);
-            }
-        }
-    }
-
-
-    /// <summary>
-    /// 顾客离开
-    /// </summary>
-    /// <param name="guestGroupController"></param>
-    /// <returns></returns>
-    [HarmonyPatch(nameof(GuestsManager.RepellInternal))]
-    [HarmonyPrefix]
-    public static bool RepellInternal_Prefix(GuestGroupController guestGroupController)
-    {
-        if (Bypass.Active(guestGroupController) || IsReimuProtectionGuest(guestGroupController)) return RunOriginal;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost && guestGroupController.DeskCode >= 0)
-        {
-            GuestFSM.OnRepell(guestGroupController);
-        }
-
-        return RunOriginal;
-    }
-
-
-    /// <summary>
-    /// 尝试送顾客入座，客机需短路 PostInitializeGuestGroup
-    /// </summary>
-    /// <param name="__result"></param>
-    /// <returns></returns>
+    /// <summary>客机入座由主机决定：生成时视为已处理，出队时视为没有空位。</summary>
     [HarmonyPatch(nameof(GuestsManager.TrySendToSeat))]
     [HarmonyPrefix]
-    public static bool TrySendToSeat_Prefix(GuestGroupController toTry, ref bool __result)
+    public static bool TrySendToSeat_Prefix(GuestGroupController toTry, bool firstSpawn, ref bool __result)
     {
-        if (IsReimuProtectionGuest(toTry)) return RunOriginal;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomClient)
-        {
-            // 客机需要返回 true 并跳过原逻辑以短路 PostInitializeGuestGroup
-            __result = true;
-            return SkipOriginal;
-        }
-        return RunOriginal;
+        if (GuestRegistry.Mode(toTry) != GuestMode.Client) return RunOriginal;
+        __result = firstSpawn;
+        return SkipOriginal;
     }
 
+    /// <summary>主机入座收口：生成即入座与出队入座。</summary>
+    [HarmonyPatch(nameof(GuestsManager.TrySendToSeat))]
+    [HarmonyPostfix]
+    public static void TrySendToSeat_Postfix(GuestGroupController toTry, bool __result)
+    {
+        if (__result && GuestRegistry.Mode(toTry) == GuestMode.Host) GuestSeatMessage.Detect(toTry);
+    }
 
-    /// <summary>
-    /// 主机顾客生成点单会话，客机跳过。
-    /// </summary>
-    /// <param name="guestGroup"></param>
-    /// <returns></returns>
+    /// <summary>客机点单只在重放主机订单时执行。</summary>
     [HarmonyPatch(nameof(GuestsManager.GenerateOrderSession))]
     [HarmonyPrefix]
-    public static bool GenerateOrderSession_Prefix(GuestGroupController guestGroup)
-    {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomClient)
-        {
-            // 客机在 DoGenerateOrderSession 中直接调用 GenerateOrderSession 或通过调用 FirstOrder 而间接调用 DoGenerateOrderSession 前
-            // 将订单结果暂存至 PendingOrder，若此处检查到 PendingOrder 则认定为是重放状态
-            if (GuestsMap.GetGuestFsm(guestGroup)?.PendingOrder.HasValue == true)
-            {
-                return RunOriginal;
-            }
-            return SkipOriginal;
-        }
+    public static bool GenerateOrderSession_Prefix(GuestGroupController guestGroup) =>
+        GuestRegistry.Mode(guestGroup) != GuestMode.Client || GuestRegistry.Of(guestGroup).PendingOrder.HasValue
+            ? RunOriginal : SkipOriginal;
 
-        return RunOriginal;
-    }
-
-    /// <summary>
-    /// 主机顾客开始一轮点单，客机跳过。
-    /// </summary>
-    /// <param name="toCycle"></param>
-    /// <returns></returns>
+    /// <summary>吃完进入续单判定，记为已吃完；客机的续单与否由主机决定。</summary>
     [HarmonyPatch(nameof(GuestsManager.MainOrderCycle))]
     [HarmonyPrefix]
     public static bool MainOrderCycle_Prefix(GuestGroupController toCycle)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost)
-        {
-            return RunOriginal;
-        }
-        if (GameSession.IsRoomClient)
-        {
-            // 客机的 MainOrderCycle 当被跳过，只有主机有权主动推进
-            return SkipOriginal;
-        }
+        var mode = GuestRegistry.Mode(toCycle);
+        if (mode is GuestMode.Host or GuestMode.Client && GuestRegistry.Of(toCycle) is { State: GuestPhase.Evaluating } guest)
+            guest.State = GuestPhase.Eaten;
+        return mode == GuestMode.Client ? SkipOriginal : RunOriginal;
+    }
 
-        return RunOriginal;
+    /// <summary>客机只重放主机评价；本地上齐触发的评价跳过。</summary>
+    [HarmonyPatch(nameof(GuestsManager.EvaluateOrder))]
+    [HarmonyPrefix]
+    public static bool EvaluateOrder_Prefix(GuestGroupController toEvaluate)
+    {
+        if (GuestRegistry.Mode(toEvaluate) != GuestMode.Client) return RunOriginal;
+        var guest = GuestRegistry.Of(toEvaluate);
+        return guest.State == GuestPhase.Evaluating && guest.FinalEval != GuestGroupController.EvaluationResult.Null
+            ? RunOriginal : SkipOriginal;
     }
 
     /// <summary>
-    /// 主机顾客出队入座，劫持以获取顾客信息，客机跳过。
+    /// 评价台词显示时结果已经过彩蛋与改判回调。主机在此广播最终结果；客机显示主机结果。
     /// </summary>
-    /// <returns></returns>
-    [HarmonyPatch(nameof(GuestsManager.CheckAndSendFromQueue))]
+    [HarmonyPatch(nameof(GuestsManager.ShowEvaluationDialog))]
     [HarmonyPrefix]
-    public static bool CheckAndSendFromQueue_Prefix()
+    public static void ShowEvaluationDialog_Prefix(GuestGroupController __0, ref GuestGroupController.EvaluationResult __2)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost)
+        switch (GuestRegistry.Mode(__0))
         {
-            // 主机需要精准捕获成功出队入座的顾客，因此劫持到 HijackCheckAndSendFromQueue 进行精准捕获与同步
-            GuestService.HijackCheckAndSendFromQueue();
-            return SkipOriginal;
+            case GuestMode.Host:
+                EvaluateOrderMessage.Detect(__0, __2);
+                break;
+            case GuestMode.Client when GuestRegistry.Of(__0).FinalEval is var final && final != GuestGroupController.EvaluationResult.Null:
+                __2 = final;
+                break;
         }
-
-        if (GameSession.IsRoomClient)
-        {
-            return SkipOriginal;
-        }
-
-        return RunOriginal;
     }
 
     /// <summary>
-    /// 队内顾客耐心耗尽，主机同步，客机跳过。
+    /// 客机玩家赶客：本地立即执行原版并记下分支，离桌时上报。主机本地赶客照常执行。
     /// </summary>
-    /// <param name="guest"></param>
-    /// <returns></returns>
-    [HarmonyPatch(nameof(GuestsManager.Method_Private_Void_GuestGroupController_PDM_1))]
+    [HarmonyPatch(nameof(GuestsManager.PlayerRepell))]
     [HarmonyPrefix]
-    public static bool OnPatientDepleted_Prefix(GuestGroupController guest)
+    public static bool PlayerRepell_Prefix(int deskCode)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost)
+        var manager = GuestsManager.Instance;
+        var guest = manager.GetInDeskGuest(deskCode);
+        // 另一端的赶客先到时桌已空，原版对空桌会空引用。
+        if (guest == null) return SkipOriginal;
+        switch (GuestRegistry.Mode(guest))
         {
-            GuestFSM.OnPatientDepletedInQueue(guest);
+            case GuestMode.Client:
+                if (GuestRegistry.Of(guest).IsLeft) return SkipOriginal;
+                PlayerRepellMessage.Local(guest);
+                return RunOriginal;
+            case GuestMode.Host:
+                return guest.HaveNotLeft() && manager.CheckCanPlayerRepelGuest(deskCode) ? RunOriginal : SkipOriginal;
+            default:
+                return RunOriginal;
         }
+    }
 
-        if (GameSession.IsRoomClient)
+    /// <summary>
+    /// 主机标记离场原因，由离桌或未入座离开的收口广播。客机只执行本端赶客，其余等待主机。
+    /// </summary>
+    [HarmonyPatch(nameof(GuestsManager.RepellInternal))]
+    [HarmonyPrefix]
+    public static bool RepellInternal_Prefix(GuestGroupController guestGroupController)
+    {
+        if (Bypass.Active(guestGroupController)) return RunOriginal;
+        switch (GuestRegistry.Mode(guestGroupController))
         {
-            return SkipOriginal;
+            case GuestMode.Host:
+                GuestRegistry.Of(guestGroupController).LeaveReason = LeaveReason.Repel;
+                return RunOriginal;
+            case GuestMode.Client:
+                var guest = GuestRegistry.Of(guestGroupController);
+                if (guest.LocalRepel == null || guest.IsLeft) return SkipOriginal;
+                PlayerRepellMessage.Report(guest);
+                // 放行其中的离桌。
+                Bypass.Grant(guestGroupController);
+                return RunOriginal;
+            default:
+                return RunOriginal;
         }
+    }
 
-        return RunOriginal;
+    /// <summary>桌上耐心耗尽：主机标记原因；客机等待主机。</summary>
+    [HarmonyPatch(nameof(GuestsManager.PatientDepletedLeave))]
+    [HarmonyPrefix]
+    public static bool PatientDepletedLeave_Prefix(GuestGroupController toPatientDepletedLeave)
+    {
+        if (Bypass.Active(toPatientDepletedLeave)) return RunOriginal;
+        switch (GuestRegistry.Mode(toPatientDepletedLeave))
+        {
+            case GuestMode.Host:
+                GuestRegistry.Of(toPatientDepletedLeave).LeaveReason = LeaveReason.PatientDepleted;
+                return RunOriginal;
+            case GuestMode.Client:
+                return SkipOriginal;
+            default:
+                return RunOriginal;
+        }
+    }
+
+    /// <summary>
+    /// 离桌收口：主机广播；客机只执行本端赶客与主机事件重放。
+    /// 单机不暂停时客人可能在上菜面板打开期间离桌，先关闭面板并退回物品。
+    /// </summary>
+    [HarmonyPatch(nameof(GuestsManager.LeaveFromDesk))]
+    [HarmonyPrefix]
+    public static bool LeaveFromDesk_Prefix(GuestGroupController toLeave, GuestGroupController.LeaveType leaveType)
+    {
+        if (GameTimeManagerPatch.NoPanelPause) ServeSlots.ClosePanel(toLeave.DeskCode, null, returnLocal: true);
+        if (Bypass.Active(toLeave)) return RunOriginal;
+        switch (GuestRegistry.Mode(toLeave))
+        {
+            case GuestMode.Host:
+                GuestLeaveMessage.DetectDesk(toLeave, leaveType);
+                return RunOriginal;
+            case GuestMode.Client:
+                // 吃完付款离开被截住：断线时据此补上离桌。
+                if (GuestRegistry.Of(toLeave) is { State: GuestPhase.Evaluating or GuestPhase.Eaten } guest)
+                    guest.State = GuestPhase.Leaving;
+                return SkipOriginal;
+            default:
+                return RunOriginal;
+        }
     }
 
     /// <summary>
@@ -678,82 +588,7 @@ public partial class GuestsManagerPatch
         Log.Info($"幽幽子三阶段耐心：{originalPatient} → {controller.CurrentPatient}");
     }
 
-    /// <summary>
-    /// 主机桌上客人耐心耗尽。
-    /// </summary>
-    /// <param name="toPatientDepletedLeave"></param>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
-    [HarmonyPatch(nameof(GuestsManager.PatientDepletedLeave))]
-    [HarmonyPrefix]
-    public static bool PatientDepletedLeave_Prefix(GuestGroupController toPatientDepletedLeave)
-    {
-        if (Bypass.Active(toPatientDepletedLeave)) return RunOriginal;
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost)
-        {
-            // 上游 PatientDepletedDeskMessage 已会让客机完整重放 PatientDepletedLeave 链路
-            // (含末端 LeaveFromDesk)，避免 LeaveFromDesk_Prefix 再发 GuestLeaveMessage。
-            Bypass.Grant(toPatientDepletedLeave);
-            GuestFSM.OnPatientDepletedAtDesk(toPatientDepletedLeave);
-            return RunOriginal;
-        }
-        if (GameSession.IsRoomClient)
-        {
-            return SkipOriginal;
-        }
-
-        return RunOriginal;
-    }
-
-    /// <summary>
-    /// 顾客离桌，主机同步，客机跳过。
-    /// </summary>
-    /// <param name="toLeave"></param>
-    /// <param name="leaveType"></param>
-    /// <param name="triggerLeaveBuff"></param>
-    /// <returns></returns>
-    [HarmonyPatch(nameof(GuestsManager.LeaveFromDesk))]
-    [HarmonyPrefix]
-    public static bool LeaveFromDesk_Prefix(
-        GuestGroupController toLeave,
-        GuestGroupController.LeaveType leaveType,
-        bool triggerLeaveBuff)
-    {
-        // 单机不暂停时客人可能在上菜面板打开期间离桌，原版关面板会把物品写进已离开客人的订单。
-        if (GameTimeManagerPatch.NoPanelPause) GuestFSM.TryCloseServePanel(toLeave.DeskCode, returnToTray: true);
-
-        if (Bypass.Active(toLeave)) return RunOriginal;
-        if (YuyukoGuestSync.IsBody(toLeave)) return RunOriginal;
-        if (IsReimuProtectionGuest(toLeave)) return RunOriginal;
-
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost)
-        {
-            GuestFSM.OnLeaveFromDesk(
-                toLeave,
-                leaveType,
-                triggerLeaveBuff);
-            return RunOriginal;
-        }
-
-        if (GameSession.IsRoomClient)
-        {
-            return SkipOriginal;
-        }
-
-        return RunOriginal;
-    }
-
-
-    /// <summary>
-    /// LeaveFromDesk 的反向补丁，用于客机重放。
-    /// </summary>
-    /// <param name="__instance"></param>
-    /// <param name="toLeave"></param>
-    /// <param name="leaveType"></param>
-    /// <param name="leaveAction"></param>
-    /// <param name="triggerLeaveBuff"></param>
+    /// <summary>LeaveFromDesk 的反向补丁，用于强制清理。</summary>
     [HarmonyPatch(nameof(GuestsManager.LeaveFromDesk))]
     [HarmonyReversePatch]
     public static void LeaveFromDesk_ReversePatch(

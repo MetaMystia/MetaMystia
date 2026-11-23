@@ -56,7 +56,7 @@ public partial class ExampleMessage : MultiplayerMessage
 
 `PluginHost.Update()` 调用 `GameSession.Tick()`，由 `Client.DispatchPending()` 顺序安装状态并派发消息。普通接收函数运行在主线程；网络 IO 不访问游戏对象。
 
-需要跨帧等待时使用协程或现有顾客 FSM。消息的延迟回调必须检查 `IsCurrent`；顾客队列使用 `QueueForGuest`，使旧连接或旧入房身份的操作自动结束。其他管理器的状态放入作用域（`Scopes`），回调保存作用域并检查 `Ended`；尚未迁入的仍捕获客户端及入房代号，或使用会话重置时递增的代号。不要阻塞主线程等待网络确认。
+需要跨帧等待时使用协程或顾客登记表的待应用队列（随场景作用域失效）。消息的延迟回调必须检查 `IsCurrent`，使旧连接或旧入房身份的操作自动结束。其他管理器的状态放入作用域（`Scopes`），回调保存作用域并检查 `Ended`；尚未迁入的仍捕获客户端及入房代号，或使用会话重置时递增的代号。不要阻塞主线程等待网络确认。
 
 基类统一记录收发日志，按需覆盖日志级别或 `ToLogString()`。连接对象不参与日志序列化；不要输出 Token 或大块正文。
 

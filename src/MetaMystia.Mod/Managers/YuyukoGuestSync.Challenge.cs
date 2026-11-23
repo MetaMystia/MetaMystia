@@ -63,7 +63,7 @@ public static partial class YuyukoGuestSync
         var context = loop.__8__1;
         if (GameSession.IsRoomHost)
         {
-            if (fsm == null) return false;
+            if (guest == null) return false;
             if (state != 4) SendPhase(loop, state);
         }
         else

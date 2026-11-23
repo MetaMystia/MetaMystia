@@ -58,7 +58,7 @@ public partial class PluginHost : MonoBehaviour
         PluginManager.TickMainThreadQueue();
         GameFlow.RefreshInStoryCache();
         GameSession.Tick();
-        GuestsMap.TickAllPending();
+        Multiplayer.Guests.GuestRegistry.Current.Tick();
 
         InGameConsole.Update();
         PlayerListPanel.Update();

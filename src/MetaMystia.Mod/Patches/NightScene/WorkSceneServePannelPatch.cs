@@ -1,14 +1,11 @@
-using System;
-
 using HarmonyLib;
-using Il2CppSystem.Linq;
 
 using GameData.Core.Collections;
 using GameData.RunTime.NightSceneUtility;
-using NightScene.GuestManagementUtility;
 using NightScene.UI.GuestManagementUtility;
 
-using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Guests;
+using MetaMystia.Multiplayer.Messages;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
@@ -18,6 +15,7 @@ namespace MetaMystia.Patch;
 [TracePatch(nameof(WorkSceneServePannel.OnPanelInitialize))]
 [TracePatch(nameof(WorkSceneServePannel.OnPanelOpen))]
 [TracePatch(nameof(WorkSceneServePannel.OnPanelClose))]
+[TracePatch(nameof(WorkSceneServePannel.OnExitExtern))]
 [TracePatch(nameof(WorkSceneServePannel.Send))]
 [TracePatch(nameof(WorkSceneServePannel.Cancel))]
 [AutoLog]
@@ -28,122 +26,89 @@ public partial class WorkSceneServePannelPatch
     ?? instanceRef?.operatingOrder?.DeskCode
     ?? -1;
 
+    /// <summary>联机时预填该桌当前的待上菜。</summary>
     [HarmonyPatch(nameof(WorkSceneServePannel.OnPanelOpen))]
     [HarmonyPostfix]
     public static void OnPanelOpen_Postfix(WorkSceneServePannel __instance)
     {
         instanceRef = __instance;
-        
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
-        
-        var panelDeskCode = WorkSceneServePannelPatch.instanceRef?.currentGuestController?.DeskCode
-                            ?? WorkSceneServePannelPatch.instanceRef?.operatingOrder?.DeskCode
-                            ?? -1;
-        if (panelDeskCode != -1 && GuestsManager.Instance.AllGuestInDeskCode.Contains(panelDeskCode))
-        {
-            var controller = GuestsManager.Instance.GetInDeskGuest(panelDeskCode);
-            var fsm = GuestsMap.GetGuestFsm(controller);
-
-            __instance.willServeFood = fsm.WillServeFood;
-            __instance.willServeBeverage = fsm.WillServeBeverage;
-
-            if (__instance.willServeFood != null)
-            {
-                instanceRef?.SetServedVisualOnUI(
-                    instanceRef?.servFood,
-                    instanceRef?.servFoodOutline,
-                    __instance.willServeFood,
-                    true);
-            }
-            if (__instance.willServeBeverage != null)
-            {
-                instanceRef?.SetServedVisualOnUI(
-                    instanceRef?.servBev,
-                    instanceRef?.servBevOutline,
-                    __instance.willServeBeverage,
-                    true);
-            }
-        }
+        var guest = GuestRegistry.Of(__instance.currentGuestController);
+        if (guest == null) return;
+        __instance.willServeFood = guest.WillServeFood;
+        __instance.willServeBeverage = guest.WillServeBeverage;
+        if (guest.WillServeFood != null)
+            __instance.SetServedVisualOnUI(__instance.servFood, __instance.servFoodOutline, guest.WillServeFood, true);
+        if (guest.WillServeBeverage != null)
+            __instance.SetServedVisualOnUI(__instance.servBev, __instance.servBevOutline, guest.WillServeBeverage, true);
     }
 
+    /// <summary>关闭面板即确认上桌。强制关闭（顾客离开、评价重放）经 <see cref="Bypass"/> 放行。</summary>
     [HarmonyPatch(nameof(WorkSceneServePannel.OnPanelClose))]
     [HarmonyPrefix]
-    public static bool OnPanelClose_Prefix(WorkSceneServePannel __instance)
+    public static void OnPanelClose_Prefix(WorkSceneServePannel __instance)
     {
-        // isPanelOpen = false;
         instanceRef = null;
-        if (Bypass.Active(__instance)) return RunOriginal;
+        if (Bypass.Active(__instance)) return;
+        ConfirmServeMessage.Local(__instance.currentGuestController, __instance.willServeFood, __instance.willServeBeverage);
+    }
 
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost)
+    /// <summary>
+    /// 外部关闭面板：原版退回时总是读取料理槽，酒水丢失。改为逐槽退回；联机只退回并撤回本端放入的物品，他人放入的保留在槽位。
+    /// </summary>
+    [HarmonyPatch(nameof(WorkSceneServePannel.OnExitExtern))]
+    [HarmonyPrefix]
+    public static void OnExitExtern_Prefix(WorkSceneServePannel __instance)
+    {
+        var controller = __instance.currentGuestController;
+        var guest = GuestRegistry.Of(controller);
+        if (guest == null)
         {
-            GuestFSM.OnConfirmServe(__instance.currentGuestController, __instance.willServeFood, __instance.willServeBeverage);
-            return RunOriginal;
+            if (__instance.willServeFood != null) IzakayaTray.Instance.Receive(__instance.willServeFood);
+            if (__instance.willServeBeverage != null) IzakayaTray.Instance.Receive(__instance.willServeBeverage);
         }
-        if (GameSession.IsRoomClient)
+        else
         {
-            GuestFSM.OnConfirmServe(__instance.currentGuestController, __instance.willServeFood, __instance.willServeBeverage);
-            return RunOriginal;
+            foreach (var type in new[] { Sellable.SellableType.Food, Sellable.SellableType.Beverage })
+            {
+                var claim = guest.Claim(type);
+                if (claim == null) continue;
+                IzakayaTray.Instance.Receive(claim);
+                ServeSellableMessage.Local(controller, null, type);
+                guest.SetClaim(type, null);
+            }
         }
-        throw new InvalidOperationException("Unexpected network state in OnPanelClose_Prefix");
+        __instance.willServeFood = null;
+        __instance.willServeBeverage = null;
     }
 
     [HarmonyPatch(nameof(WorkSceneServePannel.Send))]
     [HarmonyPrefix]
-    public static bool Send_Prefix(ref WorkSceneServePannel __instance, Sellable toSend)
+    public static bool Send_Prefix(WorkSceneServePannel __instance, Sellable toSend)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-
-        if ((toSend.Type == Sellable.SellableType.Food && __instance.operatingOrder.ServFood != null) ||
-            (toSend.Type == Sellable.SellableType.Beverage && __instance.operatingOrder.ServBeverage != null))
+        if (GuestRegistry.Of(__instance.currentGuestController) == null) return RunOriginal;
+        // 已上桌或正在投掷时原版不放入，不能记为本端放入。
+        var order = __instance.operatingOrder;
+        if ((toSend.Type == Sellable.SellableType.Food ? order.ServFood ?? order.ServedFoodInAir : order.ServBeverage ?? order.ServedBeverageInAir) != null)
         {
-            // 已有 料理/酒水，跳过此 Patch 和 WorkSceneServePannel.Send
-            Log.Info($"Already have {(toSend.Type == Sellable.SellableType.Food ? "food" : "beverage")} in order, skipping Patch & Send");
+            Log.Info($"Already have {toSend.Type} in order, skipping Send");
             return SkipOriginal;
         }
-
-        if (GameSession.IsRoomHost)
-        {
-            Log.Warning($"Send {toSend?.Text?.BriefName}");
-            GuestFSM.OnServe(__instance.currentGuestController, toSend, toSend.Type);
-            return RunOriginal;
-        }
-        if (GameSession.IsRoomClient)
-        {
-            Log.Warning($"Send {toSend?.Text?.BriefName}");
-            GuestFSM.OnServe(__instance.currentGuestController, toSend, toSend.Type);
-            return RunOriginal;
-        }
-        throw new InvalidOperationException("Unexpected network state in Send_Postfix");
+        ServeSellableMessage.Local(__instance.currentGuestController, toSend, toSend.Type);
+        return RunOriginal;
     }
 
     [HarmonyPatch(nameof(WorkSceneServePannel.Cancel))]
     [HarmonyPrefix]
-    public static bool Cancel_Prefix(ref WorkSceneServePannel __instance, Sellable toCancel)
+    public static bool Cancel_Prefix(WorkSceneServePannel __instance, Sellable toCancel)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-
-        if ((toCancel.Type == Sellable.SellableType.Food && __instance.willServeFood == null) ||
-            (toCancel.Type == Sellable.SellableType.Beverage && __instance.willServeBeverage == null) ||
-            (IzakayaTray.Instance?.IsTrayFull ?? true))
+        if (GuestRegistry.Of(__instance.currentGuestController) == null) return RunOriginal;
+        var slot = toCancel.Type == Sellable.SellableType.Food ? __instance.willServeFood : __instance.willServeBeverage;
+        if (slot == null || (IzakayaTray.Instance?.IsTrayFull ?? true))
         {
-            // 没有待上菜 料理/酒水，跳过此 Patch 和 WorkSceneServePannel.Cancel
-            Log.Info($"No {(toCancel.Type == Sellable.SellableType.Food ? "food" : "beverage")} to cancel in order, skipping Patch & Cancel");
+            Log.Info($"No {toCancel.Type} to cancel or tray full, skipping Cancel");
             return SkipOriginal;
         }
-
-        if (GameSession.IsRoomHost)
-        {
-            Log.Warning($"Cancel {toCancel?.Text?.BriefName}");
-            GuestFSM.OnServe(__instance.currentGuestController, null, toCancel.Type);
-            return RunOriginal;
-        }
-        if (GameSession.IsRoomClient)
-        {
-            Log.Warning($"Cancel {toCancel?.Text?.BriefName}");
-            GuestFSM.OnServe(__instance.currentGuestController, null, toCancel.Type);
-            return RunOriginal;
-        }
-        throw new InvalidOperationException("Unexpected network state in Cancel_Postfix");
+        ServeSellableMessage.Local(__instance.currentGuestController, null, toCancel.Type);
+        return RunOriginal;
     }
 }

@@ -1,14 +1,9 @@
 using static NightScene.GuestManagementUtility.GuestsManager;
 
-namespace MetaMystia.Patch;
+namespace MetaMystia.Multiplayer.Guests;
 
 public struct GeneratedOrderInfo
 {
-    /// <summary>
-    /// 目标顾客的 Runtime ID
-    /// </summary>
-    public int RuntimeId;
-
     /// <summary>
     /// GenerateOrderInternal 订单结果
     /// </summary>

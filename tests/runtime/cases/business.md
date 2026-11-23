@@ -6,7 +6,7 @@
 
 - 操作：C 提交备菜后执行 `block SECONDS=45`，H 先进夜间。
 - 期望：C 阻塞期间 H 的 `night` 为 `wait=True`、`occ=0`；C 恢复后两端 `wait=False`，`cd` 下降。
-- 依据：H 日志依次为 `StartGuestSpawningAndTiming_Prefix`、来自 C 的 `Received BusinessStartMessage: {"Start":false`、`Send BusinessStartMessage: {"Start":true`；C 日志有 `Received BusinessStartMessage: {"Start":true`。
+- 依据：H 日志依次为 `gameTotalSeconds set to`、来自 C 的 `Received BusinessStartMessage: {"Start":false`、`Send BusinessStartMessage: {"Start":true`；C 日志有 `Received BusinessStartMessage: {"Start":true`。
 
 ## 2 开店等待中退出联机
 
@@ -28,7 +28,7 @@
 
 - 操作：H 侧让客人分别上菜后离开（`serve MODE=send`）、被驱赶（`serve MODE=repell`）、耐心耗尽离开。
 - 期望：C 对应桌位的客人离开一次，桌位清空，无重复离开和残留；之后两端同一桌的客人编号一致（入座中的桌除外）。
-- 依据：普通离桌 H `Guest #N OnLeaveFromDesk ... broadcast=True` → C `Guest #N DoLeaveFromDesk`；驱赶 H `Send GuestRepellMessage` → C `Received GuestRepellMessage`；耐心耗尽 H `Guest #N patient depleted at desk` → C `Received PatientDepletedDeskMessage` 并重放 `PatientDepletedLeave`。
+- 依据：H `Send GuestLeaveMessage`，`Reason` 依次为 `Desk`、`Repel`、`PatientDepleted` → C `Received GuestLeaveMessage` 并重放对应离场。
 
 ## 6 面板被离桌打断
 
