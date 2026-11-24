@@ -57,11 +57,11 @@ public static partial class PluginManager
     public static void HandleShortcuts()
     {
         if (InGameConsole.HasKeyboardFocus) return;
-        if (Input.GetKeyDown(ConfigManager.KeyToggleLog.Value)) // KeyCode.RightShift
+        if (Hotkeys.LogBreak.WasPressedThisFrame())
         {
             Log.LogInfo($"\n");
         }
-        if (Input.GetKeyDown(ConfigManager.KeyToggleStatus.Value)) // KeyCode.Backslash
+        if (Hotkeys.ToggleStatus.WasPressedThisFrame())
         {
             ToggleStatusVisibility();
         }

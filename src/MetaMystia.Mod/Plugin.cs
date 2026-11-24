@@ -35,6 +35,8 @@ public class Plugin : BasePlugin
     {
         ConfigManager.InitConfigs();
         L10n.Initialize();
+        MystiaLib.Bootstrap.Initialize();
+        Hotkeys.Register();
 
         if (ConfigManager.Debug.Value)
         {

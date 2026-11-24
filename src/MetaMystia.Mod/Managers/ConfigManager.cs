@@ -1,7 +1,6 @@
 using System;
 
 using BepInEx.Configuration;
-using UnityEngine;
 
 namespace MetaMystia;
 
@@ -64,11 +63,6 @@ public static partial class ConfigManager
     public static ConfigEntry<float> PlayerListY;
     public static ConfigEntry<int> PlayerListFontSize;
 
-    // Keybinds
-    public static ConfigEntry<KeyCode> KeyToggleLog;
-    public static ConfigEntry<KeyCode> KeyToggleStatus;
-    public static ConfigEntry<KeyCode> KeyOpenCommand;
-    public static ConfigEntry<KeyCode> KeyOpenChat;
     public static ConfigEntry<LiveMode> LiveStreamingMode;
 
     public static void InitConfigs()
@@ -167,16 +161,6 @@ public static partial class ConfigManager
             "Player list distance from the top edge (1080p units)\n玩家列表距上边缘的距离（按 1080p 计）");
         PlayerListFontSize = Config.Bind("PlayerList", "FontSize", 0,
             "Player list font size (1080p units, 0 = 17)\n玩家列表字体大小（按 1080p 计，0=17）");
-
-        // Keybinds
-        KeyToggleLog = Config.Bind("Keybinds", "ToggleLog", KeyCode.RightShift,
-            "Key to print debug log\n打印调试日志的按键");
-        KeyToggleStatus = Config.Bind("Keybinds", "ToggleStatus", KeyCode.Backslash,
-            "Key to toggle status text visibility\n切换状态栏可见性的按键");
-        KeyOpenCommand = Config.Bind("Keybinds", "OpenCommand", KeyCode.Slash,
-            "Key to open command console (with '/' prefix)\n打开命令控制台的按键（带 '/' 前缀）");
-        KeyOpenChat = Config.Bind("Keybinds", "OpenChat", KeyCode.T,
-            "Key to open chat\n打开聊天的按键");
 
         LiveStreamingMode = Config.Bind("General", "LiveMode", LiveMode.Off,
             "Live streaming privacy mode\n直播隐私模式\n" +
