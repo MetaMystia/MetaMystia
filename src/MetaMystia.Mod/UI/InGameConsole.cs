@@ -208,8 +208,8 @@ public static partial class InGameConsole
 
     private static string? OpenKeyText()
     {
-        if (Input.GetKeyDown(ConfigManager.KeyOpenCommand.Value)) return "/";
-        if (Input.GetKeyDown(ConfigManager.KeyOpenChat.Value)) return "";
+        if (Hotkeys.OpenCommand.WasPressedThisFrame()) return "/";
+        if (Hotkeys.OpenChat.WasPressedThisFrame()) return "";
         return null;
     }
 

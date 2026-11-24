@@ -48,7 +48,7 @@ public static partial class PlayerListPanel
 
     public static void Update()
     {
-        if (!InGameConsole.HasKeyboardFocus && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+        if (!InGameConsole.HasKeyboardFocus && Hotkeys.PlayerList.WasPressedThisFrame())
             _visible = !_visible;
 
         bool show = GameSession.IsConnectingOrOnline && (_visible || InGameConsole.IsOpen);
