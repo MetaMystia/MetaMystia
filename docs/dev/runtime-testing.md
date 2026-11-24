@@ -37,6 +37,7 @@ python tests/runtime/render.py serve MODE=open DESK=3 | python urdbg.py eval --p
 - 调试器读取存档中的嵌套值类型曾得到异常数值。存档状态以原版 UI、实际 JSON 文件和重载结果交叉核对。
 - 读档走标题的「继续」：设 `PlayerPrefs` 的 `LAST_SAVED_SAVEFILE` 后提交按钮（`load_slot`）。复制 `PlayerSaveFile` 再调用 `LoadPlayerData` 会抛 `MethodAccessException`，停在 `LoadScene`。
 - 调试器的字符串结果超过 300 字会被截断，状态读取保持一行。
+- 键盘输入可注入：`StateEvent.From(Keyboard.current, out var ev, Allocator.Temp)`，对 `Keyboard.current["t"].Cast<ButtonControl>()` 调 `WriteValueIntoEvent(1f, ev)`，再 `InputSystem.QueueEvent(ev)`；松开写 `0f`。之后的帧可读到 `IsPressed()`、`phase`。旧版 `Input.GetKeyDown` 读不到注入的事件（控制台快捷键无响应）。
 - `MetaMystia.Network` 的类型（如 `GameStage`）在调试器中无法直接引用，相关属性用反射读取（见 `state`）。
 
 ### UI
