@@ -32,6 +32,7 @@
 - [glossary](reference/glossary.md)：游戏名词与类型对照
 - [il2cppinterop-defects](reference/il2cppinterop-defects.md)：已确认的 Interop 缺陷与绕过
 - [analytics](reference/analytics.md)：使用统计事件、参数约定与接入位置
+- [mystialib](reference/mystialib.md)：MystiaLib 基础库与原版按键设置接入
 - 联机：[architecture](reference/multiplayer/architecture.md)、[business-sync](reference/multiplayer/business-sync.md)（开发方法）、[guest-sync](reference/multiplayer/guest-sync.md)、[scene-flow](reference/multiplayer/scene-flow.md)、[yuyuko-challenge](reference/multiplayer/yuyuko-challenge.md)
 - ResourceEx：[package-contract](reference/resourceex/package-contract.md)、[module-structure](reference/resourceex/module-structure.md)、[day-maps](reference/resourceex/day-maps.md)、[RuntimeAddressables](../src/MetaMystia.Mod/ResourceEx/Addressables/README.md)
 - 服务端：[console](reference/server/console.md)、[chat-filter](reference/server/chat-filter.md)、[deployment](reference/server/deployment.md)
@@ -39,7 +40,6 @@
 ## 调研
 
 - [day-map-native](research/day-map-native.md)：原版白天地图结构、NPC 与出口
-- [native-keybinding](research/native-keybinding.md)：接入原版按键设置（未实现）
 - [spell-multiplayer](research/spell-multiplayer.md)：原版符卡联机适配分类与逐卡清单（未实现）
 
 ## 编写规则

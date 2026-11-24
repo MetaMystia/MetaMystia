@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MOD = ROOT / "src/MetaMystia.Mod"
 NETWORK = ROOT / "src/MetaMystia.Network"
+LIB = MOD / "MystiaLib"
 LANGUAGES = ("zh-CN", "zh-TW", "en", "ja", "ko")
 errors = []
 
@@ -74,13 +75,15 @@ def check_messages():
 
 
 def check_patches():
-    registered = set(re.findall(r"typeof\((\w+)\)", read(MOD / "Patches/PatchRegistry.cs")))
+    # MystiaLib 的补丁登记在自己的 Bootstrap.Patches，拆分为独立插件时随之迁出。
     for source in tracked("src/MetaMystia.Mod/*.cs"):
+        registry, label = (LIB / "Bootstrap.cs", "Bootstrap.Patches") if LIB in source.parents else (MOD / "Patches/PatchRegistry.cs", "PatchRegistry.Patches")
+        registered = set(re.findall(r"typeof\((\w+)\)", read(registry)))
         text = read(source)
         for attribute in re.finditer(r"^\[HarmonyPatch\(typeof\(", text, re.M):
             name = re.compile(r"\bclass (\w+)").search(text, attribute.end())
             if name and name.group(1) not in registered:
-                errors.append(f"{source.relative_to(ROOT)}: {name.group(1)} 未登记到 PatchRegistry.Patches")
+                errors.append(f"{source.relative_to(ROOT)}: {name.group(1)} 未登记到 {label}")
 
 
 sys.stdout.reconfigure(encoding="utf-8")

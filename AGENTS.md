@@ -30,6 +30,7 @@
 | 符卡 | [spell-creation/](docs/spell-creation/README.md) | 编译 + 符卡测试 |
 | 白天地图 | [map-creation/](docs/map-creation/README.md)、[day-maps](docs/reference/resourceex/day-maps.md) | 离线校验 |
 | 服务端 | [server/](docs/reference/server/console.md) | 网络测试 |
+| MystiaLib | [mystialib](docs/reference/mystialib.md)、[harmony-hook](docs/rules/harmony-hook.md) | 审计 + ICF 核对 + 编译 |
 
 游戏名词见 [glossary](docs/reference/glossary.md)。符卡创作与白天地图绘制目录有阅读限制，见各自 README。
 
