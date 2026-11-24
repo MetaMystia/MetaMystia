@@ -71,6 +71,7 @@ static partial class Checks
 
     internal static async Task Run()
     {
+        LoggingChecks();
         await LatencyChecks();
         ResourceTables();
         await RoomCodes();
