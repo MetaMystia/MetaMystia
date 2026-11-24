@@ -19,12 +19,12 @@ public sealed class GatewayServer(IPEndPoint endpoint, InstanceRegistry routes, 
     public int ConnectionCount => connections.Count;
     public TimeSpan HandshakeTimeout { get; init; } = TimeSpan.FromSeconds(3);
     public TimeSpan IdleTimeout { get; init; } = TimeSpan.FromSeconds(30);
-    public event Action<string>? Logged;
+    public event Action<string, string>? Logged;
 
     private void Log(string level, string message)
     {
         stats.Logs.Add(level, message);
-        Logged?.Invoke(message);
+        Logged?.Invoke(level, message);
     }
 
     public void Start()

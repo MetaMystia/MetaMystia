@@ -13,6 +13,15 @@ await using var gateway = new GatewayServer(new IPEndPoint(
     app.Services.GetRequiredService<InstanceRegistry>(),
     int.Parse(Environment.GetEnvironmentVariable("MM_GATEWAY_MAX_CONNECTIONS") ?? "256"),
     app.Services.GetRequiredService<GatewayStats>());
-gateway.Logged += message => app.Logger.LogInformation("{Message}", message);
+gateway.Logged += (level, message) =>
+{
+    var logLevel = level switch
+    {
+        "error" => LogLevel.Error,
+        "warning" => LogLevel.Warning,
+        _ => LogLevel.Information,
+    };
+    app.Logger.Log(logLevel, "{Message}", message);
+};
 gateway.Start();
 await app.RunAsync();

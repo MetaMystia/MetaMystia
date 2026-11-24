@@ -35,7 +35,7 @@ var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAs
 ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; done.TrySetResult(true); };
 Console.CancelKeyPress += cancel;
 await server.StartAsync();
-await using var admin = adminOptions == null ? null : ServerApi.Create(server, adminOptions, null, recent, AppContext.BaseDirectory);
+await using var admin = adminOptions == null ? null : ServerApi.Create(server, adminOptions, null, recent, Write, AppContext.BaseDirectory);
 if (admin != null) await admin.StartAsync();
 using var adminStopping = admin?.Lifetime.ApplicationStopping.Register(() => done.TrySetResult(true));
 var ending = Task.WhenAny(done.Task, server.Drained);

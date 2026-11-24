@@ -31,16 +31,23 @@ internal sealed record ConfigRequest(string Content, string? PreviousContent = n
 public static class ServerApi
 {
     /// <summary>测试与嵌入用：日志只收集服务端事件，配置从程序目录重载。</summary>
-    public static WebApplication Create(Server server, ServerAdminOptions options, Versions? versions = null, string? configDirectory = null)
+    public static WebApplication Create(Server server, ServerAdminOptions options, Versions? versions = null, string? configDirectory = null,
+        Action<ServerLogLevel, string>? onLog = null)
     {
         var logs = new LogBuffer();
-        server.Logged += entry => logs.Add(Level(entry.Level), entry.Message);
-        return Create(server, options, versions, logs, configDirectory ?? AppContext.BaseDirectory);
+        void Write(ServerLogLevel level, string message)
+        {
+            logs.Add(Level(level), message);
+            onLog?.Invoke(level, message);
+        }
+        server.Logged += entry => Write(entry.Level, entry.Message);
+        return Create(server, options, versions, logs, Write, configDirectory ?? AppContext.BaseDirectory);
     }
 
     internal static string Level(ServerLogLevel level) => level.ToString().ToLowerInvariant();
 
-    internal static WebApplication Create(Server server, ServerAdminOptions options, Versions? versions, LogBuffer logs, string configDirectory)
+    internal static WebApplication Create(Server server, ServerAdminOptions options, Versions? versions, LogBuffer logs,
+        Action<ServerLogLevel, string> writeLog, string configDirectory)
     {
         if (string.IsNullOrWhiteSpace(options.InstanceId) || string.IsNullOrWhiteSpace(options.Token))
             throw new ArgumentException("Instance ID and token are required");
@@ -104,7 +111,7 @@ public static class ServerApi
                 var settings = ServerConfiguration.Load(configDirectory, name, request.Content);
                 ServerConfiguration.Save(configDirectory, name, request.Content);
                 var code = await server.ReloadTextSettingsAsync(settings);
-                logs.Add("info", $"[管理] 已保存 {name}.json，应用结果：{code}。");
+                writeLog(ServerLogLevel.Info, $"[管理] 已保存 {name}.json，应用结果：{code}。");
                 return code == NetworkErrorCode.None ? Results.NoContent()
                     : Results.Conflict(new ActionError("ConfigSaved", "文件已保存，但实例未应用；下次启动时生效。"));
             }
@@ -122,7 +129,7 @@ public static class ServerApi
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidDataException)
             {
-                logs.Add("warning", $"[管理] 服务端无法重新加载配置，将继续使用原配置。原因：{ServerLogEntry.Quote(e.Message)}");
+                writeLog(ServerLogLevel.Warning, $"[管理] 服务端无法重新加载配置，将继续使用原配置。原因：{ServerLogEntry.Quote(e.Message)}");
                 return Results.BadRequest(new ActionError("ConfigInvalid", e.Message));
             }
             finally { configLock.Release(); }

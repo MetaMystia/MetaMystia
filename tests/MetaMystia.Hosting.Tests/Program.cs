@@ -36,6 +36,8 @@ await using var api = GatewayApi.Create("http://127.0.0.1:0", path, "admin-test"
 await api.StartAsync();
 var registry = api.Services.GetRequiredService<InstanceRegistry>();
 await using var gateway = new GatewayServer(new(IPAddress.Loopback, 0), registry, stats: api.Services.GetRequiredService<GatewayStats>());
+var gatewayLogged = new List<(string Level, string Message)>();
+gateway.Logged += (level, message) => { lock (gatewayLogged) gatewayLogged.Add((level, message)); };
 gateway.Start();
 using var http = new HttpClient { BaseAddress = new(api.Urls.Single()) };
 Check((await http.GetAsync("admin/instances")).StatusCode == HttpStatusCode.Unauthorized, "网关拒绝无令牌请求");
@@ -66,7 +68,9 @@ var sharedConfig = Path.Combine(configDirectory, "shared", "server.json");
 Directory.CreateDirectory(Path.GetDirectoryName(sharedConfig)!);
 File.WriteAllText(sharedConfig, "{\"logChat\":false,\"welcomeMessages\":[]}");
 File.CreateSymbolicLink(Path.Combine(configDirectory, "server.json"), sharedConfig);
-await using var oldApi = ServerApi.Create(old, new("old", "http://127.0.0.1:0", "instance-test"), v1, configDirectory);
+var oldAuditLogs = new List<(ServerLogLevel Level, string Message)>();
+await using var oldApi = ServerApi.Create(old, new("old", "http://127.0.0.1:0", "instance-test"), v1, configDirectory,
+    (level, message) => { lock (oldAuditLogs) oldAuditLogs.Add((level, message)); });
 await using var newApi = ServerApi.Create(newer, new("new", "http://127.0.0.1:0", "instance-test"), v2);
 await oldApi.StartAsync(); await newApi.StartAsync();
 using var instanceHttp = new HttpClient { BaseAddress = new(oldApi.Urls.Single()) };
@@ -140,6 +144,7 @@ var instanceLogs = await http.GetFromJsonAsync<JsonElement>("admin/instances/old
 Check(instanceLogs.GetProperty("entries").EnumerateArray().Any(e => e.GetProperty("message").GetString()!.Contains("广播")) &&
     (await http.GetFromJsonAsync<JsonElement>("admin/instances/old/api/logs?after=" + instanceLogs.GetProperty("next").GetInt64()))
         .GetProperty("entries").GetArrayLength() == 0, "实例日志可增量读取");
+Check(oldAuditLogs.Any(x => x.Level == ServerLogLevel.Info && x.Message.Contains("已保存 server.json")), "面板保存配置经统一回调输出审计日志");
 Check((await http.GetFromJsonAsync<JsonElement>("admin/instances/old/api/history")).GetProperty("names").GetArrayLength() == 4 &&
     (await http.GetFromJsonAsync<JsonElement>("admin/history")).GetProperty("names").GetArrayLength() == 3, "实例与网关提供趋势数据");
 (await http.PutAsJsonAsync("admin/instances/new", new InstanceRegistration(v2.Game, v2.Mod, "127.0.0.1", newer.Endpoint.Port, newApi.Urls.Single()))).EnsureSuccessStatusCode();
@@ -164,6 +169,23 @@ Check((await http.GetFromJsonAsync<JsonElement>("admin/connections")).EnumerateA
     .Any(c => c.GetProperty("state").GetString() == "rejected" && c.GetProperty("reason").GetString() == "ServerRetiring"), "连接记录保存拒绝原因");
 Check((await http.GetFromJsonAsync<JsonElement>("admin/logs")).GetProperty("entries").EnumerateArray()
     .Any(e => e.GetProperty("message").GetString()!.Contains("请求退役实例 old")), "网关日志记录管理操作");
+Check(gatewayLogged.Any(x => x.Level == "info" && x.Message.Contains("转发至实例 old")) &&
+    gatewayLogged.Any(x => x.Level == "warning" && x.Message.Contains("ServerRetiring")), "网关日志事件保留级别");
+var logDir = Path.Combine(configDirectory, "server-console-logs");
+var fakeNow = new DateTimeOffset(2026, 11, 20, 23, 59, 59, TimeSpan.FromHours(8));
+Directory.CreateDirectory(logDir);
+File.WriteAllText(Path.Combine(logDir, "2026-11-01.log"), "expired\n");
+using (var sc = new ServerConsole(logDir, retentionDays: 14, clock: () => fakeNow, output: TextWriter.Null))
+{
+    sc.Write(ServerLogLevel.Info, "day1");
+    fakeNow = new DateTimeOffset(2026, 11, 21, 0, 0, 1, TimeSpan.FromHours(8));
+    sc.Write(ServerLogLevel.Warning, "day2");
+}
+Check(File.Exists(Path.Combine(logDir, "2026-11-20.log")) &&
+    File.Exists(Path.Combine(logDir, "2026-11-21.log")) &&
+    !File.Exists(Path.Combine(logDir, "2026-11-01.log")) &&
+    File.ReadAllText(Path.Combine(logDir, "2026-11-20.log")).Contains("day1") &&
+    File.ReadAllText(Path.Combine(logDir, "2026-11-21.log")).Contains("[WARN] day2"), "服务端日志文件按日切分并清理超期日志");
 second.Disconnect(); await old.Drained.WaitAsync(TimeSpan.FromSeconds(5));
 Check(true, "最后一人断开后实例完成退役");
 (await http.DeleteAsync("admin/instances/old")).EnsureSuccessStatusCode();
