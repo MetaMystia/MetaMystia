@@ -68,6 +68,8 @@ Il2CppInterop 生成的壳代码可能因类型转换、封送或原生内存布
 
 局部规避：在现有 `RunTimeStoragePatch.BeverageOut_Prefix` 中对绿茶直接返回 `SkipOriginal`，等价于原版不扣库存，并避免进入错误跳板。不增加 Hook，不修改游戏二进制。该证据确认跳板重定位错误，尚未定位具体依赖库中的实现；也不能据此解释所有 `Il2CppExceptionWrapper`。编译和模拟测试不替代游戏复测。
 
+同类位置：`CookSystemManager.CallQTENotFullScore`（`+0x5276A0`）开头 9 字节含空回调短跳转，未实测。`CookSystemManagerPatch` 在 Prefix 中触发回调，不执行原方法。
+
 ## 维护规则
 
 - 优先使用正常的强类型 Interop API，不得预先采用指针绕过。
