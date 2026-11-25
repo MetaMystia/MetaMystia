@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 
 #nullable enable
 
@@ -8,6 +9,7 @@ namespace MetaMystia;
 /// 标记需要自动生成 Harmony Prefix/Postfix/Finalizer 追踪方法的目标方法。
 /// 放在 HarmonyPatch 类上，配合 Source Generator 自动生成调用栈追踪代码。
 /// </summary>
+[Conditional("DEBUG")]
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public sealed class TracePatchAttribute : Attribute
 {

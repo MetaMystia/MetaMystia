@@ -1,4 +1,4 @@
-
+#if DEBUG
 using System;
 using System.Collections.Generic;
 
@@ -8,15 +8,6 @@ public class TraceLog
 {
     public Stack<string> CallStack { get; } = new Stack<string>();
     public int Depth => CallStack.Count;
-
-    private static void FlowLog(string message)
-    {
-#if DEBUG
-        Log.Warning(message);
-#else
-        Log.Info(message);
-#endif
-    }
 
     private string GetIndent(int level)
     {
@@ -35,7 +26,7 @@ public class TraceLog
     public void OnPrefix(string func)
     {
         var indent = GetIndent(Depth);
-        FlowLog($"{indent}┌──── {func}");
+        Log.Info($"{indent}┌──── {func}");
         CallStack.Push(func);
     }
 
@@ -57,14 +48,14 @@ public class TraceLog
                 while (CallStack.Count > 0 && CallStack.Peek() != func)
                 {
                     var skipped = CallStack.Pop();
-                    FlowLog($"{GetIndent(Depth)}└──✕─ {skipped} (auto-closed)");
+                    Log.Info($"{GetIndent(Depth)}└──✕─ {skipped} (auto-closed)");
                 }
             }
         }
 
         CallStack.Pop();
         var indent = GetIndent(Depth);
-        FlowLog($"{indent}└──── {func}");
+        Log.Info($"{indent}└──── {func}");
     }
 
     public void OnFinalizer(string func, Exception __exception)
@@ -84,8 +75,9 @@ public class TraceLog
     {
         if (CallStack.Count > 0)
         {
-            FlowLog($"TraceLog Reset: cleared {CallStack.Count} orphaned entries");
+            Log.Info($"TraceLog Reset: cleared {CallStack.Count} orphaned entries");
             CallStack.Clear();
         }
     }
 }
+#endif

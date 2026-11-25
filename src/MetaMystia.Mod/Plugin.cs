@@ -22,7 +22,9 @@ public class Plugin : BasePlugin
     public readonly static string ModVersion = MyPluginInfo.PLUGIN_VERSION;
     public static string ProtocolVersion => ModVersion;
 
-    public static TraceLog tl = new TraceLog(); // for debug
+#if DEBUG
+    public static TraceLog tl = new TraceLog();
+#endif
 
     public static bool AllPatched => PatchRegistry.AllPatched;
 
