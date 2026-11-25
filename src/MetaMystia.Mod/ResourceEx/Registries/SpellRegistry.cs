@@ -12,7 +12,6 @@ using GameData.Core.Collections.NightSceneUtility;
 using GameData.CoreLanguage;
 using GameData.CoreLanguage.Collections;
 
-using MetaMiku;
 using MetaMystia.ResourceEx.Models;
 using MetaMystia.ResourceEx.SpellCollection;
 using MetaMystia.ResourceEx.Vfx;
@@ -114,7 +113,7 @@ public static class SpellRegistry
         var pivot = config.portrayalPivot is [var x, var y] ? new Vector2(x, y) : DefaultPortrayalPivot;
 
         // il2cppinterop 把 ValueTuple 当带对象头的引用类型包装，直接 indexer 写入会把
-        // 对象头当字段数据写进去。这里只构造，写入时使用 ForceAddOrUpdateValueTuple。
+        // 对象头当字段数据写进去。这里只构造，写入时使用 SetBoxedValue。
         _pending.Add(new PendingSpell(
             spell,
             langs,
@@ -159,7 +158,7 @@ public static class SpellRegistry
     {
         foreach (var entry in _pending)
         {
-            DataBaseNight.SpecialGuestSpellPortrayal.ForceAddOrUpdateValueTuple(entry.Spell.SpellId, entry.Portrayal);
+            DataBaseNight.SpecialGuestSpellPortrayal.SetBoxedValue(entry.Spell.SpellId, entry.Portrayal);
             DataBaseNight.SpecialGuestSpell[entry.Spell.SpellId] = entry.Handle.Cast<IAssetHandle<SpellBase>>();
         }
     }
