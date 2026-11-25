@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-
-using Il2CppInterop.Runtime;
+using System.Linq;
 
 using DayScene.UI;
 
@@ -14,31 +13,19 @@ internal static class DaySceneSelectionMenu
     internal const string BackButtonKey = "DLC5_LUNARCAPITALCONSOLE_REPEATCHALLENGE_BACK";
     internal const string CloseButtonKey = "KIZUNA_REQUEST_END";
 
+    // 同时只有一个模组菜单，各菜单按序号共用。
+    private static readonly List<DaySceneSelectionItem> Items = [];
+
     internal static List<DaySceneChatSelectionPannel.GetSelectionConfigurationCallback> BuildSelectionItems<T>(
         IEnumerable<T> items,
         Func<T, string> getTitle,
         Func<T, bool> isAvailable,
-        Action<T> onSelected)
-    {
-        var callbacks = new List<DaySceneChatSelectionPannel.GetSelectionConfigurationCallback>();
-        foreach (var item in items)
+        Action<T> onSelected) =>
+        items.Select((item, index) =>
         {
-            var captured = item;
-            callbacks.Add(Il2CppOutDelegate.CreateGetSelectionConfigurationCallback(
-                (data, out title, out availability, out onInteract) =>
-                {
-                    title = getTitle(captured);
-                    availability = isAvailable(captured);
-                    onInteract = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
-                    {
-                        if (!isAvailable(captured)) return;
-                        data.closeChatSelectionPannelCallback?.Invoke();
-                        onSelected(captured);
-                    });
-                }));
-        }
-        return callbacks;
-    }
+            if (index == Items.Count) Items.Add(new DaySceneSelectionItem());
+            return Items[index].Set(() => getTitle(item), () => isAvailable(item), () => onSelected(item));
+        }).ToList();
 
     internal static void OpenSelectionMenu(
         List<DaySceneChatSelectionPannel.GetSelectionConfigurationCallback> callbacks,

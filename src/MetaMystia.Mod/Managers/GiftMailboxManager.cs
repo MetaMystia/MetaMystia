@@ -15,19 +15,12 @@ namespace MetaMystia;
 
 public static class GiftMailboxManager
 {
-    public static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback CreateCollabMenuSelection() =>
-        Il2CppOutDelegate.CreateGetSelectionConfigurationCallback(
-            (data, out title, out availability, out onInteract) =>
-            {
-                title = TextId.GiftMailboxTitle.Get();
-                availability = GiftRegistry.Mailboxes.Count > 0;
-                onInteract = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
-                {
-                    if (GiftRegistry.Mailboxes.Count == 0) return;
-                    data.closeChatSelectionPannelCallback?.Invoke();
-                    OpenMailboxMenu();
-                });
-            });
+    private static readonly DaySceneSelectionItem CollabMenuItem = new();
+
+    internal static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback CollabMenuSelection => CollabMenuItem.Set(
+        () => TextId.GiftMailboxTitle.Get(),
+        () => GiftRegistry.Mailboxes.Count > 0,
+        OpenMailboxMenu);
 
     public static void OpenMailboxMenu() => OpenSelectionMenu(
         BuildSelectionItems(

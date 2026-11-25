@@ -1,12 +1,11 @@
 using System.Linq;
 
-using Il2CppInterop.Runtime;
-
 using Common.UI;
 using DayScene.UI;
 using GameData;
 
 using MetaMystia.ResourceEx.Registries;
+using MetaMystia.UI;
 using SgrYuki.Utils;
 
 using static MetaMystia.UI.DaySceneSelectionMenu;
@@ -50,19 +49,16 @@ public static class StoryReplayManager
         OpenPackMenu();
     }
 
-    public static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback CreateCollabMenuSelection() =>
-        Il2CppOutDelegate.CreateGetSelectionConfigurationCallback(
-            (data, out title, out availability, out onInteract) =>
-            {
-                title = CollabMenuTitle;
-                StoryReplayIndex.Rebuild();
-                availability = StoryReplayIndex.Packs.Count > 0;
-                onInteract = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(() =>
-                {
-                    data.closeChatSelectionPannelCallback?.Invoke();
-                    OpenReplayMenu();
-                });
-            });
+    private static readonly DaySceneSelectionItem CollabMenuItem = new();
+
+    internal static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback CollabMenuSelection => CollabMenuItem.Set(
+        () => CollabMenuTitle,
+        () =>
+        {
+            StoryReplayIndex.Rebuild();
+            return StoryReplayIndex.Packs.Count > 0;
+        },
+        OpenReplayMenu);
 
     private static void OpenPackMenu()
     {
