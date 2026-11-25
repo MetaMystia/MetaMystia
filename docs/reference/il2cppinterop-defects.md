@@ -30,7 +30,7 @@ Interop 把 `Il2CppSystem.ValueTuple`、`DaySceneMapProfile.MapNode` 等非 blit
 
 在 RELEASE 4.4.0e、BepInEx 6 be.785 环境实测：临时字典写入前的三级食堂数组均为 `Int32[]`，写入后变为 `String[] / String[] / Int32[]`；指针对比分别对应原采集点标签、出生点标签、一级食堂数组。
 
-验证包括临时字典新增与覆盖、字符串及数组回读、数组指针一致性；修复后重启，两张扩展地图的三个食堂数组均为空 `Int32[]`，55 个原版食堂编号的等级查询及不存在编号查询通过，实际日终进入开店准备成功。验证范围为单机，不代表联机或所有版本均已验证。以上验证针对合并前的 `ForceAddOrUpdateBoxedValue`，合并为 `SetBoxedValue` 后的实测待验证。
+验证包括临时字典新增与覆盖、字符串及数组回读、数组指针一致性；修复后重启，两张扩展地图的三个食堂数组均为空 `Int32[]`，55 个原版食堂编号的等级查询及不存在编号查询通过，实际日终进入开店准备成功。验证范围为单机，不代表联机或所有版本均已验证。以上针对合并前的 `ForceAddOrUpdateBoxedValue`；合并为 `SetBoxedValue` 后单机复测一张扩展地图，三个食堂数组长度均为 0，食堂等级查询、日终至次日白天正常。
 
 ## `Interop/SelectionCallback.cs`
 
