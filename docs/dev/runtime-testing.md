@@ -69,7 +69,7 @@ python tests/runtime/render.py serve MODE=open DESK=3 | python urdbg.py eval --p
 
 - 同一台机器可开两个实例联机：房主 `/mp start`，客机 `/mp connect 127.0.0.1`。每个实例需要独立的游戏身份和调试器端口，多开方式见 `AGENTS.local.md`。
 - 同步点的日志顺序：白天 `DayDestinationIntentMessage` → `DayDestinationConfirmMessage`；选店 `SelectIzakayaMessage` → `ConfirmIzakayaMessage`；备菜 `PrepReadyMessage` → `PrepAllReadyMessage`；开店客机 `BusinessStartMessage {"Start":false}` → 房主 `{"Start":true}`；打烊 `IzakayaCloseMessage` → 客机 `Received close command from host`。
-- 客机晚到：客机提交备菜后用 `block` 阻塞其主线程。`BusinessStart.IsWaitingForStart` 在房主开始等待前已为 `true`，以房主日志出现本轮 `gameTotalSeconds set to`（`StartGuestSpawningAndTiming` 前缀）作为等待开始；日志里的方法名可能显示为 `DMD<…StartGuestSpawningAndTiming>`。
+- 客机晚到：客机提交备菜后用 `block` 阻塞其主线程。`BusinessStart.IsWaitingForStart` 在房主开始等待前已为 `true`，以房主日志出现本轮 `gameTotalSeconds set to`（`StartGuestSpawningAndTiming` 前缀）作为等待开始。
   客机提交后很快就会开店并上报，`block` 可能晚到；以房主日志里该客机的 `{"Start":false}` 晚于阻塞结束为准。
 - `timestop` 走原版面板时停的同一入口，可单端模拟打开面板。
 - 两端对照桌位用客人编号（`GuestRecord.RuntimeId`）；入座中（`Seating`）的桌可能暂时对不上。
