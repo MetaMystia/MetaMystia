@@ -39,8 +39,6 @@ public static class QTEBuffExtension
 public partial class BuffMessage : MultiplayerMessage
 {
     public QTEBuff Buff;
-    protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Message;
-    protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Message;
 
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
