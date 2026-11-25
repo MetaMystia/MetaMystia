@@ -81,4 +81,8 @@ namespace MetaMystia.Multiplayer.Messages
     public class EmoteMessage : MultiplayerMessage {}
     public class TimeStopRequestMessage : MultiplayerMessage {}
     public class TimeStopStateMessage : MultiplayerMessage {}
+    public class SpellBeginMessage : MultiplayerMessage {}
+    public class SpellPlanMessage : MultiplayerMessage {}
+    public class SpellDefendedMessage : MultiplayerMessage {}
+    public class QTENotFullScoreMessage : MultiplayerMessage {}
 }

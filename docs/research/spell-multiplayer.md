@@ -1,80 +1,12 @@
-# 原版符卡联机适配调研
+# 原版符卡逐卡清单
 
-基线：游戏 4.4.0e，模组 `9b7735b`。原版依据为逆向仓库中已按 4.4.0e 校对的 `Spell_*`；`EventManager` 辅助函数参考 4.3.0c 还原。全部为源码推断，未经游戏实测；未追踪完整的标“待核实”。范围为普通营业的原版符卡，ResourceEx 符卡（`Spell_Mai`、`Spell_Minoriko`）已在客机只播演出，不在此列。
+基线：游戏 4.4.0e，模组 `9b7735b`（适配之前）。原版依据为逆向仓库中已按 4.4.0e 校对的 `Spell_*`；`EventManager` 辅助函数参考 4.3.0c 还原。全部为源码推断，未经游戏实测；未追踪完整的标“待核实”。通用机制与未处理项见 [spell-sync](../reference/multiplayer/spell-sync.md)。
 
-## 现状
-
-模组未对原版符卡做专门处理。客机重放主机的触发，符卡在两端各自完整运行，各用各的 `UnityEngine.Random` 与本地状态。
-
-| 触发 | 原版入口 | 客机 |
-|---|---|---|
-| 极好评价红卡、极差评价黑卡 | `SpecialGuestsController.PostEvaluation` | 重放 `EvaluateOrderMessage` 时触发 |
-| 资金不足黑卡 | 点单时 `CheckRemainingFund` 后延迟 1 秒 | 重放点单时触发 |
-| 离场卡 | `LeaveFromDesk(triggerLeaveBuff)` | `DoLeaveFromDesk` 透传主机的标志，触发 |
-| 连锁 | 觉内联调用他人卡；青娥离场回调触发他人黑卡 | 各端各自决定 |
-
-已由主机裁定、客机调用被跳过的入口：`FundEdit`、`TipEdit`、`ExpEdit`、`PassionEdit`，顾客生成（客机返回 null），`LeaveFromDesk`、耐心耗尽、出队入座、点单、评价、打烊。`RepellInternal` 在客机仍执行原函数，只有其中的 `LeaveFromDesk` 被跳过。
-
-未同步：EventManager 的 buff 与修正、桌子和厨具的锁、顾客心情和耐心的修改、个人库存 `RunTimeStorage`、图鉴 `RunTimeAlbum`、玩家角色、托盘 `IzakayaTray`、符卡生成的场景物体。厨具内容和保温箱已同步。联机禁用伙伴（进入备菜场景时清空），作用于伙伴的效果不需适配。
-
-时序：符卡队列 `OnExecutingSpellQueue` 与宣言 `CallSpellDeclaration` 都等本端 `CurrentInputMode == 0`；联机时停需全员请求。一端开着面板时，该端符卡持续排队，两端执行时刻不同。`FinalBuffTime` 还按本人等级加成缩放，同一张卡两端持续时间本就不同。
-
-## 情况分类
-
-| 类别 | 判别 | 适配 |
-|---|---|---|
-| 两端各跑 | 纯演出；或确定性效果，两端结果一致或只有主机那份被读取 | 不处理；烹饪时间、出菜限制类 buff 两端都要有 |
-| 主机生效 | 效果经已拦截入口落地，或只影响主机的生成、点单、评价、收入计算 | 客机那份去掉副作用，只演出 |
-| 主机决定 | 随机或本地状态决定业务结果，两端都要按同一结果执行 | 主机选出具体结果并广播，客机在原协程对应位置装入 |
-| 个人归属 | 作用于个人库存、图鉴存档、本地角色、托盘 | 现状为每人各受一份、各自随机；作用对象需决定 |
-| 单端触发 | 触发条件或计数只在一端成立 | 主机统一判定和计数，广播事件 |
-| 新增同步 | 改动共享场景状态，或生成消息缺少的属性 | 新增消息 |
-| 时序 | 执行时刻读取的快照决定分支或目标 | 只在主机执行时判定，客机等待结果，过期丢弃 |
-
-主机决定时发送具体结果（分支号、桌号、`GridIndex`、`RuntimeId`、角色 ID、BuffType 加序号），不发送随机种子：候选池来自个人图鉴、个人库存、本地剩余时间和本地 buff，两端本身不同。先例为[幽幽子挑战](../reference/multiplayer/yuyuko-challenge.md)的吞厨具。
-
-## 不依赖设计决定的问题
-
-| 问题 | 涉及 | 依据 |
-|---|---|---|
-| 客机生成返回 null 后直接使用，必定空引用 | `Mamizou` 红卡（分身 `OnLeaveCallback +=`）、`Luize` 红卡（相片客人 `MaxFundCarry =`） | 已核对调用点 |
-| `LockCookers`、`LockCookers_Forever` 内部 `InterruptCook` 丢弃锅内料理；两端锁不同厨具即打乱已同步的厨具内容 | `Cirno`、`TotetsuYuuma`、`Alice` 黑卡，`Utsuho` 黑卡 | 源码推断 |
-| `CallQTENotFullScore` 只由本地 QTE 面板调用；挂在其上的效果只在打 QTE 的一端触发，另一端计数不消耗 | `Utsuho`、`Toziko` 黑卡 | 已核对调用点 |
-| `IzakayaCloseMessage` 重放打烊后把 `RegisteredDoNotCloseIzakayaStatus` 置 0，客机无法延长营业 | `Remilia` 红卡、`Luize` 红卡 | 已核对 |
-| 客机本地回调写入稀客状态：`IzakayaConfigure.Gacha` 改本地稀客池；`ManualSpawnGuestGroupsFromTargetIzakaya` 标记今晚已来 | `Yuuka` 红卡、`Toyohime` 红卡 | 源码推断 |
-| 护盾 `Skill_Reimu_Shield` 是本地计数；红卡排队后才登记，黑卡在触发时检查，可能一端挡下一端执行；觉的内联调用不检查护盾；被挡的黑卡不触发 `OnSpellEnd` | 全部黑卡 | 源码推断 |
-
-## 适配方案
-
-基础设施：
-
-1. 符卡运行编号：主机在触发时分配（顾客 `RuntimeId`、卡类、序号），客机的同一次触发据此对应；觉、青娥的连锁分配子编号。
-2. 主机决策消息：主机在执行到决策点时发送结果；客机协程到达同一位置时等待，场次结束或编号过期则丢弃。
-3. 是否执行由主机判定：护盾、`CanQueueSpell`、`CheckCanUseSpellCardCallback` 只在主机判定，结果随触发下发。
-
-通用入口：
-
-- 客机非重放的 `RepellInternal` 已跳过，由主机离场收口（`GuestLeaveMessage`）落地。
-- `TargetTablesAny`、`TargetTablesGuests`、`TargetCookersAny`、`LockDailyRecipes`、`RandomSelectBuff`、`MasterEvaluationEdit` 同步返回结果，客机无法在其内部等待，仍需在各卡协程中设等待点。
-- 锁厨具与现有厨具同步配合，参考吞厨具对内部 `Extract` 广播的抑制。
-
-顺序：
-
-1. 修复上节问题中不需决定的部分：空引用、本地驱逐、锁厨具、注释。
-2. 运行编号、决策消息、主机判定执行；护盾与 QTE 失败事件改为主机权威。
-3. 逐卡接入“主机决定”类。
-4. 个人归属维持每人各受一份，不额外处理。
-5. 延长营业、场景物体、托盘、丰姬选图面板。
-
-## 待决
-
-- `Tewi` 商店：每人各开一次，或仅上菜者、房主；断连击惩罚依谁的选择。
-- `Toyohime` 红卡选图由谁选。
-- 护盾全房一份或各人一份。
-- 主机延长营业时客机是否等待。
-- `Yukari` 隙间、`Ellen` 糖果是否同步为同一批。
+待决：`Tewi` 商店每人各开一次，或仅上菜者、房主；`Yukari` 隙间、`Ellen` 糖果是否同步为同一批。
 
 ## 逐卡清单
+
+“问题”列为适配之前的状况，部分已由通用机制解决。
 
 模式：各跑＝两端各跑，主机＝主机生效，决定＝主机决定，个人＝个人归属，新增＝新增同步。随机点只列影响业务的。
 

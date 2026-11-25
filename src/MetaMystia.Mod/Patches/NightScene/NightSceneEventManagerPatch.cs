@@ -6,6 +6,7 @@ using NightScene.EventUtility;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
+using MetaMystia.Multiplayer.Spells;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
@@ -231,4 +232,25 @@ public static class NightSceneEventManagerPatch
     [HarmonyPrefix]
     public static bool LoseAllCombo_Prefix() =>
         !GameFlow.ShouldSkipAction && GameSession.IsRoomClient ? SkipOriginal : RunOriginal;
+
+    /// <summary>符卡选桌、选厨具：客机使用主机的选择。</summary>
+    [HarmonyPatch(nameof(EventManager.TargetTablesAny))]
+    [HarmonyPrefix]
+    public static bool TargetTablesAny_Prefix(ref Il2CppSystem.Collections.Generic.IEnumerable<int> __result) =>
+        SpellRun.Current?.TryReplayChoice(ref __result) == true ? SkipOriginal : RunOriginal;
+
+    [HarmonyPatch(nameof(EventManager.TargetTablesAny))]
+    [HarmonyPostfix]
+    public static void TargetTablesAny_Postfix(Il2CppSystem.Collections.Generic.IEnumerable<int> __result) =>
+        SpellRun.Current?.AfterChoice(__result);
+
+    [HarmonyPatch(nameof(EventManager.TargetCookersAny))]
+    [HarmonyPrefix]
+    public static bool TargetCookersAny_Prefix(ref Il2CppSystem.Collections.Generic.IEnumerable<int> __result) =>
+        SpellRun.Current?.TryReplayChoice(ref __result) == true ? SkipOriginal : RunOriginal;
+
+    [HarmonyPatch(nameof(EventManager.TargetCookersAny))]
+    [HarmonyPostfix]
+    public static void TargetCookersAny_Postfix(Il2CppSystem.Collections.Generic.IEnumerable<int> __result) =>
+        SpellRun.Current?.AfterChoice(__result);
 }

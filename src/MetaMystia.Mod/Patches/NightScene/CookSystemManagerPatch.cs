@@ -3,6 +3,8 @@ using UnityEngine;
 
 using NightScene.CookingUtility;
 
+using MetaMystia.Multiplayer;
+using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -35,5 +37,18 @@ public static class CookSystemManagerPatch
             CookControllerPatch.Extract_ReversePatch(cooker, null);
         }
         return RunOriginal;
+    }
+
+    /// <summary>QTE 未满分的符卡惩罚由主机触发后下发。</summary>
+    /// <remarks>原方法开头有短跳转，见 il2cppinterop-defects 的 BeverageOut 一节，故在此触发回调，不执行原方法。</remarks>
+    [HarmonyPatch(nameof(CookSystemManager.CallQTENotFullScore))]
+    [HarmonyPrefix]
+    [IcfFolded("与 ListViewController.RaiseItemsRemoved 折叠，按 __instance 的类型区分")]
+    public static bool CallQTENotFullScore_Prefix(CookSystemManager __instance, CookController cookController)
+    {
+        if (__instance.TryCast<CookSystemManager>() == null) return RunOriginal;
+        if (GameSession.HasRoomPeers) QTENotFullScoreMessage.Send(cookController.GridIndex);
+        if (!GameSession.HasRoomPeers || GameSession.IsRoomHost) __instance.OnQTENotFullScoreCallback?.Invoke(cookController);
+        return SkipOriginal;
     }
 }

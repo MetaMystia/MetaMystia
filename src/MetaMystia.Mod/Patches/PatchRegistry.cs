@@ -49,6 +49,8 @@ public static class PatchRegistry
         typeof(RunTimeStoragePatch),
         typeof(QTERewardManagerPatch),
         typeof(NightSceneEventManagerPatch),
+        typeof(EventManager__ScheduledFunctionPatch),
+        typeof(SpellBasePatch),
 
         // 幽幽子挑战专用补丁
         typeof(YuyukoTimedNegativeSpellPatch),
@@ -70,6 +72,7 @@ public static class PatchRegistry
         typeof(WorkSceneCookingSelectionPannel__c__DisplayClass79_0Patch),
         typeof(UIManagerPatch),
         typeof(GuestsManager__c__DisplayClass174_0Patch),
+        typeof(GuestsManager__CloseIzakayaDelayed_d__128Patch),
         typeof(SpecialGuestsControllerPatch),
         typeof(NormalGuestsControllerPatch),
 

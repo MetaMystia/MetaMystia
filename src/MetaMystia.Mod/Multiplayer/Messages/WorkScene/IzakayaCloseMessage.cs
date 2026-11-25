@@ -1,5 +1,4 @@
 using MemoryPack;
-using System.Linq;
 
 using MetaMystia.Patch;
 using MetaMystia.UI;
@@ -9,41 +8,58 @@ using NightScene.GuestManagementUtility;
 namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>
-/// 主机 → 所有客机：广播打烊
+/// 主机 → 所有客机：打烊与最终关店。打烊后主机可能因符卡继续接待（蕾米莉亚、露易兹、黑谷山女），
+/// 客机不自行关店，等主机最终关店。
 /// </summary>
 [MemoryPackable]
 public partial class IzakayaCloseMessage : MultiplayerMessage
 {
+    /// <summary>客机：已随主机打烊，用一次延长营业计数等待最终关店。</summary>
+    private sealed class Hold : IScopeEnd
+    {
+        public bool Active;
 
-    /// <summary>
-    /// 客机收到主机广播的打烊命令 → 设置允许打烊标志并直接触发打烊流程
-    /// </summary>
+        // 断线后按原版在本地顾客离开后关店。
+        public void OnScopeEnd(bool resume)
+        {
+            if (Active && resume) EventManager.Instance.RegisteredDoNotCloseIzakayaStatus--;
+        }
+    }
+
+    public bool Final { get; set; }
+
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        Log.Message("Received close command from host");
-        InGameConsole.ShowPassive(TextId.PeerClosedIzakaya.Get(PlayerManager.GetPeerName(SenderUid)));
         var eventManager = EventManager.Instance;
         if (eventManager == null)
         {
             Log.Warning("EventManager is null when replaying host close.");
             return;
         }
+        var hold = Scopes.Scene.Get<Hold>();
+        if (Final)
+        {
+            hold.Active = false;
+            UnblockCloseWait(eventManager);
+            return;
+        }
 
+        Log.Message("Received close command from host");
+        InGameConsole.ShowPassive(TextId.PeerClosedIzakaya.Get(PlayerManager.GetPeerName(SenderUid)));
         using (Bypass.Enter(eventManager))
         {
             NightSceneEventManagerPatch.StopInstantiationLoopAndCloseIzakaya_ReversePatch(eventManager);
-            UnblockClientCloseWait(eventManager);
         }
+        if (hold.Active) return;
+        hold.Active = true;
+        eventManager.RegisteredDoNotCloseIzakayaStatus++;
     }
 
-    /// <summary>
-    /// 主机 → 所有客机：广播打烊命令
-    /// </summary>
-    public static void Send()
+    public static void Send(bool final = false)
     {
         if (!GameSession.IsRoomHost) return;
-        new IzakayaCloseMessage().Enqueue();
+        new IzakayaCloseMessage { Final = final }.Enqueue();
     }
 
     /// <summary>
@@ -60,7 +76,7 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
         using (Bypass.Enter(eventManager))
         {
             NightSceneEventManagerPatch.StopInstantiationLoopAndCloseIzakaya_ReversePatch(eventManager);
-            ForceUnblockClientCloseWait(eventManager);
+            UnblockCloseWait(eventManager);
             if (GameSession.IsRoomHost) Send();
         }
 
@@ -68,21 +84,10 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
     }
 
     /// <summary>
-    /// 客机 <see cref="GuestsManager.OnWaitForAllGuestToLeave"/> 依赖 occupiedDesks 清空且 CanCloseIzakaya 为真。
-    /// 联机下 occupiedDesks 由 ReplayTrySendToSeat 写入，但 LeaveFromDesk 平时被 Prefix 跳过，desync 后会残留幽灵占桌。
+    /// <see cref="GuestsManager.OnWaitForAllGuestToLeave"/> 依赖 occupiedDesks 清空且 CanCloseIzakaya 为真。
+    /// 客机的延长营业计数与占桌可能与主机不同，最终关店时清除。
     /// </summary>
-    private static void UnblockClientCloseWait(EventManager eventManager)
-    {
-        if (!GameSession.IsRoomClient) return;
-        PrepareClientCloseWait(eventManager, forceClearOccupiedDesks: false);
-    }
-
-    private static void ForceUnblockClientCloseWait(EventManager eventManager)
-    {
-        PrepareClientCloseWait(eventManager, forceClearOccupiedDesks: true);
-    }
-
-    private static void PrepareClientCloseWait(EventManager eventManager, bool forceClearOccupiedDesks)
+    private static void UnblockCloseWait(EventManager eventManager)
     {
         eventManager.RegisteredDoNotCloseIzakayaStatus = 0;
 
@@ -90,23 +95,6 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
         if (guestsManager == null) return;
 
         guestsManager.TryRepellAllQueuedGuestControllers();
-
-        var occupiedDesks = guestsManager.occupiedDesks;
-        if (occupiedDesks == null) return;
-
-        if (forceClearOccupiedDesks)
-        {
-            occupiedDesks.Clear();
-            return;
-        }
-
-        foreach (var deskCode in occupiedDesks.ToArray())
-        {
-            var guest = guestsManager.GetInDeskGuest(deskCode);
-            if (guest == null || !guest.HaveNotLeft())
-            {
-                occupiedDesks.Remove(deskCode);
-            }
-        }
+        guestsManager.occupiedDesks?.Clear();
     }
 }
