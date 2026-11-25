@@ -8,11 +8,12 @@ using Il2CppInterop.Runtime.Runtime;
 namespace MetaMystia;
 
 /// <summary>
-/// Il2CppInterop 的 ConvertDelegate 不支持 out/ref 参数，需手动构造 il2cpp 委托。
+/// 构造 <see cref="DaySceneChatSelectionPannel.GetSelectionConfigurationCallback"/>。ConvertDelegate 不支持 out 参数，
+/// 见 docs/reference/il2cppinterop-defects.md。生成的委托不释放，调用方应重复使用。
 /// </summary>
-public static unsafe class Il2CppOutDelegate
+internal static unsafe class SelectionCallback
 {
-    public delegate void GetSelectionConfigurationHandler(
+    internal delegate void Handler(
         DaySceneChatSelectionPannel.BaseInteractData baseInteractData,
         out string title,
         out bool availability,
@@ -31,11 +32,10 @@ public static unsafe class Il2CppOutDelegate
     private static readonly IntPtr s_NativeInvokerPtr =
         Marshal.GetFunctionPointerForDelegate(s_NativeInvoker);
 
-    private static readonly Dictionary<IntPtr, GetSelectionConfigurationHandler> s_Handlers = new();
+    private static readonly Dictionary<IntPtr, Handler> s_Handlers = new();
     private static readonly List<DaySceneChatSelectionPannel.GetSelectionConfigurationCallback> s_KeepAlive = new();
 
-    public static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback CreateGetSelectionConfigurationCallback(
-        GetSelectionConfigurationHandler handler)
+    internal static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback Create(Handler handler)
     {
         var classTypePtr = Il2CppClassPointerStore<
             DaySceneChatSelectionPannel.GetSelectionConfigurationCallback>.NativeClassPtr;

@@ -18,7 +18,6 @@ using GameData.CoreLanguage;
 using GameData.CoreLanguage.Collections;
 using GameData.Profile;
 
-using MetaMiku;
 using MetaMystia.ResourceEx.Addressables;
 using MetaMystia.ResourceEx.Addressables.Providers;
 using MetaMystia.ResourceEx.AssetManagement;
@@ -129,7 +128,7 @@ public static class DayMapRegistry
             RuntimeAddressables.TryGetReference<GameObject>(entry.Uri, out var reference);
             var c = entry.Config;
             var markerNames = c.spawnMarkers.Select(m => GetMarker(c.id, m.name)).ToArray();
-            DataBaseDay.mapData.ForceAddOrUpdateBoxedValue(entry.Label, new DaySceneMapProfile.MapNode
+            DataBaseDay.mapData.SetBoxedValue(entry.Label, new DaySceneMapProfile.MapNode
             {
                 mapName = entry.Label, parent = "", mapAssetReference = reference,
                 mapCollectableLabels = new Il2CppStringArray(0), mapSpawnMarkerLabels = new Il2CppStringArray(markerNames),

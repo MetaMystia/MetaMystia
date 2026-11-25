@@ -32,8 +32,8 @@ public class DaySceneUIManagerPatch
         if (!CollabBehaviourComponentPatch.PendingCollabMenu.TryConsume()) return;
         configurationCallbacks = configurationCallbacks
             .ToIl2CppReferenceArray()
-            .AddLast(StoryReplayManager.CreateCollabMenuSelection())
-            .AddLast(GiftMailboxManager.CreateCollabMenuSelection())
+            .AddLast(StoryReplayManager.CollabMenuSelection)
+            .AddLast(GiftMailboxManager.CollabMenuSelection)
             .ToIl2CppReferenceArray();
     }
 }

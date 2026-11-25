@@ -38,7 +38,7 @@
 - Mai 要求特效包包含本类六个预制件常量对应的资源，并要求 buff 11002/11003 的名称、说明和图标齐全。无特效实现不强制依赖 AssetBundle。
 - 注入必须先于 `CreateInstance`，否则会抛出 `TypeInitializationException`。
 - `DataBaseNight.Initialize` 会重建符卡字典，所以第 5 步放在 `DataBaseNightPatch` 的 Postfix 中执行。
-- 立绘字典的值是 `ValueTuple`，写入时必须用 `ForceAddOrUpdateValueTuple`，原因见 [`il2cppinterop-defects.md`](../reference/il2cppinterop-defects.md)。
+- 立绘字典的值是 `ValueTuple`，写入时必须用 `SetBoxedValue`，原因见 [`il2cppinterop-defects.md`](../reference/il2cppinterop-defects.md)。
 - 立绘句柄为 `SceneDirector.RuntimeHandle<Sprite>(sprite).Cast<IAssetHandle<Sprite>>()`，符卡句柄同理。
 - 注册阶段全部同步执行。不要在这里引入异步加载，也不要使用会触发泛型方法 unstripping 的接口，见 [assetbundle.md](assetbundle.md)。
 

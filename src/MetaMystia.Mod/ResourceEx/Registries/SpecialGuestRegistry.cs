@@ -14,7 +14,6 @@ using UnityEngine;
 
 using DEYU.Utils;
 
-using MetaMiku;
 using MetaMystia.ResourceEx.Mappers;
 using MetaMystia.ResourceEx.Models;
 using SgrYuki.Utils;
@@ -109,7 +108,7 @@ public static partial class SpecialGuestRegistry
 
             if (identity == SpeakerIdentity.Identity.Special)
             {
-                DataBaseLanguage.SpecialGuest.ForceAddOrUpdateValueTuple(charConfig.id, val);
+                DataBaseLanguage.SpecialGuest.SetBoxedValue(charConfig.id, val);
                 Log.Debug($"Registered Special character: {charConfig.name} ({charConfig.id})");
             }
             else if (identity == SpeakerIdentity.Identity.Normal)

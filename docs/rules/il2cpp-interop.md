@@ -45,7 +45,7 @@ Il2Cpp Dictionary 不得视为普通托管 Dictionary。优先使用已经验证
 
 普通委托转换使用 `DelegateSupport.ConvertDelegate<TIl2Cpp>()`。生成的委托被原生侧持有时，必须保证托管引用不会被 GC 回收。
 
-带 `ref`、`out`、复杂泛型或原生指针布局的委托不能凭签名猜测。应先确认 Interop 壳代码、逆向源码和实际参数布局。项目中的 `Il2CppOutDelegate` 只用于已经确认的特殊签名，不应扩展为通用入口。
+带 `ref`、`out`、复杂泛型或原生指针布局的委托不能凭签名猜测。应先确认 Interop 壳代码、逆向源码和实际参数布局。项目中的 `SelectionCallback` 只用于已经确认的特殊签名，不应扩展为通用入口。
 
 ## 类型转换
 

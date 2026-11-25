@@ -1,4 +1,4 @@
-"""仓库一致性检查：文档链接、本地化键、网络消息登记、Harmony Patch 登记。用法：python tools/check.py"""
+"""仓库一致性检查：文档链接、本地化键、网络消息登记、Harmony Patch 登记、注入类的抽象成员。用法：python tools/check.py"""
 import json
 import re
 import subprocess
@@ -86,8 +86,29 @@ def check_patches():
                 errors.append(f"{source.relative_to(ROOT)}: {name.group(1)} 未登记到 {label}")
 
 
+def check_injected_abstract():
+    # 继承游戏类型的抽象类会被注入，抽象成员未隐藏时越界写虚表，见 docs/reference/il2cppinterop-defects.md。
+    texts = {source: read(source) for source in tracked("src/MetaMystia.Mod/*.cs")}
+    declared = {}
+    for text in texts.values():
+        for name, base in re.findall(r"\bclass (\w+)(?:<[^>]*>)?(?:\s*:\s*([\w.]+))?", text):
+            declared[name] = base or declared.get(name, "")
+
+    def injected(name):
+        while name in declared:
+            name = declared[name]
+        return bool(name) and not re.match(r"I[A-Z]", name)
+
+    member = re.compile(r"^((?:[ \t]*\[.*\][ \t]*\n)*)([ \t]*(?!//)\S.*?\babstract (?!.*\bclass\b).*)", re.M)
+    for source, text in texts.items():
+        if any(injected(name) for name in re.findall(r"\babstract (?:partial )?class (\w+)", text)):
+            for attributes, line in member.findall(text):
+                if "HideFromIl2Cpp" not in attributes + line:
+                    errors.append(f"{source.relative_to(ROOT)}: 抽象成员未标注 [HideFromIl2Cpp] {line.strip()}")
+
+
 sys.stdout.reconfigure(encoding="utf-8")
-for check in (check_links, check_l10n, check_messages, check_patches):
+for check in (check_links, check_l10n, check_messages, check_patches, check_injected_abstract):
     check()
 for error in errors:
     print(error)
