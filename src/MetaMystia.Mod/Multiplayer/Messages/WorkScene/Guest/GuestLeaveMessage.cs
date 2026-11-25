@@ -3,6 +3,7 @@ using MemoryPack;
 using NightScene.GuestManagementUtility;
 
 using MetaMystia.Multiplayer.Guests;
+using MetaMystia.Multiplayer.Spells;
 using MetaMystia.Patch;
 
 namespace MetaMystia.Multiplayer.Messages;
@@ -29,11 +30,12 @@ public partial class GuestLeaveMessage : MultiplayerMessage, IGuestEvent
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived() => GuestRegistry.Current.Post(this);
 
-    /// <summary>本地仍在吃（评价后续处理未到）时等待，宽限期满后直接离场。</summary>
+    /// <summary>本地仍在吃（评价后续处理未到）或符卡未演完时等待，宽限期满后直接离场。</summary>
     public bool Apply(GuestRecord guest, bool force)
     {
         if (guest.IsLeft) return true;
-        if (guest.State == GuestPhase.Evaluating && Reason != LeaveReason.Force && !force) return false;
+        if (Reason != LeaveReason.Force && !force
+            && (guest.State == GuestPhase.Evaluating || SpellRegistry.Current.IsCasting(RuntimeId))) return false;
         var controller = guest.Controller;
         var previous = guest.State;
         guest.State = GuestPhase.Left;

@@ -60,6 +60,10 @@ public static class GameMessages
         EmoteMessage => GameMessageType.Emote,
         TimeStopRequestMessage => GameMessageType.TimeStopRequest,
         TimeStopStateMessage => GameMessageType.TimeStopState,
+        SpellBeginMessage => GameMessageType.SpellBegin,
+        SpellPlanMessage => GameMessageType.SpellPlan,
+        SpellDefendedMessage => GameMessageType.SpellDefended,
+        QTENotFullScoreMessage => GameMessageType.QTENotFullScore,
         _ => throw new ArgumentException("Unregistered message", nameof(message))
     };
 

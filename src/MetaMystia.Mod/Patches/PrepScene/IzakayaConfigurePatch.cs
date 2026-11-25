@@ -8,6 +8,7 @@ using GameData.RunTime.NightSceneUtility;
 
 using MetaMystia.Multiplayer;
 using MetaMystia.Multiplayer.Messages;
+using MetaMystia.Multiplayer.Spells;
 using MetaMystia.UI;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
@@ -42,6 +43,16 @@ public partial class IzakayaConfigurePatch
         string rateText = rate.ToString("0.###", CultureInfo.InvariantCulture);
         Log.LogInfo($"Guest flow rate {rate}x applied to izakaya configuration.");
         InGameConsole.ShowPassiveFromAnyThread(TextId.CheatFlowRateActive.Get(rateText));
+    }
+
+    /// <summary>客机不抽稀客：自动生成与风见幽香的花都由主机抽取。</summary>
+    [HarmonyPatch(nameof(IzakayaConfigure.Gacha))]
+    [HarmonyPrefix]
+    public static bool Gacha_Prefix(ref int __result)
+    {
+        if (!GameSession.HasRoomPeers || !GameSession.IsRoomClient) return RunOriginal;
+        __result = -1;
+        return SkipOriginal;
     }
 
     // 菜谱、酒水和厨具逐项同步；厨具注销也会经过 RegisterToCookers。
@@ -125,6 +136,17 @@ public partial class IzakayaConfigurePatch
 
         var food = SellableFood.FromSellable(sellable);
         StoreFoodMessage.Send(food);
+    }
+
+    /// <summary>符卡移除保温箱料理（西行寺幽幽子红卡）以主机的选择为准。</summary>
+    [HarmonyPatch(nameof(IzakayaConfigure.RemoveStoredFood))]
+    [HarmonyPrefix]
+    public static bool RemoveStoredFood_Prefix(Sellable sellable)
+    {
+        if (SpellRun.Current is not { } run) return RunOriginal;
+        if (run.Replica) return SkipOriginal;
+        ExtractFoodMessage.Send(SellableFood.FromSellable(sellable));
+        return RunOriginal;
     }
 
 }

@@ -151,6 +151,14 @@ public sealed partial class GuestRegistry : IScopeEnd
         }
     }
 
+    /// <summary>客机：本端改动过的顾客数值还原为主机最近下发的值。</summary>
+    public void RestoreStats()
+    {
+        foreach (var guest in byId.Values)
+            if (guest.Stats != null && guest.Controller is { } controller && controller.HaveNotLeft())
+                GuestStatsMessage.ApplyTo(controller, guest.Stats);
+    }
+
     /// <summary>客机断线（resume）时把仍在场的复制顾客交还原版，避免停在等待主机事件的位置。主机的顾客本就按原版运行。</summary>
     public void OnScopeEnd(bool resume)
     {

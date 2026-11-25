@@ -48,6 +48,10 @@ public enum GameMessageType : ushort
     Emote = 55,
     TimeStopRequest = 56,
     TimeStopState = 57,
+    SpellBegin = 58,
+    SpellPlan = 59,
+    SpellDefended = 60,
+    QTENotFullScore = 61,
 }
 
 public static class GameMessageRules
@@ -100,5 +104,9 @@ public static class GameMessageRules
         new((ushort)GameMessageType.Emote, [Route.World], RoomScoped: false, MaxBytes: 64),
         new((ushort)GameMessageType.TimeStopRequest, [Route.Host]),
         new((ushort)GameMessageType.TimeStopState, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.SpellBegin, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.SpellPlan, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.SpellDefended, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.QTENotFullScore, [Route.Host, Route.Room], HostBroadcastOnly: true),
     ];
 }
