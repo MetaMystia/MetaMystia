@@ -9,8 +9,7 @@ using static GameData.Profile.SchedulerNodeCollection.MissionNode.FinishConditio
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeScheduler.TrackedMissionData))]
-[AutoLog]
-public partial class TrackedMissionDataPatch
+public class TrackedMissionDataPatch
 {
     /// <summary>
     /// 部分 ResourceEx MissionNode 要求使用带有 <b>相对日期</b> 的 <see cref="ConditionType.BillRepayment"/> 类型，而原游戏使用绝对日期与 day 字面量进行比较，导致条件错误。此处 Patch 用以修正。

@@ -7,8 +7,7 @@ using MetaMystia.Multiplayer.Messages;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.SpecialGuestsController))]
-[AutoLog]
-public partial class SpecialGuestsControllerPatch
+public class SpecialGuestsControllerPatch
 {
     [HarmonyPatch(nameof(SpecialGuestsController.PostEvaluation))]
     [HarmonyPrefix]

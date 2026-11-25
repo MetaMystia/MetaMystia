@@ -6,7 +6,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 玩家 → 所有玩家：播放表情
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class EmoteMessage : MultiplayerMessage
 {
     public EmoteType Emote { get; set; }

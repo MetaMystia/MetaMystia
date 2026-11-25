@@ -36,12 +36,9 @@ public static class QTEBuffExtension
 /// 任何玩家 → 全体玩家：通告触发 QTE Buff
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class BuffMessage : MultiplayerMessage
 {
     public QTEBuff Buff;
-    protected override BepInEx.Logging.LogLevel OnReceiveLogLevel => BepInEx.Logging.LogLevel.Message;
-    protected override BepInEx.Logging.LogLevel OnSendLogLevel => BepInEx.Logging.LogLevel.Message;
 
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
@@ -55,7 +52,7 @@ public partial class BuffMessage : MultiplayerMessage
                 QTERewardManagerPatch.BuffLocalTrigger = false; // 标记为非本地触发
                 QTERewardManagerPatch.OnQTESucceeded(NightScene.CookingUtility.QTERewardManager.Instance, Buff.ID, true);
                 QTERewardManagerPatch.BuffLocalTrigger = true;
-                Log.Message($"triggered buff {Buff}");
+                Log.Info($"triggered buff {Buff}");
             },
             timeoutSeconds: 10f
         );

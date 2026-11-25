@@ -10,8 +10,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.CookingUtility.CookSystemManager))]
-[AutoLog]
-public static partial class CookSystemManagerPatch
+public static class CookSystemManagerPatch
 {
     [HarmonyPatch(nameof(CookSystemManager.CallCooker))]
     [HarmonyPrefix]

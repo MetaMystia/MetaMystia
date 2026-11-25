@@ -11,8 +11,7 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.CharacterUtility.CharacterControllerInputGeneratorComponent))]
-[AutoLog]
-public partial class CharacterControllerInputGeneratorComponentPatch
+public class CharacterControllerInputGeneratorComponentPatch
 {
     [HarmonyPatch(nameof(CharacterControllerInputGeneratorComponent.UpdateInputDirection))]
     [HarmonyPrefix]
@@ -33,7 +32,7 @@ public partial class CharacterControllerInputGeneratorComponentPatch
             var characterCollection = Common.SceneDirector.Instance.characterCollection;
             if (!characterCollection.ContainsKey("Self"))
             {
-                Log.LogWarning($"characterCollection does not contain 'Self' key");
+                Log.Warning("characterCollection does not contain 'Self' key");
                 return;
             }
             if (__instance.name == characterCollection["Self"].name)
@@ -44,7 +43,7 @@ public partial class CharacterControllerInputGeneratorComponentPatch
         }
         catch (System.Exception e)
         {
-            Log.LogError($"Error in UpdateInputDirection_Prefix: {e.Message}");
+            Log.Error($"Error in UpdateInputDirection_Prefix: {e.Message}");
         }
     }
 }

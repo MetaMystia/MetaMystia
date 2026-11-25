@@ -8,7 +8,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>客机 → 主机：本地缺少该顾客或缺前置事件，请求快照。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class GuestQueryMessage : MultiplayerMessage
 {
     public int RuntimeId { get; set; }

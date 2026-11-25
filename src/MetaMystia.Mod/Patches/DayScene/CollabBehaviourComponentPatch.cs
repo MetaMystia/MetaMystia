@@ -5,8 +5,7 @@ using DayScene.Interactables.Collections.BehaviourComponents;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(CollabBehaviourComponent))]
-[AutoLog]
-public partial class CollabBehaviourComponentPatch
+public class CollabBehaviourComponentPatch
 {
     internal static PatchBypassToken PendingCollabMenu = new();
 

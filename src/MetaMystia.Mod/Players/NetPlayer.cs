@@ -9,8 +9,7 @@ namespace MetaMystia;
 /// <summary>
 /// 玩家基类，包含本地玩家和远程对端玩家的公共状态和方法
 /// </summary>
-[AutoLog]
-public abstract partial class NetPlayer
+public abstract class NetPlayer
 {
     #region 玩家标识
     /// <summary>

@@ -109,7 +109,6 @@ namespace MetaMystia.ResourceEx.SpellCollection
 
 namespace MetaMystia.Patch
 {
-    sealed class AutoLogAttribute : Attribute { }
     static class WorkSceneStoragePannelPatch
     {
         public static Panel instanceRef;

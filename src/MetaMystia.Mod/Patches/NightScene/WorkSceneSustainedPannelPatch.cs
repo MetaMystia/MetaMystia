@@ -14,8 +14,7 @@ using MetaMystia.Multiplayer.Guests;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.UI.WorkSceneSustainedPannel))]
-[AutoLog]
-public partial class WorkSceneSustainedPannelPatch
+public class WorkSceneSustainedPannelPatch
 {
     /// <summary>
     /// 幽幽子手动订单的投掷动画可能晚于主机评价和续单完成。

@@ -13,8 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 饮料领域注册器：持有饮料配置，负责注册与语言注册。
 /// </summary>
-[AutoLog]
-public static partial class BeverageRegistry
+public static class BeverageRegistry
 {
     private static readonly Dictionary<int, BeverageConfig> BeverageConfigs = new();
 
@@ -25,7 +24,7 @@ public static partial class BeverageRegistry
         foreach (var beverageConfig in config.beverages)
         {
             BeverageConfigs[beverageConfig.id] = beverageConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for beverage {beverageConfig.name} ({beverageConfig.id})");
+            Log.Debug($"[{packageName}] Loaded config for beverage {beverageConfig.name} ({beverageConfig.id})");
         }
     }
 
@@ -39,7 +38,7 @@ public static partial class BeverageRegistry
         RexAssetRegistry.TryGetSprite(config.spritePath, out var sprite);
         var lang = config.ToBeverageLanguage(sprite);
         DataBaseLanguage.Beverages[config.id] = lang; // Beverages 是 private 的，不能用 TryAdd
-        Log.Info($"Registered language for beverage {config.id}: {config.name}");
+        Log.Debug($"Registered language for beverage {config.id}: {config.name}");
     }
 
     internal static void RegisterAllBeverages()

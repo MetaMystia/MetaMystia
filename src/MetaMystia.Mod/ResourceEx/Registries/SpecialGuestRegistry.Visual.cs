@@ -18,7 +18,7 @@ public static partial class SpecialGuestRegistry
     {
         if (CustomSpecialGuestPortrayalToConfig.TryGetValue(portrayal, out var existingConfig))
         {
-            Log.LogWarning(
+            Log.Warning(
                 $"Duplicate registration for portrayal '{portrayal}'. " +
                 $"Existing characterId: {existingConfig?.id}, new characterId: {characterConfig?.id}. " +
                 "Overwriting existing mapping.");
@@ -67,12 +67,12 @@ public static partial class SpecialGuestRegistry
             var portraitConfig = config.portraits[index];
             if (string.IsNullOrEmpty(portraitConfig.path))
             {
-                Log.LogError($"Portrait config for characterId {config.id}, pid {portraitConfig.pid} has empty path, skipping.");
+                Log.Error($"Portrait config for characterId {config.id}, pid {portraitConfig.pid} has empty path, skipping.");
                 portraits[index] = null;
                 continue;
             }
 
-            Log.LogInfo(
+            Log.Debug(
                 $"Getting portrait sprite for characterId {config.id}, pid {portraitConfig.pid} from path {portraitConfig.path}");
             if (RexAssetRegistry.TryGetSprite(portraitConfig.path, out var sprite))
             {

@@ -9,8 +9,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.TimelineExtestion.GameTimeManager))]
-[AutoLog]
-public partial class GameTimeManagerPatch
+public class GameTimeManagerPatch
 {
     /// <summary>
     /// 面板、QTE 与符卡对话通过此入口冻结或恢复 timeScale。
@@ -30,7 +29,7 @@ public partial class GameTimeManagerPatch
         {
             mode = GameTimeManager.TimeMode.Resume;
         }
-        Log.DebugCaller($"time mode changed to {mode}");
+        Log.Debug($"SetGameTimeMode: time mode changed to {mode}");
         return RunOriginal;
     }
 

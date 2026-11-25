@@ -13,15 +13,14 @@ using SgrYuki.Utils;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.DaySceneUtility.RunTimeDayScene))]
-[AutoLog]
-public partial class RunTimeDayScenePatch
+public class RunTimeDayScenePatch
 {
 
     [HarmonyPatch(nameof(RunTimeDayScene.GetMerchantData))]
     [HarmonyPostfix]
     public static void GetMerchantData_Postfix(ref GameData.RunTime.DaySceneUtility.Collection.TrackedMerchant __result, string characterKey)
     {
-        Log.Info($"DataBaseDay.GetMerchantData Postfix called with key: {characterKey}");
+        Log.Debug($"DataBaseDay.GetMerchantData Postfix called with key: {characterKey}");
         if (!MerchantRegistry.TryGetExMerchantData(characterKey, out Merchant merchant))
         {
             return;

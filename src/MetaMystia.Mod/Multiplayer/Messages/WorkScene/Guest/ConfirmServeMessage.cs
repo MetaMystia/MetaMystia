@@ -12,7 +12,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 订单上齐后主机发起评价。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class ConfirmServeMessage : MultiplayerMessage, IGuestEvent
 {
     public int ActorUid { get; set; }

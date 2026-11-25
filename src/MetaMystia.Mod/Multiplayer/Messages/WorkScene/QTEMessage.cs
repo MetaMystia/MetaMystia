@@ -11,7 +11,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// QTE(Quick Time Event): 夜雀之歌
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class QTEMessage : MultiplayerMessage
 {
     public int GridIndex { get; set; }
@@ -25,7 +24,7 @@ public partial class QTEMessage : MultiplayerMessage
         var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
         if (cookerController == null)
         {
-            Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
+            Log.Warning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
         if (cookerController.Phase != CookController.CookPhase.Loaded || cookerController.Result == null) return;

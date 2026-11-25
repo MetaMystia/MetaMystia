@@ -10,8 +10,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 任何玩家 → 全体玩家: NightScene.EventUtility.EventManager.ExpEdit 的网络同步
 /// </summary>
 [MemoryPackable]
-[AutoLog]
-
 public partial class ExpEditMessage : MultiplayerMessage
 {
 

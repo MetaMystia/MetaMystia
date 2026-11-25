@@ -13,7 +13,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 客机写入菜酒后重放原版评价，并在计算出口与评价后续处理入口两处换成主机结果。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class EvaluateOrderMessage : MultiplayerMessage, IGuestEvent
 {
     public int RuntimeId { get; set; }

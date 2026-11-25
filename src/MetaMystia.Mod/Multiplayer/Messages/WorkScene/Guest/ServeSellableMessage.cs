@@ -12,7 +12,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 冲突按槽位当前内容与请求所依据的内容比较。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class ServeSellableMessage : MultiplayerMessage, IGuestEvent
 {
     public int ActorUid { get; set; }

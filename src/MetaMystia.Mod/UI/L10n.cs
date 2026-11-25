@@ -461,7 +461,7 @@ public static class L10n
         using var stream = asm.GetManifestResourceStream(resourceName);
         if (stream == null)
         {
-            Plugin.Instance?.Log.LogWarning($"L10n resource not found: {resourceName}");
+            Log.Warning($"L10n resource not found: {resourceName}");
             return;
         }
         using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
@@ -473,17 +473,17 @@ public static class L10n
         if (!File.Exists(path))
         {
             if (warnIfMissing)
-                Plugin.Instance?.Log.LogWarning($"L10n override not found: {path}");
+                Log.Warning($"L10n override not found: {path}");
             return;
         }
         try
         {
             MergeJson(lang, File.ReadAllText(path, System.Text.Encoding.UTF8));
-            Plugin.Instance?.Log.LogInfo($"L10n override loaded ({lang}): {path}");
+            Log.Info($"L10n override loaded ({lang}): {path}");
         }
         catch (Exception ex)
         {
-            Plugin.Instance?.Log.LogWarning($"L10n override failed: {path} — {ex.Message}");
+            Log.Warning($"L10n override failed: {path} — {ex.Message}");
         }
     }
 
@@ -520,7 +520,7 @@ public static class L10n
             return;
         }
 
-        Plugin.Instance?.Log.LogWarning($"L10n override path not found: {path}");
+        Log.Warning($"L10n override path not found: {path}");
     }
 
     private static void MergeJson(Language lang, string json)

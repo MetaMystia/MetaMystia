@@ -26,8 +26,7 @@ public enum LiveMode
 
 
 
-[AutoLog]
-public static partial class ConfigManager
+public static class ConfigManager
 {
     public static ConfigFile Config => Plugin.Instance?.Config;
     public static ConfigEntry<bool> Debug;
@@ -183,7 +182,7 @@ public static partial class ConfigManager
     }
     public static void SetPlayerId(string id)
     {
-        Log.Message($"Player ID {PlayerId.Value} set to: {id}");
+        Log.Info($"Player ID {PlayerId.Value} set to: {id}");
         PlayerId.Value = id;
     }
 }

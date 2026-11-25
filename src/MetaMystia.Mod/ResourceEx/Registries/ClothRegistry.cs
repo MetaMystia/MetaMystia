@@ -16,8 +16,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// 服装领域注册器：持有服装配置，负责 ClothesProfile / 像素精灵注册与立绘查询。
 /// 服装的 Item 与语言由 <see cref="ItemRegistry"/> 注册。
 /// </summary>
-[AutoLog]
-public static partial class ClothRegistry
+public static class ClothRegistry
 {
     private static readonly Dictionary<int, ClothConfig> ClothConfigs = new();
     // Cloth portrait cache: clothId -> Sprite (loaded lazily or during preload)
@@ -32,7 +31,7 @@ public static partial class ClothRegistry
         foreach (var clothConfig in config.clothes)
         {
             ClothConfigs[clothConfig.id] = clothConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for cloth {clothConfig.name} ({clothConfig.id})");
+            Log.Debug($"[{packageName}] Loaded config for cloth {clothConfig.name} ({clothConfig.id})");
         }
     }
 
@@ -67,7 +66,7 @@ public static partial class ClothRegistry
 
     internal static void RegisterAllClothProfiles()
     {
-        Log.Info("Registering all cloth profiles from ResourceEx...");
+        Log.Debug("Registering all cloth profiles from ResourceEx...");
 
         // 按 ID 排序分配 skinIndex，因为 dlcs[] 是空的，索引从 0 开始依次分配
         var sortedConfigs = ClothConfigs.Values.OrderBy(c => c.id).ToList();
@@ -110,11 +109,11 @@ public static partial class ClothRegistry
 
     internal static void RegisterAllClothPixelSprites()
     {
-        Log.Info("Registering all cloth pixel sprites to SelfSpriteSet.dlcs...");
+        Log.Debug("Registering all cloth pixel sprites to SelfSpriteSet.dlcs...");
 
         if (ClothConfigs.Count == 0)
         {
-            Log.Info("No cloth configs to register.");
+            Log.Debug("No cloth configs to register.");
             return;
         }
 
@@ -132,11 +131,11 @@ public static partial class ClothRegistry
                 var pixelFull = PixelSpriteFactory.MakePixelFull(config.pixelFullConfig);
                 _clothPixelFullCache[i] = pixelFull;
                 dlcsArray[i] = pixelFull; // CharacterSpriteSetFull 继承自 CharacterSpriteSetCompact
-                Log.Info($"Built cloth pixel full for ID {config.id} ({config.name}), dlcIndex={i}");
+                Log.Debug($"Built cloth pixel full for ID {config.id} ({config.name}), dlcIndex={i}");
             }
             else
             {
-                Log.LogWarning($"Cloth ID {config.id} ({config.name}) has no pixelFullConfig, using fallback.");
+                Log.Warning($"Cloth ID {config.id} ({config.name}) has no pixelFullConfig, using fallback.");
                 dlcsArray[i] = DataBaseCharacter.FallbackFullPixel;
             }
         }

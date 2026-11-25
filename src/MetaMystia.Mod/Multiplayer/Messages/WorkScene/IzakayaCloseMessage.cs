@@ -12,7 +12,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 主机 → 所有客机：广播打烊
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class IzakayaCloseMessage : MultiplayerMessage
 {
 
@@ -22,7 +21,7 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
-        Log.Message($"Received close command from host");
+        Log.Message("Received close command from host");
         InGameConsole.ShowPassive(TextId.PeerClosedIzakaya.Get(PlayerManager.GetPeerName(SenderUid)));
         var eventManager = EventManager.Instance;
         if (eventManager == null)

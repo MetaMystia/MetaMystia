@@ -12,14 +12,11 @@ using MetaMystia.Network;
 // 仅替代游戏与传输入口；入口协调和营业等待直接编译模组源码。
 namespace MetaMystia
 {
-    sealed class AutoLogAttribute : Attribute { }
-    public static partial class DayDestinationManager
+    static class Log
     {
-        static class Log
-        {
-            public static void Info(string message) { }
-            public static void Error(string message) => throw new Exception(message);
-        }
+        public static void Info(string message) { }
+        public static void Message(string message) { }
+        public static void Error(string message) => throw new Exception(message);
     }
     public static partial class GameFlow
     {

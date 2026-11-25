@@ -57,8 +57,6 @@ namespace MetaMystia.Multiplayer.Messages;
 [MemoryPackUnion((ushort)GameMessageType.Emote, typeof(EmoteMessage))]
 [MemoryPackUnion((ushort)GameMessageType.TimeStopRequest, typeof(TimeStopRequestMessage))]
 [MemoryPackUnion((ushort)GameMessageType.TimeStopState, typeof(TimeStopStateMessage))]
-[AutoLog]
-
 public abstract partial class MultiplayerMessage
 {
     protected long TimestampMs { get; set; }
@@ -118,7 +116,7 @@ public abstract partial class MultiplayerMessage
         if (method.GetCustomAttribute<RequireHostSenderAttribute>() != null
             && SenderUid != GameSession.Room?.Host)
         {
-            Log.Warning($"{MetaMystia.UI.MultiplayerStatus.RoleTag} {MessageName} from non-host uid={SenderUid}, ignoring", false);
+            Log.Warning($"{MetaMystia.UI.MultiplayerStatus.RoleTag} {MessageName} from non-host uid={SenderUid}, ignoring");
             return false;
         }
 
@@ -127,7 +125,7 @@ public abstract partial class MultiplayerMessage
 
         if (method.GetCustomAttribute<HostOnlyReceiveAttribute>() != null && !GameSession.IsRoomHost)
         {
-            Log.Warning($"{MetaMystia.UI.MultiplayerStatus.RoleTag} {MessageName} received by non-host, ignoring", false);
+            Log.Warning($"{MetaMystia.UI.MultiplayerStatus.RoleTag} {MessageName} received by non-host, ignoring");
             return false;
         }
 
@@ -148,17 +146,14 @@ public abstract partial class MultiplayerMessage
         return method.GetCustomAttribute<DiscardOnStoryAttribute>() != null;
     }
 
-    public override string ToString()
+    private static readonly System.Text.Json.JsonSerializerOptions LogJsonOptions = new()
     {
-        return System.Text.Json.JsonSerializer.Serialize((object)this,
-            new System.Text.Json.JsonSerializerOptions
-            {
-                WriteIndented = false,
-                IncludeFields = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
-            });
-    }
+        IncludeFields = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
+
+    public override string ToString() => System.Text.Json.JsonSerializer.Serialize((object)this, LogJsonOptions);
 
     protected virtual string ToLogString()
     {
@@ -167,42 +162,11 @@ public abstract partial class MultiplayerMessage
 
     private string MessageName => GetType().Name;
 
-    private static void LogMessage(LogLevel logLevel, string logStr)
-    {
-        switch (logLevel)
-        {
-            case LogLevel.Debug:
-                Log.Debug(logStr, false);
-                break;
-            case LogLevel.Warning:
-                Log.Warning(logStr, false);
-                break;
-            case LogLevel.Error:
-                Log.Error(logStr, false);
-                break;
-            case LogLevel.Fatal:
-                Log.Fatal(logStr, false);
-                break;
-            case LogLevel.Message:
-                Log.Message(logStr, false);
-                break;
-            default:
-                Log.Info(logStr, false);
-                break;
-        }
-    }
+    protected void LogMessageReceived() =>
+        Log.Write(OnReceiveLogLevel, $"{MetaMystia.UI.MultiplayerStatus.RoleTag} Received {MessageName}{(OnReceiveLogOnlyMessage ? "" : $": {ToLogString()}")}");
 
-    protected void LogMessageReceived()
-    {
-        string logStr = $"{MetaMystia.UI.MultiplayerStatus.RoleTag} Received {MessageName}{(OnReceiveLogOnlyMessage ? "" : $": {ToLogString()}")}";
-        LogMessage(OnReceiveLogLevel, logStr);
-    }
-
-    protected void LogMessageSend()
-    {
-        string logStr = $"{MetaMystia.UI.MultiplayerStatus.RoleTag} Send {MessageName}{(OnSendLogOnlyMessage ? "" : $": {ToLogString()}")}";
-        LogMessage(OnSendLogLevel, logStr);
-    }
+    protected void LogMessageSend() =>
+        Log.Write(OnSendLogLevel, $"{MetaMystia.UI.MultiplayerStatus.RoleTag} Send {MessageName}{(OnSendLogOnlyMessage ? "" : $": {ToLogString()}")}");
 
     protected void Enqueue()
     {

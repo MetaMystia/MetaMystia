@@ -6,7 +6,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 客机 → 房主：本地是否被面板占住，以最新一条为准。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class TimeStopRequestMessage : MultiplayerMessage
 {
     public bool Freeze { get; set; }

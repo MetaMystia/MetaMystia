@@ -10,7 +10,6 @@ using MetaMystia.Patch;
 
 namespace MetaMystia;
 
-[AutoLog]
 public static partial class PrepSceneManager
 {
     public static UpdatePrepMessage.Table localPrepTable = new();

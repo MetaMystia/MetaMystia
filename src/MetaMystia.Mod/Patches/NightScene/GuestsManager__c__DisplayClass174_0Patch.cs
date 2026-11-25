@@ -15,8 +15,7 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e：GenerateOrderSession 的闭包，..._GuestGroupController_byref_OrderBase_0 为 <GenerateOrderSession>g__GenerateOrderInternal|1，..._SpecialGuestsController_0 为 g__CheckRemainingFund|0。
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.GuestsManager.__c__DisplayClass174_0))]
-[AutoLog]
-public partial class GuestsManager__c__DisplayClass174_0Patch
+public class GuestsManager__c__DisplayClass174_0Patch
 {
     /// <summary>
     /// 顾客生成点单的内部方法。主机正常进行，并在 <see cref="GenerateOrderInternal_Postfix"/> 广播；客机回填主机订单并跳过原方法。

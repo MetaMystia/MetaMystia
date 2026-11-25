@@ -14,8 +14,7 @@ namespace MetaMystia.Patch;
 
 // <<MainChallengeLoop>g__Phase2TimedNegativeSpell|16>d
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb2))]
-[AutoLog]
-public partial class YuyukoTimedNegativeSpellPatch
+public class YuyukoTimedNegativeSpellPatch
 {
     [HarmonyPatch(nameof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb2.MoveNext))]
     [HarmonyPrefix]

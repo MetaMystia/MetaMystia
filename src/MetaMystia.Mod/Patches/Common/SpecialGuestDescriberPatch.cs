@@ -10,8 +10,7 @@ using MetaMystia.ResourceEx.Registries;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.UI.SpecialGuestDescriber))]
-[AutoLog]
-public partial class SpecialGuestDescriberPatch
+public class SpecialGuestDescriberPatch
 {
     [HarmonyPatch(nameof(SpecialGuestDescriber.Describe))]
     [HarmonyPrefix]
@@ -20,7 +19,7 @@ public partial class SpecialGuestDescriberPatch
         var src = new CancellationTokenSource();
         cancellationToken = src.Token;
         src.Cancel();
-        Log.Info($"cancelled token for special guest ID {detail.Id}");
+        Log.Debug($"cancelled token for special guest ID {detail.Id}");
     }
 
     [HarmonyPatch(nameof(SpecialGuestDescriber.Describe))]
@@ -35,7 +34,7 @@ public partial class SpecialGuestDescriberPatch
             {
                 __instance.portrayal.sprite = portrayalSprites[portrayal.faceInNoteBook];
                 __instance.portrayal.enabled = true;
-                Log.Info($"Updated portrayal sprite for custom special guest ID {detail.Id}");
+                Log.Debug($"Updated portrayal sprite for custom special guest ID {detail.Id}");
             }
             else
             {
@@ -45,7 +44,7 @@ public partial class SpecialGuestDescriberPatch
         else
         {
             __instance.portrayal.AssignImageSpriteAsync(portrayal.LoadNotebookVisual(UniversalGameManager.PlatformAssetLifetime, new Nullable<CancellationToken>(CancellationToken.None)), CancellationToken.None);
-            Log.Info($"default portrayal sprite for special guest ID {detail.Id}");
+            Log.Debug($"default portrayal sprite for special guest ID {detail.Id}");
         }
     }
 }

@@ -13,8 +13,7 @@ using static MetaMystia.UI.DaySceneSelectionMenu;
 
 namespace MetaMystia;
 
-[AutoLog]
-public static partial class StoryReplayManager
+public static class StoryReplayManager
 {
     private static MultiLanguageTextMesh.LoadLanguageType CurrentLanguage =>
         Common.UI.EscapeUtility.EscConfigPannel.CurrentSettings.CurrentLanguage;
@@ -44,7 +43,7 @@ public static partial class StoryReplayManager
         StoryReplayIndex.Rebuild();
         if (StoryReplayIndex.Packs.Count == 0)
         {
-            Log.Warning("没有可回放的对话");
+            Log.Warning("No dialog to replay");
             return;
         }
 
@@ -100,7 +99,7 @@ public static partial class StoryReplayManager
         var dialogs = StoryReplayIndex.GetRecentDialogs();
         if (dialogs.Count == 0)
         {
-            Log.Warning("没有最近阅读的对话");
+            Log.Warning("No recently read dialog");
             return;
         }
 
@@ -124,7 +123,7 @@ public static partial class StoryReplayManager
         var categories = StoryReplayIndex.GetCategories(pack);
         if (categories.Count == 0)
         {
-            Log.Warning($"[{pack}] 没有可用分类");
+            Log.Warning($"[{pack}] No category available");
             return;
         }
 
@@ -142,7 +141,7 @@ public static partial class StoryReplayManager
         var packages = StoryReplayIndex.GetCategories("ResourceEx");
         if (packages.Count == 0)
         {
-            Log.Warning("没有 ResourceEx 对话");
+            Log.Warning("No ResourceEx dialog");
             return;
         }
 
@@ -160,7 +159,7 @@ public static partial class StoryReplayManager
         var dialogs = StoryReplayIndex.GetDialogs("ResourceEx", package);
         if (dialogs.Count == 0)
         {
-            Log.Warning($"ResourceEx 包 {package} 没有对话");
+            Log.Warning($"ResourceEx package {package} has no dialog");
             return;
         }
 
@@ -196,7 +195,7 @@ public static partial class StoryReplayManager
         var dialogs = StoryReplayIndex.GetDialogs(pack, category, group);
         if (dialogs.Count == 0)
         {
-            Log.Warning($"[{pack}/{category}/{group}] 没有对话");
+            Log.Warning($"[{pack}/{category}/{group}] No dialog");
             return;
         }
 
@@ -213,11 +212,11 @@ public static partial class StoryReplayManager
     {
         if (!StoryReplayRecentHistory.TryResolvePackage(dialogName, out var package))
         {
-            Log.Warning($"找不到对话包: {dialogName}");
+            Log.Warning($"Dialog package not found: {dialogName}");
             return;
         }
 
-        Log.Info($"播放对话: {dialogName}");
+        Log.Info($"Playing dialog: {dialogName}");
         UniversalGameManager.OpenDialogMenu(
             package,
             onFinishCallback: null,

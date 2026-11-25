@@ -8,7 +8,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 任何玩家 → 全体玩家：通告某个料理被放入保温箱中，与 ExtractFood 对应
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class StoreFoodMessage : MultiplayerMessage
 {
     public SellableFood Food { get; set; }

@@ -8,7 +8,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>主机：顾客分配到桌位（TrySendToSeat 成功），包括生成即入座和出队入座。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class GuestSeatMessage : MultiplayerMessage, IGuestEvent
 {
     public int RuntimeId { get; set; }

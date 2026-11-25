@@ -12,7 +12,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>主机：顾客生成（PostInitializeGuestGroup 入口）。客机构造控制器，去向等待入座或排队事件。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class GuestSpawnMessage : MultiplayerMessage, IGuestEvent
 {
     public int RuntimeId { get; set; }

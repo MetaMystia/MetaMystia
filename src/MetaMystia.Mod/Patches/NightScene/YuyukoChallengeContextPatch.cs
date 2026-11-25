@@ -15,8 +15,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0))]
-[AutoLog]
-public partial class YuyukoChallengeContextPatch
+public class YuyukoChallengeContextPatch
 {
     /// <summary>
     /// 对应 4.4.0e 剧情版 YuyukoOverrideEvaluationCallback|33。
@@ -58,6 +57,6 @@ public partial class YuyukoChallengeContextPatch
 #else
         __instance.thisSingleRoundDuration = (int)(originalDuration * 1.5f);
 #endif
-        Log.Info($"幽幽子试炼本阶段时长：{originalDuration}s → {__instance.thisSingleRoundDuration}s");
+        Log.Info($"Yuyuko round duration: {originalDuration}s -> {__instance.thisSingleRoundDuration}s");
     }
 }

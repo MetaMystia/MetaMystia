@@ -3,7 +3,6 @@ using MemoryPack;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
-[AutoLog]
 public partial class DayDestinationIntentMessage : MultiplayerMessage
 {
     public int Round { get; set; }

@@ -15,8 +15,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.NightSceneUtility.IzakayaConfigure))]
-[AutoLog]
-public partial class IzakayaConfigurePatch
+public class IzakayaConfigurePatch
 {
     [HarmonyPatch(nameof(IzakayaConfigure.Initialize))]
     [HarmonyPostfix]
@@ -40,7 +39,7 @@ public partial class IzakayaConfigurePatch
         configure.NormalGuestInterval = new Vector2(normalInterval.x / rate, normalInterval.y / rate);
         configure.SpecialGuestGachaInterval /= rate;
         string rateText = rate.ToString("0.###", CultureInfo.InvariantCulture);
-        Log.LogInfo($"Guest flow rate {rate}x applied to izakaya configuration.");
+        Log.Info($"Guest flow rate {rate}x applied to izakaya configuration.");
         InGameConsole.ShowPassiveFromAnyThread(TextId.CheatFlowRateActive.Get(rateText));
     }
 
@@ -52,7 +51,7 @@ public partial class IzakayaConfigurePatch
     {
         if (GameSession.HasRoomPeers && !PlayerManager.RecipeAvailable(id))
         {
-            Log.LogWarning($"Peer does not have recipe {id}, skipping...");
+            Log.Warning($"Peer does not have recipe {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerRecipeNotAvailable.Get(id));
             return SkipOriginal;
         }
@@ -67,7 +66,7 @@ public partial class IzakayaConfigurePatch
     {
         if (GameSession.HasRoomPeers && !PlayerManager.BeverageAvailable(id))
         {
-            Log.LogWarning($"Peer does not have beverage {id}, skipping...");
+            Log.Warning($"Peer does not have beverage {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerBeverageNotAvailable.Get(id));
             return SkipOriginal;
         }
@@ -82,13 +81,13 @@ public partial class IzakayaConfigurePatch
     {
         if (index < 0 || index >= IzakayaConfigure.Instance.CookerConfigure.Length)
         {
-            Log.LogWarning($"RegisterToCookers out of range: id={id}, index={index}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
+            Log.Warning($"RegisterToCookers out of range: id={id}, index={index}, checkPlayerHaveCooker={checkPlayerHaveCooker}");
             return SkipOriginal;
         }
 
         if (id != -1 && GameSession.HasRoomPeers && !PlayerManager.CookerAvailable(id))
         {
-            Log.LogWarning($"Peer does not have cooker {id}, skipping...");
+            Log.Warning($"Peer does not have cooker {id}, skipping...");
             InGameConsole.ShowPassiveFromAnyThread(TextId.DLCPeerCookerNotAvailable.Get(id));
             return SkipOriginal;
         }
@@ -119,7 +118,7 @@ public partial class IzakayaConfigurePatch
     [HarmonyPrefix]
     public static void StoreFood_Prefix(Sellable sellable)
     {
-        Log.LogInfo($"StoreFood: {sellable.Text.Name}");
+        Log.Info($"StoreFood: {sellable.Text.Name}");
         if (_skipPatchStoreFood) return;
         if (!GameSession.HasRoomPeers) return;
 

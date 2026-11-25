@@ -12,8 +12,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.EventUtility.EventManager))]
-[AutoLog]
-public static partial class NightSceneEventManagerPatch
+public static class NightSceneEventManagerPatch
 {
     public static bool IsHostCloseReplay => Bypass.Active(EventManager.Instance);
 
@@ -48,7 +47,7 @@ public static partial class NightSceneEventManagerPatch
         if ((GameSession.IsRoomClient && GameSession.HasRoomPeers) && __instance.onCreatorBoxGuestInstantiateLoop != null)
         {
             __instance.onCreatorBoxGuestInstantiateLoop = null;
-            Log.Warning("已临时禁用造物者之盒协程。");
+            Log.Info("Creator box guest loop disabled on client");
         }
     }
     
@@ -71,7 +70,7 @@ public static partial class NightSceneEventManagerPatch
         if (GameSession.HasRoomPeers)
         {
             gameTotalSeconds = GameFlow.WorkTimeSecondOverride;
-            Log.InfoCaller($"gameTotalSeconds set to {gameTotalSeconds}s");
+            Log.Info($"StartGuestSpawningAndTiming: gameTotalSeconds set to {gameTotalSeconds}s");
         }
         if (!GameSession.IsInRoom || GameFlow.Destination != DayDestination.Business) return RunOriginal;
         // 开场事件、装饰与伙伴初始化都已完成，放行前不启动刷客和计时。

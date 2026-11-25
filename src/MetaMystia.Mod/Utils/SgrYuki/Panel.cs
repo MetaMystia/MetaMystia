@@ -1,9 +1,10 @@
 using System.Linq;
 
+using MetaMystia;
+
 namespace SgrYuki.Utils;
 
-[MetaMystia.AutoLog]
-public static partial class Panel
+public static class Panel
 {
     public static Il2CppSystem.Collections.Generic.Stack<Il2CppSystem.Collections.Generic.Stack<DEYU.AdpUISystem.PanelCollection.UIPanelImpl>> PanelStack => DEYU.AdpUISystem.Managers.AdpUIPanelManager.Instance?.m_PanelStack;
     public static Il2CppSystem.Collections.Generic.Stack<DEYU.AdpUISystem.PanelCollection.UIPanelImpl> TopPanelStack => PanelStack != null && PanelStack.Count > 0 ? PanelStack.Peek() : null;
@@ -25,7 +26,7 @@ public static partial class Panel
                 return;
             }
             currentPanel.remove_OnPanelOpenCloseFadeFinishCallback(_dialog_panel_close_callback);
-            Log.Warning("All dialog panels closed, callback removed.");
+            Log.Info("All dialog panels closed, callback removed.");
             CloseActivePanelsBeforeSceneTransit();
         }
         ;
@@ -40,7 +41,7 @@ public static partial class Panel
 
         if (TopPanelAsDialog != null)
         {
-            Log.Warning($"Closed dialog panel {TopPanelName}");
+            Log.Info($"Closed dialog panel {TopPanelName}");
             var currentPanel = TopPanelAsDialog;
             CloseTopDialogPanel();
             RegisterDialogPanelCloseCallback(currentPanel);     // Interrupt all dialog panels
@@ -54,13 +55,13 @@ public static partial class Panel
             }
             else if ("WorkSceneSustainedPannel(Clone)".Equals(TopPanelName))
             {
-                Log.Warning($"Will not close {TopPanelName}");
+                Log.Info($"Will not close {TopPanelName}");
             }
             else
             {
                 if (TopPanel?.ControlledPanel?.IsPanelOpened is true)
                 {
-                    Log.Warning($"Closed regular panel {TopPanelName}");
+                    Log.Info($"Closed regular panel {TopPanelName}");
                     TopPanel?.ControlledPanel?.ClosePanel();
                 }
                 else
@@ -127,7 +128,7 @@ public static partial class Panel
         if (TopPanel == null) return;
         if (PanelToBeClosed.Any((panel) => TopPanelName.Contains(panel)))
         {
-            Log.Warning($"Closed panel {TopPanelName} in SustainedPannel");
+            Log.Info($"Closed panel {TopPanelName} in SustainedPannel");
             Common.UI.GeneralSustainedPannel.CurrentActiveSustainedPannel.CloseActivePannel();
         }
     }

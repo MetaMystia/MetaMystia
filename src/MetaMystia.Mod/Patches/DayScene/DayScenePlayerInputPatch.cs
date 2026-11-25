@@ -9,8 +9,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.Input.DayScenePlayerInputGenerator))]
-[AutoLog]
-public partial class DayScenePlayerInputPatch
+public class DayScenePlayerInputPatch
 {
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.OnSprintPerformed))]
     [HarmonyPrefix]
@@ -39,7 +38,7 @@ public partial class DayScenePlayerInputPatch
         }
         if (PlayerManager.LocalIsDayOver || DayDestinationManager.IsStoryLocked)
         {
-            Log.Warning($"Day is over, skipping interaction");
+            Log.Info("Day is over, skipping interaction");
             return SkipOriginal;
         }
         return RunOriginal;

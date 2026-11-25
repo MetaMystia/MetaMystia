@@ -14,8 +14,7 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_6))]
-[AutoLog]
-public static partial class YuyukoRetakeContextPatch
+public static class YuyukoRetakeContextPatch
 {
     /// <summary>
     /// 对应 4.4.0e 重打版 YuyukoOverrideEvaluationCallback|50：好评扣除生命，差评触发吞厨具。

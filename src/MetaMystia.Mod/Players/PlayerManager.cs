@@ -11,7 +11,6 @@ namespace MetaMystia;
 /// <summary>
 /// 统一管理本地玩家和所有远程对端玩家
 /// </summary>
-[AutoLog]
 public static partial class PlayerManager
 {
     /// <summary>
@@ -104,7 +103,7 @@ public static partial class PlayerManager
         if (Peers.TryGetValue(uid, out var peer))
             peer.IsDayOver = true;
         else
-            Log.LogWarning($"SetPeerDayOver: peer uid={uid} not found");
+            Log.Warning($"SetPeerDayOver: peer uid={uid} not found");
     }
 
     public static void SetPeerPrepOver(int uid)
@@ -112,7 +111,7 @@ public static partial class PlayerManager
         if (Peers.TryGetValue(uid, out var peer))
             peer.IsPrepOver = true;
         else
-            Log.LogWarning($"SetPeerPrepOver: peer uid={uid} not found");
+            Log.Warning($"SetPeerPrepOver: peer uid={uid} not found");
     }
 
     public static void SetPeerIzakayaSelection(int uid, MapLabel mapLabel, int level)
@@ -123,7 +122,7 @@ public static partial class PlayerManager
             peer.IzakayaLevel = level;
         }
         else
-            Log.LogWarning($"SetPeerIzakayaSelection: peer uid={uid} not found");
+            Log.Warning($"SetPeerIzakayaSelection: peer uid={uid} not found");
     }
 
     /// <summary>
@@ -185,7 +184,7 @@ public static partial class PlayerManager
         Local.ResetState();
         foreach (var peer in Peers.Values)
             peer.ResetState();
-        Log.LogInfo($"PlayerManager state reset (peers: {Peers.Count})");
+        Log.Info($"PlayerManager state reset (peers: {Peers.Count})");
     }
 
     /// <summary>
@@ -250,12 +249,12 @@ public static partial class PlayerManager
         if (Peers.TryRemove(uid, out var peer))
         {
             DayDestinationManager.OnPeerLeft(uid);
-            Log.LogMessage($"Removed peer '{peer.Id}' (uid={uid})");
+            Log.Message($"Removed peer '{peer.Id}' (uid={uid})");
             return true;
         }
         if (PublicPeers.TryRemove(uid, out peer))
         {
-            Log.LogMessage($"Removed public peer '{peer.Id}' (uid={uid})");
+            Log.Message($"Removed public peer '{peer.Id}' (uid={uid})");
             return true;
         }
         return false;
@@ -274,7 +273,7 @@ public static partial class PlayerManager
         UI.FloatingTextHelper.ClearAllLabels();
         Peers.Clear();
         PublicPeers.Clear();
-        Log.LogMessage($"All peers cleared");
+        Log.Message("All peers cleared");
     }
 
     #endregion
