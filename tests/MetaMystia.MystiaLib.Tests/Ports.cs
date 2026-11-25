@@ -23,7 +23,7 @@ namespace MetaMystia.MystiaLib.Saving
         public static int Writes;
 
         /// <summary>读档：换成新的载体对象。</summary>
-        public static void Load(params string[] records) => _current = [.. records, .. new string[0]];
+        public static void Load(params string[] records) => _current = (string[])records.Clone();
 
         public static bool TryTake([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string[]? records)
         {
