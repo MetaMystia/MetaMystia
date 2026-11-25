@@ -32,7 +32,7 @@
 - [glossary](reference/glossary.md)：游戏名词与类型对照
 - [il2cppinterop-defects](reference/il2cppinterop-defects.md)：已确认的 Interop 缺陷与绕过
 - [analytics](reference/analytics.md)：使用统计事件、参数约定与接入位置
-- [mystialib](reference/mystialib.md)：MystiaLib 基础库与原版按键设置接入
+- [mystialib](reference/mystialib.md)：MystiaLib 基础库：原版按键设置接入、存档数据
 - 联机：[architecture](reference/multiplayer/architecture.md)、[business-sync](reference/multiplayer/business-sync.md)（开发方法）、[guest-sync](reference/multiplayer/guest-sync.md)、[scene-flow](reference/multiplayer/scene-flow.md)、[yuyuko-challenge](reference/multiplayer/yuyuko-challenge.md)
 - ResourceEx：[package-contract](reference/resourceex/package-contract.md)、[module-structure](reference/resourceex/module-structure.md)、[day-maps](reference/resourceex/day-maps.md)、[RuntimeAddressables](../src/MetaMystia.Mod/ResourceEx/Addressables/README.md)
 - 服务端：[console](reference/server/console.md)、[chat-filter](reference/server/chat-filter.md)、[deployment](reference/server/deployment.md)

@@ -24,6 +24,8 @@ Interop 把 `Il2CppSystem.ValueTuple`、`DaySceneMapProfile.MapNode` 等非 blit
 - `SpellRegistry`：`DataBaseNight.SpecialGuestSpellPortrayal`
 - `DayMapRegistry`：`DataBaseDay.mapData`
 
+`PlayerSaveFile.DLCSchedulerSaveData` 有同样缺陷（运行时实测：经索引器写入后 `dlcSaveDate` 变为对象头，原值错位到 `scheduledNews`）。MystiaLib 不依赖模组其他代码，`MystiaLib/Saving/SaveCarrier.cs` 转为非泛型 `Il2CppSystem.Collections.IDictionary` 后用索引器写入，由原生代码拆箱，实测正常。
+
 ### `MapNode` 实测
 
 `MapNode` 是包含引用字段的原生结构体。直接写入 `DataBaseDay.mapData` 的索引器后，即使地图不配置食堂，原游戏遍历地图查询食堂等级时也会触发异常。
