@@ -18,7 +18,6 @@ public class DataBaseDayPatch
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.Info("DataBaseDay.Initialize Postfix called.");
         ResourceExManager.OnDataBaseDayInitialized();
     }
 
@@ -33,11 +32,10 @@ public class DataBaseDayPatch
     [HarmonyPrefix]
     public static bool RefMerchant_Prefix(ref Merchant __result, string key)
     {
-        Log.Info($"DataBaseDay.RefMerchant Prefix called with key: {key}");
         if (MerchantRegistry.TryGetExMerchantData(key, out Merchant merchant))
         {
             __result = merchant;
-            Log.Info($"Returned custom merchant for key: {key}");
+            Log.Debug($"Returned custom merchant for key: {key}");
             return SkipOriginal;
         }
         // Safety net: if key doesn't exist in base game allMerchants either,

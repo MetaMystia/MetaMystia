@@ -34,7 +34,7 @@ public class UniversalGameManagerPatch
                 DialogRegistry.DumpExampleDialog();
             }
             dialogPackage.dialogContext = DialogRegistry.ExampleDialog.dialogContext;
-            Log.Info($"Replaced dialogPackage.dialogContext with ExampleDialog.dialogContext");
+            Log.Info("Replaced dialogPackage.dialogContext with ExampleDialog.dialogContext");
         }
         
         StoryReplayRecentHistory.Record(dialogPackage);
@@ -55,14 +55,12 @@ public class UniversalGameManagerPatch
         //     直接执行 onFinishCallback?.Invoke() 会有异步问题，导致挂起
         //     使用携带原有 onFinishCallback 回调的空对话包替代原有对话包实现
 
-        // Log.Info($"OpenDialogMenu called with dialogPackage: {dialogPackage?.name}");
-
         if (!GameSession.HasRoomPeers || dialogPackage?.name != "OnTransitionToNight") // dialogPackage 可能为空
         {
             return RunOriginal;
         }
 
-        Log.Info($"In multiplayer session and dialogPackage is OnTransitionToNight -> show empty dialog instead");
+        Log.Info("In multiplayer session and dialogPackage is OnTransitionToNight -> show empty dialog instead");
         UniversalGameManager.OpenDialogMenu(
             null,
             onFinishCallback: onFinishCallback,

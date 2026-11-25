@@ -18,7 +18,6 @@ public class DataBaseCharacterPatch
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.Info("DataBaseCharacter.Initialize Postfix called.");
         ResourceExManager.OnDataBaseCharacterInitialized();
         PlayerManager.Local.DataBase.LoadResourceIds();
     }
@@ -27,8 +26,6 @@ public class DataBaseCharacterPatch
     [HarmonyPrefix]
     public static bool GetNPCLabel_Prefix(ref string __result, SchedulerNode.Character identity)
     {
-        // Log.Warning($"GetNPCLabel_Prefix called for identity: {identity} result: {__result}");
-
         var config = SpecialGuestRegistry.GetCharacterConfig(identity.characterId, identity.characterIdentity.ToString());
         if (config != null)
         {
@@ -66,11 +63,11 @@ public class DataBaseCharacterPatch
             if (ClothRegistry.TryGetClothPortrait(currentSkin, out var sprite))
             {
                 imageComponent.overrideSprite = sprite;
-                Log.Info($"Applied ResourceEx cloth portrait for skin ID {currentSkin}");
+                Log.Debug($"Applied ResourceEx cloth portrait for skin ID {currentSkin}");
             }
             else
             {
-                Log.Info($"ResourceEx cloth ID {currentSkin} has no portrait configured.");
+                Log.Debug($"ResourceEx cloth ID {currentSkin} has no portrait configured.");
             }
         }
 

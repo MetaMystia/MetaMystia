@@ -45,7 +45,7 @@ public static class PluginManager
             }
             catch (Exception e)
             {
-                Log.Error($"Error executing on main thread: {e.Message}\n{e.StackTrace}");
+                Log.Error($"Error executing on main thread: {e}");
             }
         }
     }
@@ -58,7 +58,7 @@ public static class PluginManager
         if (InGameConsole.HasKeyboardFocus) return;
         if (Hotkeys.LogBreak.WasPressedThisFrame())
         {
-            Log.Info($"\n");
+            Log.Info("\n");
         }
         if (Hotkeys.ToggleStatus.WasPressedThisFrame())
         {
@@ -102,7 +102,7 @@ public static class PluginManager
     private static void ToggleStatusVisibility()
     {
         IsStatusVisible = !IsStatusVisible;
-        Log.Message($"Toggled text visibility: " + IsStatusVisible);
+        Log.Info($"Status text visible: {IsStatusVisible}");
         FloatingTextHelper.SetLabelsVisible(IsStatusVisible && GameSession.IsOnline);
     }
 }

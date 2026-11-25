@@ -111,7 +111,7 @@ public static class PatchRegistry
             }
             catch (Exception ex)
             {
-                Log.Fatal($"  [{i + 1}/{Patches.Length}] {patch.Name} FAILED: {ex.Message}");
+                Log.Fatal($"  [{i + 1}/{Patches.Length}] {patch.Name} FAILED: {ex}");
                 PatchedException = ex;
             }
         }

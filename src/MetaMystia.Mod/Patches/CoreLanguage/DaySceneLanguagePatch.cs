@@ -11,7 +11,6 @@ public class DaySceneLanguagePatch
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.Info("DaySceneLanguage.Initialize Postfix called.");
         ResourceExManager.OnDaySceneLanguageInitialized();
     }
 }

@@ -47,7 +47,7 @@ public static class NightSceneEventManagerPatch
         if ((GameSession.IsRoomClient && GameSession.HasRoomPeers) && __instance.onCreatorBoxGuestInstantiateLoop != null)
         {
             __instance.onCreatorBoxGuestInstantiateLoop = null;
-            Log.Warning("已临时禁用造物者之盒协程。");
+            Log.Info("已临时禁用造物者之盒协程。");
         }
     }
     

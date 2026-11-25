@@ -35,7 +35,7 @@ public static partial class FloatingTextHelper
                 _cachedFont = TMP_FontAsset.CreateFontAsset(osFont);
                 if (_cachedFont != null)
                 {
-                    Log.Info($"Created TMP font from OS 'Microsoft YaHei'");
+                    Log.Info("Created TMP font from OS 'Microsoft YaHei'");
                     return _cachedFont;
                 }
             }

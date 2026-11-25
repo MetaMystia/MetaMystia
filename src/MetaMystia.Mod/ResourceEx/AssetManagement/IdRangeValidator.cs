@@ -103,7 +103,7 @@ public static class IdRangeValidator
         }
         catch (Exception ex)
         {
-            Log.Error($"[IdRange] Signature verification threw: {ex.Message}");
+            Log.Error($"Signature verification threw: {ex}");
             return false;
         }
     }

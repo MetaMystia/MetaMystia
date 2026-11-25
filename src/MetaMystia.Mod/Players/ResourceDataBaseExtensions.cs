@@ -28,16 +28,16 @@ public static class ResourceDataBaseExtensions
 
     public static void LogDataBase(this ResourceDataBase resources)
     {
-        Log.Warning($"Foods: {string.Join(", ", resources.Foods)}");
-        Log.Warning($"Recipes: {string.Join(", ", resources.Recipes)}");
-        Log.Warning($"Beverages: {string.Join(", ", resources.Beverages)}");
-        Log.Warning($"Ingredients: {string.Join(", ", resources.Ingredients)}");
-        Log.Warning($"Cookers: {string.Join(", ", resources.Cookers)}");
-        Log.Warning($"Items: {string.Join(", ", resources.Items)}");
-        Log.Warning($"Izakayas: {string.Join(", ", resources.Izakayas)}");
+        Log.Info($"Foods: {string.Join(", ", resources.Foods)}");
+        Log.Info($"Recipes: {string.Join(", ", resources.Recipes)}");
+        Log.Info($"Beverages: {string.Join(", ", resources.Beverages)}");
+        Log.Info($"Ingredients: {string.Join(", ", resources.Ingredients)}");
+        Log.Info($"Cookers: {string.Join(", ", resources.Cookers)}");
+        Log.Info($"Items: {string.Join(", ", resources.Items)}");
+        Log.Info($"Izakayas: {string.Join(", ", resources.Izakayas)}");
 
-        Log.Warning($"SpecialGuests: {string.Join(", ", resources.SpecialGuests)}");
-        Log.Warning($"NormalGuests: {string.Join(", ", resources.NormalGuests)}");
+        Log.Info($"SpecialGuests: {string.Join(", ", resources.SpecialGuests)}");
+        Log.Info($"NormalGuests: {string.Join(", ", resources.NormalGuests)}");
     }
 
     #region 增量传输

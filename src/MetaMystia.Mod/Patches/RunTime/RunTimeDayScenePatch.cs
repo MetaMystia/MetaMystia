@@ -20,7 +20,7 @@ public class RunTimeDayScenePatch
     [HarmonyPostfix]
     public static void GetMerchantData_Postfix(ref GameData.RunTime.DaySceneUtility.Collection.TrackedMerchant __result, string characterKey)
     {
-        Log.Info($"DataBaseDay.GetMerchantData Postfix called with key: {characterKey}");
+        Log.Debug($"DataBaseDay.GetMerchantData Postfix called with key: {characterKey}");
         if (!MerchantRegistry.TryGetExMerchantData(characterKey, out Merchant merchant))
         {
             return;

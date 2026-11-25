@@ -21,7 +21,6 @@ public partial class NightCookMessage : MultiplayerMessage
     public override void OnReceivedDerived()
     {
         if (YuyukoGuestSync.IsSwallowedCooker(GridIndex)) return;
-        Log.Info($"Received COOK: CookerIndex={GridIndex}, FoodId={Food.Id}, Modifiers=[{string.Join(",", Food.ModifierIds)}]");
         if (!PlayerManager.RecipeAvailable(RecipeId))
         {
             Log.Error($"RecipeId {RecipeId} not available!");
@@ -30,7 +29,7 @@ public partial class NightCookMessage : MultiplayerMessage
         var recipe = RecipeId.RefRecipe();
         if (recipe == null)
         {
-            Log.Warning($"Failed to create recipe");
+            Log.Warning("Failed to create recipe");
             return;
         }
 

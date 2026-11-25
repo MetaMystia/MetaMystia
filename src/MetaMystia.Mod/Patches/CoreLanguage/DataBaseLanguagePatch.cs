@@ -12,7 +12,6 @@ public class DataBaseLanguagePatch
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.Info("DataBaseLanguage.Initialize Postfix called.");
         ResourceExManager.OnDataBaseLanguageInitialized();
     }
 }

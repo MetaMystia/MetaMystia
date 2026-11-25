@@ -11,7 +11,6 @@ public class DataBaseCorePatch
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.Info("DataBaseCore.Initialize Postfix called.");
         ResourceExManager.OnDataBaseCoreInitialized();
     }
 }

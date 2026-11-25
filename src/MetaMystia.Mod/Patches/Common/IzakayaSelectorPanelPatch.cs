@@ -26,7 +26,6 @@ public class IzakayaSelectorPanelPatch
     {
         instanceRef = __instance;
         confirmed = false;
-        Log.Info($"OnGuideMapInitialize called");
     }
 
     [HarmonyPatch(nameof(IzakayaSelectorPanel_New._OnGuideMapInitialize_b__21_0))]
@@ -40,17 +39,11 @@ public class IzakayaSelectorPanelPatch
         //     - 若全员一致，主机广播 CONFIRM_SELECT，客机收到后才执行场景切换
         //   4. 客机仅发送 SELECT，然后等待主机的 CONFIRM_SELECT
 
-        Log.Info($"_OnGuideMapInitialize_b__21_0 called");
-
-        if (!GameSession.HasRoomPeers)
-        {
-            Log.Info($"Not in multiplayer session, skipping patch");
-            return RunOriginal;
-        }
+        if (!GameSession.HasRoomPeers) return RunOriginal;
 
         var izakayaMapLabel = MapLabelExtensions.FromMapKey(__instance.m_CurrentSelectedSpot.PrimaryName);
         var izakayaLevel = (int)__instance.m_CurrentSelectedIzakayaLevel;
-        Log.Message($"Selected Spot: {izakayaMapLabel.ToMapKey()}, Level: {izakayaLevel}");
+        Log.Info($"Selected Spot: {izakayaMapLabel.ToMapKey()}, Level: {izakayaLevel}");
 
         // 记录自己的选择
         PlayerManager.Local.IzakayaMapLabel = izakayaMapLabel;
@@ -98,7 +91,7 @@ public class IzakayaSelectorPanelPatch
         }
 
         // 全员一致 → 广播 CONFIRM_SELECT → 本地执行切换
-        Log.Message($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
+        Log.Info($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
         confirmed = true;
         ConfirmIzakayaMessage.Send(mapLabel, level);
         InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(mySelect));

@@ -32,7 +32,7 @@ public class CharacterControllerInputGeneratorComponentPatch
             var characterCollection = Common.SceneDirector.Instance.characterCollection;
             if (!characterCollection.ContainsKey("Self"))
             {
-                Log.Warning($"characterCollection does not contain 'Self' key");
+                Log.Warning("characterCollection does not contain 'Self' key");
                 return;
             }
             if (__instance.name == characterCollection["Self"].name)

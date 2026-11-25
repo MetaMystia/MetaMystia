@@ -62,7 +62,7 @@ public class DaySceneMapPatch
         // var templateMarker = __instance.AllSpawnMarkers.ToList().FirstOrDefault().Value;
         // if (templateMarker == null)
         // {
-        //     Log.Warning($"Template marker not found! Skipping...");
+        //     Log.Warning("Template marker not found! Skipping...");
         //     return;
         // }
         // if (npc.key.IsResourceExSpecialGuest())

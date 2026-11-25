@@ -273,7 +273,7 @@ public static partial class PlayerManager
         UI.FloatingTextHelper.ClearAllLabels();
         Peers.Clear();
         PublicPeers.Clear();
-        Log.Message($"All peers cleared");
+        Log.Message("All peers cleared");
     }
 
     #endregion

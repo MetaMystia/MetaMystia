@@ -47,7 +47,7 @@ public static class ResourcePackageLoader
             }
             catch (Exception e)
             {
-                Log.Error($"Failed to load resource package {packageName}: {e.Message}");
+                Log.Error($"Failed to load resource package {packageName}: {e}");
                 rejected.Add((packageName, e.Message));
             }
         }
@@ -56,7 +56,7 @@ public static class ResourcePackageLoader
         bool enforceSignature = ConfigManager.SignatureCheck.Value;
         if (!enforceSignature)
         {
-            Log.Warning("[ResourceEx] Signature verification is DISABLED by config.");
+            Log.Warning("Signature verification is DISABLED by config.");
             InGameConsole.LogDeferred(() => TextId.SignatureVerificationDisabled.Get());
         }
 
@@ -97,7 +97,7 @@ public static class ResourcePackageLoader
             }
             catch (Exception ex)
             {
-                Log.Error($"[{candidate.PackageName}] Failed to finalize package: {ex.Message}");
+                Log.Error($"[{candidate.PackageName}] Failed to finalize package: {ex}");
                 rejected.Add((candidate.PackageName, ex.Message));
             }
         }
@@ -188,7 +188,7 @@ public static class ResourcePackageLoader
 
                 if (sorted.Count > 1)
                 {
-                    Log.Warning($"[ResourceEx] Label Conflict: '{group.Key}'. " +
+                    Log.Warning($"Label conflict: '{group.Key}'. " +
                         $"Selected '{winner.Candidate.PackageName}' (v{winner.Version}) over others: " +
                         $"{string.Join(", ", sorted.Skip(1).Select(s => s.Candidate.PackageName))}");
                 }

@@ -87,7 +87,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterSpecialPortraits()
     {
-        Log.Info($"Registering Special Portraits from ResourceEx...");
+        Log.Info("Registering Special Portraits from ResourceEx...");
 
         foreach (var charConfig in GetAllCharacterConfigs().Where(c => c.portraits != null && c.portraits.Count > 0))
         {
@@ -129,7 +129,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterAllSpecialGuests()
     {
-        Log.Info($"Registering Special Guests from ResourceEx...");
+        Log.Info("Registering Special Guests from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null)
             .ToList()
@@ -143,7 +143,7 @@ public static partial class SpecialGuestRegistry
         var specialGuests = DataBaseCharacter.SpecialGuest;
         if (specialGuests == null || specialGuests.Count == 0)
         {
-            Log.Error($"DataBaseCharacter.SpecialGuest is null or empty!");
+            Log.Error("DataBaseCharacter.SpecialGuest is null or empty!");
             return;
         }
 
@@ -159,7 +159,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterAllEvaluations()
     {
-        Log.Info($"Registering Special Guest Evaluations from ResourceEx...");
+        Log.Info("Registering Special Guest Evaluations from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.evaluation != null)
             .ToList()
@@ -174,7 +174,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterAllConversations()
     {
-        Log.Info($"Registering Special Guest Evaluations and Conversations from ResourceEx...");
+        Log.Info("Registering Special Guest Evaluations and Conversations from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.conversation != null)
             .ToList()
@@ -195,11 +195,11 @@ public static partial class SpecialGuestRegistry
     {
         if (ConfigManager.FoodRequestMode.Value == RequestEnableMode.ForceDisable)
         {
-            Log.Info($"Food Requests are force disabled by config, skipping registration.");
+            Log.Info("Food Requests are force disabled by config, skipping registration.");
             return;
         }
 
-        Log.Info($"Registering Food Requests from ResourceEx...");
+        Log.Info("Registering Food Requests from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.foodRequests != null)
             .ToList()
@@ -221,10 +221,10 @@ public static partial class SpecialGuestRegistry
     {
         if (ConfigManager.BevRequestMode.Value == RequestEnableMode.ForceDisable)
         {
-            Log.Info($"Beverage Requests are force disabled by config, skipping registration.");
+            Log.Info("Beverage Requests are force disabled by config, skipping registration.");
             return;
         }
-        Log.Info($"Registering Beverage Requests from ResourceEx...");
+        Log.Info("Registering Beverage Requests from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.bevRequests != null)
             .ToList()
@@ -244,7 +244,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterAllSpecialGuestPairs()
     {
-        Log.Info($"Registering Special Guest Pairs from ResourceEx...");
+        Log.Info("Registering Special Guest Pairs from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.characterSpriteSetCompact != null)
             .ToList()
@@ -283,7 +283,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterNPCs()
     {
-        Log.Info($"Registering NPCs from ResourceEx...");
+        Log.Info("Registering NPCs from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null)
             .ToList()
@@ -324,7 +324,7 @@ public static partial class SpecialGuestRegistry
 
     private static void RegisterAllSpawnMarkers()
     {
-        Log.Info($"Registering Spawn Markers from ResourceEx...");
+        Log.Info("Registering Spawn Markers from ResourceEx...");
         GetAllCharacterConfigs()
             .Select(c => c.spawnMarker ?? new SpawnMarkerConfig() { mapLabel = "BeastForest", x = 0f, y = 0f, rotation = DayScene.Input.DayScenePlayerInputGenerator.CharacterRotation.Down })
             .ToList()
@@ -382,7 +382,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterAllSpawnConfigs()
     {
-        Log.Info($"Registering Spawn Configs from ResourceEx...");
+        Log.Info("Registering Spawn Configs from ResourceEx...");
 
         var spawnGroups = GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.spawn != null)

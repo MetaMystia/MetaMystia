@@ -53,7 +53,7 @@ public static class MissionNodeRegistry
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to register MissionNode mapping for {config.label}: {ex.Message}");
+            Log.Error($"Failed to register MissionNode mapping for {config.label}: {ex}");
         }
     }
 

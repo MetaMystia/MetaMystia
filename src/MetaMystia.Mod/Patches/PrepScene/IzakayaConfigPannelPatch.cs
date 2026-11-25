@@ -52,7 +52,7 @@ public class IzakayaConfigPannelPatch
     {
         if (!GameSession.HasRoomPeers)
         {
-            Log.Debug($"Not in multiplayer session, skipping patch");
+            Log.Debug("Not in multiplayer session, skipping patch");
             return RunOriginal;
         }
         if (PrepSceneManager.IsYuyukoChallenge)

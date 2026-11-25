@@ -182,7 +182,7 @@ public static class ConfigManager
     }
     public static void SetPlayerId(string id)
     {
-        Log.Message($"Player ID {PlayerId.Value} set to: {id}");
+        Log.Info($"Player ID {PlayerId.Value} set to: {id}");
         PlayerId.Value = id;
     }
 }

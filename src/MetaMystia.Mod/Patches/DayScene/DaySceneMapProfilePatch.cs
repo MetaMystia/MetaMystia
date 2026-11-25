@@ -11,7 +11,7 @@ public class DaySceneMapProfilePatch
     [HarmonyPatch(MethodType.Constructor)]
     public static void DaySceneMapProfile_Constructor_Postfix(GameData.Profile.DaySceneMapProfile __instance)
     {
-        Log.Warning($"DaySceneMapProfile created: {__instance.name}");
+        Log.Debug($"DaySceneMapProfile created: {__instance.name}");
         instanceRef = __instance;
     }
 }

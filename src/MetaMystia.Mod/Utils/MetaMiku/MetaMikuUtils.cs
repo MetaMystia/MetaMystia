@@ -96,7 +96,7 @@ namespace MetaMiku
 
             if (methodPtr == System.IntPtr.Zero)
             {
-                Log.Error($"Could not find set_Item method on dictionary!");
+                Log.Error("Could not find set_Item method on dictionary!");
                 return;
             }
 

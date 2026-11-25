@@ -26,7 +26,7 @@ public class PluginHost : MonoBehaviour
     {
         if (Instance != null)
         {
-            Log.Warning($"Another instance of PluginHost already exists! Destroying this one.");
+            Log.Warning("Another instance of PluginHost already exists! Destroying this one.");
             Destroy(this);
             return;
         }

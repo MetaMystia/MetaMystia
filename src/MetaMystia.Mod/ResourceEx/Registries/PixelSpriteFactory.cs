@@ -116,7 +116,7 @@ public static class PixelSpriteFactory
 
         if (targetArray == null)
         {
-            Log.Error($"Target array is null but sprite paths were provided. Cannot apply sprites.");
+            Log.Error("Target array is null but sprite paths were provided. Cannot apply sprites.");
             return;
         }
 

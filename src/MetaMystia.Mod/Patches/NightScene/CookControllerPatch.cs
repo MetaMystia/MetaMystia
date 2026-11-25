@@ -21,7 +21,6 @@ public class CookControllerPatch
     public static bool SetCook_Prefix(CookController __instance, Sellable thisResult, Recipe recipe, bool thisCouldReturnIngredients)
     {
         if (YuyukoGuestSync.IsSwallowedCooker(__instance.GridIndex)) return SkipOriginal;
-        // Log.Debug($"SetCook_Prefix called");
         if (GameSession.HasRoomPeers && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
         {
             Log.Warning($"Peer does not have recipe {recipe.Id}, skipping SetCook.");

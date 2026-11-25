@@ -61,11 +61,11 @@ public class Plugin : BasePlugin
         try
         {
             ClassInjector.RegisterTypeInIl2Cpp<PluginHost>();
-            MetaMystia.Log.Info("Registered C# Types in Il2Cpp");
+            MetaMystia.Log.Info("Registered C# types in Il2Cpp");
         }
         catch (Exception ex)
         {
-            MetaMystia.Log.Error($"FAILED to Register Il2Cpp Type! {ex.Message}");
+            MetaMystia.Log.Error($"Failed to register Il2Cpp type: {ex}");
         }
 
         MetaMystia.Log.Info(MetaMystia.UI.MultiplayerStatus.DebugText);
@@ -83,7 +83,7 @@ public class Plugin : BasePlugin
         }
         catch (Exception ex)
         {
-            MetaMystia.Log.Warning($"Early RuntimeAddressables init failed (will retry later): {ex.Message}");
+            MetaMystia.Log.Warning($"Early RuntimeAddressables init failed (will retry later): {ex}");
         }
 
         try
@@ -92,7 +92,7 @@ public class Plugin : BasePlugin
         }
         catch (Exception ex)
         {
-            MetaMystia.Log.Fatal($"FAILED to Initialize ResourceEx! {ex.Message}");
+            MetaMystia.Log.Fatal($"Failed to initialize ResourceEx: {ex}");
             PatchRegistry.PatchedException = ex;
         }
     }
@@ -106,18 +106,18 @@ public class Plugin : BasePlugin
         {
             if (PluginHost.Instance == null)
             {
-                MetaMystia.Log.Message("Bootstrapping Trainer...");
+                MetaMystia.Log.Info("Creating PluginHost");
                 try
                 {
                     PluginHost.Create("MetaMystiaHost");
                     if (PluginHost.Instance != null)
                     {
-                        MetaMystia.Log.Message("Trainer Bootstrapped!");
+                        MetaMystia.Log.Message("PluginHost created");
                     }
                 }
                 catch (Exception e)
                 {
-                    MetaMystia.Log.Message($"ERROR Bootstrapping Trainer: {e.Message}");
+                    MetaMystia.Log.Error($"Failed to create PluginHost: {e}");
                 }
             }
         }

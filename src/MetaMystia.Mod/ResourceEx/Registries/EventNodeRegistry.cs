@@ -108,7 +108,7 @@ public static class EventNodeRegistry
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to register EventNode mapping for {config.label}: {ex.Message}");
+            Log.Error($"Failed to register EventNode mapping for {config.label}: {ex}");
         }
     }
 

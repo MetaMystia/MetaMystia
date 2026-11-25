@@ -38,7 +38,7 @@ public class DayScenePlayerInputPatch
         }
         if (PlayerManager.LocalIsDayOver || DayDestinationManager.IsStoryLocked)
         {
-            Log.Warning($"Day is over, skipping interaction");
+            Log.Info("Day is over, skipping interaction");
             return SkipOriginal;
         }
         return RunOriginal;

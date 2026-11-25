@@ -25,7 +25,7 @@ public static class ExportUtils
         var allFood = GameData.CoreLanguage.Collections.DataBaseLanguage.Foods;
         foreach (var kvp in allFood)
         {
-            Log.Warning($"Food ID: {kvp.Key}, BriefName: {kvp.Value.BriefName}, BriefDescription: {kvp.Value.BriefDescription}");
+            Log.Info($"Food ID: {kvp.Key}, BriefName: {kvp.Value.BriefName}, BriefDescription: {kvp.Value.BriefDescription}");
             Sprite sprite = kvp.Value.Visual;
             if (sprite != null)
             {
@@ -49,7 +49,7 @@ public static class ExportUtils
         var allIngredients = GameData.CoreLanguage.Collections.DataBaseLanguage.Ingredients;
         foreach (var kvp in allIngredients)
         {
-            Log.Warning($"Food ID: {kvp.Key}, BriefName: {kvp.Value.BriefName}, BriefDescription: {kvp.Value.BriefDescription}");
+            Log.Info($"Food ID: {kvp.Key}, BriefName: {kvp.Value.BriefName}, BriefDescription: {kvp.Value.BriefDescription}");
             Sprite sprite = kvp.Value.Visual;
             if (sprite != null)
             {
@@ -77,7 +77,7 @@ public static class ExportUtils
             var spellLang = allSpellCardLang.TryGetValue(kvp.Key, out var lang) ? lang : null;
             string positiveLang = spellLang != null && spellLang.Length > 0 ? spellLang[0]?.Name : "N/A";
             string negativeLang = spellLang != null && spellLang.Length > 1 ? spellLang[1]?.Name : "N/A";
-            Log.Warning($"SpellCard ID: {kvp.Key} name: {positiveLang}/{negativeLang}");
+            Log.Info($"SpellCard ID: {kvp.Key} name: {positiveLang}/{negativeLang}");
             var positiveSpell = kvp.Value.Item1;
             var negativeSpell = kvp.Value.Item2;
             var sprite1 = positiveSpell.Asset.TryCast<Sprite>();
@@ -174,17 +174,17 @@ public static class ExportUtils
             {
                 var filename = $"{eye.name}.png";
                 var filepath = Path.Combine(exportDir, spriteSet.name, filename);
-                Log.Warning($"Exporting eye sprite: {filepath}");
+                Log.Info($"Exporting eye sprite: {filepath}");
                 TrySaveSprite(eye, filepath);
             }
             foreach (var main in spriteSet.mainSprite)
             {
                 var filename = $"{main.name}.png";
                 var filepath = Path.Combine(exportDir, spriteSet.name, filename);
-                Log.Warning($"Exporting main sprite: {filepath}");
+                Log.Info($"Exporting main sprite: {filepath}");
                 TrySaveSprite(main, filepath);
             }
-            Log.Warning($"Exported sprite set: {spriteSet.name}");
+            Log.Info($"Exported sprite set: {spriteSet.name}");
         });
     }
     public static void TrySaveSprite(Sprite sprite, string filepath)
@@ -426,7 +426,7 @@ public static class ExportUtils
             {
                 var filename = $"Base_{i / 3}, {i % 3}.png";
                 var filepath = Path.Combine(ExportRoot, filename);
-                Log.Warning($"Exporting base sprite: {filepath}");
+                Log.Info($"Exporting base sprite: {filepath}");
                 TrySaveSprite(sprite, filepath);
             }
         }
@@ -445,7 +445,7 @@ public static class ExportUtils
             {
                 var filename = $"{clothesName}/Main_{i / 3}, {i % 3}.png";
                 var filepath = Path.Combine(exportDir, filename);
-                Log.Warning($"Exporting self clothes main sprite: {filepath}");
+                Log.Info($"Exporting self clothes main sprite: {filepath}");
                 TrySaveSprite(main, filepath);
             }
         }
@@ -456,7 +456,7 @@ public static class ExportUtils
             {
                 var filename = $"{clothesName}/Eyes_{i / 4}, {i % 4}.png";
                 var filepath = Path.Combine(exportDir, filename);
-                Log.Warning($"Exporting self clothes eye sprite: {filepath}");
+                Log.Info($"Exporting self clothes eye sprite: {filepath}");
                 TrySaveSprite(eye, filepath);
             }
         }
@@ -467,7 +467,7 @@ public static class ExportUtils
             {
                 var filename = $"{clothesName}/Hair_{i / 3}, {i % 3}.png";
                 var filepath = Path.Combine(exportDir, filename);
-                Log.Warning($"Exporting self clothes hair sprite: {filepath}");
+                Log.Info($"Exporting self clothes hair sprite: {filepath}");
                 TrySaveSprite(hair, filepath);
             }
         }
@@ -478,7 +478,7 @@ public static class ExportUtils
             {
                 var filename = $"{clothesName}/Back_{i / 3}, {i % 3}.png";
                 var filepath = Path.Combine(exportDir, filename);
-                Log.Warning($"Exporting self clothes back sprite: {filepath}");
+                Log.Info($"Exporting self clothes back sprite: {filepath}");
                 TrySaveSprite(back, filepath);
             }
         }
@@ -498,7 +498,7 @@ public static class ExportUtils
             {
                 var filename = $"{clothes.name}.png";
                 var filepath = Path.Combine(exportDir, filename);
-                Log.Warning($"Exporting self clothes portrait sprite: {filepath}");
+                Log.Info($"Exporting self clothes portrait sprite: {filepath}");
                 TrySaveSprite(sprite, filepath);
             }
         }
@@ -517,7 +517,7 @@ public static class ExportUtils
             {
                 var filename = $"ClothItem_{x.Key}.png";
                 var filepath = Path.Combine(exportDir, filename);
-                Log.Warning($"Exporting cloth item icon: {filepath}");
+                Log.Info($"Exporting cloth item icon: {filepath}");
                 TrySaveSprite(sprite, filepath);
             }
         });
@@ -995,7 +995,7 @@ public static class ExportUtils
             {
                 var filename = $"Buff_{id}.png";
                 var filepath = Path.Combine(ExportRoot, filename);
-                Log.Warning($"Exporting buff sprite: {filepath}");
+                Log.Info($"Exporting buff sprite: {filepath}");
                 TrySaveSprite(sprite, filepath);
             }
         }

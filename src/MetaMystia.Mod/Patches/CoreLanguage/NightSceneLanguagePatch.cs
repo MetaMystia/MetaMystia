@@ -12,7 +12,6 @@ public class NightSceneLanguagePatch
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.Info("NightSceneLanguage.Initialize Postfix called.");
         ResourceExManager.OnNightSceneLanguageInitialized();
     }
 }

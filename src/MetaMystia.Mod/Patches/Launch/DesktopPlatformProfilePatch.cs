@@ -24,6 +24,6 @@ public class SteamPlatformProfilePatch
         }
         ResourceExManager.SetActiveDlcTags(tags);
         ResourceExManager.OnDlcFlagsDetermined();
-        Log.Warning($"Active DLC Flags: {flags}");
+        Log.Info($"Active DLC Flags: {flags}");
     }
 }

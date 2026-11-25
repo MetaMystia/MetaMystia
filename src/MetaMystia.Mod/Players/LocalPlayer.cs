@@ -18,14 +18,14 @@ public class LocalPlayer : NetPlayer
     {
         if (Common.SceneDirector.instance == null)
         {
-            Log.Warning($"SceneDirector instance is null");
+            Log.Warning("SceneDirector instance is null");
             return null;
         }
         if (Common.SceneDirector.Instance.characterCollection.TryGetValue("Self", out var characterUnit))
         {
             return characterUnit;
         }
-        Log.Warning($"Cannot find character unit for 'Self'");
+        Log.Warning("Cannot find character unit for 'Self'");
         return null;
     }
 
@@ -41,7 +41,7 @@ public class LocalPlayer : NetPlayer
     public override void ResetState()
     {
         base.ResetState();
-        Log.Info($"LocalPlayer state reset");
+        Log.Info("LocalPlayer state reset");
     }
 
     /// <summary>

@@ -75,7 +75,7 @@ public static class Utils
         }
         catch (Exception e)
         {
-            Log.Error($"Failed to process {typeof(T).Name} contents: {e.Message}\n{e.StackTrace}");
+            Log.Error($"Failed to process {typeof(T).Name} contents: {e}");
         }
     }
     public static Sprite BuildEmptySprite(int width = 64, int height = 64)

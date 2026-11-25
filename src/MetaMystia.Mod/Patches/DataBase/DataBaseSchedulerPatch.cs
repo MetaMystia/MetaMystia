@@ -11,7 +11,6 @@ public class DataBaseSchedulerPatch
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.Info("DataBaseScheduler.Initialize Postfix called.");
         ResourceExManager.OnDataBaseSchedulerInitialized();
     }
 }
