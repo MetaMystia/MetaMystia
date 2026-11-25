@@ -128,7 +128,7 @@ public class YuyukoBossDataPatch
         foreach (var guest in guests.AllGuestInDeskController.ToArray())
             guest.SetGuestCannotOrder();
 
-        Log.Info("收到主机的幽幽子挑战失败结果，进入原版失败剧情与收尾。");
+        Log.Info("Received Yuyuko challenge failure from host, entering vanilla failure story");
         var failure = new GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObObObUnique(0) { __4__this = context };
         context.eventManager.StartCoroutine(failure.Cast<Il2CppSystem.Collections.IEnumerator>());
     }

@@ -50,12 +50,12 @@ public sealed class VfxBundle
         var bundle = AssetBundle.LoadFromMemory(RexAssetRegistry.Assets[uri].Bytes);
         if (bundle == null)
         {
-            Log.Error($"AssetBundle 加载失败: {uri}");
+            Log.Error($"Failed to load AssetBundle: {uri}");
             return null;
         }
 
         var vfx = new VfxBundle(bundle);
-        Log.Info($"{uri}: 已加载 {vfx._prefabs.Count} 个特效 prefab");
+        Log.Info($"{uri}: loaded {vfx._prefabs.Count} vfx prefab(s)");
         return vfx;
     }
 
@@ -66,7 +66,7 @@ public sealed class VfxBundle
     {
         if (!_prefabs.TryGetValue(name, out var prefab))
         {
-            Log.Warning($"找不到特效 {name}");
+            Log.Warning($"Vfx {name} not found");
             return null;
         }
 
@@ -93,7 +93,7 @@ public sealed class VfxBundle
     {
         if (!_prefabs.TryGetValue(name, out var prefab))
         {
-            Log.Warning($"找不到特效 {name}");
+            Log.Warning($"Vfx {name} not found");
             return null;
         }
 

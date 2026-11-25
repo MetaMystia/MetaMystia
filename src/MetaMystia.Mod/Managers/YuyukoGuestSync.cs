@@ -130,7 +130,7 @@ public static partial class YuyukoGuestSync
         body.MaxFundCarry = binding.MaxFund;
         guest = Bind(binding.RuntimeId);
         YuyukoGuestBoundMessage.Send(session, guest.RuntimeId);
-        Log.Info($"幽幽子本体已绑定 #{guest.RuntimeId}");
+        Log.Info($"Yuyuko bound to #{guest.RuntimeId}");
     }
 
     /// <summary>剧情已经创建实体；只登记网络身份，不重放出生、排队或普通首单。</summary>
@@ -335,7 +335,7 @@ public static partial class YuyukoGuestSync
         }
         finally { installing = false; }
         SetState(GuestPhase.WaitingServe);
-        Log.Info($"幽幽子本体订单 #{guest.RuntimeId}/{seq}: {order.Type}");
+        Log.Info($"Yuyuko order #{guest.RuntimeId}/{seq}: {order.Type}");
     }
 
     /// <summary>

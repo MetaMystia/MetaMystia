@@ -67,7 +67,7 @@ public static class GiftMailboxManager
                 if (!gift.allowRepeat && product.GetAmountInStorage() > 0) return;
 
                 product.SendToStorage(suppressCallbacks: false);
-                Log.Info($"[{mailbox.Package.PackageName}] 已处理礼物发放: {gift.title}, {product.productType}={product.productId} x{product.productAmount}");
+                Log.Info($"[{mailbox.Package.PackageName}] Gift claimed: {gift.title}, {product.productType}={product.productId} x{product.productAmount}");
             }),
             overrideReplaceTextCallback: DialogRegistry.GetOverrideReplaceTextCallback(dialog));
     }

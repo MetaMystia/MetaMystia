@@ -40,7 +40,7 @@ public static class BuffRegistry
         foreach (var config in BuffConfigs.Values)
         {
             if (!RexAssetRegistry.TryGetSprite(config.icon, out var icon))
-                Log.Error($"buff {config.id} 图标加载失败: {config.icon}");
+                Log.Error($"Buff {config.id} icon failed to load: {config.icon}");
 
             DataBaseLanguage.BuffDescription[(EventManager.BuffType)config.id] =
                 new ObjectLanguageBase(config.name, config.description, icon);

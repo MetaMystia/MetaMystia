@@ -68,13 +68,13 @@ public static class SpellRegistry
     {
         if (!Implementations.TryGetValue(config.implementation ?? string.Empty, out var implementation))
         {
-            Log.Warning($"符卡 {config.id} 的实现 {config.implementation} 不存在，跳过注册");
+            Log.Warning($"Spell {config.id} skipped: implementation {config.implementation} not found");
             return;
         }
 
         if (SpecialGuestRegistry.GetCharacterConfig(config.id) is not { } owner || string.IsNullOrWhiteSpace(owner.label))
         {
-            Log.Error($"符卡 {config.id} 找不到对应的角色，跳过注册");
+            Log.Error($"Spell {config.id} skipped: owner character not found");
             return;
         }
 
@@ -82,21 +82,21 @@ public static class SpellRegistry
             string.IsNullOrWhiteSpace(config.negative?.name) || string.IsNullOrWhiteSpace(config.negative?.description) ||
             string.IsNullOrWhiteSpace(config.positive?.portrait) || string.IsNullOrWhiteSpace(config.negative?.portrait))
         {
-            Log.Warning($"符卡 {config.id} 缺少 positive/negative 的名称、说明或立绘路径，跳过注册");
+            Log.Warning($"Spell {config.id} skipped: positive/negative name, description or portrait path missing");
             return;
         }
 
         VfxBundle vfx = null;
         if (!string.IsNullOrWhiteSpace(config.vfxBundle) && !AssetBundleRegistry.TryGet(config.vfxBundle, out vfx))
         {
-            Log.Warning($"符卡 {config.id} 特效包未声明或加载失败: {config.vfxBundle}，跳过注册");
+            Log.Warning($"Spell {config.id} skipped: vfx bundle undeclared or failed to load: {config.vfxBundle}");
             return;
         }
 
         if (!TryGetSprite(config.positive.portrait, out var positive) ||
             !TryGetSprite(config.negative.portrait, out var negative))
         {
-            Log.Error($"符卡 {config.id} 立绘加载失败，跳过注册");
+            Log.Error($"Spell {config.id} skipped: failed to load portrait");
             return;
         }
 
@@ -127,7 +127,7 @@ public static class SpellRegistry
     {
         if (T.CheckDependencies(vfx) is { } reason)
         {
-            Log.Warning($"符卡 {id} {reason}，跳过注册");
+            Log.Warning($"Spell {id} skipped: {reason}");
             return null;
         }
 

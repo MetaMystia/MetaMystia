@@ -23,7 +23,7 @@ public static class AssetBundleRegistry
         {
             if (string.IsNullOrWhiteSpace(bundleConfig?.path))
             {
-                Log.Warning($"[{packageName}] AssetBundle 缺少 path，跳过加载");
+                Log.Warning($"[{packageName}] AssetBundle path missing, skipped");
                 continue;
             }
             BundleUris.Add(bundleConfig.path);
@@ -41,7 +41,7 @@ public static class AssetBundleRegistry
 
             if (!RexAssetRegistry.Assets.ContainsKey(uri))
             {
-                Log.Error($"资源包中找不到 AssetBundle: {uri}");
+                Log.Error($"AssetBundle not found in package: {uri}");
                 continue;
             }
             if (VfxBundle.Load(uri) is { } bundle)

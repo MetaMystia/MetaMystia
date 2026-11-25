@@ -121,7 +121,7 @@ public static class NetSkinManager
     {
         if (!IsValidName(name))
         {
-            Log.Warning($"NetSkin：皮肤名不合法 「{name}」");
+            Log.Warning($"Invalid skin name '{name}'");
             onComplete?.Invoke(false);
             return;
         }
@@ -150,7 +150,7 @@ public static class NetSkinManager
         var cachedPath = GetCachePath(name);
         if (File.Exists(cachedPath))
         {
-            Log.Info($"NetSkin：从磁盘缓存加载 「{name}」");
+            Log.Info($"Loaded '{name}' from disk cache");
             PluginManager.RunOnMainThread(() =>
             {
                 bool ok = TryParseAndRegister(name, File.ReadAllBytes(cachedPath));
@@ -188,21 +188,21 @@ public static class NetSkinManager
             }
             if (!resp.IsSuccessStatusCode)
             {
-                Log.Info($"NetSkin：重验证 「{name}」 返回 HTTP {(int)resp.StatusCode}，保留现有缓存");
+                Log.Info($"Revalidation of '{name}' returned HTTP {(int)resp.StatusCode}, keeping cache");
                 return;
             }
 
             var bytes = await ReadBoundedAsync(resp);
             if (bytes == null || !IsPngHeader(bytes))
             {
-                if (bytes != null) Log.Warning($"NetSkin：重验证 「{name}」 响应不是合法 PNG，保留现有缓存");
+                if (bytes != null) Log.Warning($"Revalidation of '{name}' returned an invalid PNG, keeping cache");
                 return;
             }
 
-            if (!TryWriteDiskCache(name, bytes, resp.Headers.ETag?.Tag, "写入重验证后的缓存"))
+            if (!TryWriteDiskCache(name, bytes, resp.Headers.ETag?.Tag, "Writing revalidated cache"))
                 return;
 
-            Log.Info($"NetSkin：服务端 「{name}」 已更新，重新加载");
+            Log.Info($"'{name}' changed on server, reloading");
             PluginManager.RunOnMainThread(() =>
             {
                 if (TryParseAndRegister(name, bytes))
@@ -211,7 +211,7 @@ public static class NetSkinManager
         }
         catch (Exception e)
         {
-            Log.Info($"NetSkin：重验证 「{name}」 异常，保留现有缓存：{e.Message}");
+            Log.Info($"Revalidation of '{name}' failed, keeping cache: {e.Message}");
         }
     }
 
@@ -222,17 +222,17 @@ public static class NetSkinManager
         try
         {
             var url = $"{ServerUrl}/skins/{name}.png";
-            Log.Info($"NetSkin：正在从 {url} 下载 「{name}」");
+            Log.Info($"Downloading '{name}' from {url}");
 
             using var req = NewRequest(HttpMethod.Get, url);
             using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
             if (!resp.IsSuccessStatusCode)
             {
-                Log.Warning($"NetSkin：下载 「{name}」 失败，HTTP {(int)resp.StatusCode}");
+                Log.Warning($"Download of '{name}' failed: HTTP {(int)resp.StatusCode}");
             }
             else if (resp.Content.Headers.ContentLength is long len && len > MaxDownloadBytes)
             {
-                Log.Warning($"NetSkin：下载 「{name}」 被拒绝，大小 {len} 字节超过上限 {MaxDownloadBytes}");
+                Log.Warning($"Download of '{name}' rejected: {len} bytes exceeds limit {MaxDownloadBytes}");
             }
             else
             {
@@ -242,18 +242,18 @@ public static class NetSkinManager
         }
         catch (Exception e)
         {
-            Log.Warning($"NetSkin：下载 「{name}」 抛出异常：{e.Message}");
+            Log.Warning($"Download of '{name}' failed: {e.Message}");
         }
 
         if (payload == null || !IsPngHeader(payload))
         {
-            if (payload != null) Log.Warning($"NetSkin：「{name}」 不是合法的 PNG");
+            if (payload != null) Log.Warning($"'{name}' is not a valid PNG");
             FinishOnMainThread(name, false);
             return;
         }
 
         // 可选写入磁盘缓存（写文件不需要主线程）
-        TryWriteDiskCache(name, payload, etag, "写入磁盘缓存");
+        TryWriteDiskCache(name, payload, etag, "Writing disk cache");
 
         // 主线程解析
         PluginManager.RunOnMainThread(() =>
@@ -276,7 +276,7 @@ public static class NetSkinManager
         {
             // 通知所有 NetSkinName == name 的玩家刷新立绘
             try { RefreshPlayersUsingSkin(name); }
-            catch (Exception e) { Log.Warning($"NetSkin：刷新玩家失败：{e.Message}"); }
+            catch (Exception e) { Log.Warning($"Failed to refresh players: {e.Message}"); }
         }
 
         if (_callbacks.TryRemove(name, out var list))
@@ -286,7 +286,7 @@ public static class NetSkinManager
                 foreach (var cb in list)
                 {
                     try { cb(ok); }
-                    catch (Exception e) { Log.Warning($"NetSkin：回调抛出异常：{e.Message}"); }
+                    catch (Exception e) { Log.Warning($"Callback threw: {e.Message}"); }
                 }
             }
         }
@@ -325,7 +325,7 @@ public static class NetSkinManager
             };
             if (!ImageConversion.LoadImage(tex, pngBytes))
             {
-                Log.Warning($"NetSkin：「{name}」 贴图加载失败");
+                Log.Warning($"Failed to load texture of '{name}'");
                 UnityEngine.Object.Destroy(tex);
                 return false;
             }
@@ -346,8 +346,8 @@ public static class NetSkinManager
             }
             else
             {
-                Log.Warning($"NetSkin：「{name}」 尺寸 {tex.width}×{tex.height} 不受支持 " +
-                            $"（期望 Compact {CompactWidth}×{CompactHeight} 或 Full {FullWidth}×{FullHeight}）");
+                Log.Warning($"Unsupported size of '{name}': {tex.width}x{tex.height} " +
+                            $"(expected Compact {CompactWidth}x{CompactHeight} or Full {FullWidth}x{FullHeight})");
             }
 
             if (skin == null)
@@ -357,12 +357,12 @@ public static class NetSkinManager
             }
 
             lock (_builtSkins) _builtSkins[name] = skin;
-            Log.Info($"NetSkin：已注册 {kind} 皮肤 「{name}」");
+            Log.Info($"Registered {kind} skin '{name}'");
             return true;
         }
         catch (Exception e)
         {
-            Log.Warning($"NetSkin：解析 「{name}」 抛出异常：{e.Message}");
+            Log.Warning($"Failed to parse '{name}': {e.Message}");
             return false;
         }
     }
@@ -372,7 +372,7 @@ public static class NetSkinManager
         var template = DataBaseCharacter.FallbackCompactPixel;
         if (template == null)
         {
-            Log.Warning("NetSkin：FallbackCompactPixel 模板为空");
+            Log.Warning("FallbackCompactPixel template is null");
             return null;
         }
 
@@ -411,7 +411,7 @@ public static class NetSkinManager
         var template = DataBaseCharacter.FallbackFullPixel;
         if (template == null)
         {
-            Log.Warning("NetSkin：FallbackFullPixel 模板为空");
+            Log.Warning("FallbackFullPixel template is null");
             return null;
         }
 
@@ -512,7 +512,7 @@ public static class NetSkinManager
     {
         if (templateArray == null)
         {
-            Log.Warning("NetSkin：模板精灵数组为空");
+            Log.Warning("Template sprite array is empty");
             return null;
         }
         // 沿用模板长度，避免与游戏 Initialize 内部假设不匹配
@@ -553,7 +553,7 @@ public static class NetSkinManager
         }
         catch (Exception e)
         {
-            Log.Warning($"NetSkin：{operation} 「{name}」 失败：{e.Message}");
+            Log.Warning($"{operation} of '{name}' failed: {e.Message}");
             return false;
         }
     }
@@ -586,7 +586,7 @@ public static class NetSkinManager
         }
         catch (Exception e)
         {
-            Log.Warning($"NetSkin：写入 ETag 侧车 「{name}」 失败：{e.Message}");
+            Log.Warning($"Writing ETag sidecar of '{name}' failed: {e.Message}");
         }
     }
 
@@ -626,7 +626,7 @@ public static class NetSkinManager
         }
         catch (Exception e)
         {
-            Log.Warning($"NetSkin：清理缓存 「{name}」 失败：{e.Message}");
+            Log.Warning($"Clearing cache of '{name}' failed: {e.Message}");
         }
     }
 }

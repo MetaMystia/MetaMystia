@@ -66,27 +66,27 @@ public static class GiftRegistry
         dialog = null;
         string error = null;
         if (gift == null)
-            error = "礼物条目为空";
+            error = "gift entry is null";
         else if (!(gift.productId ?? gift.itemId).HasValue)
-            error = "缺少 productId";
+            error = "productId missing";
         else if (gift.productAmount < 1 || gift.productAmount > RunTimeStorage.MAX_OBJECT_COUNT)
-            error = $"productAmount 必须在 1 到 {RunTimeStorage.MAX_OBJECT_COUNT} 之间: {gift.productAmount}";
+            error = $"productAmount must be within 1 and {RunTimeStorage.MAX_OBJECT_COUNT}: {gift.productAmount}";
         else if (gift.productType is not (null or ProductType.Item or ProductType.Recipe or ProductType.Food or ProductType.Beverage or ProductType.Ingredient))
-            error = $"不支持的 productType: {gift.productType}";
+            error = $"unsupported productType: {gift.productType}";
         else if (!IsRegistered(GetProduct(gift)))
-            error = $"{gift.productType ?? ProductType.Item} 未注册: {gift.productId ?? gift.itemId}";
+            error = $"{gift.productType ?? ProductType.Item} not registered: {gift.productId ?? gift.itemId}";
         else if (string.IsNullOrWhiteSpace(gift.title))
-            error = "缺少 title";
+            error = "title missing";
         else if (string.IsNullOrWhiteSpace(gift.dialogPackageName))
-            error = "缺少 dialogPackageName";
+            error = "dialogPackageName missing";
         else if (DialogRegistry.GetDialogPackage(gift.dialogPackageName)?.Count > 0)
         {
             dialog = DialogRegistry.GetBuiltDialogPackage(gift.dialogPackageName);
             if (dialog == null || dialog.dialogMeta == null || dialog.dialogMeta.Length == 0)
-                error = $"对话包未构建或为空: {gift.dialogPackageName}";
+                error = $"dialog package not built or empty: {gift.dialogPackageName}";
         }
         else
-            error = $"对话包不存在或为空: {gift.dialogPackageName}";
+            error = $"dialog package missing or empty: {gift.dialogPackageName}";
 
         mailbox.Available[index] = error == null;
         if (error != null)
