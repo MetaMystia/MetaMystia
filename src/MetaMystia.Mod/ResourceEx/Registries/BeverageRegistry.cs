@@ -24,7 +24,7 @@ public static class BeverageRegistry
         foreach (var beverageConfig in config.beverages)
         {
             BeverageConfigs[beverageConfig.id] = beverageConfig;
-            Log.Info($"[{packageName}] Loaded config for beverage {beverageConfig.name} ({beverageConfig.id})");
+            Log.Debug($"[{packageName}] Loaded config for beverage {beverageConfig.name} ({beverageConfig.id})");
         }
     }
 
@@ -38,7 +38,7 @@ public static class BeverageRegistry
         RexAssetRegistry.TryGetSprite(config.spritePath, out var sprite);
         var lang = config.ToBeverageLanguage(sprite);
         DataBaseLanguage.Beverages[config.id] = lang; // Beverages 是 private 的，不能用 TryAdd
-        Log.Info($"Registered language for beverage {config.id}: {config.name}");
+        Log.Debug($"Registered language for beverage {config.id}: {config.name}");
     }
 
     internal static void RegisterAllBeverages()

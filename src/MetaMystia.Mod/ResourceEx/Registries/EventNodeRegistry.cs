@@ -24,7 +24,7 @@ public static class EventNodeRegistry
         foreach (var eventNodeConfig in config.eventNodes)
         {
             EventNodeConfigs.Add(eventNodeConfig);
-            Log.Info($"[{packageName}] Loaded config for event node {eventNodeConfig.debugLabel}");
+            Log.Debug($"[{packageName}] Loaded config for event node {eventNodeConfig.debugLabel}");
         }
     }
 
@@ -63,7 +63,7 @@ public static class EventNodeRegistry
 
         if (RunTimeScheduler.finishedEvents.Contains(prerequisiteEvent))
         {
-            Log.Info($"Kizuna event node for character {config.name}({config.id}) at bond level {currentBondLevel} already finished.");
+            Log.Debug($"Kizuna event node for character {config.name}({config.id}) at bond level {currentBondLevel} already finished.");
             return;
         }
 

@@ -22,7 +22,7 @@ public static class RecipeRegistry
         foreach (var recipeConfig in config.recipes)
         {
             RecipeConfigs[recipeConfig.id] = recipeConfig;
-            Log.Info($"[{packageName}] Loaded config for recipe {recipeConfig.id}");
+            Log.Debug($"[{packageName}] Loaded config for recipe {recipeConfig.id}");
         }
     }
 

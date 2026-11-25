@@ -24,7 +24,7 @@ public static class IngredientRegistry
         foreach (var ingredientConfig in config.ingredients)
         {
             IngredientConfigs[ingredientConfig.id] = ingredientConfig;
-            Log.Info($"[{packageName}] Loaded config for ingredient {ingredientConfig.id}");
+            Log.Debug($"[{packageName}] Loaded config for ingredient {ingredientConfig.id}");
         }
     }
 
@@ -38,7 +38,7 @@ public static class IngredientRegistry
         RexAssetRegistry.TryGetSprite(config.spritePath, out var sprite);
         var lang = config.ToIngredientLanguage(sprite);
         DataBaseLanguage.Ingredients[config.id] = lang; // Ingredients 是 private 的，不能用 TryAdd
-        Log.Info($"Registered language for ingredient {config.id}: {config.name}");
+        Log.Debug($"Registered language for ingredient {config.id}: {config.name}");
     }
 
     internal static void RegisterAllIngredients()

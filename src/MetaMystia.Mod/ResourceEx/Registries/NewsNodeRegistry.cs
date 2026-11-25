@@ -23,7 +23,7 @@ public static class NewsNodeRegistry
         foreach (var newsNodeConfig in config.newsNodes)
         {
             NewsNodeConfigs.Add(newsNodeConfig);
-            Log.Info($"[{packageName}] Loaded config for news node {newsNodeConfig.title}({newsNodeConfig.label})");
+            Log.Debug($"[{packageName}] Loaded config for news node {newsNodeConfig.title}({newsNodeConfig.label})");
         }
     }
 
@@ -32,7 +32,7 @@ public static class NewsNodeRegistry
     {
         var lang = config.ToNewsLanguage();
         DataBaseLanguage.News[config.label] = lang;
-        Log.Info($"Registered NewsNode language {config.title}({config.label})");
+        Log.Debug($"Registered NewsNode language {config.title}({config.label})");
     }
 
     internal static void RegisterAllNewsNodes() => NewsNodeConfigs.ToList().ForEach(RegisterNewsNode);

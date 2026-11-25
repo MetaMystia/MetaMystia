@@ -72,7 +72,7 @@ public static partial class SpecialGuestRegistry
                 continue;
             }
 
-            Log.Info(
+            Log.Debug(
                 $"Getting portrait sprite for characterId {config.id}, pid {portraitConfig.pid} from path {portraitConfig.path}");
             if (RexAssetRegistry.TryGetSprite(portraitConfig.path, out var sprite))
             {

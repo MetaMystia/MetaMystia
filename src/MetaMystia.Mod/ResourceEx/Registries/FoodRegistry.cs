@@ -24,7 +24,7 @@ public static class FoodRegistry
         foreach (var foodConfig in config.foods)
         {
             FoodConfigs[foodConfig.id] = foodConfig;
-            Log.Info($"[{packageName}] Loaded config for food {foodConfig.name} ({foodConfig.id})");
+            Log.Debug($"[{packageName}] Loaded config for food {foodConfig.name} ({foodConfig.id})");
         }
     }
 
@@ -45,6 +45,6 @@ public static class FoodRegistry
         RexAssetRegistry.TryGetSprite(config.spritePath, out var sprite);
         var lang = config.ToFoodLanguage(sprite);
         DataBaseLanguage.Foods[config.id] = lang;
-        Log.Info($"Registered Food Language ID {config.id} ({config.name})");
+        Log.Debug($"Registered Food Language ID {config.id} ({config.name})");
     }
 }

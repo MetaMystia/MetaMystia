@@ -27,7 +27,7 @@ public static class AssetBundleRegistry
                 continue;
             }
             BundleUris.Add(bundleConfig.path);
-            Log.Info($"[{packageName}] Loaded config for asset bundle {bundleConfig.path}");
+            Log.Debug($"[{packageName}] Loaded config for asset bundle {bundleConfig.path}");
         }
     }
 

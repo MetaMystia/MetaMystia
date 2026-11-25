@@ -35,7 +35,7 @@ public static class ResourcePackageLoader
         foreach (var zipPath in zipFiles)
         {
             string packageName = Path.GetFileNameWithoutExtension(zipPath);
-            Log.Info($"Scanning resource package: {packageName} from {zipPath}");
+            Log.Debug($"Scanning resource package: {packageName} from {zipPath}");
 
             try
             {

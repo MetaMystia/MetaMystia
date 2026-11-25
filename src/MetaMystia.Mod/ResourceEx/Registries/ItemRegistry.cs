@@ -27,7 +27,7 @@ public static class ItemRegistry
                 Log.Warning($"[{packageName}] Item ID {itemConfig.id} ({itemConfig.name}) overrides a previously loaded item");
 
             ItemConfigs[itemConfig.id] = itemConfig;
-            Log.Info($"[{packageName}] Loaded config for item {itemConfig.name} ({itemConfig.id})");
+            Log.Debug($"[{packageName}] Loaded config for item {itemConfig.name} ({itemConfig.id})");
         }
     }
 
@@ -54,7 +54,7 @@ public static class ItemRegistry
                 name: config.name,
                 Description: config.description ?? "",
                 visual: sprite);
-            Log.Info($"Registered item language ID {config.id} ({config.name})");
+            Log.Debug($"Registered item language ID {config.id} ({config.name})");
         }
     }
 }

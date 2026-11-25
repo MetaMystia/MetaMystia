@@ -24,7 +24,7 @@ public static class MissionNodeRegistry
         foreach (var missionNodeConfig in config.missionNodes)
         {
             MissionNodeConfigs.Add(missionNodeConfig);
-            Log.Info($"[{packageName}] Loaded config for mission node {missionNodeConfig.title}");
+            Log.Debug($"[{packageName}] Loaded config for mission node {missionNodeConfig.title}");
         }
     }
 
@@ -39,7 +39,7 @@ public static class MissionNodeRegistry
     internal static void RegisterAllMissionNodes() => MissionNodeConfigs.ToList().ForEach(RegisterMissionNode);
     private static void RegisterMissionNode(MissionNodeConfig config)
     {
-        Log.Info($"Registering MissionNode {config.title}({config.debugLabel})");
+        Log.Debug($"Registering MissionNode {config.title}({config.debugLabel})");
         var missionNode = config.ToMissionNode();
         var success = DataBaseScheduler.allNodes.TryAdd(missionNode.label, missionNode);
         Log.Info($"Registered MissionNode {config.title}({config.label}): Success: {success}");

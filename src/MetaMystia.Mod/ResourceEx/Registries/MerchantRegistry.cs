@@ -31,7 +31,7 @@ public static class MerchantRegistry
         foreach (var merchantConfig in config.merchants)
         {
             MerchantConfigs[merchantConfig.key] = merchantConfig;
-            Log.Info($"[{packageName}] Loaded config for merchant {merchantConfig.key}");
+            Log.Debug($"[{packageName}] Loaded config for merchant {merchantConfig.key}");
         }
     }
 
@@ -73,7 +73,7 @@ public static class MerchantRegistry
 
     internal static void RegisterAllTrackedMerchant()
     {
-        Log.Info("Registering all tracked merchants...");
+        Log.Debug("Registering all tracked merchants...");
         MerchantConfigs.Values.ToList().ForEach(RegisterTrackedMerchant);
     }
 

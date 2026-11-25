@@ -50,7 +50,7 @@ public static class DialogRegistry
         foreach (var pkgConfig in config.dialogPackages)
         {
             _dialogPackageConfigs[pkgConfig.name] = pkgConfig;
-            Log.Info($"[{packageName}] Loaded dialog package: {pkgConfig.name}");
+            Log.Debug($"[{packageName}] Loaded dialog package: {pkgConfig.name}");
         }
     }
 
@@ -268,7 +268,7 @@ public static class DialogRegistry
             return;
         }
 
-        Log.Info("Calling OpenDialogMenu...");
+        Log.Debug("Calling OpenDialogMenu...");
         UniversalGameManager.OpenDialogMenu(
             builtDialogPackage.Package,
             onFinishCallback: onFinishCallback,
@@ -282,7 +282,7 @@ public static class DialogRegistry
         foreach (var kvp in _dialogPackageConfigs)
         {
             _builtDialogPackages[kvp.Key] = BuildDialogPackage(kvp.Value);
-            Log.Info($"Built dialog package: {kvp.Key}");
+            Log.Debug($"Built dialog package: {kvp.Key}");
         }
     }
 
@@ -291,8 +291,9 @@ public static class DialogRegistry
         foreach (var kvp in _builtDialogPackages)
         {
             DataBaseDay.allDialogPackages[kvp.Key] = kvp.Value.Package;
-            Log.Info($"Registered dialog package to DataBaseDay: {kvp.Key}");
+            Log.Debug($"Registered dialog package to DataBaseDay: {kvp.Key}");
         }
+        Log.Info($"Registered {_builtDialogPackages.Count} dialog package(s) to DataBaseDay");
     }
 
     public static System.Action<Il2CppSystem.Collections.Generic.Dictionary<int, string>> GetOverrideReplaceTextCallback(GameData.Profile.DialogPackage dialogPackage)
@@ -325,7 +326,7 @@ public static class DialogRegistry
             if (packageName == "OnTransitionToNight")
             {
                 ExampleDialog = dialogPackage;
-                Log.Info("Stored ExampleDialog(OnTransitionToNight) package.");
+                Log.Debug("Stored ExampleDialog(OnTransitionToNight) package.");
             }
             Log.Debug($"id={dialogPackage.name}, package={packageName}");
         });
