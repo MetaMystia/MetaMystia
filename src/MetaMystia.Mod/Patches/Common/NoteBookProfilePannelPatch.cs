@@ -6,8 +6,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(Common.UI.NoteBookUtility.NoteBookProfilePannel))]
-[AutoLog]
-public partial class NoteBookProfilePannelPatch
+public class NoteBookProfilePannelPatch
 {
     /// <summary>
     /// 用于支持在 NoteBook 中替换原有立绘，但图片有可能超出范围，仍需调整

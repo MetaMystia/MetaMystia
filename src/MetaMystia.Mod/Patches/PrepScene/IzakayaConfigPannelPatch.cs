@@ -17,8 +17,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(PrepNightScene.UI.IzakayaConfigPannel))]
-[AutoLog]
-public partial class IzakayaConfigPannelPatch
+public class IzakayaConfigPannelPatch
 {
     public static IzakayaConfigPannel instanceRef = null;
 
@@ -53,7 +52,7 @@ public partial class IzakayaConfigPannelPatch
     {
         if (!GameSession.HasRoomPeers)
         {
-            Log.LogDebug($"Not in multiplayer session, skipping patch");
+            Log.Debug("Not in multiplayer session, skipping patch");
             return RunOriginal;
         }
         if (PrepSceneManager.IsYuyukoChallenge)

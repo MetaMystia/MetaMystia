@@ -93,6 +93,7 @@ namespace MetaMystia.Generators
         private static void GenerateTracePatches(SourceProductionContext spc, TraceClassInfo info)
         {
             var sb = new StringBuilder();
+            sb.AppendLine("#if DEBUG");
             sb.AppendLine("using HarmonyLib;");
             sb.AppendLine();
 
@@ -155,6 +156,7 @@ namespace MetaMystia.Generators
             }
 
             sb.AppendLine("}");
+            sb.AppendLine("#endif");
 
             spc.AddSource(
                 $"{info.ClassName}.trace.g.cs",

@@ -13,8 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 像素精灵（CharacterSpriteSetCompact/Full）构建工具：从配置生成游戏像素精灵对象。
 /// </summary>
-[AutoLog]
-public static partial class PixelSpriteFactory
+public static class PixelSpriteFactory
 {
     private const int CharacterPixelSpriteSize = 64;
     private static readonly Vector2 CharacterPixelPivot = new Vector2(0.5f, 0.0f);
@@ -117,13 +116,13 @@ public static partial class PixelSpriteFactory
 
         if (targetArray == null)
         {
-            Log.LogError($"Target array is null but sprite paths were provided. Cannot apply sprites.");
+            Log.Error("Target array is null but sprite paths were provided. Cannot apply sprites.");
             return;
         }
 
         if (spriteUris.Count != targetArray.Length)
         {
-            Log.LogError(
+            Log.Error(
                 $"Sprite count mismatch! Expected {targetArray.Length}, got {spriteUris.Count}. Refusing to load sprites.");
             return;
         }

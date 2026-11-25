@@ -11,7 +11,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 客机在已排队的符卡之后触发。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class QTENotFullScoreMessage : MultiplayerMessage
 {
     public int GridIndex { get; set; }

@@ -17,7 +17,6 @@ namespace MetaMystia.UI;
 /// <summary>
 /// 聊天与命令共用的控制台。T 打开聊天，/ 打开命令；关闭时在原位置短暂显示新消息。
 /// </summary>
-[AutoLog]
 public static partial class InGameConsole
 {
     private sealed class Entry
@@ -363,7 +362,7 @@ public static partial class InGameConsole
         }
         catch (Exception ex)
         {
-            Log.LogWarning($"Failed to load console history: {ex.Message}");
+            Log.Warning($"Failed to load console history: {ex.Message}");
         }
     }
 
@@ -376,7 +375,7 @@ public static partial class InGameConsole
         }
         catch (Exception ex)
         {
-            Log.LogWarning($"Failed to save console history: {ex.Message}");
+            Log.Warning($"Failed to save console history: {ex.Message}");
         }
     }
 }

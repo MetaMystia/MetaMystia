@@ -19,8 +19,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 商人领域注册器：持有商人配置与构建产物，负责构建、追踪与清理。
 /// </summary>
-[AutoLog]
-public static partial class MerchantRegistry
+public static class MerchantRegistry
 {
     private static readonly Dictionary<string, MerchantConfig> MerchantConfigs = new();
     private static readonly Dictionary<string, Merchant> _builtMerchants = new();
@@ -32,7 +31,7 @@ public static partial class MerchantRegistry
         foreach (var merchantConfig in config.merchants)
         {
             MerchantConfigs[merchantConfig.key] = merchantConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for merchant {merchantConfig.key}");
+            Log.Debug($"[{packageName}] Loaded config for merchant {merchantConfig.key}");
         }
     }
 
@@ -74,7 +73,7 @@ public static partial class MerchantRegistry
 
     internal static void RegisterAllTrackedMerchant()
     {
-        Log.Info("Registering all tracked merchants...");
+        Log.Debug("Registering all tracked merchants...");
         MerchantConfigs.Values.ToList().ForEach(RegisterTrackedMerchant);
     }
 

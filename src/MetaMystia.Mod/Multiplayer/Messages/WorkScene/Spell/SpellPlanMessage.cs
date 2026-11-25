@@ -8,7 +8,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>主机：符卡正文第一步已执行，下发随机种子与按调用顺序选出的桌子、厨具。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class SpellPlanMessage : MultiplayerMessage
 {
     public int RunId { get; set; }

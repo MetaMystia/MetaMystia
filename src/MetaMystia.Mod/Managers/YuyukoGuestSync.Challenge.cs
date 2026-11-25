@@ -129,7 +129,7 @@ public static partial class YuyukoGuestSync
         {
             if (index < 0 || index >= TileManager.Instance.CookerDesks.Length)
             {
-                Log.Error($"幽幽子吞厨具索引无效：{index}");
+                Log.Error($"Invalid cooker index swallowed by Yuyuko: {index}");
                 continue;
             }
             var loop = new LockLoop(0) { __4__this = retake };

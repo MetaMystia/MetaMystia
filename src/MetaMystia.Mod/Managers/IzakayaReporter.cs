@@ -10,16 +10,14 @@ using SgrYuki;
 
 namespace MetaMystia;
 
-[AutoLog]
-public static partial class IzakayaReporter
+public static class IzakayaReporter
 {
     private const int HeartbeatIntervalSeconds = 2 * 60;
-    private const string LogScope = "[Izakaya]";
     private static readonly bool isHeartbeatEnabled = true;
     private static readonly bool isRunEventEnabled = true;
     private static readonly bool isOtherEventEnabled = false;
     private static readonly IzakayaService izakayaService =
-        new(Plugin.ModVersion, warning => Log.Warning($"{LogScope}[Identity] {warning}"));
+        new(Plugin.ModVersion, warning => Log.Warning($"Identity: {warning}"));
     private static bool heartbeatStarted;
 
     public static void OnEnterMainScene()
@@ -37,10 +35,10 @@ public static partial class IzakayaReporter
                 }
                 catch (Exception error)
                 {
-                    Log.Warning($"{LogScope}[Version] request=failed error={error.Message}");
+                    Log.Warning($"Version request=failed error={error.Message}");
                 }
 
-                Log.Message($"{LogScope}[Version] current={currentVer} latest={latestVer ?? "unavailable"}");
+                Log.Message($"Version current={currentVer} latest={latestVer ?? "unavailable"}");
 
                 if (string.IsNullOrEmpty(latestVer))
                 {
@@ -59,7 +57,7 @@ public static partial class IzakayaReporter
             }
             catch (Exception error)
             {
-                Log.Error($"{LogScope}[Version] request=unhandled error={error}");
+                Log.Error($"Version request=unhandled error={error}");
             }
         });
     }
@@ -105,11 +103,11 @@ public static partial class IzakayaReporter
         try
         {
             await izakayaService.ReportEventAsync(category, action, name).ConfigureAwait(false);
-            Log.Info($"{LogScope}[Event] {details} result=success");
+            Log.Info($"Event {details} result=success");
         }
         catch (Exception error)
         {
-            Log.Warning($"{LogScope}[Event] {details} result=failed error={error.Message}");
+            Log.Warning($"Event {details} result=failed error={error.Message}");
         }
     }
 
@@ -118,11 +116,11 @@ public static partial class IzakayaReporter
         try
         {
             await izakayaService.SendHeartbeatAsync().ConfigureAwait(false);
-            Log.Info($"{LogScope}[Heartbeat] result=success");
+            Log.Info("Heartbeat result=success");
         }
         catch (Exception error)
         {
-            Log.Warning($"{LogScope}[Heartbeat] result=failed error={error.Message}");
+            Log.Warning($"Heartbeat result=failed error={error.Message}");
         }
     }
 }

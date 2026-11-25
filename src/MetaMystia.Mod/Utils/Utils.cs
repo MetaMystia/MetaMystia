@@ -6,8 +6,7 @@ using UnityEngine;
 
 namespace MetaMystia;
 
-[AutoLog]
-public static partial class Utils
+public static class Utils
 {
     public static Sprite GetArtWork(string filePath, Vector2 pivot, int width = 0, int height = 0, int pixelOffsetX = 0, int pixelOffsetY = 0)
     {
@@ -61,11 +60,11 @@ public static partial class Utils
 
             if (foundAssets == null || foundAssets.Length == 0)
             {
-                Log.LogWarning($"No {typeof(T).Name} assets found in memory.");
+                Log.Warning($"No {typeof(T).Name} assets found in memory.");
                 return;
             }
 
-            Log.LogDebug($"Found {foundAssets.Length} {typeof(T).Name} asset(s).");
+            Log.Debug($"Found {foundAssets.Length} {typeof(T).Name} asset(s).");
 
             for (var i = 0; i < foundAssets.Length; i++)
             {
@@ -76,7 +75,7 @@ public static partial class Utils
         }
         catch (Exception e)
         {
-            Log.LogError($"Failed to process {typeof(T).Name} contents: {e.Message}\n{e.StackTrace}");
+            Log.Error($"Failed to process {typeof(T).Name} contents: {e}");
         }
     }
     public static Sprite BuildEmptySprite(int width = 64, int height = 64)

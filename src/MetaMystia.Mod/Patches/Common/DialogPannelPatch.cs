@@ -11,8 +11,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(Common.DialogUtility.DialogPannel))]
-[AutoLog]
-public partial class DialogPannelPatch
+public class DialogPannelPatch
 {
     [HarmonyPatch(nameof(DialogPannel.GetSpeakerVisual))]
     [HarmonyPrefix]

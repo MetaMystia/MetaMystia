@@ -9,7 +9,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 
 [MemoryPackable]
-[AutoLog]
 public partial class SellableFood
 {
     public Sellable.SellableType Type { get; set; }
@@ -41,7 +40,7 @@ public partial class SellableFood
         if (cooker != null && cooker?.Id != null)
         {
             var b = NightScene.CookingUtility.CookSystemManager.Instance?.registeredSellables.TryAdd(food.RunTimeGUID.Unbox<Il2CppSystem.Guid>(), cooker);
-            Log.Info($"registeredSellables tryadd {food.RunTimeGUID.Unbox<Il2CppSystem.Guid>()} => {cooker?.Id}, result {b}");
+            Log.Debug($"registeredSellables tryadd {food.RunTimeGUID.Unbox<Il2CppSystem.Guid>()} => {cooker?.Id}, result {b}");
         }
         return food;
     }
@@ -68,7 +67,7 @@ public partial class SellableFood
         };
         if (NightScene.CookingUtility.CookSystemManager.Instance?.GetCooker(sellable, out var cooker) is true)
         {
-            Log.Info($"GetCooker id {cooker.Id}");
+            Log.Debug($"GetCooker id {cooker.Id}");
             res.CookId = cooker.Id;
         }
         return res;

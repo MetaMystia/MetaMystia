@@ -125,20 +125,6 @@ namespace MetaMystia.Multiplayer.Messages
         public static void Send(MapLabel map, int level) => Sent.Add((map, level));
     }
 }
-namespace MetaMystia.Patch
-{
-    public partial class IzakayaSelectorPanelPatch
-    {
-        static class Log
-        {
-            public static void Info(string message) { }
-            public static void Message(string message) { }
-            public static void LogInfo(string message) { }
-            public static void LogMessage(string message) { }
-            public static void Error(string message) { }
-        }
-    }
-}
 namespace HarmonyLib
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]

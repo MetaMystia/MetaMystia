@@ -1,16 +1,14 @@
 using System;
 using System.Runtime.InteropServices;
 
-using BepInEx.Logging;
 using Il2CppInterop.Runtime;
+
+using MetaMystia;
 
 namespace MetaMiku
 {
     public static class Utils
     {
-        private static ManualLogSource Log => MetaMystia.Plugin.Instance.Log;
-        private const string LOG_TAG = "[MetaMiku.Utils]";
-
         /// <summary>
         /// 向字符串键字典写入已确认存在封送缺陷的装箱值类型。
         /// </summary>
@@ -98,7 +96,7 @@ namespace MetaMiku
 
             if (methodPtr == System.IntPtr.Zero)
             {
-                Log.LogError($"{LOG_TAG} Could not find set_Item method on dictionary!");
+                Log.Error("Could not find set_Item method on dictionary!");
                 return;
             }
 
@@ -119,14 +117,7 @@ namespace MetaMiku
 
                 if (exc != System.IntPtr.Zero)
                 {
-                    // 尝试获取异常信息
-                    // var excObj = new Il2CppSystem.Exception(exc);
-                    // Log.LogError($"{LOG_TAG} Exception during set_Item invoke: {excObj.Message}");
-                    Log.LogError($"{LOG_TAG} Exception during set_Item invoke! (Pointer: {exc})");
-                }
-                else
-                {
-                    // Log.LogDebug($"{LOG_TAG} Successfully invoked set_Item with unboxed value.");
+                    Log.Error($"Exception during set_Item invoke! (Pointer: {exc})");
                 }
             }
             finally

@@ -10,8 +10,7 @@ namespace MetaMystia;
 /// <summary>
 /// Il2CppInterop 的 ConvertDelegate 不支持 out/ref 参数，需手动构造 il2cpp 委托。
 /// </summary>
-[AutoLog]
-public static unsafe partial class Il2CppOutDelegate
+public static unsafe class Il2CppOutDelegate
 {
     public delegate void GetSelectionConfigurationHandler(
         DaySceneChatSelectionPannel.BaseInteractData baseInteractData,

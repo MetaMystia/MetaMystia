@@ -10,7 +10,6 @@ using MetaMystia.Patch;
 namespace MetaMystia.Multiplayer.Messages;
 
 [MemoryPackable]
-[AutoLog]
 public partial class StoreSellableMessage : MultiplayerMessage
 {
 
@@ -40,13 +39,13 @@ public partial class StoreSellableMessage : MultiplayerMessage
                 sellable = BeverageId.RefBeverage();
                 break;
             default:
-                Log.LogError($"StoreSellableMessage.OnReceived called with unsupported FoodType: {FoodType}");
+                Log.Error($"StoreSellableMessage.OnReceived called with unsupported FoodType: {FoodType}");
                 return;
         }
         var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
         if (cookerController == null)
         {
-            Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
+            Log.Warning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
         CookControllerPatch.Store_ReversePatch(cookerController, sellable);
@@ -77,7 +76,7 @@ public partial class StoreSellableMessage : MultiplayerMessage
                 action.Enqueue();
                 break;
             default:
-                Log.LogError($"StoreSellableMessage.Send called with unsupported sellable type: {sellable.type}");
+                Log.Error($"StoreSellableMessage.Send called with unsupported sellable type: {sellable.type}");
                 return;
         }
     }

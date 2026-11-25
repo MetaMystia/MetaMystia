@@ -13,8 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 事件节点领域注册器：持有事件节点配置，负责注册与羁绊事件激活。
 /// </summary>
-[AutoLog]
-public static partial class EventNodeRegistry
+public static class EventNodeRegistry
 {
     private static readonly List<EventNodeConfig> EventNodeConfigs = new();
 
@@ -25,7 +24,7 @@ public static partial class EventNodeRegistry
         foreach (var eventNodeConfig in config.eventNodes)
         {
             EventNodeConfigs.Add(eventNodeConfig);
-            Log.LogInfo($"[{packageName}] Loaded config for event node {eventNodeConfig.debugLabel}");
+            Log.Debug($"[{packageName}] Loaded config for event node {eventNodeConfig.debugLabel}");
         }
     }
 
@@ -64,7 +63,7 @@ public static partial class EventNodeRegistry
 
         if (RunTimeScheduler.finishedEvents.Contains(prerequisiteEvent))
         {
-            Log.Info($"Kizuna event node for character {config.name}({config.id}) at bond level {currentBondLevel} already finished.");
+            Log.Debug($"Kizuna event node for character {config.name}({config.id}) at bond level {currentBondLevel} already finished.");
             return;
         }
 
@@ -109,7 +108,7 @@ public static partial class EventNodeRegistry
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to register EventNode mapping for {config.label}: {ex.Message}");
+            Log.Error($"Failed to register EventNode mapping for {config.label}: {ex}");
         }
     }
 

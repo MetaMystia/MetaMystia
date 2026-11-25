@@ -11,7 +11,6 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeScheduler))]
-[AutoLog]
 [TracePatch("Method_Internal_Static_Void_Action_PDM_0", DisplayName = "ReimuProtection")]
 public partial class RunTimeSchedulerPatch
 {

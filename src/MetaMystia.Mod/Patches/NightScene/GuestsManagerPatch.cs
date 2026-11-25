@@ -55,7 +55,6 @@ namespace MetaMystia.Patch;
 [TracePatch(nameof(GuestsManager.LeaveFromDesk))]
 [TracePatch(nameof(GuestsManager.TryCloseIzakaya))]
 [TracePatch(nameof(GuestsManager.ShowEvaluationDialog))]
-[AutoLog]
 public partial class GuestsManagerPatch
 {
     // 幽幽子挑战：手动订单与剧情回调。
@@ -585,7 +584,7 @@ public partial class GuestsManagerPatch
         int originalPatient = controller.CurrentPatient;
         controller.MaxPatient *= 3;
         GuestsManager.Instance.SetManualControlledPatient(controller, originalPatient * 3);
-        Log.Info($"幽幽子三阶段耐心：{originalPatient} → {controller.CurrentPatient}");
+        Log.Info($"Yuyuko phase 3 patience: {originalPatient} -> {controller.CurrentPatient}");
     }
 
     /// <summary>LeaveFromDesk 的反向补丁，用于强制清理。</summary>

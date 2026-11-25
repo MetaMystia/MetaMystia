@@ -9,8 +9,7 @@ using MetaMystia.Multiplayer.Messages;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.UI.HUDUtility.IncomeControllerYuyuko))]
-[AutoLog]
-public partial class IncomeControllerYuyukoPatch
+public class IncomeControllerYuyukoPatch
 {
     private static int? hostLife;
     private static int? lastSentLife;

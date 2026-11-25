@@ -5,12 +5,13 @@ using System.Threading;
 using BepInEx;
 using LibCpp2IL;
 
+using MetaMystia;
+
 namespace SgrYuki;
 
 using KeyCommandQueue = ConcurrentDictionary<string, ConcurrentQueue<CommandScheduler.Command>>;
 
-[MetaMystia.AutoLog]
-public static partial class CommandScheduler
+public static class CommandScheduler
 {
     public sealed class Command
     {
@@ -103,7 +104,7 @@ public static partial class CommandScheduler
             }
             catch (Exception ex)
             {
-                Log.Error($"cannot execute in new thread background, {ex.Message}, {ex.StackTrace}");
+                Log.Error($"cannot execute in new thread background: {ex}");
             }
         }
         var t = new Thread(act)
@@ -123,7 +124,7 @@ public static partial class CommandScheduler
             }
             catch (Exception ex)
             {
-                Log.Error($"cannot execute in task background, {ex.Message}, {ex.StackTrace}");
+                Log.Error($"cannot execute in task background: {ex}");
             }
         }
         System.Threading.Tasks.Task.Run(act);
@@ -194,7 +195,7 @@ public static partial class CommandScheduler
             {
                 if (logInfo)
                 {
-                    Log.Message($"cleared key {k}, {command.ExecuteInfo}, trigger time {command.TriggerTime}");
+                    Log.Debug($"cleared key {k}, {command.ExecuteInfo}, trigger time {command.TriggerTime}");
                 }
             }
         }
@@ -215,7 +216,7 @@ public static partial class CommandScheduler
             while (commandQ.TryDequeue(out var command))
             {
                 count++;
-                Log.Message($"removed key {key}, {command.ExecuteInfo}, trigger time {command.TriggerTime}");
+                Log.Debug($"removed key {key}, {command.ExecuteInfo}, trigger time {command.TriggerTime}");
             }
         }
         return count;
@@ -293,14 +294,14 @@ public static partial class CommandScheduler
             TriggerTime = now + intervalSeconds,
             ExpireTime = float.PositiveInfinity
         });
-        Log.Message($"added interval task {commandId}");
+        Log.Debug($"added interval task {commandId}");
     }
 
     public static void CancelInterval(string commandId)
     {
         if (!string.IsNullOrEmpty(commandId))
             _intervalTasks.TryRemove(commandId, out _);
-        Log.Message($"cancelled interval task {commandId}");
+        Log.Debug($"cancelled interval task {commandId}");
     }
 
     // ================================
@@ -354,7 +355,7 @@ public static partial class CommandScheduler
             }
             catch (Exception e)
             {
-                Log.Error($"Error when checking action {cmd.ExecuteInfo}, reason: {e.Message}");
+                Log.Error($"Error when checking action {cmd.ExecuteInfo}: {e}");
                 continue;
             }
 
@@ -371,9 +372,7 @@ public static partial class CommandScheduler
             }
             catch (Exception e)
             {
-                Log.Error(
-                    $"Error when executing action {cmd.ExecuteInfo}, " +
-                    $"reason: {e.Message}, stacktrace {e.StackTrace}");
+                Log.Error($"Error when executing action {cmd.ExecuteInfo}: {e}");
             }
 
             // ===== 周期任务重新调度（进入 delayed）=====
@@ -427,7 +426,7 @@ public static partial class CommandScheduler
             }
             catch (Exception e)
             {
-                Log.Error($"Error when checking action {cmd.ExecuteInfo}, reason: {e.Message}");
+                Log.Error($"Error when checking action {cmd.ExecuteInfo}: {e}");
                 DequeueCommand(commandQ);
                 continue;
             }
@@ -442,9 +441,7 @@ public static partial class CommandScheduler
             }
             catch (Exception e)
             {
-                Log.Error(
-                    $"Error when executing action {cmd.ExecuteInfo}, " +
-                    $"reason: {e.Message}, stacktrace {e.StackTrace}");
+                Log.Error($"Error when executing action {cmd.ExecuteInfo}: {e}");
             }
             finally
             {

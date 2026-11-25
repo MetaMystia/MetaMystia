@@ -3,8 +3,7 @@ using HarmonyLib;
 
 namespace MetaMystia.Patch;
 
-[AutoLog]
-public static partial class PatchRegistry
+public static class PatchRegistry
 {
     public static readonly Type[] Patches = [
         // Launch
@@ -104,18 +103,18 @@ public static partial class PatchRegistry
 
     public static void ApplyAll(Harmony harmony)
     {
-        Log.LogInfo($"Patching {Patches.Length} modules...");
+        Log.Info($"Patching {Patches.Length} modules...");
         for (int i = 0; i < Patches.Length; i++)
         {
             var patch = Patches[i];
             try
             {
                 harmony.PatchAll(patch);
-                Log.LogInfo($"  [{i + 1}/{Patches.Length}] {patch.Name} OK");
+                Log.Info($"  [{i + 1}/{Patches.Length}] {patch.Name} OK");
             }
             catch (Exception ex)
             {
-                Log.LogFatal($"  [{i + 1}/{Patches.Length}] {patch.Name} FAILED: {ex.Message}");
+                Log.Fatal($"  [{i + 1}/{Patches.Length}] {patch.Name} FAILED: {ex}");
                 PatchedException = ex;
             }
         }

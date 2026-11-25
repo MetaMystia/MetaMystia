@@ -53,13 +53,13 @@ public sealed class Spell_Mai : SpellBaseEx, ISpellDependencies
     public static string CheckDependencies(VfxBundle vfx)
     {
         if (vfx == null)
-            return "缺少 vfxBundle";
+            return "vfxBundle missing";
         foreach (var prefab in new[] { CastVfx, IceShardVfx, SnowfallVfx, BevTrailVfx, FrostFieldVfx, CoolDownVfx })
             if (!vfx.Contains(prefab))
-                return $"特效包缺少预制件 {prefab}";
+                return $"prefab {prefab} missing from vfx bundle";
         foreach (var buff in new[] { RewardBuff, PunishmentBuff })
             if (!BuffRegistry.IsAvailable((int)buff))
-                return $"buff {(int)buff} 未声明或名称、说明、图标缺失";
+                return $"buff {(int)buff} undeclared or missing name, description or icon";
         return null;
     }
 

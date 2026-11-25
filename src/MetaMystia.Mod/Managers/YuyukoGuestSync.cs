@@ -21,7 +21,6 @@ namespace MetaMystia;
 /// 将剧情创建的幽幽子本体接入主机权威同步，保留两端原版实体和剧情回调。
 /// 本文件处理绑定、手动订单和评价；Challenge 部分处理阶段判定与吞厨具。
 /// </summary>
-[AutoLog]
 public static partial class YuyukoGuestSync
 {
     private static GuestGroupController body;
@@ -131,7 +130,7 @@ public static partial class YuyukoGuestSync
         body.MaxFundCarry = binding.MaxFund;
         guest = Bind(binding.RuntimeId);
         YuyukoGuestBoundMessage.Send(session, guest.RuntimeId);
-        Log.Info($"幽幽子本体已绑定 #{guest.RuntimeId}");
+        Log.Info($"Yuyuko bound to #{guest.RuntimeId}");
     }
 
     /// <summary>剧情已经创建实体；只登记网络身份，不重放出生、排队或普通首单。</summary>
@@ -336,7 +335,7 @@ public static partial class YuyukoGuestSync
         }
         finally { installing = false; }
         SetState(GuestPhase.WaitingServe);
-        Log.Info($"幽幽子本体订单 #{guest.RuntimeId}/{seq}: {order.Type}");
+        Log.Info($"Yuyuko order #{guest.RuntimeId}/{seq}: {order.Type}");
     }
 
     /// <summary>

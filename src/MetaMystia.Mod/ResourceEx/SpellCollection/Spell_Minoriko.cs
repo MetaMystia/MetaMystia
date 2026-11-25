@@ -30,11 +30,11 @@ public sealed class Spell_Minoriko : SpellBaseEx, ISpellDependencies
     public static string CheckDependencies(VfxBundle vfx)
     {
         if (vfx == null)
-            return "缺少 vfxBundle";
+            return "vfxBundle missing";
         foreach (var name in new[] { "Minoriko_Cast", "Minoriko_Harvest", "Minoriko_Autumn", "Minoriko_Sated" })
             if (!vfx.Contains(name))
-                return $"特效包缺少预制件 {name}";
-        return BuffRegistry.IsAvailable((int)HarvestBuff) ? null : "丰穣结界 buff 未声明或资源缺失";
+                return $"prefab {name} missing from vfx bundle";
+        return BuffRegistry.IsAvailable((int)HarvestBuff) ? null : $"buff {(int)HarvestBuff} undeclared or incomplete";
     }
 
     [HideFromIl2Cpp]

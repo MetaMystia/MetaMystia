@@ -12,8 +12,7 @@ using SgrYuki.Utils;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.UI.UIManager))]
-[AutoLog]
-public partial class DaySceneUIManagerPatch
+public class DaySceneUIManagerPatch
 {
     [HarmonyPrefix]
     [HarmonyPatch(

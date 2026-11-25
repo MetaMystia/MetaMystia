@@ -9,7 +9,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 主机已没有该顾客时阶段为 Left，客机强制清理。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class GuestSnapshotMessage : MultiplayerMessage
 {
     public int RuntimeId { get; set; }

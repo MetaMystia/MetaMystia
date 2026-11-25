@@ -9,7 +9,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 // 本体保留原版实体和回调；同步主机确认的手动服务、阶段结果与吞厨具目标。
 [MemoryPackable]
-[AutoLog]
 public partial class YuyukoGuestMessage : MultiplayerMessage
 {
     public Guid Session { get; set; }

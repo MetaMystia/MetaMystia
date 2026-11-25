@@ -13,8 +13,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Core.Collections.NightSceneUtility.SpellBase))]
-[AutoLog]
-public static partial class SpellBasePatch
+public static class SpellBasePatch
 {
     [HarmonyPatch(nameof(SpellBase.SchedulePositiveBuffExecution))]
     [HarmonyPrefix]

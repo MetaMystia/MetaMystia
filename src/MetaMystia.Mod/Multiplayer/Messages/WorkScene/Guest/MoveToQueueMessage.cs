@@ -8,7 +8,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>主机：顾客入队（MoveToQueue 之后）。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class MoveToQueueMessage : MultiplayerMessage, IGuestEvent
 {
     public int RuntimeId { get; set; }

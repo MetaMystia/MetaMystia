@@ -18,7 +18,6 @@ namespace MetaMystia.Patch;
 [TracePatch(nameof(WorkSceneServePannel.OnExitExtern))]
 [TracePatch(nameof(WorkSceneServePannel.Send))]
 [TracePatch(nameof(WorkSceneServePannel.Cancel))]
-[AutoLog]
 public partial class WorkSceneServePannelPatch
 {
     public static WorkSceneServePannel instanceRef;

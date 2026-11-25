@@ -14,8 +14,7 @@ namespace MetaMystia.UI;
 /// <summary>
 /// 模组界面共用的覆盖层画布、字体与配色。尺寸以 1080 高的参考分辨率计，随屏幕高度缩放。
 /// </summary>
-[AutoLog]
-public static partial class OverlayUi
+public static class OverlayUi
 {
     // 高于各场景的主画布（最高 32500）和 RootCanvas（32600，暂停菜单、淡入淡出、光标）。
     // 光标另设画布排到覆盖层之上。

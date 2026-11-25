@@ -248,13 +248,13 @@
 
 - 操作：三端 `trial`（先后不限），跳过剧情。
 - 期望：三端进入第一轮备菜（`prepRound=1(open)`），三端 `body=#1:Manual/0`。
-- 依据：H 有 `Confirmed day destination FinalTrialAgain`；客机有 `幽幽子本体已绑定 #1`。
+- 依据：H 有 `Confirmed day destination FinalTrialAgain`；客机有 `Yuyuko bound to #1`。
 
 ### 39 一阶段失败
 
 - 操作：不填备菜直接 `prep MODE=go`，不上菜，等一阶段计时结束。
 - 期望：三端进入失败剧情，跳过后回到白天，房间人数不变。
-- 依据：H 有 `Yuyuko phase 1 settled: fund=0` 和 `Send YuyukoFailedMessage`；客机有 `收到主机的幽幽子挑战失败结果`。
+- 依据：H 有 `Yuyuko phase 1 settled: fund=0` 和 `Send YuyukoFailedMessage`；客机有 `Received Yuyuko challenge failure from host`。
 
 ### 40 一、二阶段通过
 

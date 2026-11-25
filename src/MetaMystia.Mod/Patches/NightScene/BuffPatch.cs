@@ -9,14 +9,13 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GameData.Profile.MystiaQTEBuffReward))]
-[AutoLog]
-public partial class MystiaQTEBuffRewardPatch
+public class MystiaQTEBuffRewardPatch
 {
     [HarmonyPatch(nameof(MystiaQTEBuffReward.Player_ThrowDeliver))]
     [HarmonyPrefix]
     public static void Player_ThrowDeliver_Prefix(MystiaQTEBuffReward __instance)
     {
-        Log.Debug($"Player_ThrowDeliver Prefix");
+        Log.Debug("Player_ThrowDeliver Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
             BuffMessage.Send(QTEBuff.ThrowDeliver);
@@ -27,7 +26,7 @@ public partial class MystiaQTEBuffRewardPatch
     [HarmonyPrefix]
     public static void Player_InstantEvaluation_Prefix(MystiaQTEBuffReward __instance)
     {
-        Log.Debug($"Player_InstantEvaluation Prefix");
+        Log.Debug("Player_InstantEvaluation Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
             BuffMessage.Send(QTEBuff.InstantEvaluation);
@@ -38,7 +37,7 @@ public partial class MystiaQTEBuffRewardPatch
     [HarmonyPrefix]
     public static void Player_PatientFreeze_Prefix(MystiaQTEBuffReward __instance)
     {
-        Log.Debug($"Player_PatientFreeze Prefix");
+        Log.Debug("Player_PatientFreeze Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
             BuffMessage.Send(QTEBuff.PatientFreeze);
@@ -49,7 +48,7 @@ public partial class MystiaQTEBuffRewardPatch
     [HarmonyPrefix]
     public static void Player_Fever_Prefix(MystiaQTEBuffReward __instance)
     {
-        Log.Debug($"Player_Fever Prefix");
+        Log.Debug("Player_Fever Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
             BuffMessage.Send(QTEBuff.Fever);
@@ -60,7 +59,7 @@ public partial class MystiaQTEBuffRewardPatch
     [HarmonyPrefix]
     public static void Player_Fever_Infinite_Prefix(MystiaQTEBuffReward __instance)
     {
-        Log.Debug($"Player_Fever_Infinite Prefix");
+        Log.Debug("Player_Fever_Infinite Prefix");
         if (QTERewardManagerPatch.BuffLocalTrigger)
         {
             BuffMessage.Send(QTEBuff.Fever_Infinite);

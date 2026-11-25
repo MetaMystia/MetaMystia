@@ -12,7 +12,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 客机 -> 主机：同步客机白天邀请的稀客列表，主机在夜晚前合并到自己的邀请列表。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class GuestInviteMessage : MultiplayerMessage
 {
 

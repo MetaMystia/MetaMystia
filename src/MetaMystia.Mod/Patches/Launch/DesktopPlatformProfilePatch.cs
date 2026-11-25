@@ -9,8 +9,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GamePlatform.Profiles.SteamPlatformProfile))]
-[AutoLog]
-public partial class SteamPlatformProfilePatch
+public class SteamPlatformProfilePatch
 {
     [HarmonyPatch(nameof(SteamPlatformProfile.GetActiveKeys))]
     [HarmonyPostfix]
@@ -25,6 +24,6 @@ public partial class SteamPlatformProfilePatch
         }
         ResourceExManager.SetActiveDlcTags(tags);
         ResourceExManager.OnDlcFlagsDetermined();
-        Log.Warning($"Active DLC Flags: {flags}");
+        Log.Info($"Active DLC Flags: {flags}");
     }
 }

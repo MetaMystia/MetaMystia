@@ -12,14 +12,12 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GameData.Core.Collections.CharacterUtility.DataBaseCharacter))]
-[AutoLog]
-public partial class DataBaseCharacterPatch
+public class DataBaseCharacterPatch
 {
     [HarmonyPatch(nameof(DataBaseCharacter.Initialize))]
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.LogInfo("DataBaseCharacter.Initialize Postfix called.");
         ResourceExManager.OnDataBaseCharacterInitialized();
         PlayerManager.Local.DataBase.LoadResourceIds();
     }
@@ -28,8 +26,6 @@ public partial class DataBaseCharacterPatch
     [HarmonyPrefix]
     public static bool GetNPCLabel_Prefix(ref string __result, SchedulerNode.Character identity)
     {
-        // Log.LogWarning($"GetNPCLabel_Prefix called for identity: {identity} result: {__result}");
-
         var config = SpecialGuestRegistry.GetCharacterConfig(identity.characterId, identity.characterIdentity.ToString());
         if (config != null)
         {
@@ -67,11 +63,11 @@ public partial class DataBaseCharacterPatch
             if (ClothRegistry.TryGetClothPortrait(currentSkin, out var sprite))
             {
                 imageComponent.overrideSprite = sprite;
-                Log.Info($"Applied ResourceEx cloth portrait for skin ID {currentSkin}");
+                Log.Debug($"Applied ResourceEx cloth portrait for skin ID {currentSkin}");
             }
             else
             {
-                Log.Info($"ResourceEx cloth ID {currentSkin} has no portrait configured.");
+                Log.Debug($"ResourceEx cloth ID {currentSkin} has no portrait configured.");
             }
         }
 

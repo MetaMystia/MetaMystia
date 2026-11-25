@@ -13,8 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 任务节点领域注册器：持有任务节点配置，负责注册与语言注册。
 /// </summary>
-[AutoLog]
-public static partial class MissionNodeRegistry
+public static class MissionNodeRegistry
 {
     private static readonly List<MissionNodeConfig> MissionNodeConfigs = new();
 
@@ -25,7 +24,7 @@ public static partial class MissionNodeRegistry
         foreach (var missionNodeConfig in config.missionNodes)
         {
             MissionNodeConfigs.Add(missionNodeConfig);
-            Log.LogInfo($"[{packageName}] Loaded config for mission node {missionNodeConfig.title}");
+            Log.Debug($"[{packageName}] Loaded config for mission node {missionNodeConfig.title}");
         }
     }
 
@@ -40,7 +39,7 @@ public static partial class MissionNodeRegistry
     internal static void RegisterAllMissionNodes() => MissionNodeConfigs.ToList().ForEach(RegisterMissionNode);
     private static void RegisterMissionNode(MissionNodeConfig config)
     {
-        Log.Info($"Registering MissionNode {config.title}({config.debugLabel})");
+        Log.Debug($"Registering MissionNode {config.title}({config.debugLabel})");
         var missionNode = config.ToMissionNode();
         var success = DataBaseScheduler.allNodes.TryAdd(missionNode.label, missionNode);
         Log.Info($"Registered MissionNode {config.title}({config.label}): Success: {success}");
@@ -54,7 +53,7 @@ public static partial class MissionNodeRegistry
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to register MissionNode mapping for {config.label}: {ex.Message}");
+            Log.Error($"Failed to register MissionNode mapping for {config.label}: {ex}");
         }
     }
 

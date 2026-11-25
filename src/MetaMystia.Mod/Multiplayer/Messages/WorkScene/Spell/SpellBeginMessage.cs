@@ -6,7 +6,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>主机：一张符卡开始执行（出队、宣言之前）。客机把同一张卡排入本地符卡队列。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class SpellBeginMessage : MultiplayerMessage
 {
     public int RunId { get; set; }

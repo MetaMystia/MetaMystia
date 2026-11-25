@@ -23,8 +23,7 @@ public enum EmoteType : byte
 /// <summary>
 /// 在角色上播放表情。只改变显示：位移类表情移动贴图子节点，不动角色根节点与碰撞体；特效类表情挂在角色下并按时销毁。
 /// </summary>
-[AutoLog]
-public static partial class Emote
+public static class Emote
 {
     public const float Duration = 3f;
     private static readonly Vector2 ShakeAmplitude = new(0.5f, 0.5f);
@@ -101,7 +100,7 @@ public static partial class Emote
                 }
             }
         }
-        if (prefab == null) Log.LogWarning($"Emote prefab {name} not found in {key}");
+        if (prefab == null) Log.Warning($"Emote prefab {name} not found in {key}");
         storyPrefabs[emote] = prefab;
         return prefab;
     }

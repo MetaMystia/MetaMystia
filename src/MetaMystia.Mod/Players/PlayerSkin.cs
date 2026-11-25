@@ -15,7 +15,6 @@ using SgrYuki.Utils;
 namespace MetaMystia;
 
 [MemoryPackable]
-[AutoLog]
 public partial class PlayerSkin
 {
     public int CharacterId = -1; // -1 means Mystia

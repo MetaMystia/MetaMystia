@@ -12,7 +12,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 客机不自行关店，等主机最终关店。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class IzakayaCloseMessage : MultiplayerMessage
 {
     /// <summary>客机：已随主机打烊，用一次延长营业计数等待最终关店。</summary>
@@ -46,7 +45,7 @@ public partial class IzakayaCloseMessage : MultiplayerMessage
             return;
         }
 
-        Log.Message($"Received close command from host");
+        Log.Message("Received close command from host");
         InGameConsole.ShowPassive(TextId.PeerClosedIzakaya.Get(PlayerManager.GetPeerName(SenderUid)));
         using (Bypass.Enter(eventManager))
         {

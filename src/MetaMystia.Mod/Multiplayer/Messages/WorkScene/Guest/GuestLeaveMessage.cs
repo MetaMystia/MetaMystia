@@ -14,7 +14,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 离场越过该顾客尚未应用的事件，客机重放原版离场以完成桌位、队列与回调清理。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class GuestLeaveMessage : MultiplayerMessage, IGuestEvent
 {
     public int RuntimeId { get; set; }

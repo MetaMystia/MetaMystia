@@ -23,8 +23,7 @@ public enum SpellKind : byte { Positive, Negative, Leave }
 /// 一次符卡执行。主机推进原版协程，开始时广播，正文第一步之后广播随机种子与选中的桌子、厨具；
 /// 客机按广播把同一张卡排入本地符卡队列，正文等到主机结果后执行。
 /// </summary>
-[AutoLog]
-public sealed partial class SpellRun
+public sealed class SpellRun
 {
     /// <summary>正在推进正文的符卡，只在正文的一步之内有值。</summary>
     public static SpellRun Current { get; private set; }

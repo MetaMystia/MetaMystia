@@ -10,7 +10,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 任何玩家 → 全体玩家：通告锁定某个厨具以准备烹饪某个料理，总是在 QTEMessage 之前触发。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class NightCookMessage : MultiplayerMessage
 {
     public int GridIndex { get; set; }
@@ -22,7 +21,6 @@ public partial class NightCookMessage : MultiplayerMessage
     public override void OnReceivedDerived()
     {
         if (YuyukoGuestSync.IsSwallowedCooker(GridIndex)) return;
-        Log.LogInfo($"Received COOK: CookerIndex={GridIndex}, FoodId={Food.Id}, Modifiers=[{string.Join(",", Food.ModifierIds)}]");
         if (!PlayerManager.RecipeAvailable(RecipeId))
         {
             Log.Error($"RecipeId {RecipeId} not available!");
@@ -31,7 +29,7 @@ public partial class NightCookMessage : MultiplayerMessage
         var recipe = RecipeId.RefRecipe();
         if (recipe == null)
         {
-            Log.LogWarning($"Failed to create recipe");
+            Log.Warning("Failed to create recipe");
             return;
         }
 
@@ -40,7 +38,7 @@ public partial class NightCookMessage : MultiplayerMessage
         var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
         if (cookerController == null)
         {
-            Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
+            Log.Warning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
 

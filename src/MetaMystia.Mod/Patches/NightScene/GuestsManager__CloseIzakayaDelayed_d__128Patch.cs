@@ -13,8 +13,7 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e：GuestsManager.CloseIzakayaDelayed 的状态机。普通营业的调用在闭包中被内联，只能 Hook MoveNext。
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.GuestsManager._CloseIzakayaDelayed_d__128))]
-[AutoLog]
-public static partial class GuestsManager__CloseIzakayaDelayed_d__128Patch
+public static class GuestsManager__CloseIzakayaDelayed_d__128Patch
 {
     /// <summary>主机等完全部顾客与符卡延长营业，开始关店。</summary>
     [HarmonyPatch(nameof(GuestsManager._CloseIzakayaDelayed_d__128.MoveNext))]

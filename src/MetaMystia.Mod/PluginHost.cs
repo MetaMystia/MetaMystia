@@ -18,8 +18,7 @@ namespace MetaMystia;
 /// 模组主要的 MonoBehaviour 宿主：驱动帧循环（Update / LateUpdate / FixedUpdate / OnGUI）与托管协程。
 /// 业务逻辑均在静态 Manager 中，宿主仅负责转发。由 Plugin.BootstrapPatch 在首个 Canvas 出现时注入。
 /// </summary>
-[AutoLog]
-public partial class PluginHost : MonoBehaviour
+public class PluginHost : MonoBehaviour
 {
     public static PluginHost Instance { get; private set; }
 
@@ -27,7 +26,7 @@ public partial class PluginHost : MonoBehaviour
     {
         if (Instance != null)
         {
-            Log.LogWarning($"Another instance of PluginHost already exists! Destroying this one.");
+            Log.Warning("Another instance of PluginHost already exists! Destroying this one.");
             Destroy(this);
             return;
         }

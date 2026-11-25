@@ -15,8 +15,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(Common.UI.UniversalGameManager))]
-[AutoLog]
-public partial class UniversalGameManagerPatch
+public class UniversalGameManagerPatch
 {
     [HarmonyPatch(nameof(UniversalGameManager.OpenDialogMenu))]
     [HarmonyPrefix]
@@ -35,7 +34,7 @@ public partial class UniversalGameManagerPatch
                 DialogRegistry.DumpExampleDialog();
             }
             dialogPackage.dialogContext = DialogRegistry.ExampleDialog.dialogContext;
-            Log.Info($"Replaced dialogPackage.dialogContext with ExampleDialog.dialogContext");
+            Log.Info("Replaced dialogPackage.dialogContext with ExampleDialog.dialogContext");
         }
         
         StoryReplayRecentHistory.Record(dialogPackage);
@@ -56,14 +55,12 @@ public partial class UniversalGameManagerPatch
         //     直接执行 onFinishCallback?.Invoke() 会有异步问题，导致挂起
         //     使用携带原有 onFinishCallback 回调的空对话包替代原有对话包实现
 
-        // Log.LogInfo($"OpenDialogMenu called with dialogPackage: {dialogPackage?.name}");
-
         if (!GameSession.HasRoomPeers || dialogPackage?.name != "OnTransitionToNight") // dialogPackage 可能为空
         {
             return RunOriginal;
         }
 
-        Log.LogInfo($"In multiplayer session and dialogPackage is OnTransitionToNight -> show empty dialog instead");
+        Log.Info("In multiplayer session and dialogPackage is OnTransitionToNight -> show empty dialog instead");
         UniversalGameManager.OpenDialogMenu(
             null,
             onFinishCallback: onFinishCallback,
@@ -78,6 +75,6 @@ public partial class UniversalGameManagerPatch
     public static void LoadScene_Prefix(Scene scene)
     {
         GameFlow.BeforeSceneLoad(scene);
-        Log.LogInfo($"LoadScene called, scene {scene}");
+        Log.Info($"LoadScene called, scene {scene}");
     }
 }

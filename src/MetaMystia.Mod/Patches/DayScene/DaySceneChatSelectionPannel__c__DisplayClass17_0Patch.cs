@@ -11,8 +11,7 @@ using MetaMystia.ResourceEx.Registries;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.UI.DaySceneChatSelectionPannel.__c__DisplayClass17_0))]
-[AutoLog]
-public partial class DaySceneChatSelectionPannel__c__DisplayClass17_0Patch
+public class DaySceneChatSelectionPannel__c__DisplayClass17_0Patch
 {
     [HarmonyPatch(nameof(DaySceneChatSelectionPannel.__c__DisplayClass17_0.Method_Internal_Void_SpecialNPCInteractData_byref_String_byref_Boolean_byref_Action_PDM_0))]
     [HarmonyPostfix]

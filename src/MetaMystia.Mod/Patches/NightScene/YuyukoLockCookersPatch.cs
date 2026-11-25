@@ -11,8 +11,7 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e：<MainChallengeLoop>g__LockCookersYuyuko|41，state 1 选目标，state 2 实际锁定。
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_6.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObSpCoObObUnique))]
-[AutoLog]
-public static partial class YuyukoLockCookersPatch
+public static class YuyukoLockCookersPatch
 {
     /// <summary>
     /// 保存本次恢复前的位置，供 Postfix 判断主机是否刚选定目标。

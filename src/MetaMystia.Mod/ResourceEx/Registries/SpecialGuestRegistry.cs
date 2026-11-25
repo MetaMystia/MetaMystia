@@ -49,7 +49,6 @@ TODO:
 /// <summary>
 /// 特典角色（SpecialGuest）领域注册器：持有角色配置、立绘映射与注册逻辑。
 /// </summary>
-[AutoLog]
 public static partial class SpecialGuestRegistry
 {
     private static readonly Dictionary<(int id, string type), CharacterConfig> _characterConfigs = new();
@@ -61,7 +60,7 @@ public static partial class SpecialGuestRegistry
         foreach (var charConfig in config.characters)
         {
             _characterConfigs[(charConfig.id, charConfig.type)] = charConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for character {charConfig.name} ({charConfig.id}, {charConfig.type})");
+            Log.Debug($"[{packageName}] Loaded config for character {charConfig.name} ({charConfig.id}, {charConfig.type})");
         }
     }
 
@@ -88,7 +87,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterSpecialPortraits()
     {
-        Log.Info($"Registering Special Portraits from ResourceEx...");
+        Log.Debug("Registering Special Portraits from ResourceEx...");
 
         foreach (var charConfig in GetAllCharacterConfigs().Where(c => c.portraits != null && c.portraits.Count > 0))
         {
@@ -111,15 +110,15 @@ public static partial class SpecialGuestRegistry
             if (identity == SpeakerIdentity.Identity.Special)
             {
                 DataBaseLanguage.SpecialGuest.ForceAddOrUpdateValueTuple(charConfig.id, val);
-                Log.Info($"Registered Special character: {charConfig.name} ({charConfig.id})");
+                Log.Debug($"Registered Special character: {charConfig.name} ({charConfig.id})");
             }
             else if (identity == SpeakerIdentity.Identity.Normal)
             {
-                Log.Info($"Normal character detected but registration not yet implemented: {charConfig.name} ({charConfig.id})");
+                Log.Debug($"Normal character detected but registration not yet implemented: {charConfig.name} ({charConfig.id})");
             }
             else if (identity == SpeakerIdentity.Identity.Self)
             {
-                Log.Info($"Self character detected: {charConfig.name} ({charConfig.id})");
+                Log.Debug($"Self character detected: {charConfig.name} ({charConfig.id})");
             }
             else
             {
@@ -130,7 +129,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterAllSpecialGuests()
     {
-        Log.Info($"Registering Special Guests from ResourceEx...");
+        Log.Debug("Registering Special Guests from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null)
             .ToList()
@@ -144,7 +143,7 @@ public static partial class SpecialGuestRegistry
         var specialGuests = DataBaseCharacter.SpecialGuest;
         if (specialGuests == null || specialGuests.Count == 0)
         {
-            Log.Error($"DataBaseCharacter.SpecialGuest is null or empty!");
+            Log.Error("DataBaseCharacter.SpecialGuest is null or empty!");
             return;
         }
 
@@ -160,7 +159,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterAllEvaluations()
     {
-        Log.Info($"Registering Special Guest Evaluations from ResourceEx...");
+        Log.Debug("Registering Special Guest Evaluations from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.evaluation != null)
             .ToList()
@@ -170,12 +169,12 @@ public static partial class SpecialGuestRegistry
     private static void RegisterEvaluation(CharacterConfig config)
     {
         NightSceneLanguage.SpecialEvaluation[config.id] = new Il2CppStringArray(config.guest.evaluation.ToArray());
-        Log.Info($"Registered Special Guest Evaluation: {config.name} ({config.id})");
+        Log.Debug($"Registered Special Guest Evaluation: {config.name} ({config.id})");
     }
 
     internal static void RegisterAllConversations()
     {
-        Log.Info($"Registering Special Guest Evaluations and Conversations from ResourceEx...");
+        Log.Debug("Registering Special Guest Evaluations and Conversations from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.conversation != null)
             .ToList()
@@ -188,7 +187,7 @@ public static partial class SpecialGuestRegistry
         NightSceneLanguage.SpecialConversation[config.id] = config.guest.conversation
             .Select(c => new UnityEngineExtensionStatic.StructPtr<string>(c))
             .ToArray();
-        Log.Info($"Registered Special Guest Conversation: {config.name} ({config.id})");
+        Log.Debug($"Registered Special Guest Conversation: {config.name} ({config.id})");
     }
 
 
@@ -196,11 +195,11 @@ public static partial class SpecialGuestRegistry
     {
         if (ConfigManager.FoodRequestMode.Value == RequestEnableMode.ForceDisable)
         {
-            Log.Info($"Food Requests are force disabled by config, skipping registration.");
+            Log.Info("Food Requests are force disabled by config, skipping registration.");
             return;
         }
 
-        Log.Info($"Registering Food Requests from ResourceEx...");
+        Log.Debug("Registering Food Requests from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.foodRequests != null)
             .ToList()
@@ -215,17 +214,17 @@ public static partial class SpecialGuestRegistry
                 .ToDictionary(req => req.tagId, req => req.request)
                 .ToIl2CppDictionary()
         );
-        Log.Info($"Registered Food Requests for Special Guest: {config.name} ({config.id})");
+        Log.Debug($"Registered Food Requests for Special Guest: {config.name} ({config.id})");
     }
 
     internal static void RegisterAllBevRequests()
     {
         if (ConfigManager.BevRequestMode.Value == RequestEnableMode.ForceDisable)
         {
-            Log.Info($"Beverage Requests are force disabled by config, skipping registration.");
+            Log.Info("Beverage Requests are force disabled by config, skipping registration.");
             return;
         }
-        Log.Info($"Registering Beverage Requests from ResourceEx...");
+        Log.Debug("Registering Beverage Requests from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.bevRequests != null)
             .ToList()
@@ -240,12 +239,12 @@ public static partial class SpecialGuestRegistry
                 .ToDictionary(req => req.tagId, req => req.request)
                 .ToIl2CppDictionary()
         );
-        Log.Info($"Registered Beverage Requests for Special Guest: {config.name} ({config.id})");
+        Log.Debug($"Registered Beverage Requests for Special Guest: {config.name} ({config.id})");
     }
 
     internal static void RegisterAllSpecialGuestPairs()
     {
-        Log.Info($"Registering Special Guest Pairs from ResourceEx...");
+        Log.Debug("Registering Special Guest Pairs from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.characterSpriteSetCompact != null)
             .ToList()
@@ -284,7 +283,7 @@ public static partial class SpecialGuestRegistry
 
     internal static void RegisterNPCs()
     {
-        Log.Info($"Registering NPCs from ResourceEx...");
+        Log.Debug("Registering NPCs from ResourceEx...");
         GetAllCharacterConfigs()
             .Where(c => c.guest != null)
             .ToList()
@@ -325,7 +324,7 @@ public static partial class SpecialGuestRegistry
 
     private static void RegisterAllSpawnMarkers()
     {
-        Log.Info($"Registering Spawn Markers from ResourceEx...");
+        Log.Debug("Registering Spawn Markers from ResourceEx...");
         GetAllCharacterConfigs()
             .Select(c => c.spawnMarker ?? new SpawnMarkerConfig() { mapLabel = "BeastForest", x = 0f, y = 0f, rotation = DayScene.Input.DayScenePlayerInputGenerator.CharacterRotation.Down })
             .ToList()
@@ -336,7 +335,7 @@ public static partial class SpecialGuestRegistry
     {
         var mapLabel = DataBaseDay.allSpawnMarkerLabels.ContainsKey(config.mapLabel) ? config.mapLabel : "BeastForest";
         DataBaseDay.allSpawnMarkerLabels[mapLabel].Add(config.mapLabel);
-        Log.Info($"Registered Spawn Marker for map: {config.mapLabel}");
+        Log.Debug($"Registered Spawn Marker for map: {config.mapLabel}");
     }
 
     public static SpawnMarkerConfig GetSpawnMarkerConfig(this string stringId) =>
@@ -377,13 +376,13 @@ public static partial class SpecialGuestRegistry
         npc.overridePosition = null;
         RunTimeDayScene.GetMapNPCs(mapLabel).Add(config.label, npc);
         RunTimeDayScene.OnRequireCurrentMapRefreshCallback?.Invoke();
-        Log.Info($"Initialized Day Scene Spawn Config for Special Guest: {config.name} ({config.id})");
+        Log.Debug($"Initialized Day Scene Spawn Config for Special Guest: {config.name} ({config.id})");
     }
 
 
     internal static void RegisterAllSpawnConfigs()
     {
-        Log.Info($"Registering Spawn Configs from ResourceEx...");
+        Log.Debug("Registering Spawn Configs from ResourceEx...");
 
         var spawnGroups = GetAllCharacterConfigs()
             .Where(c => c.guest != null && c.guest.spawn != null)
@@ -415,7 +414,7 @@ public static partial class SpecialGuestRegistry
                 .Concat(newGroups)
                 .ToArray();
 
-            newGroups.ForEach(g => Log.Info($"Registered Spawn Config for GroupId {g.GroupId} in Izakaya {izakayaId}"));
+            newGroups.ForEach(g => Log.Debug($"Registered Spawn Config for GroupId {g.GroupId} in Izakaya {izakayaId}"));
         }
     }
 
@@ -453,7 +452,7 @@ public static partial class SpecialGuestRegistry
                         var dialogs = new Il2CppStringArray(chatData.Where(x => !string.IsNullOrEmpty(x)).ToArray());
 
                         RunTimeDayScene.SetNPCDialog(stringId, "Wriggle", dialogs);
-                        Log.Info($"Reset dialog for tracked NPC: {config.name} ({stringId}) at Lv {level}");
+                        Log.Debug($"Reset dialog for tracked NPC: {config.name} ({stringId}) at Lv {level}");
                     }
                 }
             }

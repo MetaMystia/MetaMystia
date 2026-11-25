@@ -8,8 +8,7 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.NightSceneDirector))]
-[AutoLog]
-public static partial class NightSceneDirectorPatch
+public static class NightSceneDirectorPatch
 {
     public static bool ReturningFromTrial { get; private set; }
 

@@ -6,7 +6,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>入房后的玩法初始状态，由房主提供。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class RoomInitialStateMessage : MultiplayerMessage
 {
     public int Round { get; set; }

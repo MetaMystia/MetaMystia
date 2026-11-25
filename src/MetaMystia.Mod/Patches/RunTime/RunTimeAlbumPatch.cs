@@ -9,8 +9,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeAlbum))]
-[AutoLog]
-public partial class RunTimeAlbumPatch
+public class RunTimeAlbumPatch
 {
     // ResourceEx 稀客没有 DataBaseDay NPC，原版按标签查询会失败；改用配置中的 id。
     [HarmonyPatch(nameof(RunTimeAlbum.RefSpecialNPCId), [typeof(string)])]
