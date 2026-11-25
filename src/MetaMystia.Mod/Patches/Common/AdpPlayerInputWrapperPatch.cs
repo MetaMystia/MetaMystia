@@ -11,7 +11,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DEYU.AdpUISystem.ComponentCollection.AdpPlayerInputWrapper))]
-public partial class AdpPlayerInputWrapperPatch
+public class AdpPlayerInputWrapperPatch
 {
     // 控制台打开时只放行松开和指针位置，按住的键在关闭后不会残留。
     [HarmonyPatch(nameof(AdpPlayerInputWrapper.OnActionTriggered))]

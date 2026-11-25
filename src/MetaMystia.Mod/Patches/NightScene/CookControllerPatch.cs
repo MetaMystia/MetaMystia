@@ -13,7 +13,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.CookingUtility.CookController))]
-public partial class CookControllerPatch
+public class CookControllerPatch
 {
 
     [HarmonyPatch(nameof(CookController.SetCook))]

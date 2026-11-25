@@ -13,7 +13,7 @@ namespace MetaMystia.ResourceEx.AssetManagement;
 /// <summary>
 /// Loads resource packages (ZIP files) from disk and parses their configurations
 /// </summary>
-public static partial class ResourcePackageLoader
+public static class ResourcePackageLoader
 {
     /// <summary>
     /// Scans the resource directory and loads all valid resource packages

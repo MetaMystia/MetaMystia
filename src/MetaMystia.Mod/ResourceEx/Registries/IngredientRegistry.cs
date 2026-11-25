@@ -13,7 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 食材领域注册器：持有食材配置，负责注册与语言注册。
 /// </summary>
-public static partial class IngredientRegistry
+public static class IngredientRegistry
 {
     private static readonly Dictionary<int, IngredientConfig> IngredientConfigs = new();
 

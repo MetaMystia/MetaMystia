@@ -11,7 +11,7 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.CharacterUtility.CharacterControllerInputGeneratorComponent))]
-public partial class CharacterControllerInputGeneratorComponentPatch
+public class CharacterControllerInputGeneratorComponentPatch
 {
     [HarmonyPatch(nameof(CharacterControllerInputGeneratorComponent.UpdateInputDirection))]
     [HarmonyPrefix]

@@ -6,7 +6,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GameData.CoreLanguage.Collections.NightSceneLanguage))]
-public partial class NightSceneLanguagePatch
+public class NightSceneLanguagePatch
 {
     [HarmonyPatch(nameof(NightSceneLanguage.Initialize))]
     [HarmonyPostfix]

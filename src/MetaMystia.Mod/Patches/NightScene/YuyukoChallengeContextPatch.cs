@@ -15,7 +15,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0))]
-public partial class YuyukoChallengeContextPatch
+public class YuyukoChallengeContextPatch
 {
     /// <summary>
     /// 对应 4.4.0e 剧情版 YuyukoOverrideEvaluationCallback|33。

@@ -13,7 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 事件节点领域注册器：持有事件节点配置，负责注册与羁绊事件激活。
 /// </summary>
-public static partial class EventNodeRegistry
+public static class EventNodeRegistry
 {
     private static readonly List<EventNodeConfig> EventNodeConfigs = new();
 

@@ -18,7 +18,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 对话包领域注册器：持有对话包配置与构建产物，负责构建与注册。
 /// </summary>
-public static partial class DialogRegistry
+public static class DialogRegistry
 {
     private static readonly Dictionary<string, DialogPackageConfig> _dialogPackageConfigs = new();
     private static readonly Dictionary<string, BuiltDialogPackage> _builtDialogPackages = new();

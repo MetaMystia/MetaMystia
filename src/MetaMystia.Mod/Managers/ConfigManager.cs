@@ -26,7 +26,7 @@ public enum LiveMode
 
 
 
-public static partial class ConfigManager
+public static class ConfigManager
 {
     public static ConfigFile Config => Plugin.Instance?.Config;
     public static ConfigEntry<bool> Debug;

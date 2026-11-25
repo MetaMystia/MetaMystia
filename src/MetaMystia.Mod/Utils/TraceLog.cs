@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace MetaMystia;
 
-public partial class TraceLog
+public class TraceLog
 {
     public Stack<string> CallStack { get; } = new Stack<string>();
     public int Depth => CallStack.Count;

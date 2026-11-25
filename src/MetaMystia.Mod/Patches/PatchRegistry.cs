@@ -3,7 +3,7 @@ using HarmonyLib;
 
 namespace MetaMystia.Patch;
 
-public static partial class PatchRegistry
+public static class PatchRegistry
 {
     public static readonly Type[] Patches = [
         // Launch

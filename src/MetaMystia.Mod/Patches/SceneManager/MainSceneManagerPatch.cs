@@ -9,7 +9,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(MainScene.SceneManager))]
-public partial class MainSceneManagerPatch
+public class MainSceneManagerPatch
 {
     public static bool FirstEnterMain { get; private set; } = true;
 

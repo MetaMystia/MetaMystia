@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace MetaMystia;
 
-public static partial class Utils
+public static class Utils
 {
     public static Sprite GetArtWork(string filePath, Vector2 pivot, int width = 0, int height = 0, int pixelOffsetX = 0, int pixelOffsetY = 0)
     {

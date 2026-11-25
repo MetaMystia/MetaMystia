@@ -12,7 +12,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeStorage))]
-public static partial class RunTimeStoragePatch
+public static class RunTimeStoragePatch
 {
     [HarmonyPatch(nameof(RunTimeStorage.GetAllBeverages))]
     [HarmonyPostfix]

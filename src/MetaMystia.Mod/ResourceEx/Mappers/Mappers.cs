@@ -26,7 +26,7 @@ namespace MetaMystia.ResourceEx.Mappers;
 /// <summary>
 /// Mapper layer for converting config DTOs to runtime game objects
 /// </summary>
-public static partial class Mappers
+public static class Mappers
 {
     #region Ingredient Mappers
 

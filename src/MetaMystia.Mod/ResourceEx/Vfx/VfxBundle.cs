@@ -17,7 +17,7 @@ namespace MetaMystia.ResourceEx.Vfx;
 /// 一个特效 AssetBundle：同步加载并按名称缓存 prefab，负责播放、全屏遮罩与结束。
 /// 由资源包的 assetBundles 声明，启动时经 AssetBundleRegistry 预加载，任何功能按 URI 取用。
 /// </summary>
-public sealed partial class VfxBundle
+public sealed class VfxBundle
 {
     /// <summary>全屏遮罩：高于夜间 HUD（Canvas 3000），低于操作面板 UIPannelRoot（8000）与 RootCanvas。</summary>
     private const int OverlaySortingOrder = 7999;

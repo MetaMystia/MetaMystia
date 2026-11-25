@@ -13,7 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 像素精灵（CharacterSpriteSetCompact/Full）构建工具：从配置生成游戏像素精灵对象。
 /// </summary>
-public static partial class PixelSpriteFactory
+public static class PixelSpriteFactory
 {
     private const int CharacterPixelSpriteSize = 64;
     private static readonly Vector2 CharacterPixelPivot = new Vector2(0.5f, 0.0f);

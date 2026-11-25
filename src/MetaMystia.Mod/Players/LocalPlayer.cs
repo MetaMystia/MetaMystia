@@ -10,7 +10,7 @@ namespace MetaMystia;
 /// <summary>
 /// 本地玩家，管理与本地操控角色相关的状态
 /// </summary>
-public partial class LocalPlayer : NetPlayer
+public class LocalPlayer : NetPlayer
 {
     public bool CharacterSpawnedAndInitialized => GetCharacterUnit() != null;
 

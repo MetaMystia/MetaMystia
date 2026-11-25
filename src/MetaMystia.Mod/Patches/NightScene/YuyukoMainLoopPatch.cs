@@ -11,7 +11,7 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e MainChallengeLoop.MoveNext，阶段结束后的恢复点，见同步审计文档。
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16))]
-public static partial class YuyukoMainLoopPatch
+public static class YuyukoMainLoopPatch
 {
     /// <summary>
     /// 在原版主循环恢复前检查阶段数据：一阶段主机先清场，其他阶段发布依据；客机等待并回填消息。

@@ -19,7 +19,7 @@ namespace MetaMystia.ResourceEx.AssetManagement;
 ///   9000 ~ 1073741823     — managed range, requires valid RSA signature
 ///   1073741824 ~ 2147483647 — unmanaged range, free to use without signature
 /// </summary>
-public static partial class IdRangeValidator
+public static class IdRangeValidator
 {
     public const int GameIdMax = 8999;
     public const int ManagedIdMin = 9000;

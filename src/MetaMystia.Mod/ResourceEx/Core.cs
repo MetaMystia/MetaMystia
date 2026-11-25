@@ -16,7 +16,7 @@ namespace MetaMystia;
 /// ResourceEx 资源包加载与生命周期编排入口：包加载、DLC 依赖检查、游戏数据库初始化钩子。
 /// 各内容领域的配置持有与注册逻辑见对应的 *Registry 类。
 /// </summary>
-public static partial class ResourceExManager
+public static class ResourceExManager
 {
     // Abstracted resource root path
     public static string ResourceRoot { get; set; } = Path.Combine(Paths.GameRootPath, "ResourceEx");

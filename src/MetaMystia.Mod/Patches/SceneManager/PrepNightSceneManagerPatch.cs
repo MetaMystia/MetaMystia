@@ -6,7 +6,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(PrepNightScene.SceneManager))]
-public partial class PrepNightSceneManagerPatch
+public class PrepNightSceneManagerPatch
 {
     [HarmonyPatch(nameof(SceneManager.Start))]
     [HarmonyPostfix]

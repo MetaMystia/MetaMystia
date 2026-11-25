@@ -17,7 +17,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(PrepNightScene.UI.IzakayaConfigPannel))]
-public partial class IzakayaConfigPannelPatch
+public class IzakayaConfigPannelPatch
 {
     public static IzakayaConfigPannel instanceRef = null;
 

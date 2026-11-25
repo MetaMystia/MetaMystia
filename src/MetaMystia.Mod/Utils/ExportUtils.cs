@@ -15,7 +15,7 @@ namespace MetaMystia;
 /// 这是一个导出工具类，提供将游戏内资源导出为外部文件的功能，方便美术创作者进行符合原游戏 Sprite 规格的二次创作。
 /// 理论上不应在运行时调用此类方法，建议在调试阶段使用后移除相关调用。
 /// </summary>
-public static partial class ExportUtils
+public static class ExportUtils
 {
     public static string ExportRoot { get; set; } = Path.Combine(Paths.GameRootPath, "Exports");
 

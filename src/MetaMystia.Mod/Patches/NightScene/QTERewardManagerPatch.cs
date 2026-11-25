@@ -8,7 +8,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.CookingUtility.QTERewardManager))]
-public partial class QTERewardManagerPatch
+public class QTERewardManagerPatch
 {
     public static volatile bool BuffLocalTrigger = true;
     public static volatile bool OnQTESucceededExecuting = false;

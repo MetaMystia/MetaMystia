@@ -15,7 +15,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.NightSceneUtility.IzakayaConfigure))]
-public partial class IzakayaConfigurePatch
+public class IzakayaConfigurePatch
 {
     [HarmonyPatch(nameof(IzakayaConfigure.Initialize))]
     [HarmonyPostfix]

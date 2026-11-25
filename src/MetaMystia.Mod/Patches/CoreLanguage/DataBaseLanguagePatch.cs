@@ -6,7 +6,7 @@ using GameData.CoreLanguage.Collections;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.CoreLanguage.Collections.DataBaseLanguage))]
-public partial class DataBaseLanguagePatch
+public class DataBaseLanguagePatch
 {
     [HarmonyPatch(nameof(DataBaseLanguage.Initialize))]
     [HarmonyPostfix]

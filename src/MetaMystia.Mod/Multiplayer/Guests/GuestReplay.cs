@@ -16,7 +16,7 @@ using SgrYuki.Utils;
 namespace MetaMystia.Multiplayer.Guests;
 
 /// <summary>客机重放原版顾客流程中由主机决定的部分。</summary>
-public static partial class GuestReplay
+public static class GuestReplay
 {
     /// <summary>
     /// 对应 SpawnNormalGuestGroupExtern 与 SpawnSpecialGuestGroup 的前半段：构造控制器并执行 PostInitializeGuestGroup。

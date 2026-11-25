@@ -14,7 +14,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(Common.UI.IzakayaSelectorPanel_New))]
-public partial class IzakayaSelectorPanelPatch
+public class IzakayaSelectorPanelPatch
 {
     public static IzakayaSelectorPanel_New instanceRef = null;
     public static Dictionary<MapLabel, Common.UI.GlobalMap.IGuideMapSpot> cachedSpots = new();

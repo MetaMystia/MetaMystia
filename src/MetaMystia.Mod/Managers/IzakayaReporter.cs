@@ -10,7 +10,7 @@ using SgrYuki;
 
 namespace MetaMystia;
 
-public static partial class IzakayaReporter
+public static class IzakayaReporter
 {
     private const int HeartbeatIntervalSeconds = 2 * 60;
     private const string LogScope = "[Izakaya]";

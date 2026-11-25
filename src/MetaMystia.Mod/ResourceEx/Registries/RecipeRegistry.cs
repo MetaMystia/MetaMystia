@@ -11,7 +11,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 配方领域注册器：持有配方配置，负责注册。
 /// </summary>
-public static partial class RecipeRegistry
+public static class RecipeRegistry
 {
     private static readonly Dictionary<int, RecipeConfig> RecipeConfigs = new();
 

@@ -17,7 +17,7 @@ namespace MetaMystia.Multiplayer.Guests;
 /// 当前场景的联机顾客登记表，存于 <see cref="Scopes.Scene"/>，离开场景整体失效。
 /// 客机收到的主机事件进入各顾客的待应用队列，只在消息接收和每帧 Tick 时处理，不在原版 Hook 内处理。
 /// </summary>
-public sealed partial class GuestRegistry : IScopeEnd
+public sealed class GuestRegistry : IScopeEnd
 {
     /// <summary>本地动画或计时落后时的宽限（游戏时间）；期满后追上主机。</summary>
     private const float GraceSeconds = 1.5f;

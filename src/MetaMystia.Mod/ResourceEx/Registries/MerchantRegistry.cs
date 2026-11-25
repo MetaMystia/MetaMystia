@@ -19,7 +19,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 商人领域注册器：持有商人配置与构建产物，负责构建、追踪与清理。
 /// </summary>
-public static partial class MerchantRegistry
+public static class MerchantRegistry
 {
     private static readonly Dictionary<string, MerchantConfig> MerchantConfigs = new();
     private static readonly Dictionary<string, Merchant> _builtMerchants = new();

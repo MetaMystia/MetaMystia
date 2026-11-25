@@ -6,7 +6,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(NightScene.UI.UIManager))]
-public partial class UIManagerPatch
+public class UIManagerPatch
 {
     [HarmonyPatch(nameof(UIManager.Initialize))]
     [HarmonyPostfix]

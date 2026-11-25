@@ -12,7 +12,7 @@ namespace MetaMystia;
 /// <summary>
 /// 模组静态业务入口（与其他 Manager 一致）。帧循环驱动见 <see cref="PluginHost"/>。
 /// </summary>
-public static partial class PluginManager
+public static class PluginManager
 {
     public static string Label
     {

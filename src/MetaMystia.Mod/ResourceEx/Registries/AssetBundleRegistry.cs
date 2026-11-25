@@ -10,7 +10,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// AssetBundle 注册器：在数据初始化时同步预加载资源包声明的全部 AssetBundle，
 /// 避免首次使用时卡顿；加载后常驻内存，运行时按 rex:// URI 取用。
 /// </summary>
-public static partial class AssetBundleRegistry
+public static class AssetBundleRegistry
 {
     private static readonly List<string> BundleUris = [];
     private static readonly Dictionary<string, VfxBundle> Bundles = [];

@@ -9,7 +9,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DEYU.InputHelper.DynamicDeviceActionProvider))]
-public partial class DynamicDeviceActionProviderPatch
+public class DynamicDeviceActionProviderPatch
 {
     // J/K 会切到键盘模式并隐藏游戏光标，打字时不切换。
     [HarmonyPatch(nameof(DynamicDeviceActionProvider.UpdateCurrentMouseState))]

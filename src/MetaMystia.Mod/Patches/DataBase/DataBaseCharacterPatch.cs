@@ -12,7 +12,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GameData.Core.Collections.CharacterUtility.DataBaseCharacter))]
-public partial class DataBaseCharacterPatch
+public class DataBaseCharacterPatch
 {
     [HarmonyPatch(nameof(DataBaseCharacter.Initialize))]
     [HarmonyPostfix]

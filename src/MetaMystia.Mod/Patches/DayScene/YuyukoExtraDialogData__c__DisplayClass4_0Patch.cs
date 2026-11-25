@@ -11,7 +11,7 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Core.Collections.DaySceneUtility.Collections.YuyukoExtraDialogData.__c__DisplayClass4_0))]
-public partial class YuyukoExtraDialogData__c__DisplayClass4_0Patch
+public class YuyukoExtraDialogData__c__DisplayClass4_0Patch
 {
     // Yuyuko_Challenge 的确认回调：先 ScheduleEventExtern，再 StartChallengeSession。
     // 保留整个回调，避免改选营业后残留尚未进入的挑战事件。

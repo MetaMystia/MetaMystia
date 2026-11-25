@@ -12,7 +12,7 @@ using MetaMystia.UI;
 namespace MetaMystia;
 
 /// <summary>远端玩家的最新状态，以及当前场景中由模组创建的角色。</summary>
-public partial class PeerPlayer : NetPlayer
+public class PeerPlayer : NetPlayer
 {
     public string CharacterId => $"MetaMystia_{Uid}";
     public Player NetworkState { get; private set; }

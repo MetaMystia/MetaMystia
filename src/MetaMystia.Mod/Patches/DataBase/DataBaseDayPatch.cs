@@ -11,7 +11,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GameData.Core.Collections.DaySceneUtility.DataBaseDay))]
-public partial class DataBaseDayPatch
+public class DataBaseDayPatch
 {
 
     [HarmonyPatch(nameof(DataBaseDay.Initialize))]

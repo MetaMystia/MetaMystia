@@ -5,7 +5,7 @@ using GameData.Core.Collections;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Core.Collections.DataBaseScheduler))]
-public partial class DataBaseSchedulerPatch
+public class DataBaseSchedulerPatch
 {
     [HarmonyPatch(nameof(DataBaseScheduler.Initialize))]
     [HarmonyPostfix]

@@ -6,7 +6,7 @@ using DayScene.UI;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.UI.DaySceneShopPannel))]
-public static partial class DaySceneShopPannelPatch
+public static class DaySceneShopPannelPatch
 {
     [HarmonyPatch(nameof(DaySceneShopPannel.OnPanelOpen))]
     [HarmonyPostfix]

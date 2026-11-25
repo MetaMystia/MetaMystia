@@ -9,7 +9,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.Input.DayScenePlayerInputGenerator))]
-public partial class DayScenePlayerInputPatch
+public class DayScenePlayerInputPatch
 {
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.OnSprintPerformed))]
     [HarmonyPrefix]

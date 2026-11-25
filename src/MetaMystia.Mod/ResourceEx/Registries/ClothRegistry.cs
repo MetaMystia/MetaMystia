@@ -16,7 +16,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// 服装领域注册器：持有服装配置，负责 ClothesProfile / 像素精灵注册与立绘查询。
 /// 服装的 Item 与语言由 <see cref="ItemRegistry"/> 注册。
 /// </summary>
-public static partial class ClothRegistry
+public static class ClothRegistry
 {
     private static readonly Dictionary<int, ClothConfig> ClothConfigs = new();
     // Cloth portrait cache: clothId -> Sprite (loaded lazily or during preload)

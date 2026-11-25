@@ -12,7 +12,7 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.EventUtility.EventManager))]
-public static partial class NightSceneEventManagerPatch
+public static class NightSceneEventManagerPatch
 {
     public static bool IsHostCloseReplay => Bypass.Active(EventManager.Instance);
 

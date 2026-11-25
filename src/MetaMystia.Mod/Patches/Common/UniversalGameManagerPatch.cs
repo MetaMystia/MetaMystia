@@ -15,7 +15,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(Common.UI.UniversalGameManager))]
-public partial class UniversalGameManagerPatch
+public class UniversalGameManagerPatch
 {
     [HarmonyPatch(nameof(UniversalGameManager.OpenDialogMenu))]
     [HarmonyPrefix]

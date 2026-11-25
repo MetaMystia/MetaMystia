@@ -25,7 +25,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// 符卡注册器：按资源包 spells 声明创建对应的代码实现，并依游戏各数据库的初始化时机分步写入
 /// 语言、角色标记、符卡实例与立绘。本类不含任何具体符卡的内容。
 /// </summary>
-public static partial class SpellRegistry
+public static class SpellRegistry
 {
     /// <summary>implementation → 代码实现。新增符卡实现时在此加一行。</summary>
     private static readonly Dictionary<string, Func<int, VfxBundle, SpellBaseEx>> Implementations = new()

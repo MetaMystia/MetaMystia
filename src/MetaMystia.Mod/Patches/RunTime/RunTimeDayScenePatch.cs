@@ -13,7 +13,7 @@ using SgrYuki.Utils;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.DaySceneUtility.RunTimeDayScene))]
-public partial class RunTimeDayScenePatch
+public class RunTimeDayScenePatch
 {
 
     [HarmonyPatch(nameof(RunTimeDayScene.GetMerchantData))]

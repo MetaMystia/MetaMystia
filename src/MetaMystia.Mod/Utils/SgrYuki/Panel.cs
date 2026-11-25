@@ -4,7 +4,7 @@ using MetaMystia;
 
 namespace SgrYuki.Utils;
 
-public static partial class Panel
+public static class Panel
 {
     public static Il2CppSystem.Collections.Generic.Stack<Il2CppSystem.Collections.Generic.Stack<DEYU.AdpUISystem.PanelCollection.UIPanelImpl>> PanelStack => DEYU.AdpUISystem.Managers.AdpUIPanelManager.Instance?.m_PanelStack;
     public static Il2CppSystem.Collections.Generic.Stack<DEYU.AdpUISystem.PanelCollection.UIPanelImpl> TopPanelStack => PanelStack != null && PanelStack.Count > 0 ? PanelStack.Peek() : null;

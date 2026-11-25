@@ -14,7 +14,7 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e：<MainChallengeLoop>g__Phase3GuestSpawnLoop|43。
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_6.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb0))]
-public static partial class YuyukoPhase3GuestSpawnPatch
+public static class YuyukoPhase3GuestSpawnPatch
 {
     /// <summary>
     /// 客机将三阶段分身生成循环保持为等待，分身由主机生成并通过普通顾客同步接入。

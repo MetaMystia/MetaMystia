@@ -5,7 +5,7 @@ using GameData.Core.Collections;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Core.Collections.DataBaseCore))]
-public partial class DataBaseCorePatch
+public class DataBaseCorePatch
 {
     [HarmonyPatch(nameof(DataBaseCore.Initialize))]
     [HarmonyPostfix]

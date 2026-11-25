@@ -19,7 +19,7 @@ using SgrYuki.Utils;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData))]
-public partial class YuyukoBossDataPatch
+public class YuyukoBossDataPatch
 {
     private static GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16 currentLoop;
     private static bool failureStarted;

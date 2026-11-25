@@ -9,7 +9,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GamePlatform.Profiles.SteamPlatformProfile))]
-public partial class SteamPlatformProfilePatch
+public class SteamPlatformProfilePatch
 {
     [HarmonyPatch(nameof(SteamPlatformProfile.GetActiveKeys))]
     [HarmonyPostfix]

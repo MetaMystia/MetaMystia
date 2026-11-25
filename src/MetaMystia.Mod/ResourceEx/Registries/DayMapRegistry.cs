@@ -26,7 +26,7 @@ using MetaMystia.ResourceEx.Models;
 
 namespace MetaMystia.ResourceEx.Registries;
 
-public static partial class DayMapRegistry
+public static class DayMapRegistry
 {
     public const int FormatVersion = 3;
     public const int ChunkSize = 1024;

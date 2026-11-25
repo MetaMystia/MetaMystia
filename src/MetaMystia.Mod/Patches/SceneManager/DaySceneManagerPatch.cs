@@ -15,7 +15,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(DayScene.SceneManager))]
-public partial class DaySceneManagerPatch
+public class DaySceneManagerPatch
 {
     [HarmonyPatch(nameof(SceneManager.Awake))]
     [HarmonyPrefix]

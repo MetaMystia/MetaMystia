@@ -13,7 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 饮料领域注册器：持有饮料配置，负责注册与语言注册。
 /// </summary>
-public static partial class BeverageRegistry
+public static class BeverageRegistry
 {
     private static readonly Dictionary<int, BeverageConfig> BeverageConfigs = new();
 

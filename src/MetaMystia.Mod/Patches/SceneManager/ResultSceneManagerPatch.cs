@@ -6,7 +6,7 @@ using NightScene;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(ResultScene.SceneManager))]
-public partial class ResultSceneManagerPatch
+public class ResultSceneManagerPatch
 {
     [HarmonyPatch(nameof(SceneManager.Start))]
     [HarmonyPostfix]

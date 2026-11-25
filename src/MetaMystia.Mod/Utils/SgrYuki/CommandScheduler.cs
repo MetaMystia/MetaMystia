@@ -11,7 +11,7 @@ namespace SgrYuki;
 
 using KeyCommandQueue = ConcurrentDictionary<string, ConcurrentQueue<CommandScheduler.Command>>;
 
-public static partial class CommandScheduler
+public static class CommandScheduler
 {
     public sealed class Command
     {

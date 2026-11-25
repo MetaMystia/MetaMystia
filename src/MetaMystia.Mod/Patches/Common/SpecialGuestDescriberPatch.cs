@@ -10,7 +10,7 @@ using MetaMystia.ResourceEx.Registries;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.UI.SpecialGuestDescriber))]
-public partial class SpecialGuestDescriberPatch
+public class SpecialGuestDescriberPatch
 {
     [HarmonyPatch(nameof(SpecialGuestDescriber.Describe))]
     [HarmonyPrefix]

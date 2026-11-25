@@ -13,7 +13,7 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(NightScene.UI.CookingUtility.WorkSceneStoragePannel))]
-public partial class WorkSceneStoragePannelPatch
+public class WorkSceneStoragePannelPatch
 {
     public static WorkSceneStoragePannel instanceRef = null;
 

@@ -13,7 +13,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// buff 注册器：把资源包声明的 buff 标题、说明与图标写入 BuffDescription。
 /// 与符卡等使用方解耦，使用方按 id 引用。图标规格见 docs/spell-creation/art-pipeline.md。
 /// </summary>
-public static partial class BuffRegistry
+public static class BuffRegistry
 {
     private static readonly Dictionary<int, BuffConfig> BuffConfigs = [];
 

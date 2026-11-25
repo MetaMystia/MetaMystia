@@ -5,7 +5,7 @@ using GameData.CoreLanguage.Collections;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.CoreLanguage.Collections.DaySceneLanguage))]
-public partial class DaySceneLanguagePatch
+public class DaySceneLanguagePatch
 {
     [HarmonyPatch(nameof(DaySceneLanguage.Initialize))]
     [HarmonyPostfix]

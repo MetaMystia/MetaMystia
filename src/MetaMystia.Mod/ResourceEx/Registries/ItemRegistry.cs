@@ -15,7 +15,7 @@ namespace MetaMystia.ResourceEx.Registries;
 /// 物品领域注册器：持有 items 与 clothes 的物品配置，负责 Item 与语言注册。
 /// 服装专属的 ClothesProfile、像素精灵与立绘由 <see cref="ClothRegistry"/> 注册。
 /// </summary>
-public static partial class ItemRegistry
+public static class ItemRegistry
 {
     private static readonly Dictionary<int, ItemConfig> ItemConfigs = new();
 

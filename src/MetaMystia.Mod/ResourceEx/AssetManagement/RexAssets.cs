@@ -166,7 +166,7 @@ public sealed class RexBinaryAsset : RexAsset
     }
 }
 
-public static partial class RexAssetRegistry
+public static class RexAssetRegistry
 {
     // Case-sensitive: rex:// URIs follow RFC 3986 path semantics. The scheme prefix itself
     // is matched case-insensitively in RexUri.IsRexUri (per RFC 3986), but package name and
