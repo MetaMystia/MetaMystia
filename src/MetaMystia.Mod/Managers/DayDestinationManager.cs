@@ -20,7 +20,6 @@ public enum DayDestination
 }
 
 /// <summary>白天入口只提交意向；主机确定本轮目标后，各端继续原入口。</summary>
-[AutoLog]
 public static partial class DayDestinationManager
 {
     public static int Round { get; private set; } = 1;

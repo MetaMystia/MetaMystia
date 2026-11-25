@@ -13,7 +13,6 @@ namespace MetaMystia.Patch;
 
 // <<MainChallengeLoop>g__Phase2GuestSpawnLoop|15>d，MoveNext VA 0x18078B480（4.3.0C）。
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb1))]
-[AutoLog]
 public partial class YuyukoPhase2GuestSpawnPatch
 {
     [HarmonyPatch(nameof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb1.MoveNext))]

@@ -14,7 +14,6 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_6))]
-[AutoLog]
 public static partial class YuyukoRetakeContextPatch
 {
     /// <summary>

@@ -14,7 +14,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(Common.UI.IzakayaSelectorPanel_New))]
-[AutoLog]
 public partial class IzakayaSelectorPanelPatch
 {
     public static IzakayaSelectorPanel_New instanceRef = null;
@@ -27,7 +26,7 @@ public partial class IzakayaSelectorPanelPatch
     {
         instanceRef = __instance;
         confirmed = false;
-        Log.LogInfo($"OnGuideMapInitialize called");
+        Log.Info($"OnGuideMapInitialize called");
     }
 
     [HarmonyPatch(nameof(IzakayaSelectorPanel_New._OnGuideMapInitialize_b__21_0))]
@@ -99,7 +98,7 @@ public partial class IzakayaSelectorPanelPatch
         }
 
         // 全员一致 → 广播 CONFIRM_SELECT → 本地执行切换
-        Log.LogMessage($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
+        Log.Message($"All peers match selection: {mySelect}, broadcasting CONFIRM and proceeding");
         confirmed = true;
         ConfirmIzakayaMessage.Send(mapLabel, level);
         InGameConsole.ShowPassive(TextId.SelectedIzakaya.Get(mySelect));

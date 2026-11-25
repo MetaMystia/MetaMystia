@@ -6,7 +6,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(PrepNightScene.SceneManager))]
-[AutoLog]
 public partial class PrepNightSceneManagerPatch
 {
     [HarmonyPatch(nameof(SceneManager.Start))]

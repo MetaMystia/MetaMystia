@@ -13,7 +13,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 饮料领域注册器：持有饮料配置，负责注册与语言注册。
 /// </summary>
-[AutoLog]
 public static partial class BeverageRegistry
 {
     private static readonly Dictionary<int, BeverageConfig> BeverageConfigs = new();
@@ -25,7 +24,7 @@ public static partial class BeverageRegistry
         foreach (var beverageConfig in config.beverages)
         {
             BeverageConfigs[beverageConfig.id] = beverageConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for beverage {beverageConfig.name} ({beverageConfig.id})");
+            Log.Info($"[{packageName}] Loaded config for beverage {beverageConfig.name} ({beverageConfig.id})");
         }
     }
 

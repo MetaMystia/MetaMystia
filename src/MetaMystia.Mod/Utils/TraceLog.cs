@@ -4,7 +4,6 @@ using System.Collections.Generic;
 
 namespace MetaMystia;
 
-[AutoLog]
 public partial class TraceLog
 {
     public Stack<string> CallStack { get; } = new Stack<string>();

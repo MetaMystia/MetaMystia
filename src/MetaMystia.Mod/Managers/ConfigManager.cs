@@ -26,7 +26,6 @@ public enum LiveMode
 
 
 
-[AutoLog]
 public static partial class ConfigManager
 {
     public static ConfigFile Config => Plugin.Instance?.Config;

@@ -6,7 +6,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(NightScene.UI.UIManager))]
-[AutoLog]
 public partial class UIManagerPatch
 {
     [HarmonyPatch(nameof(UIManager.Initialize))]

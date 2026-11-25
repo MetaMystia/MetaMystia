@@ -26,7 +26,6 @@ using MetaMystia.ResourceEx.Models;
 
 namespace MetaMystia.ResourceEx.Registries;
 
-[AutoLog]
 public static partial class DayMapRegistry
 {
     public const int FormatVersion = 3;

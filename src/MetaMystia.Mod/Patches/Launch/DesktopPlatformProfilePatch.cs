@@ -9,7 +9,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GamePlatform.Profiles.SteamPlatformProfile))]
-[AutoLog]
 public partial class SteamPlatformProfilePatch
 {
     [HarmonyPatch(nameof(SteamPlatformProfile.GetActiveKeys))]

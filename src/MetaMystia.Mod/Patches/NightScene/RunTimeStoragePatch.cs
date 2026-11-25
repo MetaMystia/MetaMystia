@@ -12,7 +12,6 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeStorage))]
-[AutoLog]
 public static partial class RunTimeStoragePatch
 {
     [HarmonyPatch(nameof(RunTimeStorage.GetAllBeverages))]

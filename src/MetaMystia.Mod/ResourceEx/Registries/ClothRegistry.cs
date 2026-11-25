@@ -16,7 +16,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// 服装领域注册器：持有服装配置，负责 ClothesProfile / 像素精灵注册与立绘查询。
 /// 服装的 Item 与语言由 <see cref="ItemRegistry"/> 注册。
 /// </summary>
-[AutoLog]
 public static partial class ClothRegistry
 {
     private static readonly Dictionary<int, ClothConfig> ClothConfigs = new();
@@ -32,7 +31,7 @@ public static partial class ClothRegistry
         foreach (var clothConfig in config.clothes)
         {
             ClothConfigs[clothConfig.id] = clothConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for cloth {clothConfig.name} ({clothConfig.id})");
+            Log.Info($"[{packageName}] Loaded config for cloth {clothConfig.name} ({clothConfig.id})");
         }
     }
 
@@ -136,7 +135,7 @@ public static partial class ClothRegistry
             }
             else
             {
-                Log.LogWarning($"Cloth ID {config.id} ({config.name}) has no pixelFullConfig, using fallback.");
+                Log.Warning($"Cloth ID {config.id} ({config.name}) has no pixelFullConfig, using fallback.");
                 dlcsArray[i] = DataBaseCharacter.FallbackFullPixel;
             }
         }

@@ -12,7 +12,6 @@ namespace MetaMystia;
 /// <summary>
 /// 模组静态业务入口（与其他 Manager 一致）。帧循环驱动见 <see cref="PluginHost"/>。
 /// </summary>
-[AutoLog]
 public static partial class PluginManager
 {
     public static string Label
@@ -46,7 +45,7 @@ public static partial class PluginManager
             }
             catch (Exception e)
             {
-                Log.LogError($"Error executing on main thread: {e.Message}\n{e.StackTrace}");
+                Log.Error($"Error executing on main thread: {e.Message}\n{e.StackTrace}");
             }
         }
     }
@@ -59,7 +58,7 @@ public static partial class PluginManager
         if (InGameConsole.HasKeyboardFocus) return;
         if (Hotkeys.LogBreak.WasPressedThisFrame())
         {
-            Log.LogInfo($"\n");
+            Log.Info($"\n");
         }
         if (Hotkeys.ToggleStatus.WasPressedThisFrame())
         {
@@ -103,7 +102,7 @@ public static partial class PluginManager
     private static void ToggleStatusVisibility()
     {
         IsStatusVisible = !IsStatusVisible;
-        Log.LogMessage($"Toggled text visibility: " + IsStatusVisible);
+        Log.Message($"Toggled text visibility: " + IsStatusVisible);
         FloatingTextHelper.SetLabelsVisible(IsStatusVisible && GameSession.IsOnline);
     }
 }

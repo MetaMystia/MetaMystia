@@ -6,7 +6,6 @@ using NightScene;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(ResultScene.SceneManager))]
-[AutoLog]
 public partial class ResultSceneManagerPatch
 {
     [HarmonyPatch(nameof(SceneManager.Start))]

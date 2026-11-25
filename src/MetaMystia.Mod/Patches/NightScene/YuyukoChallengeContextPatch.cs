@@ -15,7 +15,6 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0))]
-[AutoLog]
 public partial class YuyukoChallengeContextPatch
 {
     /// <summary>

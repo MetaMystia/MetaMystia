@@ -13,7 +13,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 食材领域注册器：持有食材配置，负责注册与语言注册。
 /// </summary>
-[AutoLog]
 public static partial class IngredientRegistry
 {
     private static readonly Dictionary<int, IngredientConfig> IngredientConfigs = new();
@@ -25,7 +24,7 @@ public static partial class IngredientRegistry
         foreach (var ingredientConfig in config.ingredients)
         {
             IngredientConfigs[ingredientConfig.id] = ingredientConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for ingredient {ingredientConfig.id}");
+            Log.Info($"[{packageName}] Loaded config for ingredient {ingredientConfig.id}");
         }
     }
 

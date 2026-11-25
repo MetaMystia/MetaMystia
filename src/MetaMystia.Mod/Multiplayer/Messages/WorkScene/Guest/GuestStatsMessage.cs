@@ -26,7 +26,6 @@ public partial class GuestStats
 /// 客机照常本地倒计时，离场仍由主机判定。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class GuestStatsMessage : MultiplayerMessage
 {
     public GuestStats[] Guests { get; set; }

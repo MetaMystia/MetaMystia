@@ -11,7 +11,6 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e MainChallengeLoop.MoveNext，阶段结束后的恢复点，见同步审计文档。
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16))]
-[AutoLog]
 public static partial class YuyukoMainLoopPatch
 {
     /// <summary>

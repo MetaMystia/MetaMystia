@@ -1,8 +1,9 @@
 using System.Linq;
 
+using MetaMystia;
+
 namespace SgrYuki.Utils;
 
-[MetaMystia.AutoLog]
 public static partial class Panel
 {
     public static Il2CppSystem.Collections.Generic.Stack<Il2CppSystem.Collections.Generic.Stack<DEYU.AdpUISystem.PanelCollection.UIPanelImpl>> PanelStack => DEYU.AdpUISystem.Managers.AdpUIPanelManager.Instance?.m_PanelStack;

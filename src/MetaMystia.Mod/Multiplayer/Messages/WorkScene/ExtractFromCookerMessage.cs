@@ -8,7 +8,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 任何玩家 → 全体玩家：通告某个厨具(包括空厨具)中的料理被取出
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class ExtractFromCookerMessage : MultiplayerMessage
 {
     public int GridIndex { get; set; }
@@ -20,7 +19,7 @@ public partial class ExtractFromCookerMessage : MultiplayerMessage
         var cookerController = CookManager.GetCookerControllerByIndex(GridIndex);
         if (cookerController == null)
         {
-            Log.LogWarning($"Failed to find CookerController with GridIndex={GridIndex}");
+            Log.Warning($"Failed to find CookerController with GridIndex={GridIndex}");
             return;
         }
         CookControllerPatch.Extract_ReversePatch(cookerController, null);

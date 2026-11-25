@@ -11,7 +11,6 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Core.Collections.DaySceneUtility.Collections.YuyukoExtraDialogData.__c__DisplayClass4_0))]
-[AutoLog]
 public partial class YuyukoExtraDialogData__c__DisplayClass4_0Patch
 {
     // Yuyuko_Challenge 的确认回调：先 ScheduleEventExtern，再 StartChallengeSession。

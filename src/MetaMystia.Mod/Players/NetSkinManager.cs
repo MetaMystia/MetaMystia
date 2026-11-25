@@ -39,7 +39,6 @@ namespace MetaMystia;
 ///   h{R}{C} 表示 Hair (R=0..3, C=0..2)
 ///   b{R}{C} 表示 Back (R=0..3, C=0..2)
 /// </summary>
-[AutoLog]
 public static partial class NetSkinManager
 {
     private const int TileSize = 64;

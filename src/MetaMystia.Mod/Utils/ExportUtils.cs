@@ -15,7 +15,6 @@ namespace MetaMystia;
 /// 这是一个导出工具类，提供将游戏内资源导出为外部文件的功能，方便美术创作者进行符合原游戏 Sprite 规格的二次创作。
 /// 理论上不应在运行时调用此类方法，建议在调试阶段使用后移除相关调用。
 /// </summary>
-[AutoLog]
 public static partial class ExportUtils
 {
     public static string ExportRoot { get; set; } = Path.Combine(Paths.GameRootPath, "Exports");
@@ -34,11 +33,11 @@ public static partial class ExportUtils
                 var filepath = Path.Combine(exportDir, filename);
 
                 TrySaveSprite(sprite, filepath);
-                Log.LogInfo($"Exported: {filepath}");
+                Log.Info($"Exported: {filepath}");
             }
             else
             {
-                Log.LogWarning($"Food ID {kvp.Key} has no sprite.");
+                Log.Warning($"Food ID {kvp.Key} has no sprite.");
             }
         }
     }
@@ -58,11 +57,11 @@ public static partial class ExportUtils
                 var filepath = Path.Combine(exportDir, filename);
 
                 TrySaveSprite(sprite, filepath);
-                Log.LogInfo($"Exported: {filepath}");
+                Log.Info($"Exported: {filepath}");
             }
             else
             {
-                Log.LogWarning($"Food ID {kvp.Key} has no sprite.");
+                Log.Warning($"Food ID {kvp.Key} has no sprite.");
             }
         }
     }
@@ -84,13 +83,13 @@ public static partial class ExportUtils
             var sprite1 = positiveSpell.Asset.TryCast<Sprite>();
             if (sprite1 != null)
             {
-                Log.LogInfo($"Exporting SpellCard {kvp.Key} - {positiveLang}");
+                Log.Info($"Exporting SpellCard {kvp.Key} - {positiveLang}");
                 TrySaveSprite(sprite1, Path.Combine(exportDir, $"符卡_{kvp.Key}_奖励_{(positiveLang == "N/A" ? "Unknown" : positiveLang)}.png"));
             }
             var sprite2 = negativeSpell.Asset.TryCast<Sprite>();
             if (sprite2 != null)
             {
-                Log.LogInfo($"Exporting SpellCard {kvp.Key} - {negativeLang}");
+                Log.Info($"Exporting SpellCard {kvp.Key} - {negativeLang}");
                 TrySaveSprite(sprite2, Path.Combine(exportDir, $"符卡_{kvp.Key}_惩罚_{(negativeLang == "N/A" ? "Unknown" : negativeLang)}.png"));
             }
         }
@@ -104,7 +103,7 @@ public static partial class ExportUtils
         var specialGuestPortrayals = DataBaseCharacter.SpecialGuestVisual;
         if (specialGuestPortrayals == null)
         {
-            Log.LogError("DataBaseCharacter.SpecialGuestVisual is null");
+            Log.Error("DataBaseCharacter.SpecialGuestVisual is null");
             return;
         }
 
@@ -150,11 +149,11 @@ public static partial class ExportUtils
                     var filepath = Path.Combine(exportDir, filename);
 
                     TrySaveSprite(sprite, filepath);
-                    Log.LogInfo($"Exported: {filepath}");
+                    Log.Info($"Exported: {filepath}");
                 }
                 else
                 {
-                    Log.LogWarning($"Failed to load sprite for Special_{id}_{i}");
+                    Log.Warning($"Failed to load sprite for Special_{id}_{i}");
                 }
             }
         }
@@ -394,10 +393,10 @@ public static partial class ExportUtils
             }
             string filePath = Path.Combine(exportDir, "database.json");
             File.WriteAllText(filePath, json);
-            Log.LogInfo($"Database dumped to {filePath}");
+            Log.Info($"Database dumped to {filePath}");
         }
 
-        Log.LogInfo("Dumped database.");
+        Log.Info("Dumped database.");
         return json;
     }
 
@@ -533,7 +532,7 @@ public static partial class ExportUtils
     {
         if (tilemap == null)
         {
-            Log.LogError("ExportTilemap: Tilemap is null");
+            Log.Error("ExportTilemap: Tilemap is null");
             return;
         }
 
@@ -543,7 +542,7 @@ public static partial class ExportUtils
 
         if (bounds.size.x <= 0 || bounds.size.y <= 0)
         {
-            Log.LogWarning($"ExportTilemap: {tilemap.name} has no tiles.");
+            Log.Warning($"ExportTilemap: {tilemap.name} has no tiles.");
             return;
         }
 
@@ -573,7 +572,7 @@ public static partial class ExportUtils
             totalH = Mathf.CeilToInt((cellMax.y - cellMin.y) * ppu);
         }
 
-        Log.LogInfo($"ExportTilemap: {tilemap.name} => {bounds.size.x}x{bounds.size.y} cells, " +
+        Log.Info($"ExportTilemap: {tilemap.name} => {bounds.size.x}x{bounds.size.y} cells, " +
                     $"{cellW}x{cellH} px/cell, total {totalW}x{totalH}, PPU={ppu}");
 
         var outputPixels = new Color[totalW * totalH];
@@ -664,7 +663,7 @@ public static partial class ExportUtils
             File.WriteAllBytes(filepath, pngData);
 
             UnityEngine.Object.DestroyImmediate(output);
-            Log.LogInfo($"ExportTilemap: Saved to {filepath}");
+            Log.Info($"ExportTilemap: Saved to {filepath}");
         }
         finally
         {
@@ -709,7 +708,7 @@ public static partial class ExportUtils
     {
         if (tilemaps == null || tilemaps.Length == 0)
         {
-            Log.LogError("ExportTilemapsComposite: No tilemaps provided");
+            Log.Error("ExportTilemapsComposite: No tilemaps provided");
             return;
         }
 
@@ -755,14 +754,14 @@ public static partial class ExportUtils
 
         if (worldMinX >= worldMaxX || worldMinY >= worldMaxY)
         {
-            Log.LogWarning("ExportTilemapsComposite: No valid tilemap bounds");
+            Log.Warning("ExportTilemapsComposite: No valid tilemap bounds");
             return;
         }
 
         int totalW = Mathf.CeilToInt((worldMaxX - worldMinX) * ppu);
         int totalH = Mathf.CeilToInt((worldMaxY - worldMinY) * ppu);
 
-        Log.LogInfo($"ExportTilemapsComposite: world ({worldMinX},{worldMinY})-({worldMaxX},{worldMaxY}), " +
+        Log.Info($"ExportTilemapsComposite: world ({worldMinX},{worldMinY})-({worldMaxX},{worldMaxY}), " +
                     $"total {totalW}x{totalH} px, PPU={ppu}");
 
         var outputPixels = new Color[totalW * totalH];
@@ -780,7 +779,7 @@ public static partial class ExportUtils
                 int cellW = Mathf.RoundToInt(grid.cellSize.x * ppu);
                 int cellH = Mathf.RoundToInt(grid.cellSize.y * ppu);
 
-                Log.LogInfo($"  Compositing: {tm.name} ({bounds.size.x}x{bounds.size.y} cells)");
+                Log.Info($"  Compositing: {tm.name} ({bounds.size.x}x{bounds.size.y} cells)");
 
                 for (int cx = bounds.xMin; cx < bounds.xMax; cx++)
                 {
@@ -863,7 +862,7 @@ public static partial class ExportUtils
             File.WriteAllBytes(filepath, pngData);
 
             UnityEngine.Object.DestroyImmediate(output);
-            Log.LogInfo($"ExportTilemapsComposite: Saved to {filepath}");
+            Log.Info($"ExportTilemapsComposite: Saved to {filepath}");
         }
         finally
         {
@@ -933,7 +932,7 @@ public static partial class ExportUtils
         var sb = new System.Text.StringBuilder();
         DumpRendererRecursive(root.transform, 0, sb);
         string result = sb.ToString();
-        Log.LogInfo($"Hierarchy dump for '{root.name}':\n{result}");
+        Log.Info($"Hierarchy dump for '{root.name}':\n{result}");
 
         if (!string.IsNullOrEmpty(exportFilePath))
         {
@@ -941,7 +940,7 @@ public static partial class ExportUtils
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
             File.WriteAllText(exportFilePath, result);
-            Log.LogInfo($"Hierarchy dump saved to {exportFilePath}");
+            Log.Info($"Hierarchy dump saved to {exportFilePath}");
         }
     }
 
@@ -990,7 +989,7 @@ public static partial class ExportUtils
         {
             var id = kvp.Key;
             var desc = kvp.Value;
-            Log.LogInfo($"Buff ID: {id}, Name: {desc.BriefName} Description: {desc.BriefDescription}");
+            Log.Info($"Buff ID: {id}, Name: {desc.BriefName} Description: {desc.BriefDescription}");
             var sprite = desc.Visual;
             if (sprite != null)
             {

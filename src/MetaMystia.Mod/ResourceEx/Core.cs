@@ -16,7 +16,6 @@ namespace MetaMystia;
 /// ResourceEx 资源包加载与生命周期编排入口：包加载、DLC 依赖检查、游戏数据库初始化钩子。
 /// 各内容领域的配置持有与注册逻辑见对应的 *Registry 类。
 /// </summary>
-[AutoLog]
 public static partial class ResourceExManager
 {
     // Abstracted resource root path
@@ -196,7 +195,7 @@ public static partial class ResourceExManager
             {
                 anyDependencyRejected = true;
                 string reason = TextId.ResourcePackageDependencyMissingReason.Get(string.Join(", ", missingDeps));
-                Log.LogWarning($"[{package.PackageName}] Rejected: {reason}");
+                Log.Warning($"[{package.PackageName}] Rejected: {reason}");
                 InGameConsole.LogDeferred(() => TextId.ResourcePackageDependencyMissing.Get(package.PackageName, string.Join(", ", missingDeps)));
                 rejected.Add((package.PackageName, reason));
                 continue;
@@ -215,7 +214,7 @@ public static partial class ResourceExManager
 
         _rejectedPackages.AddRange(rejected);
 
-        Log.LogInfo($"Loaded {accepted.Count} resource package(s) successfully.");
+        Log.Info($"Loaded {accepted.Count} resource package(s) successfully.");
 
         // Queue console messages — will be flushed to InGameConsole after it becomes available
         foreach (var pkg in _loadedPackages)
@@ -247,7 +246,7 @@ public static partial class ResourceExManager
         // 所有警告输出完毕后，额外补充正版提示与禁用检查指引
         if (anyDependencyRejected)
         {
-            Log.LogWarning(TextId.DlcMissingDependencyNotice.Get(nameof(ConfigManager.IgnoreDlcDependencyCheck), "true"));
+            Log.Warning(TextId.DlcMissingDependencyNotice.Get(nameof(ConfigManager.IgnoreDlcDependencyCheck), "true"));
             _pendingConsoleLogs.Add(() => TextId.DlcMissingDependencyNotice.Get(nameof(ConfigManager.IgnoreDlcDependencyCheck), "true"));
         }
     }

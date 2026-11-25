@@ -21,7 +21,6 @@ namespace MetaMystia;
 /// 将剧情创建的幽幽子本体接入主机权威同步，保留两端原版实体和剧情回调。
 /// 本文件处理绑定、手动订单和评价；Challenge 部分处理阶段判定与吞厨具。
 /// </summary>
-[AutoLog]
 public static partial class YuyukoGuestSync
 {
     private static GuestGroupController body;

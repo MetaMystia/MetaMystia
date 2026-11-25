@@ -14,7 +14,6 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e：<MainChallengeLoop>g__Phase3GuestSpawnLoop|43。
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_6.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObWaVoObMoInVoBoOb0))]
-[AutoLog]
 public static partial class YuyukoPhase3GuestSpawnPatch
 {
     /// <summary>

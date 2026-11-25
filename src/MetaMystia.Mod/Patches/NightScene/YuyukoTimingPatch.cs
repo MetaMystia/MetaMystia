@@ -13,7 +13,6 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e：<MainChallengeLoop>g__Timing|2。保留本地计时显示，由主机结束消息放行。
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData.__c__DisplayClass16_0.ObjectCompilerGeneratedNPrivateSealedIEnumerator1ObjectIEnumeratorIDisposableInObFu1BoexSiInObObUnique))]
-[AutoLog]
 public static partial class YuyukoTimingPatch
 {
     /// <summary>

@@ -6,7 +6,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>客机向主机确认本体绑定；空会话和零编号表示请求补发绑定消息。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class YuyukoGuestBoundMessage : MultiplayerMessage
 {
     public Guid Session { get; set; }

@@ -12,7 +12,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 存档 Scheduler 数据恢复：清理或重载旧版本 mod 遗留的 UNDEFINED / ResourceEx 未加载数据。
 /// </summary>
-[AutoLog]
 public static partial class SchedulerDataRecovery
 {
     internal static void CheckAndReloadSchedulerData()

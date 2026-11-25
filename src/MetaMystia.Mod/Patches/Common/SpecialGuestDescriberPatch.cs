@@ -10,7 +10,6 @@ using MetaMystia.ResourceEx.Registries;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.UI.SpecialGuestDescriber))]
-[AutoLog]
 public partial class SpecialGuestDescriberPatch
 {
     [HarmonyPatch(nameof(SpecialGuestDescriber.Describe))]

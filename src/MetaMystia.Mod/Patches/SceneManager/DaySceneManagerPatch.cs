@@ -15,7 +15,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(DayScene.SceneManager))]
-[AutoLog]
 public partial class DaySceneManagerPatch
 {
     [HarmonyPatch(nameof(SceneManager.Awake))]
@@ -68,7 +67,7 @@ public partial class DaySceneManagerPatch
     [HarmonyPrefix]
     public static bool OnDayOver_Prefix()
     {
-        Log.InfoCaller($"called");
+        Log.Info($"OnDayOver: in room={GameSession.IsInRoom}, replaying business={DayDestinationManager.ReplayingBusiness}");
 
         if (!GameSession.IsInRoom)
         {
@@ -94,7 +93,7 @@ public partial class DaySceneManagerPatch
     [HarmonyPrefix]
     public static bool SwapMap_Prefix(SceneManager __instance, string targetMapLabel, string targetMarkerName, int travelCount, ref Il2CppSystem.Action onSwapFinish)
     {
-        Log.InfoCaller($"targetMapLabel {targetMapLabel}, targetMarkerName {targetMarkerName}");
+        Log.Info($"SwapMap: targetMapLabel {targetMapLabel}, targetMarkerName {targetMarkerName}");
 
         var refreshAllDayNpcs = SpecialGuestRegistry.RefreshAllDayNpcs; // TODO: 以更优雅的方式实现 Day NPC 刷新
         onSwapFinish += refreshAllDayNpcs;

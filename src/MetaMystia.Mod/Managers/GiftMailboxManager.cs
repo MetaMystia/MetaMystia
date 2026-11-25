@@ -13,7 +13,6 @@ using static MetaMystia.UI.DaySceneSelectionMenu;
 
 namespace MetaMystia;
 
-[AutoLog]
 public static partial class GiftMailboxManager
 {
     public static DaySceneChatSelectionPannel.GetSelectionConfigurationCallback CreateCollabMenuSelection() =>

@@ -49,7 +49,6 @@ TODO:
 /// <summary>
 /// 特典角色（SpecialGuest）领域注册器：持有角色配置、立绘映射与注册逻辑。
 /// </summary>
-[AutoLog]
 public static partial class SpecialGuestRegistry
 {
     private static readonly Dictionary<(int id, string type), CharacterConfig> _characterConfigs = new();
@@ -61,7 +60,7 @@ public static partial class SpecialGuestRegistry
         foreach (var charConfig in config.characters)
         {
             _characterConfigs[(charConfig.id, charConfig.type)] = charConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for character {charConfig.name} ({charConfig.id}, {charConfig.type})");
+            Log.Info($"[{packageName}] Loaded config for character {charConfig.name} ({charConfig.id}, {charConfig.type})");
         }
     }
 

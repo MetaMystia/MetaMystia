@@ -16,7 +16,6 @@ using SgrYuki.Utils;
 namespace MetaMystia.Multiplayer.Guests;
 
 /// <summary>客机重放原版顾客流程中由主机决定的部分。</summary>
-[AutoLog]
 public static partial class GuestReplay
 {
     /// <summary>

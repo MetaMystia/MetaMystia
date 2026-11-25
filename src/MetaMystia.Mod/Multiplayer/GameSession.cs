@@ -12,7 +12,6 @@ using MetaMystia.UI;
 namespace MetaMystia.Multiplayer;
 
 /// <summary>游戏端连接入口；服务器和客户端拥有全部网络状态。</summary>
-[AutoLog]
 public static partial class GameSession
 {
     public const int DefaultPort = 40815;

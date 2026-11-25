@@ -55,7 +55,6 @@ namespace MetaMystia.Patch;
 [TracePatch(nameof(GuestsManager.LeaveFromDesk))]
 [TracePatch(nameof(GuestsManager.TryCloseIzakaya))]
 [TracePatch(nameof(GuestsManager.ShowEvaluationDialog))]
-[AutoLog]
 public partial class GuestsManagerPatch
 {
     // 幽幽子挑战：手动订单与剧情回调。

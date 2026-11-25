@@ -6,7 +6,6 @@ using GameData.RunTime.Common;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.StatusTracker))]
-[AutoLog]
 public static partial class StatusTrackerPatch
 {
     [HarmonyPatch(nameof(StatusTracker.RecordInvitedGuest))]

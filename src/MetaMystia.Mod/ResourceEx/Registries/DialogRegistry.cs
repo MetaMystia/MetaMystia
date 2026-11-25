@@ -18,7 +18,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 对话包领域注册器：持有对话包配置与构建产物，负责构建与注册。
 /// </summary>
-[AutoLog]
 public static partial class DialogRegistry
 {
     private static readonly Dictionary<string, DialogPackageConfig> _dialogPackageConfigs = new();
@@ -51,7 +50,7 @@ public static partial class DialogRegistry
         foreach (var pkgConfig in config.dialogPackages)
         {
             _dialogPackageConfigs[pkgConfig.name] = pkgConfig;
-            Log.LogInfo($"[{packageName}] Loaded dialog package: {pkgConfig.name}");
+            Log.Info($"[{packageName}] Loaded dialog package: {pkgConfig.name}");
         }
     }
 
@@ -178,7 +177,7 @@ public static partial class DialogRegistry
     {
         if (dialogPackageConfig == null)
         {
-            Log.LogWarning("BuildDialogPackage called with null dialog package config.");
+            Log.Warning("BuildDialogPackage called with null dialog package config.");
             return null;
         }
 
@@ -236,7 +235,7 @@ public static partial class DialogRegistry
 
         if (!RexAssetRegistry.TryGetSpriteReference(actionConfig.sprite, out var reference))
         {
-            Log.LogWarning($"Dialog sprite URI is not registered in Addressables: {actionConfig.sprite}");
+            Log.Warning($"Dialog sprite URI is not registered in Addressables: {actionConfig.sprite}");
             return new AssetReferenceSprite("");
         }
 
@@ -250,7 +249,7 @@ public static partial class DialogRegistry
 
         if (!RexAssetRegistry.TryGetAudioReference(actionConfig.sound, out var reference))
         {
-            Log.LogWarning($"Dialog sound URI is not registered in Addressables: {actionConfig.sound}");
+            Log.Warning($"Dialog sound URI is not registered in Addressables: {actionConfig.sound}");
             return new AssetReferenceT<UnityEngine.AudioClip>("");
         }
 
@@ -269,7 +268,7 @@ public static partial class DialogRegistry
             return;
         }
 
-        Log.LogInfo("Calling OpenDialogMenu...");
+        Log.Info("Calling OpenDialogMenu...");
         UniversalGameManager.OpenDialogMenu(
             builtDialogPackage.Package,
             onFinishCallback: onFinishCallback,
@@ -326,13 +325,13 @@ public static partial class DialogRegistry
             if (packageName == "OnTransitionToNight")
             {
                 ExampleDialog = dialogPackage;
-                Log.LogInfo("Stored ExampleDialog(OnTransitionToNight) package.");
+                Log.Info("Stored ExampleDialog(OnTransitionToNight) package.");
             }
-            Log.LogDebug($"id={dialogPackage.name}, package={packageName}");
+            Log.Debug($"id={dialogPackage.name}, package={packageName}");
         });
 
         if (ExampleDialog == null)
-            Log.LogWarning("ExampleDialog(OnTransitionToNight) package not found among loaded assets.");
+            Log.Warning("ExampleDialog(OnTransitionToNight) package not found among loaded assets.");
     }
 
     public static void ShowResourceExPackage(string packageName, System.Action onFinishCallback = null)
@@ -344,7 +343,7 @@ public static partial class DialogRegistry
         }
         else
         {
-            Log.LogWarning($"Dialog package {packageName} not found in ResourceExManager.");
+            Log.Warning($"Dialog package {packageName} not found in ResourceExManager.");
         }
     }
 }

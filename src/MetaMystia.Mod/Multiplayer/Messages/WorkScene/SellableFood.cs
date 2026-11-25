@@ -9,7 +9,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 
 [MemoryPackable]
-[AutoLog]
 public partial class SellableFood
 {
     public Sellable.SellableType Type { get; set; }

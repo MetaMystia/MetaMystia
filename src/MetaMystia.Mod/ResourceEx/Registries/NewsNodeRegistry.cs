@@ -12,7 +12,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 新闻节点领域注册器：持有新闻节点配置，负责注册与语言注册。排程与取消由原生 Reward 完成。
 /// </summary>
-[AutoLog]
 public static partial class NewsNodeRegistry
 {
     private static readonly List<NewsNodeConfig> NewsNodeConfigs = new();
@@ -24,7 +23,7 @@ public static partial class NewsNodeRegistry
         foreach (var newsNodeConfig in config.newsNodes)
         {
             NewsNodeConfigs.Add(newsNodeConfig);
-            Log.LogInfo($"[{packageName}] Loaded config for news node {newsNodeConfig.title}({newsNodeConfig.label})");
+            Log.Info($"[{packageName}] Loaded config for news node {newsNodeConfig.title}({newsNodeConfig.label})");
         }
     }
 

@@ -52,7 +52,6 @@ namespace MetaMystia
     public static partial class PrepSceneManager
     {
         public static void BeginPrep() { }
-        static class Log { public static void Info(string message) { } }
     }
     static class PlayerProfile
     {

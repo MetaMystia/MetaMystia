@@ -13,7 +13,6 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.CookingUtility.CookController))]
-[AutoLog]
 public partial class CookControllerPatch
 {
 
@@ -25,7 +24,7 @@ public partial class CookControllerPatch
         // Log.Debug($"SetCook_Prefix called");
         if (GameSession.HasRoomPeers && (!PlayerManager.RecipeAvailable(recipe.Id) || !PlayerManager.FoodAvailable(thisResult.id)))
         {
-            Log.LogWarning($"Peer does not have recipe {recipe.Id}, skipping SetCook.");
+            Log.Warning($"Peer does not have recipe {recipe.Id}, skipping SetCook.");
             InGameConsole.ShowPassive(TextId.DLCPeerRecipeNotAvailable.Get(recipe.Id));
             return SkipOriginal;
         }

@@ -8,7 +8,6 @@ using DEYU.Utils;
 
 namespace MetaMystia;
 
-[AutoLog]
 public static partial class CookManager
 {
     public static CookController GetCookerControllerByIndex(int gridIndex)

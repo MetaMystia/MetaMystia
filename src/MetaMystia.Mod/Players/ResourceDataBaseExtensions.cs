@@ -8,7 +8,6 @@ using SgrYuki.Utils;
 
 namespace MetaMystia;
 
-[AutoLog]
 public static partial class ResourceDataBaseExtensions
 {
     public static ResourceDataBase LoadResourceIds(this ResourceDataBase resources)

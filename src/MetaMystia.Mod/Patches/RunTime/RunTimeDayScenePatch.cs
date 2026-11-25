@@ -13,7 +13,6 @@ using SgrYuki.Utils;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.DaySceneUtility.RunTimeDayScene))]
-[AutoLog]
 public partial class RunTimeDayScenePatch
 {
 

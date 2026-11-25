@@ -8,7 +8,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 /// <summary>主机 → 操作者：放入或确认被拒绝，所列物品退回操作者托盘。</summary>
 [MemoryPackable]
-[AutoLog]
 public partial class ServeRejectMessage : MultiplayerMessage
 {
     public int RuntimeId { get; set; }

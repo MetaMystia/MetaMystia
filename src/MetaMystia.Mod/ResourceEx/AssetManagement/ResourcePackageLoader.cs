@@ -13,7 +13,6 @@ namespace MetaMystia.ResourceEx.AssetManagement;
 /// <summary>
 /// Loads resource packages (ZIP files) from disk and parses their configurations
 /// </summary>
-[AutoLog]
 public static partial class ResourcePackageLoader
 {
     /// <summary>
@@ -26,7 +25,7 @@ public static partial class ResourcePackageLoader
         if (!Directory.Exists(resourceRoot))
         {
             Directory.CreateDirectory(resourceRoot);
-            Log.LogInfo($"Created ResourceEx directory at {resourceRoot}");
+            Log.Info($"Created ResourceEx directory at {resourceRoot}");
             return new List<LoadedResourcePackage>();
         }
 
@@ -36,7 +35,7 @@ public static partial class ResourcePackageLoader
         foreach (var zipPath in zipFiles)
         {
             string packageName = Path.GetFileNameWithoutExtension(zipPath);
-            Log.LogInfo($"Scanning resource package: {packageName} from {zipPath}");
+            Log.Info($"Scanning resource package: {packageName} from {zipPath}");
 
             try
             {
@@ -48,7 +47,7 @@ public static partial class ResourcePackageLoader
             }
             catch (Exception e)
             {
-                Log.LogError($"Failed to load resource package {packageName}: {e.Message}");
+                Log.Error($"Failed to load resource package {packageName}: {e.Message}");
                 rejected.Add((packageName, e.Message));
             }
         }
@@ -57,7 +56,7 @@ public static partial class ResourcePackageLoader
         bool enforceSignature = ConfigManager.SignatureCheck.Value;
         if (!enforceSignature)
         {
-            Log.LogWarning("[ResourceEx] Signature verification is DISABLED by config.");
+            Log.Warning("[ResourceEx] Signature verification is DISABLED by config.");
             InGameConsole.LogDeferred(() => TextId.SignatureVerificationDisabled.Get());
         }
 
@@ -67,14 +66,14 @@ public static partial class ResourcePackageLoader
             var validation = IdRangeValidator.Validate(candidate.Config, candidate.PackageName, enforceSignature);
 
             foreach (var warning in validation.Warnings)
-                Log.LogWarning(warning);
+                Log.Warning(warning);
 
             if (!validation.IsValid)
             {
                 foreach (var error in validation.Errors)
-                    Log.LogError(error);
+                    Log.Error(error);
 
-                Log.LogError($"[{candidate.PackageName}] Rejected: ID range validation failed.");
+                Log.Error($"[{candidate.PackageName}] Rejected: ID range validation failed.");
                 InGameConsole.LogDeferred(() => TextId.ResourcePackageValidationFailed.Get(candidate.PackageName));
                 rejected.Add((candidate.PackageName, "ID range validation failed"));
                 continue;
@@ -98,7 +97,7 @@ public static partial class ResourcePackageLoader
             }
             catch (Exception ex)
             {
-                Log.LogError($"[{candidate.PackageName}] Failed to finalize package: {ex.Message}");
+                Log.Error($"[{candidate.PackageName}] Failed to finalize package: {ex.Message}");
                 rejected.Add((candidate.PackageName, ex.Message));
             }
         }
@@ -130,7 +129,7 @@ public static partial class ResourcePackageLoader
 
             if (configEntry == null)
             {
-                Log.LogWarning($"[{packageName}] ResourceEx.json not found in zip.");
+                Log.Warning($"[{packageName}] ResourceEx.json not found in zip.");
                 return null;
             }
 
@@ -189,7 +188,7 @@ public static partial class ResourcePackageLoader
 
                 if (sorted.Count > 1)
                 {
-                    Log.LogWarning($"[ResourceEx] Label Conflict: '{group.Key}'. " +
+                    Log.Warning($"[ResourceEx] Label Conflict: '{group.Key}'. " +
                         $"Selected '{winner.Candidate.PackageName}' (v{winner.Version}) over others: " +
                         $"{string.Join(", ", sorted.Skip(1).Select(s => s.Candidate.PackageName))}");
                 }
@@ -208,7 +207,7 @@ public static partial class ResourcePackageLoader
             : candidate.PackageName;
         if (!RexUri.IsValidPackageName(packageLabel))
         {
-            Log.LogWarning($"[{candidate.PackageName}] Invalid pack label '{packageLabel}' for rex URI. Falling back to zip file name.");
+            Log.Warning($"[{candidate.PackageName}] Invalid pack label '{packageLabel}' for rex URI. Falling back to zip file name.");
             packageLabel = candidate.PackageName;
         }
 
@@ -232,16 +231,16 @@ public static partial class ResourcePackageLoader
         {
             var info = candidate.Config.packInfo;
             string authors = info.authors != null ? string.Join(", ", info.authors) : "Unknown";
-            Log.LogMessage($"Loaded Resource Pack: {info.name} [{info.label}] v{info.version} by {authors}");
+            Log.Message($"Loaded Resource Pack: {info.name} [{info.label}] v{info.version} by {authors}");
 
             InGameConsole.LogDeferred(() => TextId.ResourcePackageLoaded.Get(info.name, info.label, info.version));
         }
         else
         {
-            Log.LogInfo($"Loading resource package: {candidate.PackageName} from {candidate.ZipPath}");
+            Log.Info($"Loading resource package: {candidate.PackageName} from {candidate.ZipPath}");
         }
 
-        Log.LogInfo($"[{candidate.PackageName}] ZIP size: {candidate.ZipBytes.Length / 1024} KB");
+        Log.Info($"[{candidate.PackageName}] ZIP size: {candidate.ZipBytes.Length / 1024} KB");
     }
 
     private static Version ParseVersion(string versionString)

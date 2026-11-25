@@ -10,7 +10,6 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.UI.DaySceneSustainedPannel))]
-[AutoLog]
 public partial class DaySceneSustainedPannelPatch
 {
     [HarmonyPatch(nameof(DaySceneSustainedPannel.OnFastForwardSubmit))]

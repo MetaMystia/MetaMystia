@@ -17,7 +17,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 客机在本地到座（首单）或吃完（续单）后重放原版点单入口，内部订单生成由 Hook 回填主机结果。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class GenerateOrderMessage : MultiplayerMessage, IGuestEvent
 {
     public int RuntimeId { get; set; }

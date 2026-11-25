@@ -9,7 +9,6 @@ using MetaMystia.Multiplayer;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Core.Collections.Sellable))]
-[AutoLog]
 public partial class SellablePatch
 {
     [HarmonyPatch(nameof(Sellable.GetPopTag))]

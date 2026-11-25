@@ -12,7 +12,6 @@ using static GameData.Core.Collections.DaySceneUtility.Collections.Product;
 
 namespace MetaMystia.ResourceEx.Registries;
 
-[AutoLog]
 public static partial class GiftRegistry
 {
     private static readonly List<Mailbox> _mailboxes = new();

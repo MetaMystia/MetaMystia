@@ -15,7 +15,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// 物品领域注册器：持有 items 与 clothes 的物品配置，负责 Item 与语言注册。
 /// 服装专属的 ClothesProfile、像素精灵与立绘由 <see cref="ClothRegistry"/> 注册。
 /// </summary>
-[AutoLog]
 public static partial class ItemRegistry
 {
     private static readonly Dictionary<int, ItemConfig> ItemConfigs = new();
@@ -25,10 +24,10 @@ public static partial class ItemRegistry
         foreach (var itemConfig in (config?.items ?? []).Concat(config?.clothes ?? []))
         {
             if (ItemConfigs.ContainsKey(itemConfig.id))
-                Log.LogWarning($"[{packageName}] Item ID {itemConfig.id} ({itemConfig.name}) overrides a previously loaded item");
+                Log.Warning($"[{packageName}] Item ID {itemConfig.id} ({itemConfig.name}) overrides a previously loaded item");
 
             ItemConfigs[itemConfig.id] = itemConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for item {itemConfig.name} ({itemConfig.id})");
+            Log.Info($"[{packageName}] Loaded config for item {itemConfig.name} ({itemConfig.id})");
         }
     }
 
@@ -49,7 +48,7 @@ public static partial class ItemRegistry
         {
             Sprite sprite = null;
             if (!string.IsNullOrEmpty(config.spritePath) && !RexAssetRegistry.TryGetSprite(config.spritePath, out sprite))
-                Log.LogWarning($"Item ID {config.id} ({config.name}) sprite not found: {config.spritePath}");
+                Log.Warning($"Item ID {config.id} ({config.name}) sprite not found: {config.spritePath}");
 
             DataBaseLanguage.Items[config.id] = new GameData.CoreLanguage.ObjectLanguageBase(
                 name: config.name,

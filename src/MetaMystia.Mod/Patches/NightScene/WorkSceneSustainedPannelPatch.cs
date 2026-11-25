@@ -14,7 +14,6 @@ using MetaMystia.Multiplayer.Guests;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.UI.WorkSceneSustainedPannel))]
-[AutoLog]
 public partial class WorkSceneSustainedPannelPatch
 {
     /// <summary>

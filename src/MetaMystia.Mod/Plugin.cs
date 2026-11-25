@@ -40,13 +40,13 @@ public class Plugin : BasePlugin
 
         if (ConfigManager.Debug.Value)
         {
-            Log.LogWarning("MetaMystia Debug mode is enabled.");
+            MetaMystia.Log.Warning("MetaMystia Debug mode is enabled.");
             InGameConsole.LogToConsole("<color=#FFAA44>MetaMystia 调试模式已启用</color>");
         }
 
         if (ConfigManager.IgnoreDlcDependencyCheck.Value)
         {
-            Log.LogWarning("DLC and resource pack dependency checks are DISABLED by config. Unknown issues may occur.");
+            MetaMystia.Log.Warning("DLC and resource pack dependency checks are DISABLED by config. Unknown issues may occur.");
             InGameConsole.LogDeferred(() => TextId.IgnoreDlcDependencyCheckWarning.Get());
         }
 
@@ -55,18 +55,18 @@ public class Plugin : BasePlugin
             Console.OutputEncoding = System.Text.Encoding.UTF8;
         }
         catch { }
-        Log.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
+        MetaMystia.Log.Info($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
         try
         {
             ClassInjector.RegisterTypeInIl2Cpp<PluginHost>();
-            Log.LogInfo("Registered C# Types in Il2Cpp");
+            MetaMystia.Log.Info("Registered C# Types in Il2Cpp");
         }
         catch (Exception ex)
         {
-            Log.LogError($"FAILED to Register Il2Cpp Type! {ex.Message}");
+            MetaMystia.Log.Error($"FAILED to Register Il2Cpp Type! {ex.Message}");
         }
 
-        Log.LogInfo(MetaMystia.UI.MultiplayerStatus.DebugText);
+        MetaMystia.Log.Info(MetaMystia.UI.MultiplayerStatus.DebugText);
 
         var harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         harmony.PatchAll(typeof(BootstrapPatch));
@@ -81,7 +81,7 @@ public class Plugin : BasePlugin
         }
         catch (Exception ex)
         {
-            Log.LogWarning($"Early RuntimeAddressables init failed (will retry later): {ex.Message}");
+            MetaMystia.Log.Warning($"Early RuntimeAddressables init failed (will retry later): {ex.Message}");
         }
 
         try
@@ -90,7 +90,7 @@ public class Plugin : BasePlugin
         }
         catch (Exception ex)
         {
-            Log.LogFatal($"FAILED to Initialize ResourceEx! {ex.Message}");
+            MetaMystia.Log.Fatal($"FAILED to Initialize ResourceEx! {ex.Message}");
             PatchRegistry.PatchedException = ex;
         }
     }
@@ -104,18 +104,18 @@ public class Plugin : BasePlugin
         {
             if (PluginHost.Instance == null)
             {
-                Instance.Log.LogMessage("Bootstrapping Trainer...");
+                MetaMystia.Log.Message("Bootstrapping Trainer...");
                 try
                 {
                     PluginHost.Create("MetaMystiaHost");
                     if (PluginHost.Instance != null)
                     {
-                        Instance.Log.LogMessage("Trainer Bootstrapped!");
+                        MetaMystia.Log.Message("Trainer Bootstrapped!");
                     }
                 }
                 catch (Exception e)
                 {
-                    Instance.Log.LogMessage($"ERROR Bootstrapping Trainer: {e.Message}");
+                    MetaMystia.Log.Message($"ERROR Bootstrapping Trainer: {e.Message}");
                 }
             }
         }

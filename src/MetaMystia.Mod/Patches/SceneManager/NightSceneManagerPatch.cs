@@ -9,7 +9,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(NightScene.SceneManager))]
-[AutoLog]
 public static partial class NightSceneManagerPatch
 {
     [HarmonyPatch(nameof(SceneManager.Dispose))]

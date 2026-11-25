@@ -5,7 +5,6 @@ using GameData.Utils;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Utils.SaveManagement))]
-[AutoLog]
 public static class SaveManagementPatch
 {
     [HarmonyPatch(nameof(SaveManagement.LoadPlayerData))]

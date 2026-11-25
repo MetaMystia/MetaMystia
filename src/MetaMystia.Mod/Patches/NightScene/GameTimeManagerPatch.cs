@@ -9,7 +9,6 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(Common.TimelineExtestion.GameTimeManager))]
-[AutoLog]
 public partial class GameTimeManagerPatch
 {
     /// <summary>
@@ -30,7 +29,7 @@ public partial class GameTimeManagerPatch
         {
             mode = GameTimeManager.TimeMode.Resume;
         }
-        Log.DebugCaller($"time mode changed to {mode}");
+        Log.Debug($"SetGameTimeMode: time mode changed to {mode}");
         return RunOriginal;
     }
 

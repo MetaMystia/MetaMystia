@@ -20,7 +20,6 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(DayScene.DaySceneMap))]
-[AutoLog]
 public partial class DaySceneMapPatch
 {
     [HarmonyPatch(nameof(DaySceneMap.GenerateSpawnMarkerData))]

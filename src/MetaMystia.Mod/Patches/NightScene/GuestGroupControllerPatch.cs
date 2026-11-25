@@ -28,7 +28,6 @@ namespace MetaMystia.Patch;
 [TracePatch(nameof(GuestGroupController.UpdateQueuedCharacters))]
 [TracePatch(nameof(GuestGroupController.MoveToFirstQueue))]
 [TracePatch(nameof(GuestGroupController.MoveToTargetPosition))]
-[AutoLog]
 public partial class GuestGroupControllerPatch
 {
     [HarmonyPatch(nameof(GuestGroupController.Evaluate))]

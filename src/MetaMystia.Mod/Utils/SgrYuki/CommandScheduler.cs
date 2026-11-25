@@ -5,11 +5,12 @@ using System.Threading;
 using BepInEx;
 using LibCpp2IL;
 
+using MetaMystia;
+
 namespace SgrYuki;
 
 using KeyCommandQueue = ConcurrentDictionary<string, ConcurrentQueue<CommandScheduler.Command>>;
 
-[MetaMystia.AutoLog]
 public static partial class CommandScheduler
 {
     public sealed class Command

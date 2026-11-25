@@ -10,7 +10,6 @@ using SgrYuki;
 
 namespace MetaMystia;
 
-[AutoLog]
 public static partial class IzakayaReporter
 {
     private const int HeartbeatIntervalSeconds = 2 * 60;

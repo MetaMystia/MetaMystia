@@ -19,7 +19,6 @@ namespace MetaMystia.ResourceEx.AssetManagement;
 ///   9000 ~ 1073741823     — managed range, requires valid RSA signature
 ///   1073741824 ~ 2147483647 — unmanaged range, free to use without signature
 /// </summary>
-[AutoLog]
 public static partial class IdRangeValidator
 {
     public const int GameIdMax = 8999;
@@ -104,7 +103,7 @@ public static partial class IdRangeValidator
         }
         catch (Exception ex)
         {
-            Log.LogError($"[IdRange] Signature verification threw: {ex.Message}");
+            Log.Error($"[IdRange] Signature verification threw: {ex.Message}");
             return false;
         }
     }
@@ -174,7 +173,7 @@ public static partial class IdRangeValidator
             // Signature check
             if (!enforceSignature)
             {
-                Log.LogWarning($"[{packageName}] Signature check is DISABLED by config. Skipping signature verification for [{rangeStart}, {rangeEnd}].");
+                Log.Warning($"[{packageName}] Signature check is DISABLED by config. Skipping signature verification for [{rangeStart}, {rangeEnd}].");
             }
             else if (string.IsNullOrWhiteSpace(packInfo.idSignature))
             {
@@ -193,7 +192,7 @@ public static partial class IdRangeValidator
                 }
                 else
                 {
-                    Log.LogInfo($"[{packageName}] ID range signature verified: \"{packInfo.label}:{rangeStart}-{rangeEnd}\"");
+                    Log.Info($"[{packageName}] ID range signature verified: \"{packInfo.label}:{rangeStart}-{rangeEnd}\"");
                 }
             }
 

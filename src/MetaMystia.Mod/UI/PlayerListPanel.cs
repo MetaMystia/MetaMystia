@@ -14,7 +14,6 @@ namespace MetaMystia.UI;
 /// <summary>
 /// 玩家列表，可拖动。联机时在控制台打开或按回车后显示。
 /// </summary>
-[AutoLog]
 public static partial class PlayerListPanel
 {
     private const float HeaderHeight = 26f;

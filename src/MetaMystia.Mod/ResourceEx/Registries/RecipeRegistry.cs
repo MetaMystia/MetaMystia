@@ -11,7 +11,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 配方领域注册器：持有配方配置，负责注册。
 /// </summary>
-[AutoLog]
 public static partial class RecipeRegistry
 {
     private static readonly Dictionary<int, RecipeConfig> RecipeConfigs = new();
@@ -23,7 +22,7 @@ public static partial class RecipeRegistry
         foreach (var recipeConfig in config.recipes)
         {
             RecipeConfigs[recipeConfig.id] = recipeConfig;
-            Log.LogInfo($"[{packageName}] Loaded config for recipe {recipeConfig.id}");
+            Log.Info($"[{packageName}] Loaded config for recipe {recipeConfig.id}");
         }
     }
 

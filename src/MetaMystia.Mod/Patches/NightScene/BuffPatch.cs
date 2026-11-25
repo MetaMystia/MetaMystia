@@ -9,7 +9,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GameData.Profile.MystiaQTEBuffReward))]
-[AutoLog]
 public partial class MystiaQTEBuffRewardPatch
 {
     [HarmonyPatch(nameof(MystiaQTEBuffReward.Player_ThrowDeliver))]

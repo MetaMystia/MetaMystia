@@ -9,7 +9,6 @@ using MetaMystia.Multiplayer;
 
 namespace MetaMystia.UI;
 
-[AutoLog]
 public static partial class FloatingTextHelper
 {
     private static GameObject activeTextPeer;

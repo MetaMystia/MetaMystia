@@ -13,7 +13,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(NightScene.UI.CookingUtility.WorkSceneStoragePannel))]
-[AutoLog]
 public partial class WorkSceneStoragePannelPatch
 {
     public static WorkSceneStoragePannel instanceRef = null;
@@ -37,12 +36,12 @@ public partial class WorkSceneStoragePannelPatch
     [HarmonyPrefix]
     public static bool OnExtract_Prefix(Sellable toExtract)
     {
-        Log.InfoCaller($"{toExtract?.id}, {toExtract?.Text?.Name}");
+        Log.Info($"Extract: {toExtract?.id}, {toExtract?.Text?.Name}");
         if (toExtract.type == Sellable.SellableType.Beverage)
         {
             if (GameSession.HasRoomPeers && !PlayerManager.BeverageAvailable(toExtract.id))
             {
-                Log.LogWarning($"Peer does not have beverage {toExtract.id}, cannot extract.");
+                Log.Warning($"Peer does not have beverage {toExtract.id}, cannot extract.");
                 InGameConsole.ShowPassive(TextId.DLCPeerBeverageNotAvailable.Get(toExtract.id));
                 return SkipOriginal;
             }
@@ -51,7 +50,7 @@ public partial class WorkSceneStoragePannelPatch
         {
             if (GameSession.HasRoomPeers && !PlayerManager.FoodAvailable(toExtract.id))
             {
-                Log.LogWarning($"Peer does not have recipe {toExtract.id}, cannot extract.");
+                Log.Warning($"Peer does not have recipe {toExtract.id}, cannot extract.");
                 InGameConsole.ShowPassive(TextId.DLCPeerFoodNotAvailable.Get(toExtract.id));
                 return SkipOriginal;
             }

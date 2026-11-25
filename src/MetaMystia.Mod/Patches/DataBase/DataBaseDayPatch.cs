@@ -11,7 +11,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(GameData.Core.Collections.DaySceneUtility.DataBaseDay))]
-[AutoLog]
 public partial class DataBaseDayPatch
 {
 
@@ -19,7 +18,7 @@ public partial class DataBaseDayPatch
     [HarmonyPostfix]
     public static void Initialize_Postfix()
     {
-        Log.LogInfo("DataBaseDay.Initialize Postfix called.");
+        Log.Info("DataBaseDay.Initialize Postfix called.");
         ResourceExManager.OnDataBaseDayInitialized();
     }
 

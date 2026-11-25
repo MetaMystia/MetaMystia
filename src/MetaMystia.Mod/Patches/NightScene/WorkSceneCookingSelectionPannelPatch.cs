@@ -12,7 +12,6 @@ using static MetaMystia.Patch.HarmonyPrefixFlow;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(NightScene.UI.CookingUtility.WorkSceneCookingSelectionPannel.__c__DisplayClass79_0))]
-[AutoLog]
 public partial class WorkSceneCookingSelectionPannel__c__DisplayClass79_0Patch
 {
 

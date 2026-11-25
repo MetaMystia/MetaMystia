@@ -17,7 +17,6 @@ public readonly record struct Suggestion(string Label, string? Detail);
 /// <param name="Usage">当前命令用法，正在输入的参数已高亮；不在命令参数位置时为 null。</param>
 public sealed record CompletionResult(int Start, List<Suggestion> Items, string? Usage);
 
-[AutoLog]
 public static partial class CommandRegistry
 {
     private static RootCommand _root = null!;

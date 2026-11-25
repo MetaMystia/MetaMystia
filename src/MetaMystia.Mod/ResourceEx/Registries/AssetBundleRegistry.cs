@@ -10,7 +10,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// AssetBundle 注册器：在数据初始化时同步预加载资源包声明的全部 AssetBundle，
 /// 避免首次使用时卡顿；加载后常驻内存，运行时按 rex:// URI 取用。
 /// </summary>
-[AutoLog]
 public static partial class AssetBundleRegistry
 {
     private static readonly List<string> BundleUris = [];
@@ -24,11 +23,11 @@ public static partial class AssetBundleRegistry
         {
             if (string.IsNullOrWhiteSpace(bundleConfig?.path))
             {
-                Log.LogWarning($"[{packageName}] AssetBundle 缺少 path，跳过加载");
+                Log.Warning($"[{packageName}] AssetBundle 缺少 path，跳过加载");
                 continue;
             }
             BundleUris.Add(bundleConfig.path);
-            Log.LogInfo($"[{packageName}] Loaded config for asset bundle {bundleConfig.path}");
+            Log.Info($"[{packageName}] Loaded config for asset bundle {bundleConfig.path}");
         }
     }
 
@@ -42,7 +41,7 @@ public static partial class AssetBundleRegistry
 
             if (!RexAssetRegistry.Assets.ContainsKey(uri))
             {
-                Log.LogError($"资源包中找不到 AssetBundle: {uri}");
+                Log.Error($"资源包中找不到 AssetBundle: {uri}");
                 continue;
             }
             if (VfxBundle.Load(uri) is { } bundle)

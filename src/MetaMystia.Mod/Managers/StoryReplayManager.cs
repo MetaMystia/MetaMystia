@@ -13,7 +13,6 @@ using static MetaMystia.UI.DaySceneSelectionMenu;
 
 namespace MetaMystia;
 
-[AutoLog]
 public static partial class StoryReplayManager
 {
     private static MultiLanguageTextMesh.LoadLanguageType CurrentLanguage =>

@@ -25,7 +25,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// 符卡注册器：按资源包 spells 声明创建对应的代码实现，并依游戏各数据库的初始化时机分步写入
 /// 语言、角色标记、符卡实例与立绘。本类不含任何具体符卡的内容。
 /// </summary>
-[AutoLog]
 public static partial class SpellRegistry
 {
     /// <summary>implementation → 代码实现。新增符卡实现时在此加一行。</summary>
@@ -54,7 +53,7 @@ public static partial class SpellRegistry
         foreach (var spellConfig in config.spells)
         {
             SpellConfigs.Add(spellConfig);
-            Log.LogInfo($"[{packageName}] Loaded config for spell {spellConfig.id} ({spellConfig.implementation})");
+            Log.Info($"[{packageName}] Loaded config for spell {spellConfig.id} ({spellConfig.implementation})");
         }
     }
 
@@ -69,13 +68,13 @@ public static partial class SpellRegistry
     {
         if (!Implementations.TryGetValue(config.implementation ?? string.Empty, out var implementation))
         {
-            Log.LogWarning($"符卡 {config.id} 的实现 {config.implementation} 不存在，跳过注册");
+            Log.Warning($"符卡 {config.id} 的实现 {config.implementation} 不存在，跳过注册");
             return;
         }
 
         if (SpecialGuestRegistry.GetCharacterConfig(config.id) is not { } owner || string.IsNullOrWhiteSpace(owner.label))
         {
-            Log.LogError($"符卡 {config.id} 找不到对应的角色，跳过注册");
+            Log.Error($"符卡 {config.id} 找不到对应的角色，跳过注册");
             return;
         }
 
@@ -83,21 +82,21 @@ public static partial class SpellRegistry
             string.IsNullOrWhiteSpace(config.negative?.name) || string.IsNullOrWhiteSpace(config.negative?.description) ||
             string.IsNullOrWhiteSpace(config.positive?.portrait) || string.IsNullOrWhiteSpace(config.negative?.portrait))
         {
-            Log.LogWarning($"符卡 {config.id} 缺少 positive/negative 的名称、说明或立绘路径，跳过注册");
+            Log.Warning($"符卡 {config.id} 缺少 positive/negative 的名称、说明或立绘路径，跳过注册");
             return;
         }
 
         VfxBundle vfx = null;
         if (!string.IsNullOrWhiteSpace(config.vfxBundle) && !AssetBundleRegistry.TryGet(config.vfxBundle, out vfx))
         {
-            Log.LogWarning($"符卡 {config.id} 特效包未声明或加载失败: {config.vfxBundle}，跳过注册");
+            Log.Warning($"符卡 {config.id} 特效包未声明或加载失败: {config.vfxBundle}，跳过注册");
             return;
         }
 
         if (!TryGetSprite(config.positive.portrait, out var positive) ||
             !TryGetSprite(config.negative.portrait, out var negative))
         {
-            Log.LogError($"符卡 {config.id} 立绘加载失败，跳过注册");
+            Log.Error($"符卡 {config.id} 立绘加载失败，跳过注册");
             return;
         }
 
@@ -128,7 +127,7 @@ public static partial class SpellRegistry
     {
         if (T.CheckDependencies(vfx) is { } reason)
         {
-            Log.LogWarning($"符卡 {id} {reason}，跳过注册");
+            Log.Warning($"符卡 {id} {reason}，跳过注册");
             return null;
         }
 

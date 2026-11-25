@@ -19,7 +19,6 @@ using SgrYuki.Utils;
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.Profile.YuyukoBossData))]
-[AutoLog]
 public partial class YuyukoBossDataPatch
 {
     private static GameData.Profile.YuyukoBossData._MainChallengeLoop_d__16 currentLoop;

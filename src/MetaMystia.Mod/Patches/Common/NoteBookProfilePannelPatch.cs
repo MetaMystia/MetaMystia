@@ -6,7 +6,6 @@ namespace MetaMystia.Patch;
 
 
 [HarmonyPatch(typeof(Common.UI.NoteBookUtility.NoteBookProfilePannel))]
-[AutoLog]
 public partial class NoteBookProfilePannelPatch
 {
     /// <summary>

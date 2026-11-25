@@ -15,7 +15,6 @@ namespace MetaMystia.Patch;
 
 // 4.4.0e：GenerateOrderSession 的闭包，..._GuestGroupController_byref_OrderBase_0 为 <GenerateOrderSession>g__GenerateOrderInternal|1，..._SpecialGuestsController_0 为 g__CheckRemainingFund|0。
 [HarmonyPatch(typeof(NightScene.GuestManagementUtility.GuestsManager.__c__DisplayClass174_0))]
-[AutoLog]
 public partial class GuestsManager__c__DisplayClass174_0Patch
 {
     /// <summary>

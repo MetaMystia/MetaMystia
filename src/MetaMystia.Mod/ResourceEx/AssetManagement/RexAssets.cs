@@ -166,7 +166,6 @@ public sealed class RexBinaryAsset : RexAsset
     }
 }
 
-[AutoLog]
 public static partial class RexAssetRegistry
 {
     // Case-sensitive: rex:// URIs follow RFC 3986 path semantics. The scheme prefix itself
@@ -207,14 +206,14 @@ public static partial class RexAssetRegistry
         {
             if (!RexUri.TryBuild(package.PackageLabel, relativePath, out var rexUri))
             {
-                Log.LogWarning($"[{package.PackageName}] Skipping invalid resource path: {relativePath}");
+                Log.Warning($"[{package.PackageName}] Skipping invalid resource path: {relativePath}");
                 continue;
             }
 
             var bytes = package.AssetPackage.GetBytes(relativePath);
             if (bytes == null)
             {
-                Log.LogWarning($"[{package.PackageName}] Failed to read resource bytes: {relativePath}");
+                Log.Warning($"[{package.PackageName}] Failed to read resource bytes: {relativePath}");
                 continue;
             }
 
@@ -240,7 +239,7 @@ public static partial class RexAssetRegistry
             }
         }
 
-        Log.LogInfo(
+        Log.Info(
             $"[{package.PackageName}] Registered rex assets for {package.PackageLabel}: " +
             $"{imageCount} image(s), {textCount} text file(s), {audioCount} audio file(s), {binaryCount} binary file(s).");
     }
@@ -304,7 +303,7 @@ public static partial class RexAssetRegistry
             if (!ImageConversion.LoadImage(texture, bytes))
             {
                 UnityEngine.Object.DestroyImmediate(texture);
-                Log.LogWarning($"Failed to decode image resource: {uri.Value}");
+                Log.Warning($"Failed to decode image resource: {uri.Value}");
                 return new RexBinaryAsset(uri.Value, uri.PackageName, uri.Path, bytes);
             }
 
@@ -329,7 +328,7 @@ public static partial class RexAssetRegistry
         catch (Exception ex)
         {
             UnityEngine.Object.DestroyImmediate(texture);
-            Log.LogWarning($"Failed to create image resource {uri.Value}: {ex.Message}");
+            Log.Warning($"Failed to create image resource {uri.Value}: {ex.Message}");
             return new RexBinaryAsset(uri.Value, uri.PackageName, uri.Path, bytes);
         }
     }
@@ -344,7 +343,7 @@ public static partial class RexAssetRegistry
         }
         catch (Exception ex)
         {
-            Log.LogWarning($"Failed to register audio resource {uri.Value}: {ex.Message}");
+            Log.Warning($"Failed to register audio resource {uri.Value}: {ex.Message}");
             return new RexAudioAsset(uri.Value, uri.PackageName, uri.Path, bytes);
         }
     }
@@ -352,7 +351,7 @@ public static partial class RexAssetRegistry
     private static void RegisterAsset(RexAsset asset)
     {
         if (_assets.ContainsKey(asset.Uri))
-            Log.LogWarning($"Duplicate rex asset URI '{asset.Uri}' detected. Overwriting previous asset.");
+            Log.Warning($"Duplicate rex asset URI '{asset.Uri}' detected. Overwriting previous asset.");
 
         _assets[asset.Uri] = asset;
     }

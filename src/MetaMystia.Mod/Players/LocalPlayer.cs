@@ -10,7 +10,6 @@ namespace MetaMystia;
 /// <summary>
 /// 本地玩家，管理与本地操控角色相关的状态
 /// </summary>
-[AutoLog]
 public partial class LocalPlayer : NetPlayer
 {
     public bool CharacterSpawnedAndInitialized => GetCharacterUnit() != null;
@@ -19,14 +18,14 @@ public partial class LocalPlayer : NetPlayer
     {
         if (Common.SceneDirector.instance == null)
         {
-            Log.LogWarning($"SceneDirector instance is null");
+            Log.Warning($"SceneDirector instance is null");
             return null;
         }
         if (Common.SceneDirector.Instance.characterCollection.TryGetValue("Self", out var characterUnit))
         {
             return characterUnit;
         }
-        Log.LogWarning($"Cannot find character unit for 'Self'");
+        Log.Warning($"Cannot find character unit for 'Self'");
         return null;
     }
 
@@ -42,7 +41,7 @@ public partial class LocalPlayer : NetPlayer
     public override void ResetState()
     {
         base.ResetState();
-        Log.LogInfo($"LocalPlayer state reset");
+        Log.Info($"LocalPlayer state reset");
     }
 
     /// <summary>

@@ -9,7 +9,6 @@ using static GameData.Profile.SchedulerNodeCollection.MissionNode.FinishConditio
 namespace MetaMystia.Patch;
 
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeScheduler.TrackedMissionData))]
-[AutoLog]
 public partial class TrackedMissionDataPatch
 {
     /// <summary>

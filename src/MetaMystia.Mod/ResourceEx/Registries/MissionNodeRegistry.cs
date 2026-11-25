@@ -13,7 +13,6 @@ namespace MetaMystia.ResourceEx.Registries;
 /// <summary>
 /// 任务节点领域注册器：持有任务节点配置，负责注册与语言注册。
 /// </summary>
-[AutoLog]
 public static partial class MissionNodeRegistry
 {
     private static readonly List<MissionNodeConfig> MissionNodeConfigs = new();
@@ -25,7 +24,7 @@ public static partial class MissionNodeRegistry
         foreach (var missionNodeConfig in config.missionNodes)
         {
             MissionNodeConfigs.Add(missionNodeConfig);
-            Log.LogInfo($"[{packageName}] Loaded config for mission node {missionNodeConfig.title}");
+            Log.Info($"[{packageName}] Loaded config for mission node {missionNodeConfig.title}");
         }
     }
 

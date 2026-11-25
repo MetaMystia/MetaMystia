@@ -16,7 +16,6 @@ namespace MetaMystia.Multiplayer.Messages;
 /// 主机侧顾客已离开或正在评价时忽略。
 /// </summary>
 [MemoryPackable]
-[AutoLog]
 public partial class PlayerRepellMessage : MultiplayerMessage
 {
     public int RuntimeId { get; set; }
