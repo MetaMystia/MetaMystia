@@ -23,7 +23,7 @@
 - [threading](rules/threading.md)：线程边界、主线程切换、异步 IO
 - [coroutine](rules/coroutine.md)：协程
 - [il2cpp-interop](rules/il2cpp-interop.md)：Interop 类型边界与异常排查
-- [logging](rules/logging.md)：AutoLog、日志级别、TracePatch
+- [logging](rules/logging.md)：Log、日志级别、TracePatch
 - [localization](rules/localization.md)：TextId、语言文件、游戏术语
 - [console-command](rules/console-command.md)：控制台命令
 

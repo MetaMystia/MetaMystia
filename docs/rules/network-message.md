@@ -6,7 +6,6 @@
 
 ```csharp
 [MemoryPackable]
-[AutoLog]
 public partial class ExampleMessage : MultiplayerMessage
 {
     public int Value { get; set; }
@@ -21,7 +20,7 @@ public partial class ExampleMessage : MultiplayerMessage
 }
 ```
 
-- 使用 `[MemoryPackable]`、`[AutoLog]` 和 `partial`。正文只放标量、数据记录和稳定标识，不保存 Unity 对象。
+- 使用 `[MemoryPackable]` 和 `partial`。正文只放标量、数据记录和稳定标识，不保存 Unity 对象。
 - 聊天使用共享 `ChatPayload` 正文，由 `GameMessages` 转换；服务器检查后回送发送者，拒绝提示不结束连接。
 - 新类型同时登记到核心库 `GameMessageType`、`GameMessageRules`，以及模组 `MultiplayerMessage` 的 `MemoryPackUnion` 和 `GameMessages.TypeOf`。
 - 类型编号显式声明，不保留已删除消息的兼容占位。目前协议版本保持为 0，兼容性以根目录 `Versions.props` 的模组版本号校验为准；编号、正文结构或协议含义变化时，服务端与客户端需一起更新。

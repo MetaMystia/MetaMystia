@@ -4,7 +4,7 @@
 - 语义清晰时使用 `?.`、`??` 等语法糖。
 - 除网络通信、文件操作等 IO 边界外，不使用 `try-catch`，不通过捕获异常掩盖逻辑错误、状态错误或尚未理解的问题。
 - 不对游戏对象使用反射，依据逆向代码和 Interop 类型强类型调用，见 [il2cpp-interop](il2cpp-interop.md)。
-- 日志使用 `[AutoLog]`，不使用 `UnityEngine.Debug`，见 [logging](logging.md)。
+- 日志使用 `Log`，不使用 `UnityEngine.Debug`，见 [logging](logging.md)。
 - 新增延迟、等待和周期逻辑使用协程，见 [coroutine](coroutine.md)。
 
 ## 与同级保持一致

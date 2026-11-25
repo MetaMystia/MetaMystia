@@ -1,23 +1,25 @@
 # 日志与调用追踪规范
 
-## AutoLog
+## Log
 
-需要日志的类型使用 `[AutoLog]`，并声明为 `partial`：
+模组代码直接调用静态类 `MetaMystia.Log`，日志最终写入 BepInEx：
 
 ```csharp
-[AutoLog]
-public static partial class ExampleManager
+public static class ExampleManager
 {
-    public static void Run()
+    public static void Run(int id)
     {
-        Log.Info("Run");
+        Log.Info($"Run {id}");
     }
 }
 ```
 
-Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx。禁止使用 `UnityEngine.Debug`，也不要为普通类型手动保存 `Plugin.Instance.Log`。
+输出为 `[时间] [标签] 正文`，标签是调用处的源文件名，到第一个 `.` 为止。正文不再重复类名。
 
-`Log.Debug`、`Log.Info`、`Log.Message`、`Log.Warning`、`Log.Error` 和 `Log.Fatal` 是主要接口。`Log.LogInfo` 等兼容接口可用于现有代码；新增代码优先使用较短形式。
+- 插值字符串在级别未被监听时不求值，插值中不得有副作用。
+- 级别由变量决定时用 `Log.Write(level, $"...")`。
+- 禁止使用 `UnityEngine.Debug`，不要手动保存 `Plugin.Instance.Log`。`Plugin` 类中的 `Log` 是 BepInEx 的属性，应写 `MetaMystia.Log`。
+- MystiaLib 和 `RuntimeAddressables` 使用各自的日志源。
 
 ## 日志级别
 
@@ -30,9 +32,11 @@ Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx
 
 不得通过提高日志级别强调普通流程。
 
+资源注册每项只在最终结果记一条 `Info`，中间步骤用 `Debug`；对话包只记总数。
+
 ## 日志内容
 
-日志应包含定位问题所需的关键上下文，例如角色、UID、消息类型、场景、资源包、目标方法或状态变化。
+正文使用英文，包含定位问题所需的关键上下文，例如角色、UID、消息类型、场景、资源包、目标方法或状态变化。
 
 禁止记录：
 
@@ -52,10 +56,10 @@ Source Generator 会为该类型生成 `LogWrapper`，日志最终写入 BepInEx
 
 ## TracePatch
 
-`[TracePatch]` 用于临时分析 Harmony 调用顺序。Source Generator 会生成 Prefix、Postfix 和 Finalizer，并由 `TraceLog` 维护调用栈。
+`[TracePatch]` 用于临时分析 Harmony 调用顺序。Source Generator 会生成 Prefix、Postfix 和 Finalizer，并由 `TraceLog` 维护调用栈。追踪方法只存在于 Debug 构建。
 
 - 仅在确有调用链调查需求时添加。
-- 必须确认目标方法和重载签名。
+- 必须确认目标方法和重载签名。CI 只对 Release 产物做 ICF 检查，新增目标后对 Debug 产物运行 `tools/icf check`。
 - 调查完成后评估是否仍需长期保留，避免无意义扩大 Patch 面。
 - Trace 输出不能替代对逆向源码和实际执行流的审计。
 
