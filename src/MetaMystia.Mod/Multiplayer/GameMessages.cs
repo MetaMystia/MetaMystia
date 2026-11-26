@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 using MemoryPack;
 
@@ -12,54 +13,9 @@ namespace MetaMystia.Multiplayer;
 public static class GameMessages
 {
     private static readonly Dictionary<GameMessageType, MessageRule> rules = GameMessageRules.Create().ToDictionary(r => (GameMessageType)r.Id);
-    public static GameMessageType TypeOf(MultiplayerMessage message) => message switch
-    {
-        ChatMessage => GameMessageType.Chat,
-        SelectIzakayaMessage => GameMessageType.SelectIzakaya,
-        ConfirmIzakayaMessage => GameMessageType.ConfirmIzakaya,
-        UpdatePrepMessage => GameMessageType.UpdatePrep,
-        PrepReadyMessage => GameMessageType.PrepReady,
-        PrepAllReadyMessage => GameMessageType.PrepAllReady,
-        NightCookMessage => GameMessageType.NightCook,
-        ExtractFromCookerMessage => GameMessageType.ExtractFromCooker,
-        StoreFoodMessage => GameMessageType.StoreFood,
-        StoreSellableMessage => GameMessageType.StoreSellable,
-        ExtractFoodMessage => GameMessageType.ExtractFood,
-        QTEMessage => GameMessageType.QTE,
-        BuffMessage => GameMessageType.Buff,
-        GuestInviteMessage => GameMessageType.GuestInvite,
-        GuestSpawnMessage => GameMessageType.GuestSpawn,
-        GuestSeatMessage => GameMessageType.GuestSeat,
-        MoveToQueueMessage => GameMessageType.MoveToQueue,
-        PlayerRepellMessage => GameMessageType.PlayerRepell,
-        GenerateOrderMessage => GameMessageType.GenerateOrder,
-        ServeSellableMessage => GameMessageType.ServeSellable,
-        EvaluateOrderMessage => GameMessageType.EvaluateOrder,
-        ConfirmServeMessage => GameMessageType.ConfirmServe,
-        GuestLeaveMessage => GameMessageType.GuestLeave,
-        GuestStatsMessage => GameMessageType.GuestStats,
-        ServeRejectMessage => GameMessageType.ServeReject,
-        GuestQueryMessage => GameMessageType.GuestQuery,
-        GuestSnapshotMessage => GameMessageType.GuestSnapshot,
-        FundEditMessage => GameMessageType.FundEdit,
-        TipEditMessage => GameMessageType.TipEdit,
-        ExpEditMessage => GameMessageType.ExpEdit,
-        PassionEditMessage => GameMessageType.PassionEdit,
-        IzakayaCloseMessage => GameMessageType.IzakayaClose,
-        YuyukoFailedMessage => GameMessageType.YuyukoFailed,
-        YuyukoLifeMessage => GameMessageType.YuyukoLife,
-        DayDestinationIntentMessage => GameMessageType.DayDestinationIntent,
-        DayDestinationStateMessage => GameMessageType.DayDestinationState,
-        DayDestinationConfirmMessage => GameMessageType.DayDestinationConfirm,
-        YuyukoGuestMessage => GameMessageType.YuyukoGuest,
-        YuyukoGuestBoundMessage => GameMessageType.YuyukoGuestBound,
-        RoomInitialStateMessage => GameMessageType.RoomInitialState,
-        BusinessStartMessage => GameMessageType.BusinessStart,
-        EmoteMessage => GameMessageType.Emote,
-        TimeStopRequestMessage => GameMessageType.TimeStopRequest,
-        TimeStopStateMessage => GameMessageType.TimeStopState,
-        _ => throw new ArgumentException("Unregistered message", nameof(message))
-    };
+    private static readonly Dictionary<Type, GameMessageType> types = typeof(MultiplayerMessage)
+        .GetCustomAttributes<MemoryPackUnionAttribute>().ToDictionary(a => a.Type, a => (GameMessageType)a.Tag);
+    public static GameMessageType TypeOf(MultiplayerMessage message) => types[message.GetType()];
 
     public static bool CanSend(MultiplayerMessage message) => GameSession.IsOnline
         && (!rules[TypeOf(message)].RoomScoped || GameSession.IsInRoom);

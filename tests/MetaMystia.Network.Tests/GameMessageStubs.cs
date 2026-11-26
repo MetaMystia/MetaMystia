@@ -34,49 +34,10 @@ namespace MetaMystia.Multiplayer.Messages
 
     [MemoryPackable]
     public partial class ChatMessage : MultiplayerMessage { public string Message { get; set; } = "hello"; }
-    public class SelectIzakayaMessage : MultiplayerMessage {}
-    public class ConfirmIzakayaMessage : MultiplayerMessage {}
-    public class UpdatePrepMessage : MultiplayerMessage {}
-    public class PrepReadyMessage : MultiplayerMessage {}
-    public class PrepAllReadyMessage : MultiplayerMessage {}
     [MemoryPackable]
     public partial class NightCookMessage : MultiplayerMessage {}
-    public class ExtractFromCookerMessage : MultiplayerMessage {}
-    public class StoreFoodMessage : MultiplayerMessage {}
-    public class StoreSellableMessage : MultiplayerMessage {}
-    public class ExtractFoodMessage : MultiplayerMessage {}
-    public class QTEMessage : MultiplayerMessage {}
-    public class BuffMessage : MultiplayerMessage {}
-    public class GuestInviteMessage : MultiplayerMessage {}
-    public class GuestSpawnMessage : MultiplayerMessage {}
-    public class GuestSeatMessage : MultiplayerMessage {}
-    public class MoveToQueueMessage : MultiplayerMessage {}
-    public class PlayerRepellMessage : MultiplayerMessage {}
-    public class GenerateOrderMessage : MultiplayerMessage {}
     public class ServeSellableMessage : MultiplayerMessage { public int ActorUid { get; set; } }
-    public class EvaluateOrderMessage : MultiplayerMessage {}
     public class ConfirmServeMessage : MultiplayerMessage { public int ActorUid { get; set; } }
-    public class GuestLeaveMessage : MultiplayerMessage {}
-    public class GuestStatsMessage : MultiplayerMessage {}
-    public class ServeRejectMessage : MultiplayerMessage {}
-    public class GuestQueryMessage : MultiplayerMessage {}
-    public class GuestSnapshotMessage : MultiplayerMessage {}
-    public class FundEditMessage : MultiplayerMessage {}
-    public class TipEditMessage : MultiplayerMessage {}
-    public class ExpEditMessage : MultiplayerMessage {}
-    public class PassionEditMessage : MultiplayerMessage {}
-    public class IzakayaCloseMessage : MultiplayerMessage {}
-    public class YuyukoFailedMessage : MultiplayerMessage {}
-    public class YuyukoLifeMessage : MultiplayerMessage {}
-    public class DayDestinationIntentMessage : MultiplayerMessage {}
-    public class DayDestinationStateMessage : MultiplayerMessage {}
-    public class DayDestinationConfirmMessage : MultiplayerMessage {}
-    public class YuyukoGuestMessage : MultiplayerMessage {}
-    public class YuyukoGuestBoundMessage : MultiplayerMessage {}
-    public class RoomInitialStateMessage : MultiplayerMessage {}
-    public class BusinessStartMessage : MultiplayerMessage {}
     [MemoryPackable]
     public partial class EmoteMessage : MultiplayerMessage {}
-    public class TimeStopRequestMessage : MultiplayerMessage {}
-    public class TimeStopStateMessage : MultiplayerMessage {}
 }

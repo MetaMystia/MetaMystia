@@ -22,7 +22,7 @@ public partial class ExampleMessage : MultiplayerMessage
 
 - 使用 `[MemoryPackable]` 和 `partial`。正文只放标量、数据记录和稳定标识，不保存 Unity 对象。
 - 聊天使用共享 `ChatPayload` 正文，由 `GameMessages` 转换；服务器检查后回送发送者，拒绝提示不结束连接。
-- 新类型同时登记到核心库 `GameMessageType`、`GameMessageRules`，以及模组 `MultiplayerMessage` 的 `MemoryPackUnion` 和 `GameMessages.TypeOf`。
+- 新类型同时登记到核心库 `GameMessageType`、`GameMessageRules`，以及模组 `MultiplayerMessage` 的 `MemoryPackUnion`。
 - 类型编号显式声明，不保留已删除消息的兼容占位。目前协议版本保持为 0，兼容性以根目录 `Versions.props` 的模组版本号校验为准；编号、正文结构或协议含义变化时，服务端与客户端需一起更新。
 - `GameMessages` 在主线程序列化一次并发送；接收时核对外层消息编号与实际消息类型，再调用 `MultiplayerMessage.OnReceived()`。
 
@@ -59,4 +59,4 @@ public partial class ExampleMessage : MultiplayerMessage
 
 基类统一记录收发日志，按需覆盖日志级别或 `ToLogString()`。连接对象不参与日志序列化；不要输出 Token 或大块正文。
 
-新增消息时核对：四处注册一致（`tools/check.py` 会检查）、身份与路由明确、场景及剧情约束完整、本地回声不重复执行、延迟操作能随退房失效。
+新增消息时核对：三处注册一致（`tools/check.py` 会检查）、身份与路由明确、场景及剧情约束完整、本地回声不重复执行、延迟操作能随退房失效。

@@ -62,16 +62,14 @@ def check_messages():
     enum = set(re.findall(r"^\s*(\w+)\s*=\s*\d+\s*,?", re.search(r"enum GameMessageType[^{]*\{(.*?)\}", source, re.S).group(1), re.M))
     rules = set(re.findall(r"new\(\(ushort\)GameMessageType\.(\w+)", source))
     union = dict(re.findall(r"MemoryPackUnion\(\(ushort\)GameMessageType\.(\w+),\s*typeof\((\w+)\)\)", read(MOD / "Multiplayer/Messages/MultiplayerMessage.cs")))
-    type_of = {name: cls for cls, name in re.findall(r"^\s*(\w+)\s*=>\s*GameMessageType\.(\w+)\s*,", read(MOD / "Multiplayer/GameMessages.cs"), re.M)}
-    places = {"GameMessageRules": rules, "MemoryPackUnion": set(union), "GameMessages.TypeOf": set(type_of)}
+    places = {"GameMessageRules": rules, "MemoryPackUnion": set(union)}
     for place, names in places.items():
         for name in sorted(enum - names):
             errors.append(f"{place}: 未登记 GameMessageType.{name}")
         for name in sorted(names - enum):
             errors.append(f"{place}: GameMessageType 中没有 {name}")
-    for name in sorted(set(union) & set(type_of)):
-        if union[name] != type_of[name]:
-            errors.append(f"消息 {name}: MemoryPackUnion 为 {union[name]}，TypeOf 为 {type_of[name]}")
+    for cls in sorted({c for c in union.values() if list(union.values()).count(c) > 1}):
+        errors.append(f"MemoryPackUnion: {cls} 登记了多个编号")
 
 
 def check_patches():
