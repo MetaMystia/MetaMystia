@@ -92,19 +92,9 @@ public partial record Snapshot
     };
 }
 
-public enum Route : byte { Server, World, Room, Host, Player }
+public enum Route : byte { World = 1, Room, Host, Player }
 public sealed record MessageRule(ushort Id, Route[] Routes, bool HostOnly = false, bool RoomScoped = true, int MaxBytes = 65536, bool HostBroadcastOnly = false);
-public static class Messages
-{
-    public const ushort Chat = 1, GameplayRequest = 2, GameplayResult = 3;
-    public static MessageRule[] DefaultRules() =>
-    [
-        new(Chat, [Route.World], RoomScoped: false, MaxBytes: 4096),
-        new(GameplayRequest, [Route.Host]),
-        new(GameplayResult, [Route.Room, Route.Player], HostOnly: true)
-    ];
-}
-public sealed record MessageContext(int Sender, ushort Room, long SenderMembership, long RecipientMembership, long Request);
+public sealed record MessageContext(int Sender, ushort Room, long SenderMembership, long RecipientMembership);
 public sealed record ReceivedMessage(ushort Type, MessageContext Context, byte[] Body);
 public sealed record ServerOptions
 {
@@ -113,7 +103,7 @@ public sealed record ServerOptions
     public int MaxPlayers { get; init; } = 16;
     public Versions Versions { get; init; } = Versions.Current;
     public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(15);
-    public MessageRule[] Messages { get; init; } = MetaMystia.Network.Messages.DefaultRules();
+    public MessageRule[] Messages { get; init; } = GameMessageRules.Create();
     public ChatFilterOptions ChatFilter { get; init; } = new();
     public bool LogChat { get; init; }
     public string[] WelcomeMessages { get; init; } = [];

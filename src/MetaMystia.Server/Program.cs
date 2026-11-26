@@ -25,7 +25,7 @@ void Write(ServerLogLevel level, string message)
 await using var server = new Server(new ServerOptions
 {
     Address = IPAddress.Parse(Environment.GetEnvironmentVariable("MM_GAME_ADDRESS") ?? "0.0.0.0"),
-    Port = port, MaxPlayers = limit, Messages = GameMessageRules.Create(),
+    Port = port, MaxPlayers = limit,
     ChatFilter = config.ChatFilter, LogChat = config.LogChat, WelcomeMessages = config.WelcomeMessages
 });
 server.Logged += entry => Write(entry.Level, entry.Message);

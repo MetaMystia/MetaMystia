@@ -40,7 +40,6 @@ public sealed partial class Server : IAsyncDisposable
     private int lanHost;
     private ushort defaultRoom;
     public IPEndPoint Endpoint => (IPEndPoint)listener.LocalEndpoint;
-    public event Action<ReceivedMessage>? MessageReceived;
     public event Action<Exception>? CallbackError;
     public event Action<ServerLogEntry>? Logged;
 
@@ -107,6 +106,15 @@ public sealed partial class Server : IAsyncDisposable
     {
         try { await events.Writer.WriteAsync(action).ConfigureAwait(false); }
         catch (ChannelClosedException) { }
+    }
+
+    private async Task<T> Call<T>(Func<T> action, T stopped)
+    {
+        if (Volatile.Read(ref stopping) != 0 || Volatile.Read(ref started) == 0) return stopped;
+        var result = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try { await events.Writer.WriteAsync(() => result.TrySetResult(Volatile.Read(ref stopping) != 0 ? stopped : action())).ConfigureAwait(false); }
+        catch (ChannelClosedException) { return stopped; }
+        return await result.Task.ConfigureAwait(false);
     }
 
     private async Task Tick()
@@ -198,7 +206,6 @@ public sealed partial class Server : IAsyncDisposable
             switch (f.Kind)
             {
                 case Kind.Ping: p.Wire.Send(new(Kind.Pong, f.Body)); break;
-                case Kind.Pong: break;
                 case Kind.Command: Manage(p, Protocol.Read<Control>(f.Body)); break;
                 case Kind.Motion:
                 case Kind.RoomMotion:
@@ -411,12 +418,6 @@ public sealed partial class Server : IAsyncDisposable
         if (rule.HostOnly && (room == null || room.Host != p.Player!.Uid)) return;
         if (rule.HostBroadcastOnly && f.Route != Route.Host && room?.Host != p.Player!.Uid) return;
         var source = f with { Sender = p.Player!.Uid, Room = rule.RoomScoped ? p.Room : (ushort)0, Membership = rule.RoomScoped ? p.Player.Membership : 0 };
-        if (f.Route == Route.Server)
-        {
-            try { MessageReceived?.Invoke(new(f.Type, new(source.Sender, source.Room, source.Membership, 0, f.Request), f.Body)); }
-            catch (Exception e) { try { CallbackError?.Invoke(e); } catch { } }
-            return;
-        }
         foreach (var target in peers.Where(x => x.Player != null))
         {
             bool send = f.Route switch
@@ -428,7 +429,6 @@ public sealed partial class Server : IAsyncDisposable
                 _ => false
             };
             if (!send || (rule.RoomScoped && target.Room != p.Room)) continue;
-            if (f.RecipientMembership != 0 && f.RecipientMembership != target.Player!.Membership) continue;
             target.Wire.Send(source with { RecipientMembership = rule.RoomScoped ? target.Player!.Membership : 0 });
         }
     }
@@ -487,13 +487,8 @@ public sealed partial class Server : IAsyncDisposable
         foreach (var p in peers.Where(p => p.Player != null && p != except)) p.Wire.SendBytes(bytes);
     }
 
-    public async Task<Snapshot> GetSnapshotAsync()
-    {
-        if (Volatile.Read(ref stopping) != 0 || Volatile.Read(ref started) == 0) throw new InvalidOperationException("Not running");
-        var result = new TaskCompletionSource<Snapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await events.Writer.WriteAsync(() => result.TrySetResult(Protocol.Read<Snapshot>(Protocol.Pack(Capture(null))))).ConfigureAwait(false);
-        return await result.Task.ConfigureAwait(false);
-    }
+    public async Task<Snapshot> GetSnapshotAsync() =>
+        await Call<Snapshot?>(() => Capture(null), null).ConfigureAwait(false) ?? throw new InvalidOperationException("Not running");
 
     public async Task StopAsync()
     {

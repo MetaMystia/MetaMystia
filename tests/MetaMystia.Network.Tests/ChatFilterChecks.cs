@@ -13,7 +13,7 @@ static partial class Checks
         var filter = JsonSerializer.Deserialize<ChatFilterOptions>(
             """{"enabled":true,"ignoreCase":true,"words":["敏感词","blocked","", "   "]}""",
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-        await using var server = new Server(new() { Messages = GameMessageRules.Create(), ChatFilter = filter });
+        await using var server = new Server(new() { ChatFilter = filter });
         await server.StartAsync();
         var sender = await Connect(server, "chat-sender");
         var sameRoom = await Connect(server, "chat-member");
@@ -42,7 +42,7 @@ static partial class Checks
         foreach (var text in new[] { "前缀敏感词后缀", "xxBLOCKEDyy" })
         {
             int count = errors.Count;
-            sender.SendToWorld((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = text }));
+            sender.Send((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = text }), Route.World);
             await Until(() => errors.Count == count + 1);
             Assert(errors[^1].Code == NetworkErrorCode.ChatFiltered, "包含匹配及忽略大小写：" + text);
         }
@@ -54,11 +54,11 @@ static partial class Checks
         })
         {
             int count = errors.Count;
-            sender.SendToWorld((ushort)GameMessageType.Chat, body);
+            sender.Send((ushort)GameMessageType.Chat, body, Route.World);
             await Until(() => errors.Count == count + 1);
             Assert(errors[^1].Code == NetworkErrorCode.InvalidChat, "无效聊天正文只拒绝消息");
         }
-        sender.SendToWorld((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = new string('好', 1024) }));
+        sender.Send((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = new string('好', 1024) }), Route.World);
         await Until(() => received.Count >= 3);
         Assert(received.Count == 3 && otherErrors == 0 && sender.IsConnected && sameRoom.IsConnected && otherRoom.IsConnected
             && received.All(x => MemoryPackSerializer.Deserialize<ChatPayload>(x.Message.Body)!.Message.Length == 1024),
@@ -72,18 +72,18 @@ static partial class Checks
             new ChatFilterOptions { Enabled = true, Words = ["", " "] }
         })
         {
-            await using var configured = new Server(new() { Messages = GameMessageRules.Create(), ChatFilter = options });
+            await using var configured = new Server(new() { ChatFilter = options });
             await configured.StartAsync();
             var client = await Connect(configured, "config-check");
             int accepted = 0, rejected = 0;
             client.MessageReceived += _ => accepted++;
             client.ChatRejected += _ => rejected++;
-            client.SendToWorld((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = "BLOCKED" }));
+            client.Send((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = "BLOCKED" }), Route.World);
             await Until(() => accepted == 1);
             Assert(rejected == 0, "关闭过滤、大小写敏感及空词表配置允许相应消息");
             if (options.Enabled && !options.IgnoreCase)
             {
-                client.SendToWorld((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = "blocked" }));
+                client.Send((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = "blocked" }), Route.World);
                 await Until(() => rejected == 1);
                 Assert(client.IsConnected, "大小写敏感模式仍拦截精确词条");
             }

@@ -1,5 +1,3 @@
-using System.Threading.Channels;
-
 namespace MetaMystia.Network;
 
 public sealed partial class Server
@@ -14,26 +12,18 @@ public sealed partial class Server
         if (string.IsNullOrWhiteSpace(noticeId) || noticeId.Length > 128 ||
             string.IsNullOrWhiteSpace(targetModVersion) || targetModVersion.Length > 64)
             throw new ArgumentException("Invalid retirement notice");
-        if (Volatile.Read(ref stopping) != 0 || Volatile.Read(ref started) == 0) return NetworkErrorCode.ServerStopped;
-        var result = new TaskCompletionSource<NetworkErrorCode>(TaskCreationOptions.RunContinuationsAsynchronously);
-        try
+        return await Call(() =>
         {
-            await events.Writer.WriteAsync(() =>
+            if (retirement?.NoticeId != noticeId)
             {
-                if (Volatile.Read(ref stopping) != 0) { result.TrySetResult(NetworkErrorCode.ServerStopped); return; }
-                if (retirement?.NoticeId != noticeId)
-                {
-                    retirement = new() { Code = ServerNoticeCode.Retiring, NoticeId = noticeId, TargetModVersion = targetModVersion };
-                    var frame = new Frame(Kind.ServerNotice, Protocol.Pack(retirement));
-                    foreach (var peer in peers.Where(p => p.Player != null && !p.Rejected)) peer.Wire.Send(frame);
-                    Log(ServerLogLevel.Info, $"[系统] 服务端已进入退役状态，目标模组版本为 {ServerLogEntry.Quote(targetModVersion)}。");
-                }
-                CheckDrained();
-                result.TrySetResult(NetworkErrorCode.None);
-            }).ConfigureAwait(false);
-        }
-        catch (ChannelClosedException) { return NetworkErrorCode.ServerStopped; }
-        return await result.Task.ConfigureAwait(false);
+                retirement = new() { Code = ServerNoticeCode.Retiring, NoticeId = noticeId, TargetModVersion = targetModVersion };
+                var frame = new Frame(Kind.ServerNotice, Protocol.Pack(retirement));
+                foreach (var peer in peers.Where(p => p.Player != null && !p.Rejected)) peer.Wire.Send(frame);
+                Log(ServerLogLevel.Info, $"[系统] 服务端已进入退役状态，目标模组版本为 {ServerLogEntry.Quote(targetModVersion)}。");
+            }
+            CheckDrained();
+            return NetworkErrorCode.None;
+        }, NetworkErrorCode.ServerStopped).ConfigureAwait(false);
     }
 
     private void CheckDrained()

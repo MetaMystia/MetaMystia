@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Reflection;
 
 using BepInEx.Logging;
@@ -11,8 +12,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 
 [MemoryPackable]
-[MemoryPackUnion((ushort)GameMessageType.Ping, typeof(PingMessage))]
-[MemoryPackUnion((ushort)GameMessageType.Pong, typeof(PongMessage))]
 [MemoryPackUnion((ushort)GameMessageType.Chat, typeof(ChatMessage))]
 [MemoryPackUnion((ushort)GameMessageType.SelectIzakaya, typeof(SelectIzakayaMessage))]
 [MemoryPackUnion((ushort)GameMessageType.ConfirmIzakaya, typeof(ConfirmIzakayaMessage))]
@@ -59,7 +58,6 @@ namespace MetaMystia.Multiplayer.Messages;
 [MemoryPackUnion((ushort)GameMessageType.TimeStopState, typeof(TimeStopStateMessage))]
 public abstract partial class MultiplayerMessage
 {
-    protected long TimestampMs { get; set; }
     /// <summary>
     /// 服务器根据真实连接提供的发送者 UID，不进入玩法正文。
     /// </summary>
@@ -85,65 +83,47 @@ public abstract partial class MultiplayerMessage
 
     protected MultiplayerMessage()
     {
-        TimestampMs = RoomClock.Now;
         SenderUid = GameSession.Client?.Uid ?? 0;
     }
 
+
+    private sealed record ReceiveRules(Common.UI.Scene? Scene, bool DiscardOnStory, bool RequireHostSender, bool ClientOnly, bool HostOnly);
+    private static readonly ConcurrentDictionary<Type, ReceiveRules> receiveRules = new();
+    private ReceiveRules Rules => receiveRules.GetOrAdd(GetType(), type =>
+    {
+        var method = type.GetMethod(nameof(OnReceivedDerived));
+        return new(method.GetCustomAttribute<CheckSceneAttribute>()?.Scene, method.IsDefined(typeof(DiscardOnStoryAttribute)),
+            method.IsDefined(typeof(RequireHostSenderAttribute)), method.IsDefined(typeof(ClientOnlyReceiveAttribute)),
+            method.IsDefined(typeof(HostOnlyReceiveAttribute)));
+    });
 
     public abstract void OnReceivedDerived();
     public void OnReceived()
     {
         LogMessageReceived();
-        var targetScene = GetReceivedScene();
-        if (targetScene != null && GameFlow.LocalScene != targetScene.Value)
+        var rules = Rules;
+        if (rules.Scene is { } scene && GameFlow.LocalScene != scene)
         {
             Log.Info($"{MetaMystia.UI.MultiplayerStatus.RoleTag} Received in invalid scene: {MessageName}: {ToLogString()}");
             return;
         }
-        if (ShouldDiscardOnStory())
+        if (rules.DiscardOnStory && GameFlow.InStory)
         {
             Log.Info($"{MetaMystia.UI.MultiplayerStatus.RoleTag} Discarded (in story): {MessageName}");
             return;
         }
-        if (!PassesReceiveGuards()) return;
-        OnReceivedDerived();
-    }
-
-    private bool PassesReceiveGuards()
-    {
-        var method = GetType().GetMethod(nameof(OnReceivedDerived));
-
-        if (method.GetCustomAttribute<RequireHostSenderAttribute>() != null
-            && SenderUid != GameSession.Room?.Host)
+        if (rules.RequireHostSender && SenderUid != GameSession.Room?.Host)
         {
             Log.Warning($"{MetaMystia.UI.MultiplayerStatus.RoleTag} {MessageName} from non-host uid={SenderUid}, ignoring");
-            return false;
+            return;
         }
-
-        if (method.GetCustomAttribute<ClientOnlyReceiveAttribute>() != null && GameSession.IsRoomHost)
-            return false;
-
-        if (method.GetCustomAttribute<HostOnlyReceiveAttribute>() != null && !GameSession.IsRoomHost)
+        if (rules.ClientOnly && GameSession.IsRoomHost) return;
+        if (rules.HostOnly && !GameSession.IsRoomHost)
         {
             Log.Warning($"{MetaMystia.UI.MultiplayerStatus.RoleTag} {MessageName} received by non-host, ignoring");
-            return false;
+            return;
         }
-
-        return true;
-    }
-
-    private Common.UI.Scene? GetReceivedScene()
-    {
-        var method = this.GetType().GetMethod(nameof(OnReceivedDerived));
-        var attr = method.GetCustomAttribute<CheckSceneAttribute>();
-        return attr?.Scene;
-    }
-
-    private bool ShouldDiscardOnStory()
-    {
-        if (!GameFlow.InStory) return false;
-        var method = this.GetType().GetMethod(nameof(OnReceivedDerived));
-        return method.GetCustomAttribute<DiscardOnStoryAttribute>() != null;
+        OnReceivedDerived();
     }
 
     private static readonly System.Text.Json.JsonSerializerOptions LogJsonOptions = new()
@@ -171,7 +151,7 @@ public abstract partial class MultiplayerMessage
     protected void Enqueue()
     {
         if (!GameMessages.CanSend(this)) return;
-        if (ShouldDiscardOnStory())
+        if (Rules.DiscardOnStory && GameFlow.InStory)
         {
             Log.Info($"{MetaMystia.UI.MultiplayerStatus.RoleTag} Will not send (in story): {MessageName}");
             return;

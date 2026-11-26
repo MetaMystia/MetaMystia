@@ -24,7 +24,6 @@ static partial class Checks
             async Task<Frame> Probe()
             {
                 await peer.GetStream().WriteAsync(Protocol.Encode(new(Kind.Ping, [])));
-                Assert((await Read(peer)).Kind == Kind.Pong, "测量同时保留服务器心跳应答");
                 var ping = await Read(peer);
                 Assert(ping.Kind == Kind.Ping && ping.Body.Length == sizeof(long), "世界玩家自动发送服务器延迟探测");
                 return ping;

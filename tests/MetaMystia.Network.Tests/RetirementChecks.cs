@@ -29,7 +29,7 @@ static partial class Checks
         Assert(host.IsConnected && guest.IsConnected && guest.State.Room != null && !server.Drained.IsCompleted, "退役保留已有连接和房间");
         var messages = 0;
         guest.MessageReceived += _ => messages++;
-        host.SendToRoom(3, [42]);
+        host.Send(3, [42], Route.Room);
         await Until(() => messages == 1);
         Assert(messages == 1, "退役后仍能转发房间玩法消息");
         var refused = new Client(); clients.Add(refused);

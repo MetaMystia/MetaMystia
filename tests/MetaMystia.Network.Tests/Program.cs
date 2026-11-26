@@ -16,7 +16,7 @@ catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; }
 static partial class Checks
 {
     static readonly List<Client> clients = [];
-    static readonly MessageRule[] rules = [new(1, [Route.World], RoomScoped: false), new(2, [Route.Host]), new(3, [Route.Room, Route.Player], HostOnly: true), new(4, [Route.Room, Route.Player]), new(5, [Route.Server], RoomScoped: false)];
+    static readonly MessageRule[] rules = [new(1, [Route.World], RoomScoped: false), new(2, [Route.Host]), new(3, [Route.Room, Route.Player], HostOnly: true), new(4, [Route.Room, Route.Player])];
     static int checks;
     static Player Player(string name, ResourceDataBase? resources = null) => new()
     {
@@ -112,17 +112,16 @@ static partial class Checks
         await Pump(outsider.CreateRoomAsync(2)); await Pump(outsider.SetJoinableAsync(true));
         var receivedA = new List<ReceivedMessage>(); var receivedGuest = new List<ReceivedMessage>(); var receivedOutside = new List<ReceivedMessage>();
         a.MessageReceived += receivedA.Add; guest.MessageReceived += receivedGuest.Add; outsider.MessageReceived += receivedOutside.Add;
-        for (int i = 0; i < 100; i++) a.SendToWorld(1, BitConverter.GetBytes(i));
+        for (int i = 0; i < 100; i++) a.Send(1, BitConverter.GetBytes(i), Route.World);
         await Until(() => receivedGuest.Count == 100 && receivedOutside.Count == 100);
         Assert(receivedGuest.Select(m => BitConverter.ToInt32(m.Body)).SequenceEqual(Enumerable.Range(0, 100)) && receivedA.Count == 0, "发送、转发和显式派发保持顺序，世界广播跨房且不回送");
-        a.SendToRoom(3, [42]); await Until(() => receivedGuest.Count == 101);
+        a.Send(3, [42], Route.Room); await Until(() => receivedGuest.Count == 101);
         await Task.Delay(30); outsider.DispatchPending();
         Assert(receivedOutside.Count == 100, "房间广播隔离");
-        guest.SendToHost(2, [8], 77); await Until(() => receivedA.Count == 1);
-        var context = receivedA[0].Context;
-        a.Reply(context, 3, [9]); await Until(() => receivedGuest.Count == 102);
-        Assert(receivedGuest[^1].Context.Sender == a.Uid && receivedGuest[^1].Context.Request == 77, "房主单独回复保留请求编号、来源是房主");
-        a.SendToPlayer(outsider.Uid, 3, [99]); guest.SendToRoom(3, [99]);
+        guest.Send(2, [8], Route.Host); await Until(() => receivedA.Count == 1);
+        a.Send(3, [9], Route.Player, guest.Uid); await Until(() => receivedGuest.Count == 102);
+        Assert(receivedA[0].Context.Sender == guest.Uid && receivedGuest[^1].Context.Sender == a.Uid, "客人请求送达房主，房主定向回复来源是房主");
+        a.Send(3, [99], Route.Player, outsider.Uid); guest.Send(3, [99], Route.Room);
         await Task.Delay(30); foreach (var x in clients) x.DispatchPending();
         Assert(receivedOutside.Count == 100 && receivedA.Count == 1, "拒绝跨房定向与非房主裁定");
         guest.LeaveRoom(); Assert(guest.State.Room == null, "主动退房立即清理本地上下文");
@@ -132,8 +131,6 @@ static partial class Checks
         clients.Add(guest);
         await Until(() => !guest.IsLeavingRoom);
         await Pump(guest.JoinRoomAsync(room1));
-        a.Reply(context, 3, [66]); await Task.Delay(30); guest.DispatchPending();
-        Assert(receivedGuest.Count == 102, "旧入房身份的迟到回复不污染再次入房");
         await Pump(a.SetRoomPlayerLimitAsync(1));
         Assert(a.State.Room!.Members.Length == 2 && a.State.Room.MaxPlayers == 1 && a.State.Room.Joinable, "下调容量保留成员且不修改开关");
         guest.LeaveRoom();

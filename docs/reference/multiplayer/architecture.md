@@ -19,7 +19,6 @@
 | `GameFlow`、`DayDestinationManager`、`BusinessStart` | 游戏阶段、场景转换规则、入口确认与营业开场等待 |
 | `PlayerProfile`、`PlayerManager.Network` | 玩家资料和运动转换、世界及房间角色显示 |
 | `GameMessages`、`GameMessageRules` | 玩法消息类型、路由、发送者身份与房间校验 |
-| `RoomClock` | 本地计时和房间延迟估算；与网络存活检测分开 |
 
 连接状态、房间身份和玩法阶段分别判断。
 

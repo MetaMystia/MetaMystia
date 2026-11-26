@@ -7,7 +7,7 @@ static partial class Checks
 {
     static async Task Isolation()
     {
-        await using var server = new Server(new() { MaxPlayers = 8, Messages = GameMessageRules.Create() });
+        await using var server = new Server(new() { MaxPlayers = 8 });
         await server.StartAsync();
         var host = await Connect(server, "room-host");
         var guest = await Connect(server, "room-guest");
@@ -50,17 +50,17 @@ static partial class Checks
         var results = new List<ReceivedMessage>();
         host.MessageReceived += requests.Add;
         guest.MessageReceived += results.Add;
-        guest.SendToHost((ushort)GameMessageType.ServeSellable, [1], 42);
+        guest.Send((ushort)GameMessageType.ServeSellable, [1], Route.Host);
         await Until(() => requests.Count == 1);
         var context = requests[0].Context;
         Assert(host.IsCurrent(context), "应用延迟回调可核对双方入房身份");
-        guest.SendToRoom((ushort)GameMessageType.ServeSellable, [2]);
-        guest.SendToHost((ushort)GameMessageType.Ping, [3]);
+        guest.Send((ushort)GameMessageType.ServeSellable, [2], Route.Room);
+        guest.Send((ushort)GameMessageType.GuestQuery, [3], Route.Host);
         await Until(() => requests.Count == 2);
         Assert(requests.All(m => m.Body[0] != 2), "同一玩法类型允许客人请求但不允许客人伪造广播结果");
-        host.SendToRoom((ushort)GameMessageType.ServeSellable, [4], 42);
+        host.Send((ushort)GameMessageType.ServeSellable, [4], Route.Room);
         await Until(() => results.Count == 1);
-        Assert(results[0].Context.Sender == host.Uid && results[0].Context.Request == 42,
+        Assert(results[0].Context.Sender == host.Uid,
             "裁定广播来源是房主，原请求者也收到结果");
         Assert(await Failure(guest.KickAsync(host.Uid)) == "HostOnly", "客人不能踢人");
         await Pump(host.KickAsync(guest.Uid));

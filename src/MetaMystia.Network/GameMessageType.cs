@@ -2,8 +2,6 @@ namespace MetaMystia.Network;
 
 public enum GameMessageType : ushort
 {
-    Ping = 1,
-    Pong = 2,
     Chat = 10,
     SelectIzakaya = 14,
     ConfirmIzakaya = 15,
@@ -54,8 +52,6 @@ public static class GameMessageRules
 {
     public static MessageRule[] Create() =>
     [
-        new((ushort)GameMessageType.Ping, [Route.Host]),
-        new((ushort)GameMessageType.Pong, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessageType.Chat, [Route.World], RoomScoped: false, MaxBytes: 4096),
         new((ushort)GameMessageType.SelectIzakaya, [Route.Room]),
         new((ushort)GameMessageType.ConfirmIzakaya, [Route.Room, Route.Player], HostOnly: true),

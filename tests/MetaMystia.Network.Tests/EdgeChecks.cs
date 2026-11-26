@@ -37,14 +37,10 @@ static partial class Checks
         a.OperationTimeout = TimeSpan.FromSeconds(2);
         await Pump(a.ConnectAsync(server.Endpoint, Player("reconnected")));
         Assert(a.IsConnected && a.State.Room == null, "同一 Client 重连不继承旧连接或入房回调");
-        var request = new TaskCompletionSource<ReceivedMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-        server.MessageReceived += m => { request.TrySetResult(m); throw new Exception("server application"); };
-        a.SendToServer(5, [1], 9); await Pump(request.Task);
-        Assert((await request.Task).Context.Sender == a.Uid && (await request.Task).Context.Request == 9, "给服务器路由保持真实来源和请求编号");
         var slow = await Connect(server, "slow"); clients.Remove(slow);
         for (int batch = 0; batch < 35; batch++)
         {
-            for (int i = 0; i < 10; i++) a.SendToWorld(1, [1]);
+            for (int i = 0; i < 10; i++) a.Send(1, [1], Route.World);
             a.DispatchPending(); await Task.Delay(4);
         }
         await WaitCount(server, 1);
@@ -93,7 +89,7 @@ static partial class Checks
         { await slow.ConnectAsync(server.Endpoint.Address, server.Endpoint.Port); await slow.GetStream().WriteAsync(new byte[] { 2 }); await Task.Delay(2400); }
         var probe = await Connect(server, "after-bad");
         var got = false; survivor.MessageReceived += m => { if (m.Body.SequenceEqual(new byte[] { 123 })) got = true; };
-        probe.SendToWorld(1, [123]); await Until(() => got); probe.Disconnect(); await WaitCount(server, before);
+        probe.Send(1, [123], Route.World); await Until(() => got); probe.Disconnect(); await WaitCount(server, before);
         Assert(got, "未完成帧超时后仍可接纳新玩家并通信");
     }
 
@@ -118,7 +114,7 @@ static partial class Checks
 
     static async Task Lan()
     {
-        await using var lan = new LanSession(maxPlayers: 2, messages: rules); clients.Add(lan.Client);
+        await using var lan = new LanSession(maxPlayers: 2); clients.Add(lan.Client);
         await Pump(lan.StartAsync(Player("LAN-host")));
         Assert(lan.Client.State.Room != null && lan.Client.Uid > 0, "局域网同一客户端本机 TCP 自动建房");
         await Pump(lan.Client.SetJoinableAsync(true));

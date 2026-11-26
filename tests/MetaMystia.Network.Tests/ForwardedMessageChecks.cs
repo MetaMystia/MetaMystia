@@ -11,7 +11,7 @@ static partial class Checks
         var failures = new List<string>();
         byte[] valid = MemoryPackSerializer.Serialize(new ChatPayload { Message = "hello" });
         byte[] validRoom = MemoryPackSerializer.Serialize<MultiplayerMessage>(new NightCookMessage());
-        byte[] mismatch = MemoryPackSerializer.Serialize<MultiplayerMessage>(new PingMessage());
+        byte[] mismatch = MemoryPackSerializer.Serialize<MultiplayerMessage>(new EmoteMessage());
         byte[] nil = MemoryPackSerializer.Serialize<MultiplayerMessage>(null);
         foreach (bool room in new[] { false, true })
         foreach (var (name, body) in new (string, byte[])[]
@@ -19,7 +19,7 @@ static partial class Checks
             ("截断正文", []), ("未知联合类型", [250, 0]), ("空消息", nil), ("内外类型不一致", mismatch)
         })
         {
-            await using var server = new Server(new() { Messages = GameMessageRules.Create() });
+            await using var server = new Server(new());
             await server.StartAsync();
             var recipient = await Connect(server, "recipient");
             var attacker = await Connect(server, "sender");
@@ -43,8 +43,8 @@ static partial class Checks
                     GameMessages.Receive(message);
                 };
             }
-            if (room) attacker.SendToRoom((ushort)GameMessageType.NightCook, body);
-            else attacker.SendToWorld((ushort)GameMessageType.Chat, body);
+            if (room) attacker.Send((ushort)GameMessageType.NightCook, body, Route.Room);
+            else attacker.Send((ushort)GameMessageType.Chat, body, Route.World);
             await Until(() => room ? received == 1 : rejected == 1);
             bool survived = recipient.IsConnected && observer.IsConnected && attacker.IsConnected;
             if (!room) Assert(received == 0, "非法聊天不转发且发送者保持连接");
@@ -56,13 +56,13 @@ static partial class Checks
             {
                 if (room)
                 {
-                    attacker.SendToRoom((ushort)GameMessageType.NightCook, validRoom);
+                    attacker.Send((ushort)GameMessageType.NightCook, validRoom, Route.Room);
                     await Until(() => MultiplayerMessage.Delivered.Count == 1);
                     Assert(MultiplayerMessage.Delivered[0] == (recipient.Uid, attacker.Uid),
                         scenario + "后正常房间消息仍只送达房内玩家");
                     MultiplayerMessage.Delivered.Clear();
                 }
-                attacker.SendToWorld((ushort)GameMessageType.Chat, valid);
+                attacker.Send((ushort)GameMessageType.Chat, valid, Route.World);
                 await Until(() => MultiplayerMessage.Delivered.Count == 2);
                 Assert(MultiplayerMessage.Delivered.All(x => x.Sender == attacker.Uid)
                     && recipient.IsConnected && observer.IsConnected,
