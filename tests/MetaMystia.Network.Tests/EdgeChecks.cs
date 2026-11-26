@@ -45,7 +45,13 @@ static partial class Checks
         }
         await WaitCount(server, 1);
         Assert(a.IsConnected && !slow.IsConnected, "接收队列满只结束落后玩家，其他连接继续");
-        slow.DispatchPending(); slow.Dispose();
+        NetworkError? queueError = null;
+        slow.ConnectionEnded += error => queueError = error;
+        slow.DispatchPending(Protocol.QueueCapacity);
+        Assert(queueError is { Code: NetworkErrorCode.ReceiveQueueFull,
+            QueueActivity: { Received: > 0, ReceivedMotion: 0, LastPollMsAgo: not null } },
+            "恢复派发后仍显示本机接收队列满及断开时的收包统计");
+        slow.Dispose();
         a.Disconnect(); await WaitCount(server, 0);
         await using var limited = new Server(new() { MaxPlayers = 1, Timeout = TimeSpan.FromMilliseconds(500) });
         await limited.StartAsync();

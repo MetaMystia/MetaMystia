@@ -66,6 +66,10 @@ public sealed partial record NetworkError
     public string? GameVersion { get; init; }
     public string? ModVersion { get; init; }
 
+    [MemoryPackIgnore] public QueueActivity? QueueActivity { get; init; }
+
     public static implicit operator NetworkError(NetworkErrorCode code) => new() { Code = code };
-    public override string ToString() => Code.ToString();
+    public override string ToString() => QueueActivity is { } q
+        ? $"{Code} (rx1s={q.Received}, rxMotion1s={q.ReceivedMotion}, tx1s={q.Sent}, txMotion1s={q.SentMotion}, lastPollMsAgo={q.LastPollMsAgo?.ToString() ?? "—"})"
+        : Code.ToString();
 }

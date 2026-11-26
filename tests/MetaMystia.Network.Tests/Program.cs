@@ -83,6 +83,7 @@ static partial class Checks
         await ServerChat();
         await WelcomeAndReload();
         await IncrementalResources();
+        await QueueDiagnostics();
         await ErrorDetails();
         await Stages();
         await StationaryHostSnapshot();

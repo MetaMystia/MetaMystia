@@ -16,6 +16,14 @@ public static class NetworkNotice
         if (error.Code == NetworkErrorCode.ServerRetiring)
             return TextId.NetworkServerRetiring.Get(error.ModVersion ?? "?");
         var text = Label(error.Code).Get();
+        if (error.Code is NetworkErrorCode.SendQueueFull or NetworkErrorCode.ReceiveQueueFull
+            or NetworkErrorCode.ServerQueueFull or NetworkErrorCode.TooManyRequests)
+        {
+            text += $" [{error.Code}]";
+            if (error.QueueActivity is { } q)
+                text += " " + TextId.NetworkQueueActivity.Get(q.Received, q.ReceivedMotion, q.Sent, q.SentMotion, q.LastPollMsAgo?.ToString() ?? "—");
+            return text;
+        }
         if (error.Code is NetworkErrorCode.ProtocolMismatch or NetworkErrorCode.GameMismatch or NetworkErrorCode.ModMismatch)
             return text + " " + TextId.NetworkVersionDetails.Get(
                 Plugin.GameVersion, Plugin.ModVersion, Versions.Current.Protocol,
@@ -45,7 +53,10 @@ public static class NetworkNotice
         NetworkErrorCode.InvalidChat => TextId.NetworkInvalidChat,
         NetworkErrorCode.WorldDataBudgetExceeded or NetworkErrorCode.ResourcesNotReadyOrInvalid or NetworkErrorCode.InvalidHello => TextId.NetworkResources,
         NetworkErrorCode.ReceiveTimeout or NetworkErrorCode.HandshakeTimeout or NetworkErrorCode.JoinTimeout or NetworkErrorCode.ManagementUnconfirmed or NetworkErrorCode.CancelUnconfirmed or NetworkErrorCode.LeaveUnconfirmed => TextId.NetworkTimeout,
-        NetworkErrorCode.SendQueueFull or NetworkErrorCode.ReceiveQueueFull or NetworkErrorCode.ServerQueueFull or NetworkErrorCode.TooManyRequests => TextId.NetworkOverload,
+        NetworkErrorCode.SendQueueFull => TextId.NetworkSendQueueFull,
+        NetworkErrorCode.ReceiveQueueFull => TextId.NetworkReceiveQueueFull,
+        NetworkErrorCode.ServerQueueFull => TextId.NetworkServerQueueFull,
+        NetworkErrorCode.TooManyRequests => TextId.NetworkPendingRequestsFull,
         NetworkErrorCode.ConnectionLost or NetworkErrorCode.ConnectFailed or NetworkErrorCode.AddressUnavailable => TextId.NetworkLost,
         NetworkErrorCode.Disconnected or NetworkErrorCode.ServerStopped or NetworkErrorCode.LeftDefaultRoom or NetworkErrorCode.Finished => TextId.MultiplayerDisconnected,
         NetworkErrorCode.VersionUnavailable => TextId.NetworkVersionUnavailable,

@@ -21,6 +21,13 @@ public sealed class Client : IDisposable
         internal bool EndNotified, Joining, Leaving;
         internal long SuppressedMembership;
         internal long Latency;
+        internal readonly ClientQueueActivity Queues = new();
+
+        internal bool Send(Frame frame)
+        {
+            Queues.Record(frame.Kind, sending: true);
+            return Wire!.Send(frame);
+        }
     }
     private readonly object gate = new();
     private Session? session;
@@ -74,7 +81,7 @@ public sealed class Client : IDisposable
                 {
                     if (frame.Kind == Kind.Ping)
                     {
-                        current.Wire!.Send(new(Kind.Ping, BitConverter.GetBytes(Stopwatch.GetTimestamp())));
+                        current.Send(new(Kind.Ping, BitConverter.GetBytes(Stopwatch.GetTimestamp())));
                         return;
                     }
                     if (frame.Kind == Kind.Pong)
@@ -84,9 +91,16 @@ public sealed class Client : IDisposable
                         lock (gate) current.Latency = Math.Max(0, elapsed * 500 / Stopwatch.Frequency);
                         return;
                     }
-                    if (!current.Incoming.Writer.TryWrite(frame)) current.Wire!.Close(NetworkErrorCode.ReceiveQueueFull);
-                }, reason => { lock (gate) current.End ??= reason; });
-                current.Wire.Send(new(Kind.Hello, hello));
+                    current.Queues.Record(frame.Kind, sending: false);
+                    if (!current.Incoming.Writer.TryWrite(frame))
+                        current.Wire!.Close(new() { Code = NetworkErrorCode.ReceiveQueueFull, QueueActivity = current.Queues.Capture() });
+                }, reason =>
+                {
+                    if (reason.Code == NetworkErrorCode.SendQueueFull)
+                        reason = reason with { QueueActivity = current.Queues.Capture() };
+                    lock (gate) current.End ??= reason;
+                });
+                current.Send(new(Kind.Hello, hello));
                 current.Wire.Start();
             }
             await current.Connected.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
@@ -170,9 +184,14 @@ public sealed class Client : IDisposable
         var pending = new TaskCompletionSource<Control>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (current.End != null) { pending.SetException(new NetworkException(current.End)); return pending.Task; }
         if (current.Pending.Count >= Protocol.QueueCapacity)
-        { End(current, NetworkErrorCode.TooManyRequests); pending.SetException(new NetworkException(NetworkErrorCode.TooManyRequests)); return pending.Task; }
+        {
+            var reason = new NetworkError { Code = NetworkErrorCode.TooManyRequests, QueueActivity = current.Queues.Capture() };
+            End(current, reason);
+            pending.SetException(new NetworkException(reason));
+            return pending.Task;
+        }
         current.Pending.Add(command.Request, pending);
-        if (!current.Wire!.Send(new(Kind.Command, Protocol.Pack(command)))) End(current, NetworkErrorCode.SendFailed);
+        if (!current.Send(new(Kind.Command, Protocol.Pack(command)))) End(current, NetworkErrorCode.SendFailed);
         return pending.Task;
     }
 
@@ -209,7 +228,7 @@ public sealed class Client : IDisposable
             var current = Require();
             var scene = state.World.First(p => p.Uid == uid).Scene;
             if (scene != Scene.DayScene && (scene != Scene.WorkScene || state.Room == null)) return;
-            current.Wire!.Send(new(scene == Scene.DayScene ? Kind.Motion : Kind.RoomMotion, Protocol.Pack(motion), Room: state.Room?.Id ?? 0, Membership: MyMembership()));
+            current.Send(new(scene == Scene.DayScene ? Kind.Motion : Kind.RoomMotion, Protocol.Pack(motion), Room: state.Room?.Id ?? 0, Membership: MyMembership()));
             state = state.WithMotion(uid, motion, out _);
             Invoke(() => MotionChanged?.Invoke(uid, motion));
         }
@@ -220,7 +239,7 @@ public sealed class Client : IDisposable
         Protocol.Validate(profile, false);
         lock (gate)
         {
-            Require().Wire!.Send(new(Kind.Profile, Protocol.Pack(profile)));
+            Require().Send(new(Kind.Profile, Protocol.Pack(profile)));
             UpdatePlayer(uid, p => p with { Name = name, Skin = skin, Scene = scene, Stage = stage,
                 Map = p.Scene == scene ? p.Map : MapLabel.Unknown,
                 Motion = p.Scene == scene ? p.Motion : new(), HasMotion = p.Scene == scene && p.HasMotion });
@@ -231,7 +250,7 @@ public sealed class Client : IDisposable
     public void Send(ushort type, byte[] body, Route route, int target = 0)
     {
         lock (gate)
-            Require().Wire!.Send(new(Kind.Data, body, Type: type, Route: route, Target: target,
+            Require().Send(new(Kind.Data, body, Type: type, Route: route, Target: target,
                 Room: state.Room?.Id ?? 0, Membership: MyMembership()));
     }
 
@@ -253,8 +272,10 @@ public sealed class Client : IDisposable
             {
                 var current = session;
                 if (current == null) return 0;
-                while (count < limit && current.Incoming.Reader.TryRead(out var frame))
+                while (count < limit)
                 {
+                    current.Queues.Poll();
+                    if (!current.Incoming.Reader.TryRead(out var frame)) break;
                     count++;
                     try { Apply(current, frame); }
                     catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException or MemoryPack.MemoryPackSerializationException)
