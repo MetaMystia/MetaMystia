@@ -217,8 +217,14 @@ public sealed partial class Server : IAsyncDisposable
                         Map = p.Player.Scene == Scene.DayScene ? motion.Map : MapLabel.Unknown };
                     if (mapChanged)
                         Broadcast(new(Kind.Profile, Protocol.Pack(p.Player with { Resources = null, Motion = new(), HasMotion = false }), p.Player.Uid), p);
+                    byte[]? dayMotionBytes = null;
                     foreach (var target in peers.Where(x => x != p && x.Player != null && CanSeeMotion(p, x)))
-                        target.Wire.Send(new(f.Kind, f.Body, p.Player.Uid, Room: p.Room, Membership: p.Player.Membership, RecipientMembership: target.Player!.Membership));
+                    {
+                        if (f.Kind == Kind.Motion)
+                            target.Wire.SendBytes(dayMotionBytes ??= Protocol.Encode(new(Kind.Motion, f.Body, p.Player.Uid)));
+                        else
+                            target.Wire.Send(new(Kind.RoomMotion, f.Body, p.Player.Uid, Room: p.Room, Membership: p.Player.Membership, RecipientMembership: target.Player!.Membership));
+                    }
                     break;
                 case Kind.Profile:
                     var profile = Protocol.Read<Player>(f.Body); Protocol.Validate(profile, false);

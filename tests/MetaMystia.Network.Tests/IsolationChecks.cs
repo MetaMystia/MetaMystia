@@ -20,9 +20,12 @@ static partial class Checks
         await Pump(otherHost.CreateRoomAsync(2));
         await Pump(otherHost.SetJoinableAsync(true));
         await Pump(otherGuest.JoinRoomAsync(otherHost.State.Room!.Id));
-        host.SendMotion(new() { X = 17 });
-        await Until(() => outside.State.World.Single(p => p.Uid == host.Uid).Motion.X == 17);
-        Assert(outside.State.World.Single(p => p.Uid == host.Uid).HasMotion, "白天已组房玩家仍向世界共享运动");
+        var dayViewers = new[] { guest, outside, otherHost, otherGuest };
+        var dayMotion = new Motion { X = 17 };
+        host.SendMotion(dayMotion);
+        await Until(() => dayViewers.All(c => c.State.World.Single(p => p.Uid == host.Uid).Motion == dayMotion));
+        Assert(dayViewers.All(c => c.State.World.Single(p => p.Uid == host.Uid).HasMotion),
+            "白天运动同步给同房间、其他房间和未组房的所有白天玩家");
 
         await Pump(host.SetJoinableAsync(false));
         Assert(await Failure(outside.JoinRoomAsync(host.State.Room!.Id)) == "JoinClosed" && outside.IsConnected,
