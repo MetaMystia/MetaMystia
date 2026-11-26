@@ -30,7 +30,7 @@
 | 符卡 | [spell-creation/](docs/spell-creation/README.md) | 编译 + 符卡测试 |
 | 白天地图 | [map-creation/](docs/map-creation/README.md)、[day-maps](docs/reference/resourceex/day-maps.md) | 离线校验 |
 | 服务端 | [server/](docs/reference/server/console.md) | 网络测试 |
-| MystiaLib | [mystialib](docs/reference/mystialib.md)、[harmony-hook](docs/rules/harmony-hook.md) | 审计 + ICF 核对 + 编译 |
+| MystiaLib | [mystialib](docs/reference/mystialib.md)、[harmony-hook](docs/rules/harmony-hook.md) | 审计 + ICF 核对 + 编译 + MystiaLib 测试 |
 
 游戏名词见 [glossary](docs/reference/glossary.md)。符卡创作与白天地图绘制目录有阅读限制，见各自 README。
 
@@ -42,6 +42,7 @@ dotnet run --project tests/MetaMystia.Network.Tests -c Release
 dotnet run --project tests/MetaMystia.Flow.Tests -c Release
 dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
 dotnet run --project tests/MetaMystia.Spell.Tests -c Release
+dotnet run --project tests/MetaMystia.MystiaLib.Tests -c Release
 python tools/check.py
 dotnet run --project tools/icf -c Release -- check src/MetaMystia.Mod/bin/Release/MetaMystia-v<版本>.dll <BepInExPath>
 ```

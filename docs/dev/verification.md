@@ -6,7 +6,7 @@
 |---|---|---|---|
 | 审计 | 逆向调用链、Interop 签名 | 实现与游戏逻辑一致（推断） | 运行时行为 |
 | 编译 | Mod、测试项目；修改服务端时加 Server | 类型与签名正确 | Hook 目标在运行时生效、时机正确 |
-| 离线测试 | 网络、流程、符卡测试；`tools/check.py`；ICF 检查；地图离线校验 | 被测逻辑、协议与一致性 | 游戏对象、场景时序 |
+| 离线测试 | 网络、流程、符卡、MystiaLib 测试；`tools/check.py`；ICF 检查；地图离线校验 | 被测逻辑、协议与一致性 | 游戏对象、场景时序 |
 | 单机实测 | 游戏内操作与状态核对 | 该场景下的单机行为 | 联机一致性、未覆盖的场景 |
 | 联机实测 | 主机、客机分别观察 | 该场景下的同步 | 其他场景、断线重连等未覆盖路径 |
 
@@ -20,13 +20,14 @@ dotnet run --project tests/MetaMystia.Network.Tests -c Release
 dotnet run --project tests/MetaMystia.Flow.Tests -c Release
 dotnet run --project tests/MetaMystia.Hosting.Tests -c Release
 dotnet run --project tests/MetaMystia.Spell.Tests -c Release
+dotnet run --project tests/MetaMystia.MystiaLib.Tests -c Release
 python tools/check.py
 dotnet run --project tools/icf -c Release -- check src/MetaMystia.Mod/bin/Release/MetaMystia-v<版本>.dll <BepInExPath>
 dotnet build src/MetaMystia.Server -c Release              # 修改服务端时
 python -m dayart.validate <资源包.zip>      # 在 tools/day-map-art 下运行
 ```
 
-CI 在 PR 和 `main` 推送时运行编译、三组测试、`tools/check.py`、ICF 检查与服务端发布。
+CI 在 PR 和 `main` 推送时运行编译、离线测试、`tools/check.py`、ICF 检查与服务端发布。
 
 ## 离线测试
 
@@ -38,6 +39,7 @@ CI 在 PR 和 `main` 推送时运行编译、三组测试、`tools/check.py`、I
 | `Hosting.Tests` | HTTP 登记、实例退役、目录重启、版本分流 | 本机随机端口启动目录和新旧实例 |
 | `Flow.Tests` | 入口确认、营业等待、场景转换、玩家提示 | 链接模组源文件；`Ports.cs` 替代游戏与传输入口 |
 | `Spell.Tests` | 符卡库存与绕过逻辑 | 链接模组源文件；`Ports.cs` 替代 Interop 类型与 Harmony 特性 |
+| `MystiaLib.Tests` | 存档数据的记录解析、迁移与写入 | 链接模组源文件；`Ports.cs` 替代存档载体 |
 
 模组代码通过 `<Compile Include="../MetaMystia.Mod/..." Link="..." />` 进入测试项目，不加载 Unity。判定逻辑与游戏对象调用写在一起时无法链接，需要离线测试的逻辑应能单独编译。新增或修改这类逻辑时补充检查。
 
