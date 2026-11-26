@@ -56,6 +56,18 @@ public class PeerPlayer : NetPlayer
         RefreshCharacter(motionReceived);
     }
 
+    public void ApplyMotion(Player state)
+    {
+        NetworkState = state;
+        if (character == null || !CanRender || MapLabel != state.Motion.Map)
+        {
+            RefreshCharacter();
+            return;
+        }
+        if (Scene == Scene.DayScene && DayScene.SceneManager.Instance.IsMapSwapping) return;
+        UpdateMotion(state.Motion, updatePosition: true, snap: false);
+    }
+
     /// <summary>网络状态或场景就绪变化后，从最新快照更新角色。</summary>
     public void RefreshCharacter(bool updateMotion = true)
     {
@@ -100,25 +112,30 @@ public class PeerPlayer : NetPlayer
         else
             height.Initialize(NightScene.MapManager.Instance.height);
 
+        UpdateMotion(motion, created || updateMotion, created);
+        bool visible = Scene == Scene.WorkScene || IsSameMapAsLocal;
+        SetZ(visible ? 0 : -40815);
+        character.cl2d.enabled = visible;
+        FloatingTextHelper.SetPlayerLabel(Uid, LiveModeManager.GetDisplayName(Uid), character.transform);
+    }
+
+    private void UpdateMotion(Motion motion, bool updatePosition, bool snap)
+    {
         MapLabel = motion.Map;
         Speed = motion.Speed;
         IsSprinting = motion.Sprinting;
         InputDirection = new(motion.DirectionX, motion.DirectionY);
         character.MoveSpeedMultiplier = Speed;
         character.sprintMultiplier = IsSprinting ? 1.5f : 1f;
-        if (created || updateMotion)
+        if (updatePosition)
         {
             positionOffset = new Vector2(motion.X, motion.Y) - character.rb2d.position;
-            if (created || positionOffset.sqrMagnitude > 9f)
+            if (snap || positionOffset.sqrMagnitude > 9f)
             {
                 character.rb2d.position = new(motion.X, motion.Y);
                 positionOffset = Vector2.zero;
             }
         }
-        bool visible = Scene == Scene.WorkScene || IsSameMapAsLocal;
-        SetZ(visible ? 0 : -40815);
-        character.cl2d.enabled = visible;
-        FloatingTextHelper.SetPlayerLabel(Uid, LiveModeManager.GetDisplayName(Uid), character.transform);
     }
 
     private void IgnorePlayerCollisions()

@@ -86,6 +86,32 @@ public partial record Snapshot
         Room = Room is { } room ? room with { Members = room.Members.Select(CopyPlayer).ToArray() } : null
     };
 
+    public Snapshot WithMotion(int uid, Motion motion, out Player? player)
+    {
+        Player? updated = null;
+        Player[] Update(Player[] players)
+        {
+            int index = Array.FindIndex(players, p => p.Uid == uid);
+            if (index < 0) return players;
+            var previous = players[index];
+            updated = previous with { Motion = motion, HasMotion = true,
+                Map = previous.Scene == Scene.DayScene ? motion.Map : MapLabel.Unknown };
+            var copy = (Player[])players.Clone();
+            copy[index] = updated;
+            return copy;
+        }
+
+        var world = Update(World);
+        var room = Room;
+        if (room != null)
+        {
+            var members = Update(room.Members);
+            if (members != room.Members) room = room with { Members = members };
+        }
+        player = updated;
+        return updated == null ? this : this with { World = world, Room = room };
+    }
+
     private static Player CopyPlayer(Player player) => player with
     {
         Resources = player.Resources?.Copy()
