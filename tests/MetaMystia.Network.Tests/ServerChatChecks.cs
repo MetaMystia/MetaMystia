@@ -9,7 +9,7 @@ static partial class Checks
 {
     static async Task ServerChat()
     {
-        await using var server = new Server(new() { Messages = GameMessageRules.Create(), ChatFilter = new() { Enabled = true, Words = ["blocked"] } });
+        await using var server = new Server(new() { ChatFilter = new() { Enabled = true, Words = ["blocked"] } });
         await server.StartAsync();
         var a = await Connect(server, "say-a");
         var b = await Connect(server, "say-b");

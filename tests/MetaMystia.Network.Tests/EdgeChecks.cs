@@ -114,7 +114,7 @@ static partial class Checks
 
     static async Task Lan()
     {
-        await using var lan = new LanSession(maxPlayers: 2, messages: rules); clients.Add(lan.Client);
+        await using var lan = new LanSession(maxPlayers: 2); clients.Add(lan.Client);
         await Pump(lan.StartAsync(Player("LAN-host")));
         Assert(lan.Client.State.Room != null && lan.Client.Uid > 0, "局域网同一客户端本机 TCP 自动建房");
         await Pump(lan.Client.SetJoinableAsync(true));

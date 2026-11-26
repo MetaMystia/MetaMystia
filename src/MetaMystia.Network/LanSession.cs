@@ -8,10 +8,10 @@ public sealed class LanSession : IAsyncDisposable
     public Client Client { get; }
     public Server Server { get; }
     private readonly string key = Guid.NewGuid().ToString("N");
-    public LanSession(int port = 0, int maxPlayers = 2, MessageRule[]? messages = null, Versions? versions = null, bool ipv6 = false)
+    public LanSession(int port = 0, int maxPlayers = 2, Versions? versions = null, bool ipv6 = false)
     {
         Client = new(versions);
-        Server = new(new ServerOptions { Address = ipv6 ? IPAddress.IPv6Any : IPAddress.Any, Port = port, MaxPlayers = maxPlayers, Messages = messages ?? Messages.DefaultRules(), Versions = versions ?? Versions.Current, LanKey = key });
+        Server = new(new ServerOptions { Address = ipv6 ? IPAddress.IPv6Any : IPAddress.Any, Port = port, MaxPlayers = maxPlayers, Versions = versions ?? Versions.Current, LanKey = key });
     }
     public async Task StartAsync(Player player, CancellationToken token = default)
     {

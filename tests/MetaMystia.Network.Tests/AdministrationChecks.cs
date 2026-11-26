@@ -7,7 +7,7 @@ static partial class Checks
     {
         await using var server = new Server(new()
         {
-            MaxPlayers = 4, Messages = GameMessageRules.Create(), LogChat = true,
+            MaxPlayers = 4, LogChat = true,
             ChatFilter = new() { Enabled = true, Words = ["blocked"] }
         });
         var logs = new System.Collections.Concurrent.ConcurrentQueue<ServerLogEntry>();
@@ -80,7 +80,7 @@ static partial class Checks
         await server.StopAsync();
         Assert(await server.ManageAsync(ServerCommand.MaxPlayers, 4) == NetworkErrorCode.ServerStopped, "关闭后管理请求立即结束");
 
-        await using var quiet = new Server(new() { Messages = GameMessageRules.Create() });
+        await using var quiet = new Server(new());
         var quietLogs = new System.Collections.Concurrent.ConcurrentQueue<ServerLogEntry>();
         quiet.Logged += quietLogs.Enqueue;
         await quiet.StartAsync();

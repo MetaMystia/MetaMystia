@@ -19,7 +19,7 @@ static partial class Checks
             ("截断正文", []), ("未知联合类型", [250, 0]), ("空消息", nil), ("内外类型不一致", mismatch)
         })
         {
-            await using var server = new Server(new() { Messages = GameMessageRules.Create() });
+            await using var server = new Server(new());
             await server.StartAsync();
             var recipient = await Connect(server, "recipient");
             var attacker = await Connect(server, "sender");

@@ -13,7 +13,7 @@ static partial class Checks
         var filter = JsonSerializer.Deserialize<ChatFilterOptions>(
             """{"enabled":true,"ignoreCase":true,"words":["敏感词","blocked","", "   "]}""",
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-        await using var server = new Server(new() { Messages = GameMessageRules.Create(), ChatFilter = filter });
+        await using var server = new Server(new() { ChatFilter = filter });
         await server.StartAsync();
         var sender = await Connect(server, "chat-sender");
         var sameRoom = await Connect(server, "chat-member");
@@ -72,7 +72,7 @@ static partial class Checks
             new ChatFilterOptions { Enabled = true, Words = ["", " "] }
         })
         {
-            await using var configured = new Server(new() { Messages = GameMessageRules.Create(), ChatFilter = options });
+            await using var configured = new Server(new() { ChatFilter = options });
             await configured.StartAsync();
             var client = await Connect(configured, "config-check");
             int accepted = 0, rejected = 0;

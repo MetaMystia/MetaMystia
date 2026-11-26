@@ -7,7 +7,7 @@ static partial class Checks
 {
     static async Task Isolation()
     {
-        await using var server = new Server(new() { MaxPlayers = 8, Messages = GameMessageRules.Create() });
+        await using var server = new Server(new() { MaxPlayers = 8 });
         await server.StartAsync();
         var host = await Connect(server, "room-host");
         var guest = await Connect(server, "room-guest");

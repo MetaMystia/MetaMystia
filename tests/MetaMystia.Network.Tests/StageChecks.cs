@@ -6,7 +6,7 @@ static partial class Checks
 {
     static async Task Stages()
     {
-        await using var server = new Server(new() { Messages = GameMessageRules.Create() });
+        await using var server = new Server(new());
         await server.StartAsync();
         var host = await Connect(server, "stage-host");
         var guest = await Connect(server, "stage-guest");

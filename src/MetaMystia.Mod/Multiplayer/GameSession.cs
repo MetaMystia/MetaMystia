@@ -43,7 +43,7 @@ public static class GameSession
         if (!CanStart()) return;
         Stop();
         CurrentPort = port < 0 ? ConfigPort : port;
-        lan = new(CurrentPort, ConfigManager.MaxPlayers.Value, GameMessageRules.Create(),
+        lan = new(CurrentPort, ConfigManager.MaxPlayers.Value,
             new(Versions.Current.Protocol, Plugin.GameVersion, Plugin.ModVersion), EnableIPv6);
         var session = lan;
         Attach(session.Client);

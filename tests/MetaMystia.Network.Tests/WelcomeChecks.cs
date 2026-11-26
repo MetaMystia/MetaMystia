@@ -7,7 +7,7 @@ static partial class Checks
 {
     static async Task WelcomeAndReload()
     {
-        await using var server = new Server(new() { Messages = GameMessageRules.Create(), WelcomeMessages = ["欢迎", "规则"] });
+        await using var server = new Server(new() { WelcomeMessages = ["欢迎", "规则"] });
         await server.StartAsync();
         async Task<Client> Enter(string name, List<ReceivedMessage> received)
         {
