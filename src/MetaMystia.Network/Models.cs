@@ -92,7 +92,7 @@ public partial record Snapshot
     };
 }
 
-public enum Route : byte { Server, World, Room, Host, Player }
+public enum Route : byte { World = 1, Room, Host, Player }
 public sealed record MessageRule(ushort Id, Route[] Routes, bool HostOnly = false, bool RoomScoped = true, int MaxBytes = 65536, bool HostBroadcastOnly = false);
 public static class Messages
 {
@@ -104,7 +104,7 @@ public static class Messages
         new(GameplayResult, [Route.Room, Route.Player], HostOnly: true)
     ];
 }
-public sealed record MessageContext(int Sender, ushort Room, long SenderMembership, long RecipientMembership, long Request);
+public sealed record MessageContext(int Sender, ushort Room, long SenderMembership, long RecipientMembership);
 public sealed record ReceivedMessage(ushort Type, MessageContext Context, byte[] Body);
 public sealed record ServerOptions
 {

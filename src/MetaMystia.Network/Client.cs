@@ -226,28 +226,17 @@ public sealed class Client : IDisposable
         }
     }
 
-    public void SendToWorld(ushort type, byte[] body, long request = 0) => Send(type, body, Route.World, 0, request);
-    public void SendToRoom(ushort type, byte[] body, long request = 0) => Send(type, body, Route.Room, 0, request);
-    public void SendToHost(ushort type, byte[] body, long request = 0) => Send(type, body, Route.Host, 0, request);
-    public void SendToPlayer(int target, ushort type, byte[] body, long request = 0) => Send(type, body, Route.Player, target, request);
-    public void SendToServer(ushort type, byte[] body, long request = 0) => Send(type, body, Route.Server, 0, request);
-    private void Send(ushort type, byte[] body, Route route, int target, long request)
+    public void SendToWorld(ushort type, byte[] body) => Send(type, body, Route.World, 0);
+    public void SendToRoom(ushort type, byte[] body) => Send(type, body, Route.Room, 0);
+    public void SendToHost(ushort type, byte[] body) => Send(type, body, Route.Host, 0);
+    public void SendToPlayer(int target, ushort type, byte[] body) => Send(type, body, Route.Player, target);
+    private void Send(ushort type, byte[] body, Route route, int target)
     {
         lock (gate)
         {
             var current = Require();
             current.Wire!.Send(new(Kind.Data, body, Type: type, Route: route, Target: target,
-                Room: state.Room?.Id ?? 0, Membership: MyMembership(), Request: request));
-        }
-    }
-    public void Reply(MessageContext context, ushort type, byte[] body)
-    {
-        lock (gate)
-        {
-            var current = Require();
-            if (context.Room != 0 && (state.Room?.Id != context.Room || MyMembership() != context.RecipientMembership)) return;
-            current.Wire!.Send(new(Kind.Data, body, Type: type, Route: Route.Player, Target: context.Sender,
-                Room: context.Room, Membership: MyMembership(), RecipientMembership: context.SenderMembership, Request: context.Request));
+                Room: state.Room?.Id ?? 0, Membership: MyMembership()));
         }
     }
 
@@ -369,7 +358,7 @@ public sealed class Client : IDisposable
                 Invoke(() => StateChanged?.Invoke()); break;
             case Kind.Data:
                 if (f.Room != 0 && (state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership)) return;
-                Invoke(() => MessageReceived?.Invoke(new(f.Type, new(f.Sender, f.Room, f.Membership, f.RecipientMembership, f.Request), f.Body))); break;
+                Invoke(() => MessageReceived?.Invoke(new(f.Type, new(f.Sender, f.Room, f.Membership, f.RecipientMembership), f.Body))); break;
             default: throw new InvalidDataException();
         }
     }

@@ -33,7 +33,7 @@ public partial class ExampleMessage : MultiplayerMessage
 - `Enqueue()` 根据规则选择世界、房间或房主；`WireTargetUid` 只指定定向接收者，不进入正文。
 - `SenderUid` 来自服务器确认的真实连接，不信任正文身份。房主生成结果后，发送者是房主。
 - 上菜和确认上菜的 `ActorUid` 表示原执行者，用于处理本地已执行的回声。房主收到请求时用真实 `SenderUid` 覆盖该字段；客人不能广播裁定结果。
-- 定向回复异步请求时使用 `Client.Reply(context, ...)`，保留原请求及双方入房代号。不要只保存 UID 后向后来重新入房的同名玩家回复。
+- 延迟的定向回复在发送前检查 `IsCurrent`，不回复给已重新入房的同一玩家。
 - 房间广播排除发送者；世界广播不受房间边界影响。没有通用“排除任意玩家”、优先级插队或拥塞丢弃接口。
 - 接收函数不能绕过 `MultiplayerMessage.OnReceived()`。服务器校验身份和范围，玩法层判断动作本身是否有效。
 

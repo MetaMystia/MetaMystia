@@ -37,10 +37,6 @@ static partial class Checks
         a.OperationTimeout = TimeSpan.FromSeconds(2);
         await Pump(a.ConnectAsync(server.Endpoint, Player("reconnected")));
         Assert(a.IsConnected && a.State.Room == null, "同一 Client 重连不继承旧连接或入房回调");
-        var request = new TaskCompletionSource<ReceivedMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-        server.MessageReceived += m => { request.TrySetResult(m); throw new Exception("server application"); };
-        a.SendToServer(5, [1], 9); await Pump(request.Task);
-        Assert((await request.Task).Context.Sender == a.Uid && (await request.Task).Context.Request == 9, "给服务器路由保持真实来源和请求编号");
         var slow = await Connect(server, "slow"); clients.Remove(slow);
         for (int batch = 0; batch < 35; batch++)
         {

@@ -21,8 +21,8 @@ internal partial record Control
 }
 
 internal sealed record Frame(Kind Kind, byte[] Body, int Sender = 0, ushort Type = 0,
-    Route Route = Route.Server, int Target = 0, ushort Room = 0, long Membership = 0,
-    long RecipientMembership = 0, long Request = 0);
+    Route Route = default, int Target = 0, ushort Room = 0, long Membership = 0,
+    long RecipientMembership = 0);
 
 internal static class Protocol
 {
@@ -67,7 +67,7 @@ internal static class Protocol
         if (f.Kind == Kind.RoomMotion) { w.Write(f.Room); w.Write(f.Membership); w.Write(f.RecipientMembership); }
         if (f.Kind == Kind.Data)
         {
-            w.Write(f.Type); w.Write((byte)f.Route); w.Write(f.Sender); w.Write(f.Request);
+            w.Write(f.Type); w.Write((byte)f.Route); w.Write(f.Sender);
             if (f.Route == Route.Player) w.Write(f.Target);
             if (f.Route != Route.World)
             { w.Write(f.Room); w.Write(f.Membership); w.Write(f.RecipientMembership); }
@@ -88,17 +88,17 @@ internal static class Protocol
         if (!Enum.IsDefined(typeof(Kind), kind)) throw new InvalidDataException("Unknown kind");
         int sender = 0, target = 0;
         ushort type = 0, room = 0;
-        long member = 0, recipient = 0, request = 0;
-        var route = Route.Server;
+        long member = 0, recipient = 0;
+        Route route = default;
         if (kind is Kind.Motion or Kind.RoomMotion or Kind.Profile or Kind.Welcome) sender = r.ReadInt32();
         if (kind == Kind.RoomMotion) { room = r.ReadUInt16(); member = r.ReadInt64(); recipient = r.ReadInt64(); }
         if (kind == Kind.Data)
         {
-            type = r.ReadUInt16(); route = (Route)r.ReadByte(); sender = r.ReadInt32(); request = r.ReadInt64();
+            type = r.ReadUInt16(); route = (Route)r.ReadByte(); sender = r.ReadInt32();
             if (route == Route.Player) target = r.ReadInt32();
             if (route != Route.World) { room = r.ReadUInt16(); member = r.ReadInt64(); recipient = r.ReadInt64(); }
         }
-        return new(kind, r.ReadBytes((int)(stream.Length - stream.Position)), sender, type, route, target, room, member, recipient, request);
+        return new(kind, r.ReadBytes((int)(stream.Length - stream.Position)), sender, type, route, target, room, member, recipient);
     }
 
     // 握手与拒绝信息使用独立二进制格式，不依赖玩法序列化。
