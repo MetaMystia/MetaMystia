@@ -118,7 +118,7 @@ public class IzakayaConfigurePatch
     [HarmonyPrefix]
     public static void StoreFood_Prefix(Sellable sellable)
     {
-        Log.Info($"StoreFood: {sellable.Text.Name}");
+        Log.Debug($"StoreFood: {sellable.Text.Name}");
         if (_skipPatchStoreFood) return;
         if (!GameSession.HasRoomPeers) return;
 
