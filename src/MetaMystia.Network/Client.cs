@@ -39,6 +39,9 @@ public sealed class Client : IDisposable
     public long Latency { get { lock (gate) return session is { End: null } current ? current.Latency : 0; } }
     public Snapshot State { get { lock (gate) return state.Copy(); } }
     public event Action? StateChanged;
+    public event Action? RosterChanged;
+    /// <summary>已安装的本地或远端运动，回调参数不包含可变的资源表。</summary>
+    public event Action<int, Motion>? MotionChanged;
     public event Action<ReceivedMessage>? MessageReceived;
     public event Action<NetworkError>? ChatRejected;
     public event Action<ServerNotice>? NoticeReceived;
@@ -207,8 +210,8 @@ public sealed class Client : IDisposable
             var scene = state.World.First(p => p.Uid == uid).Scene;
             if (scene != Scene.DayScene && (scene != Scene.WorkScene || state.Room == null)) return;
             current.Wire!.Send(new(scene == Scene.DayScene ? Kind.Motion : Kind.RoomMotion, Protocol.Pack(motion), Room: state.Room?.Id ?? 0, Membership: MyMembership()));
-            UpdatePlayer(uid, p => p with { Motion = motion, HasMotion = true,
-                Map = scene == Scene.DayScene ? motion.Map : MapLabel.Unknown });
+            state = state.WithMotion(uid, motion, out _);
+            Invoke(() => MotionChanged?.Invoke(uid, motion));
         }
     }
     public void SetProfile(string name, Skin skin, Scene scene, GameStage stage)
@@ -326,6 +329,7 @@ public sealed class Client : IDisposable
                 // 自己的资料与运动不回送；旧快照只更新服务器拥有的成员关系。
                 if (local != null) UpdatePlayer(uid, p => p with { Name = local.Name, Skin = local.Skin, Motion = local.Motion, HasMotion = local.HasMotion, Scene = local.Scene, Stage = local.Stage, Map = local.Map });
                 FilterMotion();
+                Invoke(() => RosterChanged?.Invoke());
                 Invoke(() => StateChanged?.Invoke());
                 if (f.Kind == Kind.Welcome) current.Connected.TrySetResult(uid);
                 break;
@@ -339,14 +343,15 @@ public sealed class Client : IDisposable
                 if (f.Kind == Kind.RoomMotion && (state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership
                     || state.Room.Members.All(p => p.Uid != f.Sender || p.Membership != f.Membership))) return;
                 var motion = Protocol.Read<Motion>(f.Body);
-                UpdatePlayer(f.Sender, p => p with { Motion = motion, HasMotion = true,
-                    Map = p.Scene == Scene.DayScene ? motion.Map : MapLabel.Unknown });
+                state = state.WithMotion(f.Sender, motion, out var movingPlayer);
+                if (movingPlayer != null) Invoke(() => MotionChanged?.Invoke(f.Sender, motion));
                 Invoke(() => StateChanged?.Invoke()); break;
             case Kind.Profile:
                 var profile = Protocol.Read<Player>(f.Body);
                 UpdatePlayer(f.Sender, p => p with { Name = profile.Name, Skin = profile.Skin, Scene = profile.Scene, Stage = profile.Stage, Map = profile.Map,
                     Motion = p.Scene == profile.Scene && p.Map == profile.Map ? p.Motion : new(),
                     HasMotion = p.Scene == profile.Scene && p.Map == profile.Map && p.HasMotion });
+                Invoke(() => RosterChanged?.Invoke());
                 Invoke(() => StateChanged?.Invoke()); break;
             case Kind.Data:
                 if (f.Room != 0 && (state.Room?.Id != f.Room || MyMembership() != f.RecipientMembership)) return;

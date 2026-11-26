@@ -44,7 +44,7 @@ public static class PlayerProfile
     {
         PlayerManager.Local.Id = PlayerIdentity.Name;
         if (!GameSession.IsOnline) return;
-        GameSession.Client.SetProfile(PlayerIdentity.Name, CaptureSkin(), GameFlow.LocalScene, GameFlow.Stage);
+        GameSession.SetLocalProfile(CaptureSkin());
         if (GameFlow.CharactersReady && PlayerManager.Local.unit != null)
             FloatingTextHelper.SetPlayerLabel(PlayerManager.Local.Uid, LiveModeManager.GetDisplayName(PlayerManager.Local.Uid), PlayerManager.Local.unit.transform);
     }

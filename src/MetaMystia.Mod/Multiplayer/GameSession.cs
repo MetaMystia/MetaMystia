@@ -109,7 +109,14 @@ public static class GameSession
         joinability = Task.CompletedTask;
         client.CallbackError += error => Log.Error($"Network callback: {error}");
         if (lan != null) lan.Server.CallbackError += error => Log.Error($"Server callback: {error}");
-        client.StateChanged += () => ApplyState(client);
+        client.RosterChanged += () => ApplyState(client);
+        client.MotionChanged += (uid, motion) =>
+        {
+            if (Client != client) return;
+            State = State.WithMotion(uid, motion, out var player);
+            if (player != null && PlayerManager.TryGetVisiblePeer(uid, out var peer))
+                peer.ApplyMotion(player);
+        };
         client.MessageReceived += GameMessages.Receive;
         client.ChatRejected += error => InGameConsole.LogError(NetworkNotice.Describe(error));
         client.NoticeReceived += notice =>
@@ -144,6 +151,12 @@ public static class GameSession
             YuyukoGuestSync.Reset();
         }
         PlayerManager.ApplyNetworkState(State, previous != RoomMembershipId);
+    }
+
+    internal static void SetLocalProfile(Skin skin)
+    {
+        Client.SetProfile(PlayerIdentity.Name, skin, GameFlow.LocalScene, GameFlow.Stage);
+        State = Client.State;
     }
 
     public static void Tick()

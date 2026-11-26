@@ -27,6 +27,37 @@ static partial class Checks
         Assert(dayViewers.All(c => c.State.World.Single(p => p.Uid == host.Uid).HasMotion),
             "白天运动同步给同房间、其他房间和未组房的所有白天玩家");
 
+        var before = guest.State;
+        var view = before;
+        var changes = new List<int>();
+        int rosterUpdates = 0;
+        int stateUpdates = 0;
+        guest.MotionChanged += (uid, motion) =>
+        {
+            view = view.WithMotion(uid, motion, out var player);
+            changes.Add(player!.Uid);
+        };
+        guest.RosterChanged += () => { view = guest.State; rosterUpdates++; };
+        guest.StateChanged += () => stateUpdates++;
+        host.SendMotion(dayMotion with { X = 18 });
+        otherHost.SendMotion(dayMotion with { X = 23 });
+        await Until(() => changes.Count == 2);
+        Assert(changes.Contains(host.Uid) && changes.Contains(otherHost.Uid) && rosterUpdates == 0 && stateUpdates == 2,
+            "同图移动仅派发对应发送者并保留逐包状态通知");
+        Assert(view.World.Single(p => p.Uid == otherHost.Uid).Motion.X == 23
+            && view.Room!.Members.Single(p => p.Uid == host.Uid).Motion.X == 18
+            && view.Room.Members.Single(p => p.Uid == host.Uid).Resources!.IsIncrementalReady
+            && view.World.Single(p => p.Uid == host.Uid).Resources == null,
+            "移动更新世界与房间视图，房间资源继续隔离");
+        Assert(before.World.Single(p => p.Uid == host.Uid).Motion.X == 17
+            && ReferenceEquals(before.World.Single(p => p.Uid == guest.Uid), view.World.Single(p => p.Uid == guest.Uid)),
+            "移动保留旧快照，只替换发送者记录");
+
+        guest.SendMotion(new() { X = 71 });
+        Assert(changes[^1] == guest.Uid && view.World.Single(p => p.Uid == guest.Uid).Motion.X == 71
+            && view.Room!.Members.Single(p => p.Uid == guest.Uid).Motion.X == 71 && stateUpdates == 2,
+            "本地运动立即更新两个视图，保留原有接收通知次数");
+
         await Pump(host.SetJoinableAsync(false));
         Assert(await Failure(outside.JoinRoomAsync(host.State.Room!.Id)) == "JoinClosed" && outside.IsConnected,
             "关闭确认后拒绝新成员，世界连接保留");
@@ -37,6 +68,8 @@ static partial class Checks
         await Until(() => guest.State.World.Single(p => p.Uid == host.Uid).Scene == Scene.WorkScene);
         host.SendMotion(new() { X = 987 });
         await Until(() => guest.State.World.Single(p => p.Uid == host.Uid).Motion.X == 987);
+        Assert(changes[^1] == host.Uid && view.Room!.Members.Single(p => p.Uid == host.Uid).Motion.X == 987
+            && rosterUpdates > 0, "换场景后先刷新成员资料，再派发同房间夜间移动");
         var late = await Connect(server, "late-world");
         foreach (var viewer in new[] { outside, otherHost, otherGuest, late })
         {
