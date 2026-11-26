@@ -108,6 +108,15 @@ public sealed partial class Server : IAsyncDisposable
         catch (ChannelClosedException) { }
     }
 
+    private async Task<T> Call<T>(Func<T> action, T stopped)
+    {
+        if (Volatile.Read(ref stopping) != 0 || Volatile.Read(ref started) == 0) return stopped;
+        var result = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try { await events.Writer.WriteAsync(() => result.TrySetResult(Volatile.Read(ref stopping) != 0 ? stopped : action())).ConfigureAwait(false); }
+        catch (ChannelClosedException) { return stopped; }
+        return await result.Task.ConfigureAwait(false);
+    }
+
     private async Task Tick()
     {
         try
@@ -479,13 +488,8 @@ public sealed partial class Server : IAsyncDisposable
         foreach (var p in peers.Where(p => p.Player != null && p != except)) p.Wire.SendBytes(bytes);
     }
 
-    public async Task<Snapshot> GetSnapshotAsync()
-    {
-        if (Volatile.Read(ref stopping) != 0 || Volatile.Read(ref started) == 0) throw new InvalidOperationException("Not running");
-        var result = new TaskCompletionSource<Snapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await events.Writer.WriteAsync(() => result.TrySetResult(Protocol.Read<Snapshot>(Protocol.Pack(Capture(null))))).ConfigureAwait(false);
-        return await result.Task.ConfigureAwait(false);
-    }
+    public async Task<Snapshot> GetSnapshotAsync() =>
+        await Call<Snapshot?>(() => Capture(null), null).ConfigureAwait(false) ?? throw new InvalidOperationException("Not running");
 
     public async Task StopAsync()
     {
