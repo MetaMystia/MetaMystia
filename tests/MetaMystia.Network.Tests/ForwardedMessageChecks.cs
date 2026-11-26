@@ -11,7 +11,7 @@ static partial class Checks
         var failures = new List<string>();
         byte[] valid = MemoryPackSerializer.Serialize(new ChatPayload { Message = "hello" });
         byte[] validRoom = MemoryPackSerializer.Serialize<MultiplayerMessage>(new NightCookMessage());
-        byte[] mismatch = MemoryPackSerializer.Serialize<MultiplayerMessage>(new PingMessage());
+        byte[] mismatch = MemoryPackSerializer.Serialize<MultiplayerMessage>(new EmoteMessage());
         byte[] nil = MemoryPackSerializer.Serialize<MultiplayerMessage>(null);
         foreach (bool room in new[] { false, true })
         foreach (var (name, body) in new (string, byte[])[]

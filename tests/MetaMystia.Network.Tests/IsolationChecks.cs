@@ -55,7 +55,7 @@ static partial class Checks
         var context = requests[0].Context;
         Assert(host.IsCurrent(context), "应用延迟回调可核对双方入房身份");
         guest.SendToRoom((ushort)GameMessageType.ServeSellable, [2]);
-        guest.SendToHost((ushort)GameMessageType.Ping, [3]);
+        guest.SendToHost((ushort)GameMessageType.GuestQuery, [3]);
         await Until(() => requests.Count == 2);
         Assert(requests.All(m => m.Body[0] != 2), "同一玩法类型允许客人请求但不允许客人伪造广播结果");
         host.SendToRoom((ushort)GameMessageType.ServeSellable, [4], 42);

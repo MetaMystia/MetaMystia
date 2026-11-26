@@ -20,8 +20,8 @@ namespace MetaMystia.Multiplayer.Messages
 {
     [MemoryPackable]
     [MemoryPackUnion((ushort)GameMessageType.Chat, typeof(ChatMessage))]
-    [MemoryPackUnion((ushort)GameMessageType.Ping, typeof(PingMessage))]
     [MemoryPackUnion((ushort)GameMessageType.NightCook, typeof(NightCookMessage))]
+    [MemoryPackUnion((ushort)GameMessageType.Emote, typeof(EmoteMessage))]
     public abstract partial class MultiplayerMessage
     {
         [MemoryPackIgnore] public int SenderUid { get; set; }
@@ -32,9 +32,6 @@ namespace MetaMystia.Multiplayer.Messages
         public void OnReceived() => Delivered.Add((Connection.Uid, SenderUid));
     }
 
-    [MemoryPackable]
-    public partial class PingMessage : MultiplayerMessage {}
-    public class PongMessage : MultiplayerMessage {}
     [MemoryPackable]
     public partial class ChatMessage : MultiplayerMessage { public string Message { get; set; } = "hello"; }
     public class SelectIzakayaMessage : MultiplayerMessage {}
@@ -78,7 +75,8 @@ namespace MetaMystia.Multiplayer.Messages
     public class YuyukoGuestBoundMessage : MultiplayerMessage {}
     public class RoomInitialStateMessage : MultiplayerMessage {}
     public class BusinessStartMessage : MultiplayerMessage {}
-    public class EmoteMessage : MultiplayerMessage {}
+    [MemoryPackable]
+    public partial class EmoteMessage : MultiplayerMessage {}
     public class TimeStopRequestMessage : MultiplayerMessage {}
     public class TimeStopStateMessage : MultiplayerMessage {}
 }

@@ -142,7 +142,6 @@ public static class GameSession
             GameFlow.ResetGameplay(resume: resumeGameplay && previous != 0 && RoomMembershipId == 0);
             DayDestinationManager.ResetSession();
             YuyukoGuestSync.Reset();
-            RoomClock.Reset();
         }
         PlayerManager.ApplyNetworkState(State, previous != RoomMembershipId);
     }
@@ -167,12 +166,11 @@ public static class GameSession
         }
         if (IsRoomHost && !IsConnecting && joinability.IsCompleted && Room.Joinable != GameFlow.CanOpenRoom)
             SetJoinable(GameFlow.CanOpenRoom);
-        if (RoomClock.Now >= nextMotion)
+        if (Environment.TickCount64 >= nextMotion)
         {
-            nextMotion = RoomClock.Now + 2000;
+            nextMotion = Environment.TickCount64 + 2000;
             PlayerProfile.SendMotion();
         }
-        RoomClock.Tick();
     }
 
     public static Task SetJoinable(bool allowed, System.Action<bool> completed = null)
@@ -228,7 +226,6 @@ public static class GameSession
         PlayerManager.ClearPeers();
         PlayerManager.Local.Uid = 0;
         YuyukoGuestSync.Reset();
-        RoomClock.Reset();
         if (wasOnline) InGameConsole.ShowPassive(TextId.MultiplayerDisconnected.Get());
     }
 

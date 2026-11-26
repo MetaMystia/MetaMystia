@@ -11,8 +11,6 @@ namespace MetaMystia.Multiplayer.Messages;
 
 
 [MemoryPackable]
-[MemoryPackUnion((ushort)GameMessageType.Ping, typeof(PingMessage))]
-[MemoryPackUnion((ushort)GameMessageType.Pong, typeof(PongMessage))]
 [MemoryPackUnion((ushort)GameMessageType.Chat, typeof(ChatMessage))]
 [MemoryPackUnion((ushort)GameMessageType.SelectIzakaya, typeof(SelectIzakayaMessage))]
 [MemoryPackUnion((ushort)GameMessageType.ConfirmIzakaya, typeof(ConfirmIzakayaMessage))]
@@ -59,7 +57,6 @@ namespace MetaMystia.Multiplayer.Messages;
 [MemoryPackUnion((ushort)GameMessageType.TimeStopState, typeof(TimeStopStateMessage))]
 public abstract partial class MultiplayerMessage
 {
-    protected long TimestampMs { get; set; }
     /// <summary>
     /// 服务器根据真实连接提供的发送者 UID，不进入玩法正文。
     /// </summary>
@@ -85,7 +82,6 @@ public abstract partial class MultiplayerMessage
 
     protected MultiplayerMessage()
     {
-        TimestampMs = RoomClock.Now;
         SenderUid = GameSession.Client?.Uid ?? 0;
     }
 

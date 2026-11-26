@@ -14,8 +14,6 @@ public static class GameMessages
     private static readonly Dictionary<GameMessageType, MessageRule> rules = GameMessageRules.Create().ToDictionary(r => (GameMessageType)r.Id);
     public static GameMessageType TypeOf(MultiplayerMessage message) => message switch
     {
-        PingMessage => GameMessageType.Ping,
-        PongMessage => GameMessageType.Pong,
         ChatMessage => GameMessageType.Chat,
         SelectIzakayaMessage => GameMessageType.SelectIzakaya,
         ConfirmIzakayaMessage => GameMessageType.ConfirmIzakaya,
