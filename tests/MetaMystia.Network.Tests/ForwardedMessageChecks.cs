@@ -43,8 +43,8 @@ static partial class Checks
                     GameMessages.Receive(message);
                 };
             }
-            if (room) attacker.SendToRoom((ushort)GameMessageType.NightCook, body);
-            else attacker.SendToWorld((ushort)GameMessageType.Chat, body);
+            if (room) attacker.Send((ushort)GameMessageType.NightCook, body, Route.Room);
+            else attacker.Send((ushort)GameMessageType.Chat, body, Route.World);
             await Until(() => room ? received == 1 : rejected == 1);
             bool survived = recipient.IsConnected && observer.IsConnected && attacker.IsConnected;
             if (!room) Assert(received == 0, "非法聊天不转发且发送者保持连接");
@@ -56,13 +56,13 @@ static partial class Checks
             {
                 if (room)
                 {
-                    attacker.SendToRoom((ushort)GameMessageType.NightCook, validRoom);
+                    attacker.Send((ushort)GameMessageType.NightCook, validRoom, Route.Room);
                     await Until(() => MultiplayerMessage.Delivered.Count == 1);
                     Assert(MultiplayerMessage.Delivered[0] == (recipient.Uid, attacker.Uid),
                         scenario + "后正常房间消息仍只送达房内玩家");
                     MultiplayerMessage.Delivered.Clear();
                 }
-                attacker.SendToWorld((ushort)GameMessageType.Chat, valid);
+                attacker.Send((ushort)GameMessageType.Chat, valid, Route.World);
                 await Until(() => MultiplayerMessage.Delivered.Count == 2);
                 Assert(MultiplayerMessage.Delivered.All(x => x.Sender == attacker.Uid)
                     && recipient.IsConnected && observer.IsConnected,

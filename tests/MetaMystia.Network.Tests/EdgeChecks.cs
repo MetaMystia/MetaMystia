@@ -40,7 +40,7 @@ static partial class Checks
         var slow = await Connect(server, "slow"); clients.Remove(slow);
         for (int batch = 0; batch < 35; batch++)
         {
-            for (int i = 0; i < 10; i++) a.SendToWorld(1, [1]);
+            for (int i = 0; i < 10; i++) a.Send(1, [1], Route.World);
             a.DispatchPending(); await Task.Delay(4);
         }
         await WaitCount(server, 1);
@@ -89,7 +89,7 @@ static partial class Checks
         { await slow.ConnectAsync(server.Endpoint.Address, server.Endpoint.Port); await slow.GetStream().WriteAsync(new byte[] { 2 }); await Task.Delay(2400); }
         var probe = await Connect(server, "after-bad");
         var got = false; survivor.MessageReceived += m => { if (m.Body.SequenceEqual(new byte[] { 123 })) got = true; };
-        probe.SendToWorld(1, [123]); await Until(() => got); probe.Disconnect(); await WaitCount(server, before);
+        probe.Send(1, [123], Route.World); await Until(() => got); probe.Disconnect(); await WaitCount(server, before);
         Assert(got, "未完成帧超时后仍可接纳新玩家并通信");
     }
 

@@ -69,15 +69,14 @@ public static class GameMessages
         var type = TypeOf(message);
         var rule = rules[type];
         if (rule.HostOnly && !GameSession.IsRoomHost) return;
-        var client = GameSession.Client;
         var body = message is ChatMessage chat
             ? MemoryPackSerializer.Serialize(new ChatPayload { Message = chat.Message })
             : MemoryPackSerializer.Serialize(message);
-        if (message.WireTargetUid is int target) client.SendToPlayer(target, (ushort)type, body);
-        else if (!rule.RoomScoped) client.SendToWorld((ushort)type, body);
-        else if (rule.Routes.Contains(Route.Host) && (!GameSession.IsRoomHost || !rule.Routes.Contains(Route.Room)))
-            client.SendToHost((ushort)type, body);
-        else client.SendToRoom((ushort)type, body);
+        var route = message.WireTargetUid != null ? Route.Player
+            : !rule.RoomScoped ? Route.World
+            : rule.Routes.Contains(Route.Host) && (!GameSession.IsRoomHost || !rule.Routes.Contains(Route.Room)) ? Route.Host
+            : Route.Room;
+        GameSession.Client.Send((ushort)type, body, route, message.WireTargetUid ?? 0);
     }
 
     public static void Receive(ReceivedMessage received)

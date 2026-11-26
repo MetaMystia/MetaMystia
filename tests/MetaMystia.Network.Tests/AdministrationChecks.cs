@@ -65,9 +65,9 @@ static partial class Checks
         guest.MessageReceived += _ => accepted++;
         guest.ChatRejected += _ => rejected++;
         string chat = "你好\n[INFO] forged\u001b[31m";
-        guest.SendToWorld((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = chat }));
+        guest.Send((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = chat }), Route.World);
         await Until(() => accepted == 1);
-        guest.SendToWorld((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = "blocked-secret" }));
+        guest.Send((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = "blocked-secret" }), Route.World);
         await Until(() => rejected == 1);
         var chatLog = logs.Single(e => e.Level == ServerLogLevel.Chat);
         Assert(chatLog.Message.Contains("你好") && !chatLog.Message.Contains('\n') && !chatLog.Message.Contains('\u001b'), "聊天日志保留中文并转义换行及终端控制字符");
@@ -87,7 +87,7 @@ static partial class Checks
         var quietClient = await Connect(quiet, "quiet");
         bool delivered = false;
         quietClient.MessageReceived += _ => delivered = true;
-        quietClient.SendToWorld((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = "private-text" }));
+        quietClient.Send((ushort)GameMessageType.Chat, Protocol.Pack(new ChatPayload { Message = "private-text" }), Route.World);
         await Until(() => delivered);
         Assert(quietLogs.All(e => e.Level != ServerLogLevel.Chat && !e.Message.Contains("private-text")), "默认关闭聊天正文日志");
         quietClient.Disconnect();

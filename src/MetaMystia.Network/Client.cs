@@ -226,18 +226,11 @@ public sealed class Client : IDisposable
         }
     }
 
-    public void SendToWorld(ushort type, byte[] body) => Send(type, body, Route.World, 0);
-    public void SendToRoom(ushort type, byte[] body) => Send(type, body, Route.Room, 0);
-    public void SendToHost(ushort type, byte[] body) => Send(type, body, Route.Host, 0);
-    public void SendToPlayer(int target, ushort type, byte[] body) => Send(type, body, Route.Player, target);
-    private void Send(ushort type, byte[] body, Route route, int target)
+    public void Send(ushort type, byte[] body, Route route, int target = 0)
     {
         lock (gate)
-        {
-            var current = Require();
-            current.Wire!.Send(new(Kind.Data, body, Type: type, Route: route, Target: target,
+            Require().Wire!.Send(new(Kind.Data, body, Type: type, Route: route, Target: target,
                 Room: state.Room?.Id ?? 0, Membership: MyMembership()));
-        }
     }
 
     public bool IsCurrent(MessageContext context)

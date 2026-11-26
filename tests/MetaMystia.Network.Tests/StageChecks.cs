@@ -56,16 +56,16 @@ static partial class Checks
 
         var messages = new List<ReceivedMessage>();
         guest.MessageReceived += messages.Add;
-        host.SendToRoom((ushort)GameMessageType.BusinessStart, [1]);
-        host.SendToRoom((ushort)GameMessageType.GuestSpawn, [2]);
+        host.Send((ushort)GameMessageType.BusinessStart, [1], Route.Room);
+        host.Send((ushort)GameMessageType.GuestSpawn, [2], Route.Room);
         await Until(() => messages.Count == 2);
         Assert(messages[0].Type == (ushort)GameMessageType.BusinessStart && messages[1].Type == (ushort)GameMessageType.GuestSpawn,
             "营业放行消息先于随后的顾客消息到达");
         var inbound = new List<ReceivedMessage>();
         host.MessageReceived += inbound.Add;
-        guest.SendToRoom((ushort)GameMessageType.BusinessStart, [3]);
-        guest.SendToRoom((ushort)GameMessageType.DayDestinationConfirm, [3]);
-        guest.SendToHost((ushort)GameMessageType.DayDestinationIntent, [4]);
+        guest.Send((ushort)GameMessageType.BusinessStart, [3], Route.Room);
+        guest.Send((ushort)GameMessageType.DayDestinationConfirm, [3], Route.Room);
+        guest.Send((ushort)GameMessageType.DayDestinationIntent, [4], Route.Host);
         await Until(() => inbound.Count == 1);
         Assert(inbound[0].Type == (ushort)GameMessageType.DayDestinationIntent, "客人只能提交入口意向，不能广播入口执行或营业放行");
         host.Disconnect();
