@@ -285,6 +285,8 @@ public static partial class PlayerManager
     /// </summary>
     public static void OnFixedUpdate()
     {
+        if (Peers.IsEmpty && PublicPeers.IsEmpty) return;
+
         foreach (var peer in Peers.Values)
         {
             peer.OnFixedUpdate();
