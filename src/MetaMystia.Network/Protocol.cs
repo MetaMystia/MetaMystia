@@ -28,6 +28,7 @@ internal static class Protocol
 {
     internal const int MaxFrame = 256 * 1024;
     internal const int QueueCapacity = 256;
+    private const int HelloMagic = 0x3152494d;
     // 固定外壳先读取数字错误码，协议版本不一致时也能显示拒绝原因。
     internal static byte[] WriteError(NetworkError error)
     {
@@ -106,16 +107,20 @@ internal static class Protocol
     {
         using var stream = new MemoryStream();
         using var w = new BinaryWriter(stream, Encoding.UTF8);
-        w.Write(0x3152494d); w.Write(v.Protocol); w.Write(v.Game); w.Write(v.Mod); w.Write(key);
+        w.Write(HelloMagic); w.Write(v.Protocol); w.Write(v.Game); w.Write(v.Mod); w.Write(key);
         w.Write(Pack(player));
         return stream.ToArray();
     }
 
     internal static Versions ReadHelloVersions(byte[] body)
     {
-        using var stream = new MemoryStream(body, false);
-        using var reader = new BinaryReader(stream, Encoding.UTF8);
-        if (reader.ReadInt32() != 0x3152494d) throw new InvalidDataException("Invalid Hello magic");
+        using var reader = new BinaryReader(new MemoryStream(body, false), Encoding.UTF8);
+        return ReadVersions(reader);
+    }
+
+    private static Versions ReadVersions(BinaryReader reader)
+    {
+        if (reader.ReadInt32() != HelloMagic) throw new InvalidDataException("Invalid Hello magic");
         var versions = new Versions(reader.ReadInt32(), reader.ReadString(), reader.ReadString());
         if (string.IsNullOrWhiteSpace(versions.Game) || versions.Game.Length > 64 ||
             string.IsNullOrWhiteSpace(versions.Mod) || versions.Mod.Length > 64)
@@ -127,15 +132,16 @@ internal static class Protocol
     {
         using var stream = new MemoryStream(body, false);
         using var r = new BinaryReader(stream, Encoding.UTF8);
+        var versions = ReadVersions(r);
         var versionError = new NetworkError
         {
             ProtocolVersion = expected.Protocol, GameVersion = expected.Game, ModVersion = expected.Mod
         };
-        if (r.ReadInt32() != 0x3152494d || r.ReadInt32() != expected.Protocol)
+        if (versions.Protocol != expected.Protocol)
             throw new NetworkException(versionError with { Code = NetworkErrorCode.ProtocolMismatch });
-        if (r.ReadString() != expected.Game)
+        if (versions.Game != expected.Game)
             throw new NetworkException(versionError with { Code = NetworkErrorCode.GameMismatch });
-        if (r.ReadString() != expected.Mod)
+        if (versions.Mod != expected.Mod)
             throw new NetworkException(versionError with { Code = NetworkErrorCode.ModMismatch });
         var key = r.ReadString();
         if (key.Length > 128) throw new InvalidDataException();
