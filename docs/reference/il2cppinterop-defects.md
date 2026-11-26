@@ -54,6 +54,15 @@ Interop 把 `Il2CppSystem.ValueTuple`、`DaySceneMapProfile.MapNode` 等非 blit
 
 高频或按条目生成委托的位置应复用已转换的委托。`DaySceneChatSelectionPannel` 每次打开对每个可用选项取两次配置（判断可用性、取标题），因此 `DaySceneSelectionItem` 只在构造时转换一次，之后替换内容。
 
+## `ConvertDelegate` 不校验返回类型
+
+`DelegateSupport.ConvertDelegate<TIl2Cpp>` 的参数类型是 `Delegate`，传入的 lambda 按自然类型编译：`() => list.Remove(x)` 是 `Func<bool>`，不是 `Action`。转换只校验参数，原生到托管的 trampoline 按托管委托的 `Invoke` 方法缓存，并按托管返回类型生成：
+
+- 该托管委托类型首次转换时，`DynamicMethod.CreateDelegate` 抛出 `ArgumentException: Cannot bind to the target method because its signature is not compatible with that of the delegate type`；
+- 已有缓存时转换成功，但原生委托调用的是返回类型不符的 trampoline。
+
+在 RELEASE 4.4.0e、Il2CppInterop 1.5.3 环境实测（达摩雪雪 buff 结束回调）。转换为无返回值的 Il2Cpp 委托时，lambda 使用语句体 `() => { ... }`。
+
 ## 注入抽象类时的虚表越界写
 
 `ClassInjector.RegisterTypeInIl2Cpp` 注入抽象类时：

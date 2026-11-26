@@ -11,6 +11,18 @@ namespace MetaMystia.Patch;
 [HarmonyPatch(typeof(GameData.RunTime.Common.RunTimeAlbum))]
 public class RunTimeAlbumPatch
 {
+    [HarmonyPatch(nameof(RunTimeAlbum.TryRecordUsedDecoration))]
+    [HarmonyPostfix]
+    public static void TryRecordUsedDecoration_Postfix() => DecorationRegistry.ApplyDayEffects();
+
+    [HarmonyPatch(nameof(RunTimeAlbum.TryRemoveUsedDecoration))]
+    [HarmonyPostfix]
+    public static void TryRemoveUsedDecoration_Postfix() => DecorationRegistry.ApplyDayEffects();
+
+    [HarmonyPatch(nameof(RunTimeAlbum.MountAndOverridePlayerRuntimeData))]
+    [HarmonyPostfix]
+    public static void MountAndOverridePlayerRuntimeData_Postfix() => DecorationRegistry.ApplyDayEffects();
+
     // ResourceEx 稀客没有 DataBaseDay NPC，原版按标签查询会失败；改用配置中的 id。
     [HarmonyPatch(nameof(RunTimeAlbum.RefSpecialNPCId), [typeof(string)])]
     [HarmonyPrefix]

@@ -3,6 +3,7 @@ using HarmonyLib;
 using DayScene.Input;
 
 using MetaMystia.Multiplayer;
+using MetaMystia.ResourceEx.Registries;
 
 using static MetaMystia.Patch.HarmonyPrefixFlow;
 
@@ -11,6 +12,10 @@ namespace MetaMystia.Patch;
 [HarmonyPatch(typeof(DayScene.Input.DayScenePlayerInputGenerator))]
 public class DayScenePlayerInputPatch
 {
+    [HarmonyPatch(nameof(DayScenePlayerInputGenerator.UpdateCharacter))]
+    [HarmonyPostfix]
+    public static void UpdateCharacter_Postfix() => DecorationRegistry.ApplyDayEffects();
+
     [HarmonyPatch(nameof(DayScenePlayerInputGenerator.OnSprintPerformed))]
     [HarmonyPrefix]
     public static void OnSprintPerformed_Prefix()

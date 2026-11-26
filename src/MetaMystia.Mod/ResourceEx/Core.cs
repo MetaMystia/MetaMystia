@@ -377,6 +377,9 @@ public static class ResourceExManager
         foreach (var itemConfig in config.items ?? [])
             itemConfig.spritePath = ResolveAssetUriOrSelf(itemConfig.spritePath, packageLabel);
 
+        foreach (var decorationConfig in config.decorations ?? [])
+            decorationConfig.spritePath = ResolveAssetUriOrSelf(decorationConfig.spritePath, packageLabel);
+
         if (config.clothes != null)
         {
             foreach (var clothConfig in config.clothes)

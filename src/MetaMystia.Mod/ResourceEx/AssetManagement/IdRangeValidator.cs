@@ -264,6 +264,12 @@ public static class IdRangeValidator
                 ids.Add(("Cloth", c.id));
         }
 
+        if (config.decorations != null)
+        {
+            foreach (var d in config.decorations)
+                ids.Add(("Decoration", d.id));
+        }
+
         if (config.spells != null)
         {
             foreach (var s in config.spells)
