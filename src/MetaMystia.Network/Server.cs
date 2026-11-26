@@ -206,7 +206,6 @@ public sealed partial class Server : IAsyncDisposable
             switch (f.Kind)
             {
                 case Kind.Ping: p.Wire.Send(new(Kind.Pong, f.Body)); break;
-                case Kind.Pong: break;
                 case Kind.Command: Manage(p, Protocol.Read<Control>(f.Body)); break;
                 case Kind.Motion:
                 case Kind.RoomMotion:

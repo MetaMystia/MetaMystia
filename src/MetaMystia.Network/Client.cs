@@ -71,8 +71,7 @@ public sealed class Client : IDisposable
                 {
                     if (frame.Kind == Kind.Ping)
                     {
-                        current.Wire!.Send(new(Kind.Pong, []));
-                        current.Wire.Send(new(Kind.Ping, BitConverter.GetBytes(Stopwatch.GetTimestamp())));
+                        current.Wire!.Send(new(Kind.Ping, BitConverter.GetBytes(Stopwatch.GetTimestamp())));
                         return;
                     }
                     if (frame.Kind == Kind.Pong)
