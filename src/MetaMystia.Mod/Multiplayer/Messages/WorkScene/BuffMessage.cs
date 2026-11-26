@@ -52,7 +52,7 @@ public partial class BuffMessage : MultiplayerMessage
                 QTERewardManagerPatch.BuffLocalTrigger = false; // 标记为非本地触发
                 QTERewardManagerPatch.OnQTESucceeded(NightScene.CookingUtility.QTERewardManager.Instance, Buff.ID, true);
                 QTERewardManagerPatch.BuffLocalTrigger = true;
-                Log.Info($"triggered buff {Buff}");
+                Log.Debug($"triggered buff {Buff}");
             },
             timeoutSeconds: 10f
         );

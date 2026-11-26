@@ -36,7 +36,7 @@ public class WorkSceneStoragePannelPatch
     [HarmonyPrefix]
     public static bool OnExtract_Prefix(Sellable toExtract)
     {
-        Log.Info($"Extract: {toExtract?.id}, {toExtract?.Text?.Name}");
+        Log.Debug($"Extract: {toExtract?.id}, {toExtract?.Text?.Name}");
         if (toExtract.type == Sellable.SellableType.Beverage)
         {
             if (GameSession.HasRoomPeers && !PlayerManager.BeverageAvailable(toExtract.id))

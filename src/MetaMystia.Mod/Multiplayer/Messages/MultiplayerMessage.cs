@@ -69,11 +69,18 @@ public abstract partial class MultiplayerMessage
     [MemoryPackIgnore] protected bool IsCurrent => Connection == GameSession.Client && Connection?.IsCurrent(Context) == true;
 
 
-    [MemoryPackIgnore]
-    protected virtual LogLevel OnReceiveLogLevel { get; } = LogLevel.Info;
+    private LogLevel DefaultLogLevel => this is
+        TipEditMessage or FundEditMessage or ExpEditMessage or PassionEditMessage or
+        StoreFoodMessage or StoreSellableMessage or ExtractFoodMessage or ExtractFromCookerMessage or
+        NightCookMessage or QTEMessage or BuffMessage or GuestSpawnMessage or GuestSeatMessage or
+        MoveToQueueMessage or GenerateOrderMessage or ServeSellableMessage or ConfirmServeMessage or
+        EvaluateOrderMessage or GuestLeaveMessage or PlayerRepellMessage ? LogLevel.Debug : LogLevel.Info;
 
     [MemoryPackIgnore]
-    protected virtual LogLevel OnSendLogLevel { get; } = LogLevel.Info;
+    protected virtual LogLevel OnReceiveLogLevel => DefaultLogLevel;
+
+    [MemoryPackIgnore]
+    protected virtual LogLevel OnSendLogLevel => DefaultLogLevel;
 
     [MemoryPackIgnore]
     protected virtual bool OnReceiveLogOnlyMessage { get; } = false;
