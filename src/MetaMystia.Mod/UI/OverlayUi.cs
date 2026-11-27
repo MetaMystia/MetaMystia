@@ -1,10 +1,12 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 
 using TMPro;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.U2D;
 using UnityEngine.UI;
 
 using Common.UI;
@@ -44,6 +46,7 @@ public static class OverlayUi
     private static bool _fontLoadFailed;
     private static Canvas? _cursorCanvas;
     private static float _nextCursorCheck;
+    private static readonly Dictionary<string, SpriteAtlas?> _atlases = [];
 
     public static Vector2 Size => Root.rect.size;
 
@@ -176,6 +179,27 @@ public static class OverlayUi
         texture.Apply();
         var sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
             SpriteMeshType.FullRect, new Vector4(SpriteRadius, SpriteRadius, SpriteRadius, SpriteRadius));
+        sprite.hideFlags = HideFlags.HideAndDontSave;
+        return sprite;
+    }
+
+    /// <summary>
+    /// 原版 Addressables 图集（资源名即地址）中的精灵。图集首次使用时同步加载，句柄不释放；
+    /// GetSprite 每次返回副本，由调用方缓存。
+    /// </summary>
+    public static Sprite? AtlasSprite(string atlas, string name)
+    {
+        if (!_atlases.TryGetValue(atlas, out var loaded))
+        {
+            loaded = Addressables.LoadAssetAsync<SpriteAtlas>((Il2CppSystem.Object)(Il2CppSystem.String)atlas).WaitForCompletion();
+            _atlases[atlas] = loaded;
+        }
+        var sprite = loaded?.GetSprite(name);
+        if (sprite == null)
+        {
+            Log.Warning($"Sprite {name} not found in {atlas}");
+            return null;
+        }
         sprite.hideFlags = HideFlags.HideAndDontSave;
         return sprite;
     }

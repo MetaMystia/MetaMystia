@@ -61,6 +61,7 @@ public class PluginHost : MonoBehaviour
 
         InGameConsole.Update();
         PlayerListPanel.Update();
+        EmoteWheel.Update();
 
         PluginManager.HandleShortcuts();
     }

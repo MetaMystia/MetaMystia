@@ -1,5 +1,6 @@
 using System;
 using System.CommandLine;
+using System.Linq;
 
 using MetaMystia.Multiplayer.Messages;
 using MetaMystia.UI;
@@ -8,7 +9,7 @@ namespace MetaMystia.ConsoleSystem.Commands;
 
 public static class EmoteCommands
 {
-    private static readonly string[] Names = ["fire", "shake", "jump", "henshin", "sparkle", "smoke"];
+    private static readonly string[] Names = Enum.GetNames<EmoteType>().Select(name => name.ToLowerInvariant()).ToArray();
 
     public static void Register(RootCommand root)
     {
