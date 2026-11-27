@@ -1,5 +1,6 @@
 using HarmonyLib;
 
+using GameData.Core.Collections;
 using GameData.Profile;
 using GameData.RunTime.Common;
 using NightScene;
@@ -57,6 +58,7 @@ public partial class RunTimeSchedulerPatch
     [HarmonyPrefix]
     public static bool ProcessReward_Prefix(SchedulerNode.Reward reward)
     {
+        if (reward.rewardType == SchedulerNode.Reward.RewardType.ScheduleNews && !KeepRegisteredNews(reward)) return SkipOriginal;
         if (!GameSession.IsInRoom || DayDestinationManager.ReplayingChallenge
             || reward.rewardType != SchedulerNode.Reward.RewardType.MoveToChallenge) return RunOriginal;
         if (reward.challengeType is not (NightSceneDirector.ChallengeType.Story_Yuyuko
@@ -65,6 +67,26 @@ public partial class RunTimeSchedulerPatch
             ? DayDestination.FinalTrial : DayDestination.FinalTrialAgain;
         DayDestinationManager.Submit(destination, () => RunTimeScheduler.ProcessReward(reward));
         return SkipOriginal;
+    }
+
+    // 原生 ScheduleNews 不检查标识：未注册的新闻会排进去，到发布日 RefNews 为 null，ApplyNews 空引用；
+    // 存档时又归入 UNDEFINED 分区。只保留已注册的候选，全部未注册时跳过这条奖励。
+    private static bool KeepRegisteredNews(SchedulerNode.Reward reward)
+    {
+        var ids = reward.rewardIdArray;
+        if (ids == null || ids.Length == 0) return true;
+        var known = new System.Collections.Generic.List<string>();
+        var missing = new System.Collections.Generic.List<string>();
+        foreach (var id in ids) (DataBaseScheduler.newsNodes.ContainsKey(id) ? known : missing).Add(id);
+        if (missing.Count == 0) return true;
+        if (known.Count == 0)
+        {
+            Log.Error($"ScheduleNews reward skipped, news not registered: {string.Join(", ", missing)}");
+            return false;
+        }
+        Log.Warning($"ScheduleNews reward ignores unregistered news: {string.Join(", ", missing)}");
+        reward.rewardIdArray = known.ToArray();
+        return true;
     }
 
     // InvokeDayOverEventsAsync 依次等待这两个回调；首次挑战等待期间不能继续选店。
