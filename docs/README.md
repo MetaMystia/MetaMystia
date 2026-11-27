@@ -41,6 +41,7 @@
 
 - [day-map-native](research/day-map-native.md)：原版白天地图结构、NPC 与出口
 - [spell-multiplayer](research/spell-multiplayer.md)：原版符卡联机适配分类与逐卡清单（未实现）
+- [versus-competition](research/versus-competition.md)：料理对决（分队对抗）设计（未实现）
 
 ## 编写规则
 
