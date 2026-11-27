@@ -79,6 +79,13 @@ public class PeerPlayer : NetPlayer
         if (Scene == Scene.DayScene && DayScene.SceneManager.Instance.IsMapSwapping) return;
 
         var motion = NetworkState.Motion;
+        MapLabel = motion.Map;
+        if (Scene == Scene.DayScene && !IsSameMapAsLocal)
+        {
+            if (character != null) ReleaseCharacter();
+            return;
+        }
+
         bool created = character == null;
         if (created)
         {
@@ -113,15 +120,13 @@ public class PeerPlayer : NetPlayer
             height.Initialize(NightScene.MapManager.Instance.height);
 
         UpdateMotion(motion, created || updateMotion, created);
-        bool visible = Scene == Scene.WorkScene || IsSameMapAsLocal;
-        SetZ(visible ? 0 : -40815);
-        character.cl2d.enabled = visible;
+        SetZ(0);
+        character.cl2d.enabled = true;
         FloatingTextHelper.SetPlayerLabel(Uid, LiveModeManager.GetDisplayName(Uid), character.transform);
     }
 
     private void UpdateMotion(Motion motion, bool updatePosition, bool snap)
     {
-        MapLabel = motion.Map;
         Speed = motion.Speed;
         IsSprinting = motion.Sprinting;
         InputDirection = new(motion.DirectionX, motion.DirectionY);
@@ -178,7 +183,7 @@ public class PeerPlayer : NetPlayer
 
     public void OnFixedUpdate()
     {
-        if (!CanRender || character == null || GameFlow.InStory) return;
+        if (character == null || !CanRender || GameFlow.InStory) return;
         if (Scene == Scene.DayScene && DayScene.SceneManager.Instance.IsMapSwapping)
         {
             character.IsMoving = false;
