@@ -436,6 +436,11 @@ public enum TextId
     ConsoleErrExtraArgument,
     ConsoleErrMissingSubcommand,
     PlayerListTitle,
+    NetworkSendQueueFull,
+    NetworkReceiveQueueFull,
+    NetworkServerQueueFull,
+    NetworkPendingRequestsFull,
+    NetworkQueueActivity,
 }
 
 public static class L10n

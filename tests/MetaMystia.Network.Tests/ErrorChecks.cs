@@ -9,6 +9,28 @@ static partial class Checks
         throw new Exception("Expected network error");
     }
 
+    static async Task QueueDiagnostics()
+    {
+        var activity = new ClientQueueActivity();
+        activity.Record(Kind.Motion, sending: false);
+        activity.Record(Kind.RoomMotion, sending: false);
+        activity.Record(Kind.Profile, sending: false);
+        activity.Record(Kind.RoomMotion, sending: true);
+        activity.Record(Kind.Command, sending: true);
+        var snapshot = activity.Capture();
+        Assert(snapshot == new QueueActivity(3, 2, 2, 1, null), "收发分开计数，世界和房间移动分别计入对应总数");
+        var reason = new NetworkError { Code = NetworkErrorCode.ReceiveQueueFull, QueueActivity = snapshot };
+        var plain = reason with { QueueActivity = null };
+        Assert(Protocol.WriteError(reason).SequenceEqual(Protocol.WriteError(plain))
+            && Protocol.Pack(new Control { Error = reason }).SequenceEqual(Protocol.Pack(new Control { Error = plain })),
+            "本机队列统计不进入拒绝帧或管理回复");
+        activity.Poll();
+        await Task.Delay(1100);
+        var after = activity.Capture();
+        Assert(after is { Received: 0, ReceivedMotion: 0, Sent: 0, SentMotion: 0, LastPollMsAgo: >= 1000 }
+            && reason.QueueActivity == new QueueActivity(3, 2, 2, 1, null), "一秒窗口过期后断开快照仍保留原统计和取包时间");
+    }
+
     static async Task ErrorDetails()
     {
         var versions = Versions.Current;
