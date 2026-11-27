@@ -1,12 +1,15 @@
 using System.Collections;
 using System.Collections.Generic;
 
+using UnityEngine;
+using UnityEngine.Timeline;
+
 using Common.CharacterUtility;
 using Common.TimelineExtestion;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Profile;
-using UnityEngine;
-using UnityEngine.Timeline;
+
+using MetaMystia.UI;
 
 namespace MetaMystia;
 
@@ -18,10 +21,19 @@ public enum EmoteType : byte
     Henshin = 4,
     Sparkle = 5,
     Smoke = 6,
+    ExGood = 7,
+    Good = 8,
+    Normal = 9,
+    Bad = 10,
+    ExBad = 11,
+    Heart = 12,
+    Heartbreak = 13,
+    Exclaim = 14,
 }
 
 /// <summary>
-/// 在角色上播放表情。只改变显示：位移类表情移动贴图子节点，不动角色根节点与碰撞体；特效类表情挂在角色下并按时销毁。
+/// 在角色上播放表情。只改变显示：位移类表情移动贴图子节点，不动角色根节点与碰撞体；特效类表情挂在角色下并按时销毁；
+/// 图标表情显示在头顶。
 /// </summary>
 public static class Emote
 {
@@ -38,6 +50,22 @@ public static class Emote
         [EmoteType.Smoke] = ("DLC3_Challenge_Cooking_Win_Timeline", "Smoke"),
     };
     private static readonly Dictionary<EmoteType, GameObject> storyPrefabs = [];
+
+    /// <summary>图标表情：原版图集地址与精灵名（夜间顾客评价、白天羁绊变化）。</summary>
+    private static readonly Dictionary<EmoteType, (string Atlas, string Sprite)> icons = new()
+    {
+        [EmoteType.ExGood] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_23"),
+        [EmoteType.Good] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_24"),
+        [EmoteType.Normal] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_25"),
+        [EmoteType.Bad] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_26"),
+        [EmoteType.ExBad] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_27"),
+        [EmoteType.Heart] = ("Day_Atlas", "HeartsUp_32x_0"),
+        [EmoteType.Heartbreak] = ("Day_Atlas", "HeartsDown_32x_0"),
+        [EmoteType.Exclaim] = ("Work_Atlas", "UI_night_addup_0"),
+    };
+    private static readonly Dictionary<EmoteType, Sprite> iconSprites = [];
+    private static readonly Dictionary<int, GameObject> bubbles = [];
+    private const float BubbleGap = 0.1f, BubbleRise = 0.1f, BubblePop = 0.15f, BubbleFade = 0.4f;
     private static readonly HashSet<(int, EmoteType)> playing = [];
     private static PartnerBossInfoFuto futo;
 
@@ -62,7 +90,7 @@ public static class Emote
         EmoteType.Shake or EmoteType.Jump => true,
         EmoteType.Henshin or EmoteType.Sparkle => GetStoryPrefab(emote) != null,
         EmoteType.Smoke => Futo != null && GetStoryPrefab(emote) != null,
-        _ => false
+        _ => GetIcon(emote) != null
     };
 
     /// <summary>同一角色上的同种表情未结束时不重复播放，返回 false。</summary>
@@ -74,7 +102,8 @@ public static class Emote
             EmoteType.Fire => Attach(unit, emote, Futo.firePlayer, new Vector3(0f, 0.75f, 0f)),
             EmoteType.Shake => Shake(unit),
             EmoteType.Jump => Jump(unit),
-            _ => Attach(unit, emote, GetStoryPrefab(emote), Vector3.zero)
+            EmoteType.Henshin or EmoteType.Sparkle or EmoteType.Smoke => Attach(unit, emote, GetStoryPrefab(emote), Vector3.zero),
+            _ => Bubble(unit, emote, GetIcon(emote))
         });
         if (emote == EmoteType.Fire) Common.Audio.GlobalAudioManager.Instance.Play(Futo.playerBurntSFX);
         return true;
@@ -105,6 +134,14 @@ public static class Emote
         return prefab;
     }
 
+    public static Sprite GetIcon(EmoteType emote)
+    {
+        if (iconSprites.TryGetValue(emote, out var cached)) return cached;
+        var sprite = icons.TryGetValue(emote, out var icon) ? OverlayUi.AtlasSprite(icon.Atlas, icon.Sprite) : null;
+        iconSprites[emote] = sprite;
+        return sprite;
+    }
+
     private static IEnumerator Attach(CharacterControllerUnit unit, EmoteType emote, GameObject prefab, Vector3 localPosition)
     {
         var key = (unit.GetInstanceID(), emote);
@@ -113,6 +150,34 @@ public static class Emote
         yield return new WaitForSeconds(Duration);
         if (effect != null) Object.Destroy(effect);
         playing.Remove(key);
+    }
+
+    // 角色根节点带 SortingGroup，子节点只在组内排序；气泡放在场景根下逐帧跟随，排在 OnTop 层。
+    // 高度取角色下可见渲染器的最高处，避开玩家名标签。同一角色同时只显示一个气泡，新气泡替换旧的。
+    private static IEnumerator Bubble(CharacterControllerUnit unit, EmoteType emote, Sprite sprite)
+    {
+        int id = unit.GetInstanceID();
+        if (bubbles.TryGetValue(id, out var old) && old != null) Object.Destroy(old);
+        var bubble = new GameObject($"Emote_{emote}");
+        bubbles[id] = bubble;
+        var renderer = bubble.AddComponent<SpriteRenderer>();
+        renderer.sprite = sprite;
+        renderer.sortingLayerName = "OnTop";
+        float top = unit.mainRenderer.bounds.max.y;
+        foreach (var child in unit.GetComponentsInChildren<Renderer>())
+            top = Mathf.Max(top, child.bounds.max.y);
+        float height = top - unit.transform.position.y + sprite.bounds.extents.y + BubbleGap;
+        for (float t = 0f; t < Duration && bubble != null && unit != null; t += Time.deltaTime)
+        {
+            float pop = Mathf.Clamp01(t / BubblePop) - 1f;
+            bubble.transform.localScale = Vector3.one * (1f + 2.70158f * pop * pop * pop + 1.70158f * pop * pop);
+            bubble.transform.position = unit.transform.position + new Vector3(0f, height + BubbleRise * t / Duration);
+            renderer.color = new Color(1f, 1f, 1f, Mathf.Clamp01((Duration - t) / BubbleFade));
+            yield return null;
+        }
+        if (bubble != null) Object.Destroy(bubble);
+        if (bubbles.TryGetValue(id, out var current) && current == bubble) bubbles.Remove(id);
+        playing.Remove((id, emote));
     }
 
     /// <summary>平移角色根节点下除阴影外的子节点。</summary>
