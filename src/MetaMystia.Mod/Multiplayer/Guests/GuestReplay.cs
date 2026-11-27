@@ -5,6 +5,7 @@ using UnityEngine;
 using GameData.Core.Collections.CharacterUtility;
 using GameData.Core.Collections.NightSceneUtility;
 using GameData.RunTime.Common;
+using GameData.RunTime.NightSceneUtility;
 using Night.UI.HUD.Ordering;
 using NightScene.EventUtility;
 using NightScene.GuestManagementUtility;
@@ -51,6 +52,11 @@ public static class GuestReplay
             if (!RunTimeScheduler.IsChallenge() && special.IsHerself
                 && RunTimeScheduler.ContainsSpecialNPCServeInWorkMission(info.Ids[0], out int _))
                 manager.guestIconManager.SwitchState(special, GuestState.ServeInWorkMissionIcon);
+            if (info.RecordIzakaya && IzakayaConfigure.Instance.IzakayaData is { } izakaya)
+            {
+                EventManager.Instance.AddServedGuest(special.guestInstances.Length, true);
+                RunTimeAlbum.RecordSpecialGuestIzakaya(info.Ids[0], izakaya.Id);
+            }
             controller = special;
         }
         GuestRegistry.Current.Attach(guest, controller);

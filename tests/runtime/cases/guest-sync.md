@@ -284,6 +284,16 @@
 - 操作：挑战结束后三端共同营业，各端上一单。
 - 期望：三端 `yuyuko` 为 `mode=NotChallenge … loop=none`，顾客编号从 1 开始，冻结后 `guests` 一致。
 
+## 接待统计
+
+两端普通营业，准备同用例 1–28。
+
+### 45 稀客计入接待数与图鉴
+
+- 操作：各端 `reception`；H `spawn MODE=special COUNT=1`，等 5 秒后各端再取 `reception`。
+- 期望：两端 `special` 增加 1，`sets` 增量相同，`normal` 不变；新稀客在两端 `album` 中都为 1。
+- 依据：H `Send GuestSpawnMessage` 带 `"RecordIzakaya":true`；C 有对应的 `Received`。两端读同一份存档，生成前该稀客已为 1 时图鉴部分不适用，换一位稀客。
+
 ## 未覆盖
 
 - 剧情期间暂存与剧情顾客：需要触发夜间剧情的存档。

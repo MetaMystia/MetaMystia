@@ -23,4 +23,5 @@ public partial class GuestSpawnInfo
     public bool ShouldFade { get; set; } = true;
     public bool HasSpecialSpawnArgs { get; set; }
     public SpecialGuestsController.GuestSpawnType GuestSpawnType { get; set; }
+    public bool RecordIzakaya { get; set; }
 }
