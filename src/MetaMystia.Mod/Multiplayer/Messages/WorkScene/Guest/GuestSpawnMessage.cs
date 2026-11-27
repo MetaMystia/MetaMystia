@@ -48,6 +48,7 @@ public partial class GuestSpawnMessage : MultiplayerMessage, IGuestEvent
             info.HasNormalSpawnArgs = info.GuestType == GuestsManager.GuestType.Normal;
             info.HasSpecialSpawnArgs = info.GuestType == GuestsManager.GuestType.Special;
             info.GuestSpawnType = args.GuestSpawnType;
+            info.RecordIzakaya = args.RecordIzakaya;
             info.HasOverrideSpawnPosition = args.HasOverrideSpawnPosition;
             info.OverrideSpawnX = args.OverrideSpawnPosition.x;
             info.OverrideSpawnY = args.OverrideSpawnPosition.y;

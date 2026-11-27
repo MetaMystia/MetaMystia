@@ -106,6 +106,7 @@ public partial class GuestsManagerPatch
         public int TargetDeskCode { get; init; }
         public bool ShouldFade { get; init; }
         public SpecialGuestsController.GuestSpawnType GuestSpawnType { get; init; }
+        public bool RecordIzakaya { get; init; }
     }
 
     private static bool IsReimuProtectionGuest(int id)
@@ -293,6 +294,7 @@ public partial class GuestsManagerPatch
         SpecialGuestsController.GuestSpawnType guestSpawnType,
         Il2CppSystem.Nullable<Vector3> overrideSpawnPosition,
         GuestGroupController.LeaveType leaveType,
+        bool recordIzakaya,
         int targetDeskCode,
         bool shouldFade,
         ref SpecialGuestsController __result)
@@ -312,6 +314,7 @@ public partial class GuestsManagerPatch
             TargetDeskCode = targetDeskCode,
             ShouldFade = shouldFade,
             GuestSpawnType = guestSpawnType,
+            RecordIzakaya = recordIzakaya,
         };
         return RunOriginal;
     }
