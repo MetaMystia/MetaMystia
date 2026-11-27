@@ -29,7 +29,7 @@ public static class EmoteWheel
     // 从正上方起顺时针排列。
     private static readonly EmoteType[] Order =
     [
-        EmoteType.Laugh, EmoteType.Smile, EmoteType.Calm, EmoteType.Gloomy, EmoteType.Upset,
+        EmoteType.ExGood, EmoteType.Good, EmoteType.Normal, EmoteType.Bad, EmoteType.ExBad,
         EmoteType.Heart, EmoteType.Heartbreak, EmoteType.Exclaim,
         EmoteType.Jump, EmoteType.Shake, EmoteType.Sparkle, EmoteType.Henshin, EmoteType.Fire, EmoteType.Smoke,
     ];
@@ -183,11 +183,11 @@ public static class EmoteWheel
         EmoteType.Henshin => TextId.EmoteNameHenshin,
         EmoteType.Sparkle => TextId.EmoteNameSparkle,
         EmoteType.Smoke => TextId.EmoteNameSmoke,
-        EmoteType.Laugh => TextId.EmoteNameLaugh,
-        EmoteType.Smile => TextId.EmoteNameSmile,
-        EmoteType.Calm => TextId.EmoteNameCalm,
-        EmoteType.Gloomy => TextId.EmoteNameGloomy,
-        EmoteType.Upset => TextId.EmoteNameUpset,
+        EmoteType.ExGood => TextId.EmoteNameExGood,
+        EmoteType.Good => TextId.EmoteNameGood,
+        EmoteType.Normal => TextId.EmoteNameNormal,
+        EmoteType.Bad => TextId.EmoteNameBad,
+        EmoteType.ExBad => TextId.EmoteNameExBad,
         EmoteType.Heart => TextId.EmoteNameHeart,
         EmoteType.Heartbreak => TextId.EmoteNameHeartbreak,
         _ => TextId.EmoteNameExclaim,

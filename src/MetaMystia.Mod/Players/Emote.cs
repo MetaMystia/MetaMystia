@@ -21,11 +21,11 @@ public enum EmoteType : byte
     Henshin = 4,
     Sparkle = 5,
     Smoke = 6,
-    Laugh = 7,
-    Smile = 8,
-    Calm = 9,
-    Gloomy = 10,
-    Upset = 11,
+    ExGood = 7,
+    Good = 8,
+    Normal = 9,
+    Bad = 10,
+    ExBad = 11,
     Heart = 12,
     Heartbreak = 13,
     Exclaim = 14,
@@ -51,14 +51,14 @@ public static class Emote
     };
     private static readonly Dictionary<EmoteType, GameObject> storyPrefabs = [];
 
-    /// <summary>图标表情：原版图集地址与精灵名（夜间顾客心情、白天羁绊变化）。</summary>
+    /// <summary>图标表情：原版图集地址与精灵名（夜间顾客评价、白天羁绊变化）。</summary>
     private static readonly Dictionary<EmoteType, (string Atlas, string Sprite)> icons = new()
     {
-        [EmoteType.Laugh] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_23"),
-        [EmoteType.Smile] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_24"),
-        [EmoteType.Calm] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_25"),
-        [EmoteType.Gloomy] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_26"),
-        [EmoteType.Upset] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_27"),
+        [EmoteType.ExGood] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_23"),
+        [EmoteType.Good] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_24"),
+        [EmoteType.Normal] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_25"),
+        [EmoteType.Bad] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_26"),
+        [EmoteType.ExBad] = ("Common_NpcConvIcons_Atlas", "UI_night_addup_27"),
         [EmoteType.Heart] = ("Day_Atlas", "HeartsUp_32x_0"),
         [EmoteType.Heartbreak] = ("Day_Atlas", "HeartsDown_32x_0"),
         [EmoteType.Exclaim] = ("Work_Atlas", "UI_night_addup_0"),
