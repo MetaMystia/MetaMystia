@@ -8,6 +8,7 @@
 // MODE=save      原版存档写入槽位 VALUE
 // MODE=apply     直接执行原生 ApplyNews（发布今天日期的新闻，正常只在进入白天时调用）
 // MODE=title     回标题（原版 DisposeGameStatusAndBackToMainMenu）
+// MODE=newgame   在标题载入新游戏的数据（LoadNewPlayerData），不切场景
 // MODE=scene     当前场景、白天就绪、timeScale
 using System.Collections.Generic;
 using GameData.Profile;
@@ -27,6 +28,7 @@ public static class Program {
       case "event": RunTimeScheduler.ScheduleEvent(Label); return "schedule event " + Label + " | " + Show();
       case "mission": RunTimeScheduler.StartMission(Label); return "start mission " + Label + " | " + Show();
       case "finish": RunTimeScheduler.FinishNodeExtern(Label); return "finished " + Label + " | " + Show();
+      case "newgame": GameData.Utils.SaveManagement.LoadNewPlayerData(); return "new game data | " + Show();
       case "addday": RunTimePlayerData.AddDay(@@VALUE@@); return "day now " + RunTimePlayerData.GetDay().CorrectedDay;
       case "save": GameData.Utils.SaveManagement.WriteCurrentPlayerDataToSlotAsync(@@VALUE@@); return "saving to slot @@VALUE@@ at day " + RunTimePlayerData.GetDay().CorrectedDay;
       case "apply": RunTimeScheduler.ApplyNews(); return "applied | " + Show();
