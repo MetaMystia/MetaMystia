@@ -149,6 +149,7 @@ public static class GameSession
             GameFlow.ResetGameplay(resume: resumeGameplay && previous != 0 && RoomMembershipId == 0);
             DayDestinationManager.ResetSession();
             YuyukoGuestSync.Reset();
+            VersusManager.Reset();
         }
         PlayerManager.ApplyNetworkState(State, previous != RoomMembershipId);
     }
@@ -168,6 +169,7 @@ public static class GameSession
             publishedStage = GameFlow.Stage;
             PlayerProfile.SendProfile();
         }
+        VersusManager.Tick();
         DayDestinationManager.TryConfirm();
         BusinessStart.TryStart();
         RoomTimeStop.Tick();
@@ -239,6 +241,7 @@ public static class GameSession
         PlayerManager.ClearPeers();
         PlayerManager.Local.Uid = 0;
         YuyukoGuestSync.Reset();
+        VersusManager.Reset();
         if (wasOnline) InGameConsole.ShowPassive(TextId.MultiplayerDisconnected.Get());
     }
 

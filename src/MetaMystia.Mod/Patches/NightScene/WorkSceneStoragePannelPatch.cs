@@ -37,6 +37,8 @@ public class WorkSceneStoragePannelPatch
     public static bool OnExtract_Prefix(Sellable toExtract)
     {
         Log.Debug($"Extract: {toExtract?.id}, {toExtract?.Text?.Name}");
+        // 料理对决的旁观者可以查看，不能取出。
+        if (VersusMatch.IsSpectating) return SkipOriginal;
         if (toExtract.type == Sellable.SellableType.Beverage)
         {
             if (GameSession.HasRoomPeers && !PlayerManager.BeverageAvailable(toExtract.id))

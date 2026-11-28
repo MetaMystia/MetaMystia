@@ -17,6 +17,7 @@ public enum DayDestination
     Business,
     FinalTrial,
     FinalTrialAgain,
+    Versus,
 }
 
 /// <summary>白天入口只提交意向；主机确定本轮目标后，各端继续原入口。</summary>
@@ -38,6 +39,7 @@ public static class DayDestinationManager
     public static bool ReplayingBusiness { get; private set; }
     public static bool IsStoryLocked => firstTrialPending;
     public static bool IsEntering => committed || businessReleased;
+    public static DayDestination LocalIntent => localIntent;
     public static bool HasLocalIntent => localIntent != DayDestination.None || intents.Count != 0 || closing;
     public static bool IsAdmissionClosed => closing || admissionClosed || committed;
 
@@ -49,6 +51,7 @@ public static class DayDestinationManager
         DayDestination.Business => TextId.DestinationBusiness.Get(),
         DayDestination.FinalTrial => TextId.DestinationFinalTrial.Get(),
         DayDestination.FinalTrialAgain => TextId.DestinationFinalTrialAgain.Get(),
+        DayDestination.Versus => TextId.DestinationVersus.Get(),
         _ => "…",
     };
 
@@ -105,7 +108,7 @@ public static class DayDestinationManager
     public static void ReceiveIntent(int uid, int round, DayDestination destination)
     {
         if (!GameSession.IsRoomHost || round != Round
-            || destination is < DayDestination.None or > DayDestination.FinalTrialAgain) return;
+            || destination is < DayDestination.None or > DayDestination.Versus) return;
         if (uid != PlayerManager.Local.Uid && !PlayerManager.Peers.ContainsKey(uid)) return;
         if (destination == DayDestination.None)
         {
@@ -141,6 +144,7 @@ public static class DayDestinationManager
             DayDestination.Business => TextId.DestinationBusinessReady,
             DayDestination.FinalTrial => TextId.DestinationFinalTrialReady,
             DayDestination.FinalTrialAgain => TextId.DestinationFinalTrialAgainReady,
+            DayDestination.Versus => TextId.DestinationVersusReady,
             _ => (TextId?)null,
         };
         if (text.HasValue) InGameConsole.ShowPassive(text.Value.Get(LiveModeManager.GetDisplayName(uid)));
@@ -167,7 +171,8 @@ public static class DayDestinationManager
         {
             var peerTarget = GetIntent(uid);
             if (peerTarget == DayDestination.None) return;
-            if (target == DayDestination.Business || peerTarget == DayDestination.Business)
+            if (target is DayDestination.Business or DayDestination.Versus
+                || peerTarget is DayDestination.Business or DayDestination.Versus)
             {
                 if (target != peerTarget) return;
             }
@@ -176,6 +181,7 @@ public static class DayDestinationManager
                 target = DayDestination.FinalTrial;
             }
         }
+        if (target == DayDestination.Versus && !VersusRoster.CanStart()) return;
         if (!admissionClosed)
         {
             closing = true;
@@ -248,7 +254,8 @@ public static class DayDestinationManager
         {
             DayDestination.Business => TextId.DestinationBusinessConfirmed,
             DayDestination.FinalTrial => TextId.DestinationFinalTrialConfirmed,
-            _ => TextId.DestinationFinalTrialAgainConfirmed,
+            DayDestination.FinalTrialAgain => TextId.DestinationFinalTrialAgainConfirmed,
+            _ => TextId.DestinationVersusConfirmed,
         };
         InGameConsole.ShowPassive(notice.Get());
         pendingEntry = continuation;

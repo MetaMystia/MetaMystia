@@ -214,6 +214,7 @@ public static class PlayerListPanel
             ? $"<color={nameColor}>{displayId}</color>"
             // UID 等宽并右对齐到最长的位数，名字从同一位置开始。
             : $"<color=#6F6A7A><mspace=0.55em>{uid.ToString().PadLeft(uidWidth)}</mspace></color> <color={nameColor}>{id}</color>";
+        if (inRoom) name += VersusManager.TeamTag(uid);
         string dim = OverlayUi.Hex(OverlayUi.Dim);
         // 只展示本人已提交的选店结果，不用全房间进度推断个人面板。
         if (scene == Scene.DayScene && inRoom && izakayaMapLabel.IsSelected() && izakayaLevel > 0)

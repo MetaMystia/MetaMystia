@@ -46,6 +46,12 @@ public enum GameMessageType : ushort
     Emote = 55,
     TimeStopRequest = 56,
     TimeStopState = 57,
+    VersusState = 58,
+    VersusChoice = 59,
+    VersusEnd = 60,
+    VersusDesk = 61,
+    VersusScore = 62,
+    VersusStock = 63,
 }
 
 public static class GameMessageRules
@@ -96,5 +102,11 @@ public static class GameMessageRules
         new((ushort)GameMessageType.Emote, [Route.World], RoomScoped: false, MaxBytes: 64),
         new((ushort)GameMessageType.TimeStopRequest, [Route.Host]),
         new((ushort)GameMessageType.TimeStopState, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.VersusState, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.VersusChoice, [Route.Host]),
+        new((ushort)GameMessageType.VersusEnd, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.VersusDesk, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.VersusScore, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.VersusStock, [Route.Room, Route.Player], HostOnly: true),
     ];
 }

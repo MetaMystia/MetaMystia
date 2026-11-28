@@ -32,7 +32,12 @@ public static class NightSceneEventManagerPatch
 
     [HarmonyPatch(nameof(EventManager.StartChallengeGuestInstantiateLoop))]
     [HarmonyPrefix]
-    public static bool StartChallengeGuestInstantiateLoop_Prefix() => ShouldSkipGuestLoopWhenFlowRateZero();
+    public static bool StartChallengeGuestInstantiateLoop_Prefix(ref bool includesSpecialGuest)
+    {
+        // 料理对决只刷普客：稀客符卡改动资金，暂无法确定归属哪一队。
+        if (VersusManager.IsActive) includesSpecialGuest = false;
+        return ShouldSkipGuestLoopWhenFlowRateZero();
+    }
 
     private static bool ShouldSkipGuestLoopWhenFlowRateZero()
     {
@@ -102,10 +107,11 @@ public static class NightSceneEventManagerPatch
 
     [HarmonyPatch(nameof(EventManager.FundEdit))]
     [HarmonyPrefix]
-    public static bool FundEdit_Prefix()
+    public static bool FundEdit_Prefix(float value, EventManager.MathOperation mathOperation)
     {
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost) return RunOriginal;
+        if (GameSession.IsRoomHost)
+            return mathOperation == EventManager.MathOperation.Add && VersusMatch.RedirectFund(value) ? SkipOriginal : RunOriginal;
         if (GameSession.IsRoomClient) return SkipOriginal;
         return RunOriginal;
     }
@@ -122,7 +128,8 @@ public static class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void FundEdit_Postfix(float value, EventManager.MathOperation mathOperation)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        // 料理对决两队分开计分，经比分消息下发。
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers || VersusManager.IsActive) return;
         if (GameSession.IsRoomHost)
         {
             FundEditMessage.Send(value, mathOperation);
@@ -154,7 +161,7 @@ public static class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void TipEdit_Postfix(int value, EventManager.ServeType serveType, float comboBuff, float moodBuff, float extraBuff)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers || VersusManager.IsActive) return;
         if (GameSession.IsRoomHost)
         {
             TipEditMessage.Send(value, serveType, comboBuff, moodBuff, extraBuff);

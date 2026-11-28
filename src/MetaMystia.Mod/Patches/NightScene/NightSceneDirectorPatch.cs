@@ -12,10 +12,11 @@ public static class NightSceneDirectorPatch
 {
     public static bool ReturningFromTrial { get; private set; }
 
-    // TryLeaveSession 同步调用 LoadScene；只在该调用范围允许最终试炼正常返回。
+    // TryLeaveSession 同步调用 LoadScene；只在该调用范围允许最终试炼与料理对决正常返回。
     [HarmonyPatch(nameof(NightSceneDirector.TryLeaveSession))]
     [HarmonyPrefix]
-    public static void TryLeaveSession_Prefix() => ReturningFromTrial = GameFlow.IsFinalTrial;
+    public static void TryLeaveSession_Prefix() =>
+        ReturningFromTrial = GameFlow.IsFinalTrial || GameFlow.Destination == DayDestination.Versus;
 
     [HarmonyPatch(nameof(NightSceneDirector.TryLeaveSession))]
     [HarmonyPostfix]

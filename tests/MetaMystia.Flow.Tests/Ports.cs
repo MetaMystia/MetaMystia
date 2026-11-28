@@ -169,6 +169,7 @@ namespace MetaMystia.UI
         DestinationBusiness, DestinationFinalTrial, DestinationFinalTrialAgain,
         DestinationBusinessReady, DestinationFinalTrialReady, DestinationFinalTrialAgainReady,
         DestinationBusinessConfirmed, DestinationFinalTrialConfirmed, DestinationFinalTrialAgainConfirmed,
+        DestinationVersus, DestinationVersusReady, DestinationVersusConfirmed,
         WaitingForHostConfirm, SelectedIzakaya, SelectedIzakayaMismatch,
         NetworkFlowInterrupted, MultiplayerDisconnected,
         PeerConnected, PeerDisconnected, PeerJoined, PeerLeft, NetworkRoomLeft,

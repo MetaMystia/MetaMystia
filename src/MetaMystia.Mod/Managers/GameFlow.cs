@@ -120,7 +120,7 @@ public static partial class GameFlow
     public static void BeforeSceneLoad(Scene target)
     {
         bool supported = CanKeepRoom(LocalScene, target, Destination,
-            DayDestinationManager.ReplayingChallenge, Patch.NightSceneDirectorPatch.ReturningFromTrial);
+            DayDestinationManager.ReplayingChallenge || VersusManager.Entering, Patch.NightSceneDirectorPatch.ReturningFromTrial);
         if (GameSession.IsConnectingOrOnline && !supported) LeaveRoomForTransition();
         if (!IsCooperative) DayDestinationManager.WithdrawLocal();
         OnSceneTransit(Scene.LoadScene);

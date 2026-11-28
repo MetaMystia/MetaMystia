@@ -62,7 +62,8 @@ public partial class ConfirmServeMessage : MultiplayerMessage, IGuestEvent
     {
         var guest = GuestRegistry.Current.Find(RuntimeId);
         var order = guest?.CurrentOrder;
-        bool open = guest != null && order != null && guest.State == GuestPhase.WaitingServe && OrderSeq == guest.OrderSeq;
+        bool open = guest != null && order != null && guest.State == GuestPhase.WaitingServe && OrderSeq == guest.OrderSeq
+            && VersusMatch.CanServe(SenderUid, guest.DeskCode);
         var food = Food?.ToSellable();
         var beverage = Beverage?.ToSellable();
         // 槽位须仍是确认者所见的物品，且尚未上桌或投掷中。
@@ -80,6 +81,7 @@ public partial class ConfirmServeMessage : MultiplayerMessage, IGuestEvent
         if (!acceptFood && !acceptBeverage) return;
         if (acceptFood) Serve(guest, order, food, Sellable.SellableType.Food);
         if (acceptBeverage) Serve(guest, order, beverage, Sellable.SellableType.Beverage);
+        VersusMatch.Claim(SenderUid, guest.DeskCode);
         new ConfirmServeMessage
         {
             RuntimeId = RuntimeId,
@@ -120,6 +122,8 @@ public partial class ConfirmServeMessage : MultiplayerMessage, IGuestEvent
             }
             guest.WillServeBeverage = null;
         }
+        // 房主本端上菜不经裁定，原版已写入订单，直接占桌。
+        if (GameSession.IsRoomHost) VersusMatch.Claim(PlayerManager.Local.Uid, guest.DeskCode);
         new ConfirmServeMessage
         {
             RuntimeId = guest.RuntimeId,

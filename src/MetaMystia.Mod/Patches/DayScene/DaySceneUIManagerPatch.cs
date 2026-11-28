@@ -34,6 +34,7 @@ public class DaySceneUIManagerPatch
             .ToIl2CppReferenceArray()
             .AddLast(StoryReplayManager.CollabMenuSelection)
             .AddLast(GiftMailboxManager.CollabMenuSelection)
+            .AddLast(VersusManager.CollabMenuSelection)
             .ToIl2CppReferenceArray();
     }
 }

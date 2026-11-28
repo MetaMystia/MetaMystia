@@ -49,6 +49,7 @@ public partial class StoreSellableMessage : MultiplayerMessage
             return;
         }
         CookControllerPatch.Store_ReversePatch(cookerController, sellable);
+        VersusMatch.SetCookerOwner(GridIndex, SenderUid);
     }
 
     public static void Send(int gridIndex, Sellable sellable)

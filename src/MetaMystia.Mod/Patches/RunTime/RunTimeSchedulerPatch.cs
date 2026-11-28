@@ -76,6 +76,16 @@ public partial class RunTimeSchedulerPatch
     [HarmonyPrefix]
     public static void OnAfterDayEnd_Prefix(ref Il2CppSystem.Action onFinish) => GuardDayEnd(ref onFinish);
 
+    // 料理对决不执行挑战开始前的调度事件，避免消耗处于料理大赛剧情中的玩家的节点。
+    [HarmonyPatch(nameof(RunTimeScheduler.OnBeforeChallengeStart))]
+    [HarmonyPrefix]
+    public static bool OnBeforeChallengeStart_Prefix(Il2CppSystem.Action onFinish)
+    {
+        if (!VersusManager.IsActive) return RunOriginal;
+        onFinish?.Invoke();
+        return SkipOriginal;
+    }
+
     private static void GuardDayEnd(ref Il2CppSystem.Action onFinish)
     {
         if (!GameSession.IsInRoom) return;

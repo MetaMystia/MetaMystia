@@ -12,6 +12,7 @@
     <Compile Include="../../src/MetaMystia.Mod/Patches/Bypass.cs" Link="Bypass.cs" />
     <Compile Include="../../src/MetaMystia.Mod/Managers/DayDestinationManager.cs" Link="DayDestinationManager.cs" />
     <Compile Include="../../src/MetaMystia.Mod/Managers/BusinessStart.cs" Link="BusinessStart.cs" />
+    <Compile Include="../../src/MetaMystia.Mod/Managers/VersusRoster.cs" Link="VersusRoster.cs" />
     <Compile Include="../../src/MetaMystia.Mod/Managers/PrepSceneManager.Yuyuko.cs" Link="PrepSceneManager.Yuyuko.cs" />
     <Compile Include="../../src/MetaMystia.Mod/Managers/RoomTimeStop.cs" Link="RoomTimeStop.cs" />
     <Compile Include="../../src/MetaMystia.Mod/Managers/GameFlow.Transitions.cs" Link="GameFlow.Transitions.cs" />

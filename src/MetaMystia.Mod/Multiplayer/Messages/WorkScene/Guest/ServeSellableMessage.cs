@@ -51,7 +51,8 @@ public partial class ServeSellableMessage : MultiplayerMessage, IGuestEvent
         // 已确认上桌、正在投掷，或请求所依据的内容与当前槽位不同（被他人抢先），均拒绝。
         bool accepted = guest != null && order != null && guest.State == GuestPhase.WaitingServe && OrderSeq == guest.OrderSeq
             && (food ? order.ServFood ?? order.ServedFoodInAir : order.ServBeverage ?? order.ServedBeverageInAir) == null
-            && (slot == null || ServeSlots.Same(slot, requested) || ServeSlots.Same(slot, basedOn));
+            && (slot == null || ServeSlots.Same(slot, requested) || ServeSlots.Same(slot, basedOn))
+            && VersusMatch.CanServe(SenderUid, guest.DeskCode);
         if (!accepted)
         {
             Log.Warning($"Serve #{RuntimeId}/{OrderSeq} {requested?.Text?.BriefName ?? "cancel"} from {SenderUid} rejected, slot has {slot?.Text?.BriefName}");
@@ -63,6 +64,8 @@ public partial class ServeSellableMessage : MultiplayerMessage, IGuestEvent
         guest.SetSlot(SellableType, requested);
         ServeSlots.UpdatePanel(guest.DeskCode, requested, SellableType, canCancel: true);
         ServeSlots.UpdateDesk(guest.DeskCode, requested, SellableType);
+        // 料理对决：先放入物品的队占桌，他队的上菜面板随之关闭。
+        if (requested != null) VersusMatch.Claim(SenderUid, guest.DeskCode);
         new ServeSellableMessage
         {
             RuntimeId = RuntimeId,
@@ -82,6 +85,7 @@ public partial class ServeSellableMessage : MultiplayerMessage, IGuestEvent
         var basedOn = guest.Slot(type);
         guest.SetSlot(type, sellable);
         guest.SetClaim(type, sellable);
+        if (GameSession.IsRoomHost && sellable != null) VersusMatch.Claim(PlayerManager.Local.Uid, guest.DeskCode);
         new ServeSellableMessage
         {
             RuntimeId = guest.RuntimeId,

@@ -10,6 +10,7 @@ namespace MetaMystia.UI;
 public static partial class FloatingTextHelper
 {
     private static readonly Dictionary<int, TextMeshPro> playerLabels = new();
+    private static readonly Color LabelColor = new(1f, 1f, 0.7f, 0.85f);
 
     public static void SetPlayerLabel(int uid, string displayName, Transform parent)
     {
@@ -21,9 +22,11 @@ public static partial class FloatingTextHelper
             go.transform.SetParent(parent, false);
             go.transform.localPosition = new Vector3(0, 1.5f, 0);
             label = go.AddComponent<TextMeshPro>();
-            ApplyStyle(label, 3.5f, new Color(1f, 1f, 0.7f, 0.85f));
+            ApplyStyle(label, 3.5f, LabelColor);
             playerLabels[uid] = label;
         }
+        var color = VersusManager.LabelColor(uid) ?? LabelColor;
+        if (label.color != color) label.color = color;
         if (label.text != displayName) label.text = displayName;
         bool visible = PluginManager.IsStatusVisible && GameSession.IsOnline;
         if (label.gameObject.activeSelf != visible) label.gameObject.SetActive(visible);

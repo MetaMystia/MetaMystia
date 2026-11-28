@@ -35,9 +35,17 @@ public static partial class PlayerManager
             Peers.TryRemove(player.Uid, out _);
             PublicPeers.TryRemove(player.Uid, out _);
             (inRoom ? Peers : PublicPeers)[player.Uid] = peer;
-            if (wasInRoom && !inRoom) DayDestinationManager.OnPeerLeft(player.Uid);
+            if (wasInRoom && !inRoom)
+            {
+                DayDestinationManager.OnPeerLeft(player.Uid);
+                VersusManager.OnPeerLeft(player.Uid);
+            }
             peer.ApplyState(data);
-            if (joined && GameSession.IsRoomHost) RoomInitialStateMessage.Send(player.Uid);
+            if (joined && GameSession.IsRoomHost)
+            {
+                RoomInitialStateMessage.Send(player.Uid);
+                VersusManager.OnMemberJoined(player.Uid);
+            }
         }
         RefreshLocalLabel();
     }

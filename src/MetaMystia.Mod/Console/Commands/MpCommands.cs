@@ -158,7 +158,83 @@ public static class MpCommands
             if (GameSession.HasLocalServer) GameSession.Restart();
         });
         mp.AddCommand(ipv6);
+
+        var versus = new Command("versus", TextId.MpDescVersus.Get());
+        var pace = new Argument<string>("pace", () => "normal", TextId.ArgDescVersusTempo.Get()).FromAmong("slow", "normal", "fast");
+        versus.AddArgument(pace);
+        versus.SetHandler(ctx => Versus(ctx, ctx.ParseResult.GetValueForArgument(pace)));
+        var cancel = new Command("cancel", TextId.MpDescVersusCancel.Get());
+        cancel.SetHandler(ctx =>
+        {
+            if (!GameSession.IsRoomHost) { ctx.Log(ConsoleFormat.Err(TextId.VersusHostOnly.Get())); return; }
+            if (!VersusRoster.Open) { ctx.Log(TextId.VersusNoInvite.Get()); return; }
+            VersusManager.CloseInvite();
+            ctx.Log(TextId.VersusCanceled.Get());
+        });
+        versus.AddCommand(cancel);
+        mp.AddCommand(versus);
+        var team = new Command("team", TextId.MpDescTeam.Get());
+        var teamTarget = new Argument<string>("team", () => null, TextId.ArgDescVersusTeam.Get())
+            .AddCompletions(_ => TeamNames.Append("shuffle").Concat(GameSession.Room?.Members.Select(member => member.Name) ?? []));
+        var teamValue = new Argument<string>("value", () => null, TextId.ArgDescVersusTeam.Get()).AddCompletions(TeamNames);
+        team.AddArgument(teamTarget);
+        team.AddArgument(teamValue);
+        team.SetHandler(ctx => Team(ctx, ctx.ParseResult.GetValueForArgument(teamTarget), ctx.ParseResult.GetValueForArgument(teamValue)));
+        mp.AddCommand(team);
         root.AddCommand(mp);
+    }
+
+    private static void Versus(InvocationContext ctx, string pace)
+    {
+        if (!GameSession.IsRoomHost) { ctx.Log(ConsoleFormat.Err(TextId.VersusHostOnly.Get())); return; }
+        if (GameFlow.Stage != GameStage.Day || DayDestinationManager.IsEntering)
+        { ctx.Log(ConsoleFormat.Err(TextId.VersusDayRequired.Get())); return; }
+        VersusManager.OpenInvite(pace switch { "slow" => VersusTempo.Slow, "fast" => VersusTempo.Fast, _ => VersusTempo.Normal });
+    }
+
+    private static readonly string[] TeamNames = ["red", "blue", "watch", "none"];
+
+    private static VersusTeam? ParseTeam(string value) => value?.ToLowerInvariant() switch
+    {
+        "red" => VersusTeam.Red,
+        "blue" => VersusTeam.Blue,
+        "watch" => VersusTeam.Watch,
+        "none" => VersusTeam.None,
+        _ => null,
+    };
+
+    /// <summary>无参数列出队伍；<c>red|blue|watch|none</c> 为自己选队；房主可 <c>shuffle</c> 或 <c>名字 队伍</c>。</summary>
+    private static void Team(InvocationContext ctx, string target, string value)
+    {
+        if (!GameSession.IsInRoom) { ctx.Log(TextId.NetworkWorldFirst.Get()); return; }
+        if (target == null)
+        {
+            foreach (var member in GameSession.Room.Members)
+            {
+                var status = VersusRoster.MissingDlc3.Contains(member.Uid) ? TextId.VersusStatusNoDlc3
+                    : VersusRoster.Confirmed.Contains(member.Uid) ? TextId.VersusStatusChosen : TextId.VersusStatusPending;
+                ctx.Log(TextId.VersusRosterLine.Get(LiveModeManager.GetDisplayName(member.Uid, member.Name),
+                    VersusManager.TeamName(VersusRoster.TeamOf(member.Uid)), status.Get()));
+            }
+            VersusManager.OpenMenu();
+            return;
+        }
+        if (value == null && ParseTeam(target) is { } own)
+        {
+            if (!VersusRoster.Open) { ctx.Log(TextId.VersusNoInvite.Get()); return; }
+            VersusManager.Choose(own);
+            return;
+        }
+        if (!GameSession.IsRoomHost) { ctx.Log(ConsoleFormat.Err(TextId.VersusHostOnly.Get())); return; }
+        if (value == null && target.Equals("shuffle", StringComparison.OrdinalIgnoreCase))
+        {
+            VersusManager.Shuffle();
+            return;
+        }
+        var player = GameSession.Room.Members.FirstOrDefault(member => string.Equals(member.Name, target, StringComparison.OrdinalIgnoreCase));
+        if (player == null) { ctx.Log(ConsoleFormat.Err(TextId.MpKickNotFound.Get(target))); return; }
+        if (ParseTeam(value) is not { } team || team == VersusTeam.None) { ctx.Log(ConsoleFormat.Err(TextId.ArgDescVersusTeam.Get())); return; }
+        VersusManager.SetTeam(player.Uid, team);
     }
 
     private static void Connect(InvocationContext ctx, string address, int? port)
