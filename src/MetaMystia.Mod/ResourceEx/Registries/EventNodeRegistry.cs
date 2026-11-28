@@ -73,6 +73,13 @@ public static class EventNodeRegistry
             return;
         }
 
+        // 资源包改版删掉了前置事件，或提供它的包没有加载：排进去之后原生 RefEvent 会找不到节点。
+        if (!DataBaseScheduler.allNodes.ContainsKey(prerequisiteEvent))
+        {
+            Log.Warning($"Kizuna prerequisite event {prerequisiteEvent} for character {config.name}({config.id}) is not registered, skipping activation.");
+            return;
+        }
+
         scheduledEvents.Add(prerequisiteEvent);
         Log.Info($"Activated kizuna event node for character {config.name}({config.id}) at bond level {currentBondLevel}");
     }

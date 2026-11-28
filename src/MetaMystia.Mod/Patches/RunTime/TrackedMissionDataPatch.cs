@@ -12,7 +12,8 @@ namespace MetaMystia.Patch;
 public class TrackedMissionDataPatch
 {
     /// <summary>
-    /// 部分 ResourceEx MissionNode 要求使用带有 <b>相对日期</b> 的 <see cref="ConditionType.BillRepayment"/> 类型，而原游戏使用绝对日期与 day 字面量进行比较，导致条件错误。此处 Patch 用以修正。
+    /// 原生 <see cref="ConditionType.BillRepayment"/> 拿今天与配置的 day 字面量比较：相对日期的 ResourceEx 任务永远不成立，
+    /// 读档恢复时顺延过截止日的绝对日期任务也不成立。这里改用该任务实际所在的截止日（追踪表的 key）。
     /// </summary>
     /// <param name="__instance"></param>
     [HarmonyPatch(nameof(RunTimeScheduler.TrackedMissionData.UpdateFinishStates))]
@@ -22,7 +23,7 @@ public class TrackedMissionDataPatch
         if (!__instance.missionLabel.StartsWith("_")) return;
 
         var mission = DataBaseScheduler.RefMission(__instance.missionLabel);
-        if (mission.missionTimeLimit.time.dayType != SchedulerNode.Day.DayType.Relative) return;
+        if (!mission.isTimedMission) return;
 
         var triggerTime = RunTimeScheduler.FindMissionTriggerTime(__instance);
         var today = RunTimePlayerData.GetDay();

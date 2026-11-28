@@ -51,10 +51,14 @@ public static class SchedulerDataRecovery
         // 读档后的第一次进入白天之后通常就是这种情况，此后每天进入白天都不再写未加载数据。
         if (sources.Count == 1 && sources[0] == PendingKey && !restorer.CanRestoreAny(notLoaded[PendingKey])) return;
 
-        // 新数据先于旧的留存数据：同名事件、任务只保留一份，以先到的为准。
-        foreach (var key in sources.OrderBy(k => k == PendingKey ? 2 : k.StartsWith("UNDEFINED") ? 1 : 0).ThenBy(k => k, StringComparer.Ordinal))
+        // 同名事件、任务只保留一份，以先处理的为准：存档日期新的在前；同日撞名时原生给后写入的加更大的数字后缀；留存分区最后。
+        var ordered = sources.Select(k => (key: k, data: notLoaded[k]))
+            .OrderBy(s => s.key == PendingKey)
+            .ThenByDescending(s => s.data.dlcSaveDate)
+            .ThenByDescending(s => Suffix(s.key))
+            .ToList();
+        foreach (var (key, data) in ordered)
         {
-            var data = notLoaded[key];
             int diff = data.dlcSaveDate > 0 ? today - data.dlcSaveDate : 0;
             var counts = restorer.Restore(data, diff);
             notLoaded.Remove(key);
@@ -74,6 +78,13 @@ public static class SchedulerDataRecovery
     private static bool IsNumbered(string key, string prefix)
         => key.StartsWith(prefix, StringComparison.Ordinal) && key.Skip(prefix.Length).All(c => c is >= '0' and <= '9');
 
+    private static long Suffix(string key)
+    {
+        int i = key.Length;
+        while (i > 0 && key[i - 1] is >= '0' and <= '9') i--;
+        return i < key.Length && long.TryParse(key[i..], out var n) ? n : 0;
+    }
+
     /// <summary>日期 key 平移；-1、0 是不限时分组，结果不得落进这两个值。</summary>
     internal static int Shift(int day, int diff)
     {
@@ -91,19 +102,26 @@ public static class SchedulerDataRecovery
             foreach (var label in data.finishedMissions ?? new Il2CppStringArray(0)) if (missions.Contains(label)) return true;
             if (data.scheduledEvents != null) foreach (var kv in data.scheduledEvents) foreach (var label in kv.Value) if (events.Contains(label)) return true;
             if (data.scheduledNews != null) foreach (var kv in data.scheduledNews) foreach (var label in kv.Value) if (news.Contains(label)) return true;
+            if (data.scheduledNewsReplaceContents != null) foreach (var kv in data.scheduledNewsReplaceContents) foreach (var item in kv.Value) if (news.Contains(item.Key)) return true;
             if (data.allTrackingMissions != null) foreach (var kv in data.allTrackingMissions) foreach (var m in kv.Value) if (missions.Contains(m.missionLabel)) return true;
             return false;
         }
 
         public string Restore(Carrier data, int diff)
         {
-            int restored = 0, pending = 0;
-            void Count(bool ok) { if (ok) restored++; else pending++; }
+            int restored = 0, pending = 0, duplicate = 0;
+            void Count(bool registered, bool added = true)
+            {
+                if (!added) duplicate++;
+                else if (registered) restored++;
+                else pending++;
+            }
 
+            // 完成记录按原样保留次数和顺序：原生允许重复（同一事件最多 20 条），也按条数统计。
             foreach (var label in data.finishedEvents ?? new Il2CppStringArray(0))
             {
                 bool ok = events.Contains(label);
-                if (ok) { if (!RunTimeScheduler.finishedEvents.Contains(label)) RunTimeScheduler.finishedEvents.Add(label); }
+                if (ok) RunTimeScheduler.finishedEvents.Add(label);
                 else Pending.FinishedEvents.Add(label);
                 Count(ok);
             }
@@ -111,7 +129,7 @@ public static class SchedulerDataRecovery
             foreach (var label in data.finishedMissions ?? new Il2CppStringArray(0))
             {
                 bool ok = missions.Contains(label);
-                if (ok) { if (!RunTimeScheduler.finishedMissions.Contains(label)) RunTimeScheduler.finishedMissions.Add(label); }
+                if (ok) RunTimeScheduler.finishedMissions.Add(label);
                 else Pending.FinishedMissions.Add(label);
                 Count(ok);
             }
@@ -124,9 +142,9 @@ public static class SchedulerDataRecovery
                     foreach (var label in kv.Value)
                     {
                         bool ok = events.Contains(label);
-                        if (ok) { if (!RunTimeScheduler.HaveEventScheduled(label)) At(RunTimeScheduler.scheduledEvents, day).Add(label); }
-                        else if (!Contains(Pending.Events, label)) At(Pending.Events, day).Add(label);
-                        Count(ok);
+                        bool added = ok ? !RunTimeScheduler.HaveEventScheduled(label) : !Contains(Pending.Events, label);
+                        if (added) At(ok ? RunTimeScheduler.scheduledEvents : Pending.Events, day).Add(label);
+                        Count(ok, added);
                     }
                 }
 
@@ -150,7 +168,10 @@ public static class SchedulerDataRecovery
                     foreach (var item in kv.Value)
                     {
                         bool ok = news.Contains(item.Key);
-                        At(ok ? RunTimeScheduler.scheduledNewsReplaceContents : Pending.ReplaceContents, day).Add(item);
+                        // 元素是装箱的原生结构体，泛型 Add 不拆箱，经非泛型接口写入，见 docs/reference/il2cppinterop-defects.md。
+                        At(ok ? RunTimeScheduler.scheduledNewsReplaceContents : Pending.ReplaceContents, day)
+                            .Cast<Il2CppSystem.Collections.IList>().Add(item);
+                        Count(ok);
                     }
                 }
 
@@ -162,13 +183,13 @@ public static class SchedulerDataRecovery
                     {
                         var label = mission.missionLabel;
                         bool ok = missions.Contains(label);
-                        if (ok) { if (!RunTimeScheduler.HaveMissionStarted(label)) At(RunTimeScheduler.trackingMissions, day).Add(mission); }
-                        else if (!Contains(Pending.Missions, label)) At(Pending.Missions, day).Add(mission);
-                        Count(ok);
+                        bool added = ok ? !RunTimeScheduler.HaveMissionStarted(label) : !Contains(Pending.Missions, label);
+                        if (added) At(ok ? RunTimeScheduler.trackingMissions : Pending.Missions, day).Add(mission);
+                        Count(ok, added);
                     }
                 }
 
-            return $"restored {restored}, pending {pending}";
+            return $"restored {restored}, pending {pending}, duplicate {duplicate}";
         }
     }
 
@@ -178,8 +199,8 @@ public static class SchedulerDataRecovery
         public readonly IlDict.Dictionary<int, IlDict.List<string>> News = new();
         public readonly IlDict.Dictionary<int, IlDict.List<ReplaceContents>> ReplaceContents = new();
         public readonly IlDict.Dictionary<int, IlDict.List<RunTimeScheduler.TrackedMissionData>> Missions = new();
-        public readonly SortedSet<string> FinishedEvents = new(StringComparer.Ordinal);
-        public readonly SortedSet<string> FinishedMissions = new(StringComparer.Ordinal);
+        public readonly List<string> FinishedEvents = new();
+        public readonly List<string> FinishedMissions = new();
 
         public bool IsEmpty => Events.Count == 0 && News.Count == 0 && ReplaceContents.Count == 0 && Missions.Count == 0
             && FinishedEvents.Count == 0 && FinishedMissions.Count == 0;

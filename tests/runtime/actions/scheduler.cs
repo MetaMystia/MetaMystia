@@ -1,8 +1,9 @@
 // 原生 Scheduler 的读取与操作，只引用游戏类型，未安装模组时也能执行。FILTER 为标签子串，只显示匹配的条目。
-// MODE=show      今天、资金、运行时四个字典与已完成列表中匹配的条目，未加载分区的键与 dlcSaveDate
+// MODE=show      今天、资金，运行时新闻、事件、任务与已完成列表中匹配的条目，未加载分区的键与 dlcSaveDate（替换内容看存档）
 // MODE=news      经 ScheduleNews 奖励把 LABEL（逗号分隔为多个候选）排到绝对日 VALUE
 // MODE=event     ScheduleEvent(LABEL)，日期按节点配置
 // MODE=mission   StartMission(LABEL)，日期按节点配置
+// MODE=finish    FinishNodeExtern(LABEL)：直接完成节点并发放其奖励
 // MODE=addday    日期加 VALUE（可为负），不经过日终流程
 // MODE=save      原版存档写入槽位 VALUE
 // MODE=apply     直接执行原生 ApplyNews（发布今天日期的新闻，正常只在进入白天时调用）
@@ -25,6 +26,7 @@ public static class Program {
       }
       case "event": RunTimeScheduler.ScheduleEvent(Label); return "schedule event " + Label + " | " + Show();
       case "mission": RunTimeScheduler.StartMission(Label); return "start mission " + Label + " | " + Show();
+      case "finish": RunTimeScheduler.FinishNodeExtern(Label); return "finished " + Label + " | " + Show();
       case "addday": RunTimePlayerData.AddDay(@@VALUE@@); return "day now " + RunTimePlayerData.GetDay().CorrectedDay;
       case "save": GameData.Utils.SaveManagement.WriteCurrentPlayerDataToSlotAsync(@@VALUE@@); return "saving to slot @@VALUE@@ at day " + RunTimePlayerData.GetDay().CorrectedDay;
       case "apply": RunTimeScheduler.ApplyNews(); return "applied | " + Show();

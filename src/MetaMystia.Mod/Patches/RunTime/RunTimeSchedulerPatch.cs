@@ -74,14 +74,15 @@ public partial class RunTimeSchedulerPatch
     private static bool KeepRegisteredNews(SchedulerNode.Reward reward)
     {
         var ids = reward.rewardIdArray;
-        if (ids == null || ids.Length == 0) return true;
         var known = new System.Collections.Generic.List<string>();
         var missing = new System.Collections.Generic.List<string>();
-        foreach (var id in ids) (DataBaseScheduler.newsNodes.ContainsKey(id) ? known : missing).Add(id);
-        if (missing.Count == 0) return true;
+        if (ids != null)
+            foreach (var id in ids)
+                (!string.IsNullOrEmpty(id) && DataBaseScheduler.newsNodes.ContainsKey(id) ? known : missing).Add(id ?? "null");
+        if (missing.Count == 0 && known.Count > 0) return true;
         if (known.Count == 0)
         {
-            Log.Error($"ScheduleNews reward skipped, news not registered: {string.Join(", ", missing)}");
+            Log.Error($"ScheduleNews reward skipped, news not registered: {(missing.Count == 0 ? "(empty)" : string.Join(", ", missing))}");
             return false;
         }
         Log.Warning($"ScheduleNews reward ignores unregistered news: {string.Join(", ", missing)}");
