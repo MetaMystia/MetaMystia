@@ -218,11 +218,21 @@ rex://example-pack/assets/image.png
 { "rewardType": "DismissNews", "rewardId": "_Example_News_Opening" }
 ```
 
-- `ScheduleNews`：`rewardIdArray` 至少一项，原生随机取其一；`time` 为发布日，缺省为当天。`dayType` 取 `Relative` 或 `Absolute`；`dayCalcType` 取 `Constant`（使用 `day`）或 `Random`（使用 `dayRangeMin`、`dayRangeMax`）。
+- `ScheduleNews`：`rewardIdArray` 至少一项，原生随机取其一；发放时跳过未注册的标识并记录日志，全部未注册时不排程；`time` 为发布日，缺省为当天。`dayType` 取 `Relative` 或 `Absolute`；`dayCalcType` 取 `Constant`（使用 `day`）或 `Random`（使用 `dayRangeMin`、`dayRangeMax`）。
 - 游戏只在进入白天场景时发布当天日期的新闻，过期条目不会补发。奖励排程不提供替换内容，正文不要使用 `$a` 等占位符。
 - 新闻奖励继续排程其他新闻时，应指定未来日期，例如 `Relative` 的 `day: 1`，不要依赖同日新闻串联。
 - `DismissNews`：在各日期的待发布列表中各移除一条该标识的新闻及其替换内容。
-- 待发布新闻随原生 Scheduler 存档，归入 `ResourceEx` 分区。未安装 MetaMystia 时该分区保持原样、不加载；安装后读档只恢复已加载资源包中的新闻标识，其余条目随分区一并丢弃。已发布新闻对应的资源包未加载时，笔记本不显示该条。
+- 待发布新闻的存档见[排程存档](#排程存档)。已发布新闻对应的资源包未加载时，笔记本不显示该条。
+
+## 排程存档
+
+任务、事件、新闻的排程和完成记录随原生 Scheduler 存档，归入 `ResourceEx` 分区；没有注册的标识归入 `UNDEFINED`。
+
+- 未安装 MetaMystia 时，原版不加载这些分区，存档时原样写回。
+- 安装后读档，首次进入白天时恢复。日期按原生 DLC 分区的规则加上分区存档后经过的天数，即未安装期间不计时；`-1`（不限时事件）、`0`（不限时任务）不变，分区的 `dlcSaveDate` 不大于 0 时不平移。限时任务的还款条件按顺延后的截止日判定。
+- 完成记录保留原有的次数和顺序。
+- 资源包未加载时，它的条目和完成记录移入 `MetaMystia.ResourceEx` 分区，计时同样暂停，资源包装回后恢复。
+- 恢复时已经过期的条目不补发。
 
 ## 修改检查表
 
