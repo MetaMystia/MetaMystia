@@ -47,17 +47,11 @@ public static class VersusMatch
         public void OnScopeEnd(bool resume)
         {
             if (BossInfo != null) UnityEngine.Object.Destroy(BossInfo);
-            if (PartnerSkin == null) return;
-            PartnerSkin = null;
-            PlayerProfile.SendProfile();
         }
     }
 
     private static State Current => Scopes.Scene.Get<State>();
     private static readonly int[] BossIds = [3004, 3003, 3005];
-
-    /// <summary>本局所选伙伴：原版只换本端外观，对局中网络资料以它的外观发给其他端；null 为未换。</summary>
-    public static int? PartnerSkin { get; private set; }
 
     /// <summary>本局 Boss 方占桌登记的伙伴 ID；付款按它查小费倍率。</summary>
     private static int BossId => Current.BossInfo?.PartnerId ?? -1;
@@ -71,22 +65,17 @@ public static class VersusMatch
     public static VersusTeam DeskTeam(int deskCode) => Current.Desks.GetValueOrDefault(deskCode);
 
     /// <summary>
-    /// 开场前（状态 3，原版已按图鉴发库存、选完伙伴）每帧调用：
-    /// 注册 Boss 方伙伴资料，关闭 QTE 增益与伙伴的温泉移速，把伙伴外观发给其他端，客机套用房主下发的统一库存。
+    /// 开场前（状态 3，原版已按图鉴发库存）每帧调用：
+    /// 注册 Boss 方伙伴资料，关闭 QTE 增益与温泉移速，客机套用房主下发的统一库存。
     /// </summary>
-    public static void Prepare(int partnerId)
+    public static void Prepare()
     {
         var state = Current;
         if (!state.Prepared)
         {
             state.Prepared = true;
             RegisterBossSide(state);
-            if (partnerId >= 0)
-            {
-                PartnerSkin = partnerId;
-                PlayerProfile.SendProfile();
-            }
-            // 伙伴只换外观：QTE 奖励与温泉移速都去掉，所有人的 QTE 都不触发增益。
+            // 所有人的 QTE 都不触发增益，也不带温泉移速。
             var rewards = QTERewardManager.Instance;
             if (rewards != null)
             {

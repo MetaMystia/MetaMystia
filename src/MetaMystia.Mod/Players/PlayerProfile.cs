@@ -26,8 +26,6 @@ public static class PlayerProfile
 
     public static Skin CaptureSkin()
     {
-        // 料理对决中其他端看到本端所选伙伴的外观。
-        if (VersusMatch.PartnerSkin is { } partner) return new() { CharacterId = partner };
         var skin = PlayerManager.Local.Skin;
         return new()
         {

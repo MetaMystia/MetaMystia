@@ -1,7 +1,7 @@
 // 料理对决：MODE=menu 列出当前模组选项菜单（顶层面板、各项标题与可用性）；
 // MODE=pick INDEX=n 点击第 n 项（与玩家点击相同：关闭面板后执行选项）；
-// MODE=state 输出队伍表、入口与本局状态；MODE=partner 确认伙伴选择面板的当前项（与长按确认相同）；
-// MODE=partners 列出可选伙伴 ID；MODE=pickpartner INDEX=伙伴ID 选中该伙伴并确认；MODE=skins 本端与各远端的网络皮肤角色 ID；
+// MODE=state 输出队伍表、入口与本局状态；MODE=collab 不在妖怪兽道时切过去，联动菜单已开时列出各项，否则与玩家在联动交互点交互相同（原版 OnInteract，先播对话）；
+// MODE=collabpick 在联动菜单点「料理对决」；
 // MODE=result 关闭结算面板（与确认按钮相同）；MODE=desks 本端占桌表（玩家方、Boss 方）、比分、连击与上菜面板桌号；
 // MODE=stock 库存条目数与校验和、QTE 增益是否关闭、移速增益数；MODE=warmer INDEX=料理ID 放入保温箱；MODE=warmers 保温箱数量；
 // MODE=cook INDEX=格子 用当日第一道料理开火并开始计时（与 QTE 结束相同）；MODE=cooker INDEX=格子 厨具阶段、成品、本端能否取出与托盘件数；
@@ -36,34 +36,30 @@ public static class Program {
         + " countdown=" + (ev == null ? "-" : ev.TotalCountDown.ToString())
         + " top=" + top;
     }
-    if (mode == "partner") {
-      var panel = UnityEngine.Object.FindObjectOfType<DLC3_BossBattleEmployeeSelectorPannel>();
-      if (panel == null || !panel.IsPanelOpened) return "partner selector not open";
-      var selected = panel.FinalSelected.id;
-      panel.ClosePanel();
-      return "partner confirmed " + selected;
-    }
-    if (mode == "partners" || mode == "pickpartner") {
-      var panel = UnityEngine.Object.FindObjectOfType<DLC3_BossBattleEmployeeSelectorPannel>();
-      if (panel == null || !panel.IsPanelOpened) return "partner selector not open";
-      var unlocked = panel.PannelOpenContext.unlockedPartner;
-      if (mode == "partners") {
-        var ids = new System.Collections.Generic.List<string>();
-        foreach (var p in panel.partnerProperty) if (unlocked.Contains(p.id)) ids.Add(p.id.ToString());
-        return "partners=" + string.Join(",", ids);
+    if (mode == "collab") {
+      var scene = DayScene.SceneManager.Instance;
+      var points = UnityEngine.Object.FindObjectsOfType<DayScene.Interactables.Collections.BehaviourComponents.CollabBehaviourComponent>();
+      if (points.Length == 0) {
+        string marker = null;
+        foreach (var m in GameData.Core.Collections.DaySceneUtility.DataBaseDay.allSpawnMarkerLabels["BeastForest"]) { marker = m; break; }
+        scene.SwapMap("BeastForest", marker, 0, true, true, false, null);
+        return "no collab point on " + scene.CurrentActiveMapLabel + ", moving to BeastForest";
       }
-      foreach (var p in panel.partnerProperty) {
-        if (p.id != @@INDEX@@ || !unlocked.Contains(p.id)) continue;
-        typeof(DLC3_BossBattleEmployeeSelectorPannel).GetProperty("FinalSelected", Any).SetValue(panel, p);
-        panel.ClosePanel();
-        return "partner confirmed " + p.id;
+      var chat = UnityEngine.Object.FindObjectOfType<DayScene.UI.DaySceneChatSelectionPannel>();
+      if (chat != null && chat.IsPanelOpened) {
+        var texts = new System.Collections.Generic.List<string>();
+        foreach (var t in chat.GetComponentsInChildren<TMPro.TextMeshProUGUI>(false)) if (!string.IsNullOrWhiteSpace(t.text)) texts.Add(t.text);
+        return "menu: " + string.Join(" | ", texts);
       }
-      return "partner " + @@INDEX@@ + " not available";
+      points[0].OnInteract();
+      return "collab interacted, top=" + (SgrYuki.Utils.Panel.TopPanelName ?? "none");
     }
-    if (mode == "skins") {
-      var parts = new System.Collections.Generic.List<string> { "partnerSkin=" + MetaMystia.VersusMatch.PartnerSkin };
-      foreach (var peer in MetaMystia.PlayerManager.Peers.Values) parts.Add(peer.Uid + "=" + peer.Skin.CharacterId);
-      return string.Join(" ", parts);
+    if (mode == "collabpick") {
+      var item = typeof(MetaMystia.VersusManager).GetField("CollabMenuItem", Any).GetValue(null);
+      if (Field(item, "_data") == null) return "versus item not on the open panel";
+      if (!((System.Func<bool>)Field(item, "_isAvailable"))()) return "versus item unavailable";
+      item.GetType().GetMethod("Interact", Any).Invoke(item, null);
+      return "picked versus top=" + (SgrYuki.Utils.Panel.TopPanelName ?? "none");
     }
     if (mode == "interact") {
       var gen = UnityEngine.Object.FindObjectOfType<NightScene.Input.WorkScenePlayerInputGenerator>();

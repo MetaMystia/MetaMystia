@@ -265,12 +265,12 @@ public static class VersusManager
 
     /// <summary>
     /// 主循环状态见 docs/research/versus-competition.md。
-    /// 返回 false 时本次不执行原版 MoveNext：状态 3 为选完伙伴后等待全员就绪。
+    /// 返回 false 时本次不执行原版 MoveNext：状态 3 为开场前等待全员就绪。
     /// </summary>
     public static bool BeforeLoopStep(MainLoop loop)
     {
         if (!IsActive || !GameSession.IsInRoom) return true;
-        if (loop.__1__state == 3) VersusMatch.Prepare(loop.__8__1?.partnerProperty.id ?? -1);
+        if (loop.__1__state == 3) VersusMatch.Prepare();
         if (loop.__1__state == 3 && BusinessStart.IsWaitingForStart)
         {
             BusinessStart.Wait(static () => { });
@@ -290,8 +290,28 @@ public static class VersusManager
 
     public static void AfterLoopStep(MainLoop loop, int previousState)
     {
+        if (IsActive && previousState == 1 && loop.__8__1?.pannelInstance is { } panel)
+            PluginHost.Instance.StartManagedCoroutine(SkipPartnerSelector(panel));
         if (IsActive && GameSession.IsRoomHost && previousState == 7 && loop.__1__state == 8)
             VersusEndMessage.Send();
+    }
+
+    /// <summary>
+    /// 不选伙伴：状态 1 发起打开伙伴选择面板，面板打开后立即以米斯蒂娅确认关闭（发起时关闭无效）。
+    /// 原版关闭回调照常放置角色、换回本人外观并继续主循环。
+    /// </summary>
+    private static IEnumerator SkipPartnerSelector(DLC3_BossBattleEmployeeSelectorPannel panel)
+    {
+        while (IsActive && panel != null && !panel.IsPanelOpened) yield return null;
+        if (!IsActive || panel == null) yield break;
+        foreach (var partner in panel.partnerProperty)
+        {
+            if (partner.id != -1) continue;
+            panel.FinalSelected = partner;
+            panel.ClosePanel();
+            yield break;
+        }
+        Log.Warning("versus: Mystia missing from the partner selector");
     }
 
     public static void ReceiveEnd()
