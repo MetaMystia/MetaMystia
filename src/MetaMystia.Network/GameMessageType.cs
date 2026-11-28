@@ -49,6 +49,8 @@ public enum GameMessageType : ushort
     VersusState = 58,
     VersusChoice = 59,
     VersusEnd = 60,
+    VersusDesk = 61,
+    VersusScore = 62,
 }
 
 public static class GameMessageRules
@@ -102,5 +104,7 @@ public static class GameMessageRules
         new((ushort)GameMessageType.VersusState, [Route.Room, Route.Player], HostOnly: true),
         new((ushort)GameMessageType.VersusChoice, [Route.Host]),
         new((ushort)GameMessageType.VersusEnd, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.VersusDesk, [Route.Room, Route.Player], HostOnly: true),
+        new((ushort)GameMessageType.VersusScore, [Route.Room, Route.Player], HostOnly: true),
     ];
 }

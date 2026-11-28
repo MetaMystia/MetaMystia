@@ -158,6 +158,8 @@ public static class VersusManager
     {
         // 入口确认后关闭本次邀请，返回白天的成员不再按旧邀请选队。
         if (GameSession.IsRoomHost && VersusRoster.Open && IsActive) CloseInvite();
+        VersusMatch.Flush();
+        VersusMatch.ApplyHostScore();
         if (!menuPending || GameFlow.Stage != GameStage.Day
             || AdpUIPanelManager.CurrentInputMode != AdpUIPanelManager.RequestedInputMode.Player
             || !AdpUIPanelManager.IsPanelFadeOpsClear()) return;
@@ -268,6 +270,7 @@ public static class VersusManager
     public static bool BeforeLoopStep(MainLoop loop)
     {
         if (!IsActive || !GameSession.IsInRoom) return true;
+        if (loop.__1__state == 3) VersusMatch.Prepare();
         if (loop.__1__state == 3 && BusinessStart.IsWaitingForStart)
         {
             BusinessStart.Wait(static () => { });
@@ -276,6 +279,12 @@ public static class VersusManager
         // 客机本地倒计时停在 1 秒，房主结束后归零，由原版走结束分支。
         if (loop.__1__state == 7 && GameSession.IsRoomClient && Scopes.Scene.Get<State>().Ended)
             EventManager.Instance.TotalCountDown = 0;
+        // 状态 9 结算前等房主最终比分。
+        if (loop.__1__state == 9 && !VersusMatch.BeforeResult())
+        {
+            loop.__2__current = null;
+            return false;
+        }
         return true;
     }
 

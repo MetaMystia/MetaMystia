@@ -396,5 +396,7 @@
     "MpDescTeam": "Show Cooking Duel teams and choose one",
     "VersusTitle": "Cooking Duel",
     "VersusTempoItem": "Pace: {0}",
-    "ArgDescVersusTeam": "red, blue, watch, none; the host can use shuffle or <name> <team>"
+    "ArgDescVersusTeam": "red, blue, watch, none; the host can use shuffle or <name> <team>",
+    "VersusDraw": "Cooking Duel draw: both teams scored {0}.",
+    "VersusWinner": "{0} wins the Cooking Duel: Red {1}, Blue {2}."
 }

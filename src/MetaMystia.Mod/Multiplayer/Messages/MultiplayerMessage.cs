@@ -59,6 +59,8 @@ namespace MetaMystia.Multiplayer.Messages;
 [MemoryPackUnion((ushort)GameMessageType.VersusState, typeof(VersusStateMessage))]
 [MemoryPackUnion((ushort)GameMessageType.VersusChoice, typeof(VersusChoiceMessage))]
 [MemoryPackUnion((ushort)GameMessageType.VersusEnd, typeof(VersusEndMessage))]
+[MemoryPackUnion((ushort)GameMessageType.VersusDesk, typeof(VersusDeskMessage))]
+[MemoryPackUnion((ushort)GameMessageType.VersusScore, typeof(VersusScoreMessage))]
 public abstract partial class MultiplayerMessage
 {
     /// <summary>

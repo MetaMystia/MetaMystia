@@ -1,6 +1,6 @@
 # 料理对决
 
-房主 H、客机 C 读同一份存档（需 DLC3），白天同房。脚本名指 `actions/` 下的文件。用例 1–5 在第 1 阶段（骨架）通过（运行时实测，同机两实例）。
+房主 H、客机 C 读同一份存档（需 DLC3），白天同房。脚本名指 `actions/` 下的文件。用例 1–5 在第 1 阶段（骨架）、6–9 在第 2 阶段（对抗）通过（运行时实测，同机两实例）。`versus MODE=desks` 输出本端占桌表（玩家方、Boss 方）、比分与连击。
 
 ## 1 邀请与选队
 
@@ -30,3 +30,26 @@
 
 - 操作：H `mp versus fast`，H 选红队，C 选「暂不参加」；随后 C `console CMD="mp team blue"`。
 - 期望：C 暂不参加时不开局，C 仍在蓝队；C 用命令选队后进入快节奏对局（`challenge=Story_Futo_TempleCuisineCompetition`）。
+
+## 6 占桌与计分
+
+- 操作：开场后 H 给桌 A `serve MODE=good`，C 给桌 B `serve MODE=good`，两位顾客付款离开后两端 `versus MODE=desks`。
+- 期望：H 上菜后 H `player=A`、C `boss=A:<Boss ID>`；C 上菜后反之。付款后 H `earned` 为红队、`bossScore` 为蓝队，C 相反；两队连击分开；顾客离开后两端占桌表清空。
+- 依据：H 日志 `versus: boss side registered`、`Send VersusDeskMessage` 依次为占桌与 `"Team":"None"` 释放；C 对应 `Received`。
+
+## 7 他队的桌
+
+- 操作：H 给桌 A `serve MODE=goodfood`（只上菜，占桌保持）；C `serve MODE=open DESK=A`。再由 C 打开空桌 B 的面板，H 给桌 B `serve MODE=goodfood`。
+- 期望：C 打不开桌 A（`panel=-1`）；H 占下桌 B 时 C 的面板被关闭（`panel=-1`），C 放入的物品退回托盘。房主 `VersusMatch.CanServe(蓝队成员, A)` 为 false。
+
+## 8 结算
+
+- 操作：用例 6 或 7 之后等房主倒计时归零。
+- 期望：结算前 C 收到最终比分；两端结算面板「我方得分」为本队、「对手得分」为他队；两端控制台公告获胜队与比分。
+- 依据：H `Send VersusScoreMessage: {... "Final":true` → C `Received`。
+
+## 9 平局
+
+- 操作：开局后两队都不上菜，等结束。
+- 期望：两端公告平局（双方各 0 分）。
+

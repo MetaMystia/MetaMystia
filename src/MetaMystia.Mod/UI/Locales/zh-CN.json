@@ -396,5 +396,7 @@
     "MpDescTeam": "查看料理对决队伍并选队",
     "VersusTitle": "料理对决",
     "VersusTempoItem": "节奏：{0}",
-    "ArgDescVersusTeam": "red、blue、watch、none；房主可用 shuffle 或「名字 队伍」"
+    "ArgDescVersusTeam": "red、blue、watch、none；房主可用 shuffle 或「名字 队伍」",
+    "VersusDraw": "料理对决平局：双方各 {0} 分。",
+    "VersusWinner": "料理对决{0}获胜：红队 {1}，蓝队 {2}。"
 }

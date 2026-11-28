@@ -58,6 +58,7 @@ public static class PatchRegistry
         typeof(YuyukoMainLoopPatch),
         typeof(MausoleumBossDataPatch),
         typeof(MausoleumMainLoopPatch),
+        typeof(PartnerManagerPatch),
         typeof(YuyukoTimingPatch),
         typeof(YuyukoPhase3GuestSpawnPatch),
         typeof(YuyukoLockCookersPatch),

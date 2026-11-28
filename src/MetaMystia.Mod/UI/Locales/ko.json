@@ -396,5 +396,7 @@
     "MpDescTeam": "요리 대결 팀 확인 및 선택",
     "VersusTitle": "요리 대결",
     "VersusTempoItem": "속도: {0}",
-    "ArgDescVersusTeam": "red, blue, watch, none; 호스트는 shuffle 또는 <이름> <팀> 사용 가능"
+    "ArgDescVersusTeam": "red, blue, watch, none; 호스트는 shuffle 또는 <이름> <팀> 사용 가능",
+    "VersusDraw": "요리 대결 무승부: 양 팀 모두 {0}점.",
+    "VersusWinner": "요리 대결 {0} 승리: 레드 {1}, 블루 {2}."
 }

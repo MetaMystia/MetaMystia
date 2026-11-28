@@ -486,6 +486,8 @@ public enum TextId
     VersusTitle,
     VersusTempoItem,
     ArgDescVersusTeam,
+    VersusDraw,
+    VersusWinner,
 }
 
 public static class L10n

@@ -51,7 +51,8 @@ public partial class GuestStatsMessage : MultiplayerMessage
             guest.Stats = stats;
             if (guest.Controller is { } controller && controller.HaveNotLeft()) ApplyTo(controller, stats);
         }
-        if (!HasCombo) return;
+        // 料理对决的连击按队经比分消息下发。
+        if (!HasCombo || VersusManager.IsActive) return;
         var events = EventManager.Instance;
         events.CurrentCombo = Combo;
         events.LoseComboTimes = LoseComboTimes;

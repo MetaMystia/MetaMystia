@@ -127,7 +127,8 @@ public static class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void FundEdit_Postfix(float value, EventManager.MathOperation mathOperation)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        // 料理对决两队分开计分，经比分消息下发。
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers || VersusManager.IsActive) return;
         if (GameSession.IsRoomHost)
         {
             FundEditMessage.Send(value, mathOperation);
@@ -159,7 +160,7 @@ public static class NightSceneEventManagerPatch
     [HarmonyPostfix]
     public static void TipEdit_Postfix(int value, EventManager.ServeType serveType, float comboBuff, float moodBuff, float extraBuff)
     {
-        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return;
+        if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers || VersusManager.IsActive) return;
         if (GameSession.IsRoomHost)
         {
             TipEditMessage.Send(value, serveType, comboBuff, moodBuff, extraBuff);

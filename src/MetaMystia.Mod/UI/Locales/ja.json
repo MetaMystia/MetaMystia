@@ -396,5 +396,7 @@
     "MpDescTeam": "料理対決のチームを表示して選ぶ",
     "VersusTitle": "料理対決",
     "VersusTempoItem": "ペース：{0}",
-    "ArgDescVersusTeam": "red、blue、watch、none。ホストは shuffle または「名前 チーム」も可"
+    "ArgDescVersusTeam": "red、blue、watch、none。ホストは shuffle または「名前 チーム」も可",
+    "VersusDraw": "料理対決は引き分け：両チーム {0} 点。",
+    "VersusWinner": "料理対決は{0}の勝ち：赤 {1}、青 {2}。"
 }
