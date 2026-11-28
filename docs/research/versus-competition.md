@@ -1,6 +1,6 @@
 # 料理对决（分队对抗）设计
 
-基线：游戏 4.4.0e，模组 `f06a074`。原版依据为逆向仓库、4.4.0e IDA 与 DLC3 资源数据；未实现，未经游戏实测。
+基线：游戏 4.4.0e，模组 `f06a074`。原版依据为逆向仓库、4.4.0e IDA 与 DLC3 资源数据。第 1 阶段已实现并实测，用例见 `tests/runtime/cases/versus.md`；其余阶段未实现。
 
 在神灵庙料理大赛的比赛场景里，房间成员分红、蓝两队对抗，去掉原版 Boss。剧情中的料理大赛不变，联机时仍按未接入同步的入口退房。
 
@@ -114,9 +114,9 @@
 ## 待核实
 
 - 联动交互点所在地图与可用时机。
-- 比赛地图桌数。
 - 旁观需要拦截的全部交互入口（夜间 `WorkScenePlayerInputGenerator.Interact` 之外的面板快捷入口）。
 - 挑战内临时外观能否用现有皮肤同步表达。
 - 比赛中 QTE 增益的来源。
-- `StartChallengeSession` 直接调用时 `Il2CppSystem.Nullable<int>` 参数的运行时表现（Hook 已知不可用）。
-- 主循环在状态 3 停留的方式（`MoveNext` 前缀不执行原函数并返回 true）。
+- 伙伴选择面板仍显示原 Boss 的名字、头像与属性（面板取 `PartnerBossInfo`），第 3 阶段需替换或隐藏。
+
+已核实：比赛地图 8 桌（0–7）；直接调用 `StartChallengeSession` 传空 `Il2CppSystem.Nullable<int>` 正常；状态 3 前缀跳过原函数可停住主循环；进入前必须关闭白天常驻面板之上的面板，否则 `LoadScene` 抛异常并停在加载。

@@ -56,6 +56,9 @@ namespace MetaMystia.Multiplayer.Messages;
 [MemoryPackUnion((ushort)GameMessageType.Emote, typeof(EmoteMessage))]
 [MemoryPackUnion((ushort)GameMessageType.TimeStopRequest, typeof(TimeStopRequestMessage))]
 [MemoryPackUnion((ushort)GameMessageType.TimeStopState, typeof(TimeStopStateMessage))]
+[MemoryPackUnion((ushort)GameMessageType.VersusState, typeof(VersusStateMessage))]
+[MemoryPackUnion((ushort)GameMessageType.VersusChoice, typeof(VersusChoiceMessage))]
+[MemoryPackUnion((ushort)GameMessageType.VersusEnd, typeof(VersusEndMessage))]
 public abstract partial class MultiplayerMessage
 {
     /// <summary>

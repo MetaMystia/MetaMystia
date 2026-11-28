@@ -32,7 +32,12 @@ public static class NightSceneEventManagerPatch
 
     [HarmonyPatch(nameof(EventManager.StartChallengeGuestInstantiateLoop))]
     [HarmonyPrefix]
-    public static bool StartChallengeGuestInstantiateLoop_Prefix() => ShouldSkipGuestLoopWhenFlowRateZero();
+    public static bool StartChallengeGuestInstantiateLoop_Prefix(ref bool includesSpecialGuest)
+    {
+        // 料理对决只刷普客：稀客符卡改动资金，暂无法确定归属哪一队。
+        if (VersusManager.IsActive) includesSpecialGuest = false;
+        return ShouldSkipGuestLoopWhenFlowRateZero();
+    }
 
     private static bool ShouldSkipGuestLoopWhenFlowRateZero()
     {

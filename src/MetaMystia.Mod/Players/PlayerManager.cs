@@ -249,6 +249,7 @@ public static partial class PlayerManager
         if (Peers.TryRemove(uid, out var peer))
         {
             DayDestinationManager.OnPeerLeft(uid);
+            VersusManager.OnPeerLeft(uid);
             Log.Message($"Removed peer '{peer.Id}' (uid={uid})");
             return true;
         }

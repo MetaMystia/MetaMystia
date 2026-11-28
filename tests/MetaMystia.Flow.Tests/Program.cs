@@ -32,6 +32,7 @@ void Setup(bool host = true)
     GameFlow.Destination = DayDestination.None;
     GameFlow.InStory = false;
     DayDestinationManager.ResetSession();
+    VersusRoster.Reset();
     Scopes.EndCoop();
     DayDestinationConfirmMessage.Sent.Clear();
     BusinessStartMessage.Sent.Clear();
@@ -341,4 +342,5 @@ Check(!RoomTimeStop.Intercepts, "没有同房玩家时保留单机时停");
 PlayerPresenceChecks.Run(Check);
 YuyukoPrepChecks.Run(Check);
 CoreChecks.Run(Check);
+VersusChecks.Run(Check);
 Console.WriteLine($"ALL PASS ({checks} assertions; game and transport ports simulated)");

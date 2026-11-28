@@ -24,15 +24,15 @@ public static partial class GameFlow
         bool enteringTrial, bool returningFromTrial)
     {
         bool cooperative = destination != DayDestination.None;
-        bool finalTrial = destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain;
+        bool challenge = destination is DayDestination.FinalTrial or DayDestination.FinalTrialAgain or DayDestination.Versus;
         return target switch
         {
             Scene.WorkScene => (source == Scene.IzakayaPrepScene && destination == DayDestination.Business)
-                || (source == Scene.DayScene && finalTrial && enteringTrial),
+                || (source == Scene.DayScene && challenge && enteringTrial),
             Scene.IzakayaPrepScene => source == Scene.DayScene && destination == DayDestination.Business,
             Scene.ResultScene => !cooperative || source == Scene.WorkScene,
             Scene.DayScene => !cooperative || source == Scene.ResultScene
-                || (source == Scene.WorkScene && finalTrial && returningFromTrial),
+                || (source == Scene.WorkScene && challenge && returningFromTrial),
             _ => !cooperative,
         };
     }
