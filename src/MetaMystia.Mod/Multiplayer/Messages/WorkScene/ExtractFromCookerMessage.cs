@@ -23,6 +23,7 @@ public partial class ExtractFromCookerMessage : MultiplayerMessage
             return;
         }
         CookControllerPatch.Extract_ReversePatch(cookerController, null);
+        VersusMatch.ClearCookerOwner(GridIndex);
     }
 
     public static void Send(int gridIndex) =>

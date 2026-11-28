@@ -270,7 +270,7 @@ public static class VersusManager
     public static bool BeforeLoopStep(MainLoop loop)
     {
         if (!IsActive || !GameSession.IsInRoom) return true;
-        if (loop.__1__state == 3) VersusMatch.Prepare();
+        if (loop.__1__state == 3) VersusMatch.Prepare(loop.__8__1?.partnerProperty.id ?? -1);
         if (loop.__1__state == 3 && BusinessStart.IsWaitingForStart)
         {
             BusinessStart.Wait(static () => { });

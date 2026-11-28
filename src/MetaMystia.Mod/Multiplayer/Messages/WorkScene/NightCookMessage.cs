@@ -43,6 +43,7 @@ public partial class NightCookMessage : MultiplayerMessage
         }
 
         CookControllerPatch.SetCook_ReversePatch(cookerController, food, recipe, false);
+        VersusMatch.SetCookerOwner(GridIndex, SenderUid);
     }
 
     public static void Send(int gridIndex, SellableFood food, int recipeId) =>

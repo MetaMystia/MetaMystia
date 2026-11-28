@@ -46,6 +46,7 @@ public class CookControllerPatch
         var recipeId = recipe.Id;
         SellableFood food = SellableFood.FromSellable(thisResult);
         NightCookMessage.Send(gridIndex, food, recipeId);
+        VersusMatch.SetCookerOwner(gridIndex, PlayerManager.Local.Uid);
     }
 
     [HarmonyPatch(nameof(CookController.Extract))]
@@ -62,6 +63,7 @@ public class CookControllerPatch
         if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         ExtractFromCookerMessage.Send(gridIndex);
+        VersusMatch.ClearCookerOwner(gridIndex);
     }
 
     [HarmonyPatch(nameof(CookController.Store))]
@@ -76,6 +78,7 @@ public class CookControllerPatch
         if (GameFlow.ShouldSkipAction) return;
         var gridIndex = __instance.GridIndex;
         StoreSellableMessage.Send(gridIndex, value);
+        VersusMatch.SetCookerOwner(gridIndex, PlayerManager.Local.Uid);
     }
 
 

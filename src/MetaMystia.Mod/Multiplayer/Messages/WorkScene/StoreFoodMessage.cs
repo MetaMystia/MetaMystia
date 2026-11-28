@@ -18,6 +18,8 @@ public partial class StoreFoodMessage : MultiplayerMessage
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
+        // 料理对决的保温箱按队隔离。
+        if (!VersusMatch.SameSide(SenderUid)) return;
         IzakayaConfigurePatch.StoreFood_Original(Food.ToSellable());
         WorkSceneStoragePannelPatch.instanceRef?.UpdateFoodField();
         WorkSceneStoragePannelPatch.instanceRef?.m_FoodsGroup?.UpdateElements();

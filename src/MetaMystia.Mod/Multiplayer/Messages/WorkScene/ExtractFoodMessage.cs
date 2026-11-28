@@ -20,6 +20,7 @@ public partial class ExtractFoodMessage : MultiplayerMessage
     [CheckScene(Common.UI.Scene.WorkScene)]
     public override void OnReceivedDerived()
     {
+        if (!VersusMatch.SameSide(SenderUid)) return;
         IzakayaConfigure.Instance?.RemoveStoredFood(Food.GetFromLocal());
         WorkSceneStoragePannelPatch.instanceRef?.UpdateFoodField();
         WorkSceneStoragePannelPatch.instanceRef?.m_FoodsGroup?.UpdateElements();

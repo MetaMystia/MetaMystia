@@ -36,6 +36,8 @@ public partial class PlayerRepellMessage : MultiplayerMessage
         }
         var manager = GuestsManager.Instance;
         var events = EventManager.Instance;
+        // 料理对决：断连击与付款记在赶客者的队。
+        using var credit = VersusMatch.Credit(VersusRoster.TeamOf(SenderUid));
         if (Branch == RepelBranch.Normal)
         {
             events.PassionEdit(-10f);

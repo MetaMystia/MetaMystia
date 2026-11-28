@@ -34,6 +34,8 @@ public static class CookSystemManagerPatch
             }
             CookControllerPatch.Extract_ReversePatch(cooker, null);
         }
+        // 料理对决中他队开火或存放的成品不能取出，也不能在其上交换存放（原版调用方先取出再放入托盘或交换）。
+        if (cooker.Result != null && !VersusMatch.CanExtract(cooker.GridIndex)) return SkipOriginal;
         return RunOriginal;
     }
 }

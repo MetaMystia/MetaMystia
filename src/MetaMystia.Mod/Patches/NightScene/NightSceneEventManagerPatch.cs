@@ -107,10 +107,11 @@ public static class NightSceneEventManagerPatch
 
     [HarmonyPatch(nameof(EventManager.FundEdit))]
     [HarmonyPrefix]
-    public static bool FundEdit_Prefix()
+    public static bool FundEdit_Prefix(float value, EventManager.MathOperation mathOperation)
     {
         if (GameFlow.ShouldSkipAction || !GameSession.HasRoomPeers) return RunOriginal;
-        if (GameSession.IsRoomHost) return RunOriginal;
+        if (GameSession.IsRoomHost)
+            return mathOperation == EventManager.MathOperation.Add && VersusMatch.RedirectFund(value) ? SkipOriginal : RunOriginal;
         if (GameSession.IsRoomClient) return SkipOriginal;
         return RunOriginal;
     }
